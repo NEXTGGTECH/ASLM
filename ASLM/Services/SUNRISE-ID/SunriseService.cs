@@ -26,6 +26,12 @@ namespace ASLM.Services.Sunrise
         private const int CallbackConnectionLimit = 8;
         private static readonly TimeSpan CallbackTimeout = TimeSpan.FromMinutes(5);
 
+        /// <summary>
+        /// Branded loopback host for the one-time auth callback.
+        /// SUNRISE redirects here; listener accepts only this exact Host header.
+        /// </summary>
+        private const string CallbackHostName = "aslm.nextggtech.localhost";
+
         private const string DomainsFileName = "SUNRISE_Domains.json";
         private const string UrlsFileName = "SUNRISE_URLs.json";
         private const string TokensFileName = "SUNRISE_Tokens.json";
@@ -273,7 +279,7 @@ namespace ASLM.Services.Sunrise
             if (!IsValidLoopbackRedirectUri(redirectUri))
             {
                 throw new ArgumentException(
-                    "The SUNRISE callback must use the fixed /sunrise-auth/ path on an IPv4 loopback port.",
+                    $"The SUNRISE callback must use the fixed /sunrise-auth/ path on {CallbackHostName}.",
                     nameof(redirectUri));
             }
 
@@ -487,9 +493,9 @@ namespace ASLM.Services.Sunrise
         // ASLM account integration
 
         /// <summary>
-        /// Opens the SUNRISE authorization page and receives its JWT pair through a temporary
-        /// IPv4 loopback listener. Tokens are accepted only in a form-encoded POST body with
-        /// the cryptographically random state generated for this attempt.
+        /// Opens SUNRISE auth page and receives tokens via a temporary loopback listener.
+        /// Binds to 127.0.0.1 but accepts only the exact branded Host header.
+        /// Tokens arrive in a state-protected form POST.
         /// </summary>
         public async Task<SunriseAppAuthenticationResult> AuthenticateApplicationAsync(
             CancellationToken ct = default)
@@ -508,7 +514,7 @@ namespace ASLM.Services.Sunrise
                 listener.Start(1);
 
                 var localEndpoint = (IPEndPoint)listener.LocalEndpoint;
-                var redirectUri = new Uri($"http://127.0.0.1:{localEndpoint.Port}/sunrise-auth/");
+                var redirectUri = new Uri($"http://{CallbackHostName}:{localEndpoint.Port}/sunrise-auth/");
                 var authenticationUri = GetApplicationAuthenticationUri(redirectUri, state);
                 var authenticationSuccessUri = GetApplicationAuthenticationSuccessUri();
 
@@ -1037,6 +1043,9 @@ namespace ASLM.Services.Sunrise
                     continue;
                 }
 
+                // Bind on 127.0.0.1. Accept only the exact branded Host so the browser
+                // must have followed the intended redirect and other names are rejected.
+
                 try
                 {
                     var request = await ReadCallbackRequestAsync(client.GetStream(), ct);
@@ -1046,7 +1055,7 @@ namespace ASLM.Services.Sunrise
                         request.Target,
                         request.Headers,
                         request.Body,
-                        $"127.0.0.1:{callbackPort}");
+                        $"{CallbackHostName}:{callbackPort}");
                     if (!StateMatches(expectedState, payload.State))
                     {
                         throw new InvalidDataException("The callback state did not match the authorization attempt.");
@@ -1191,7 +1200,7 @@ namespace ASLM.Services.Sunrise
             if (!headers.TryGetValue("Host", out var host) ||
                 !string.Equals(host, expectedHost, StringComparison.Ordinal))
             {
-                throw new InvalidDataException("The callback host was invalid.");
+                throw new InvalidDataException($"The callback Host header must be exactly '{expectedHost}'.");
             }
 
             if (!headers.TryGetValue("Content-Type", out var contentType) ||
@@ -1346,9 +1355,9 @@ namespace ASLM.Services.Sunrise
         private static bool IsValidLoopbackRedirectUri(Uri redirectUri) =>
             redirectUri.IsAbsoluteUri &&
             string.Equals(redirectUri.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal) &&
-            string.Equals(redirectUri.Host, "127.0.0.1", StringComparison.Ordinal) &&
+            string.Equals(redirectUri.Host, CallbackHostName, StringComparison.Ordinal) &&
             redirectUri.Port is >= 1024 and <= 65535 &&
-            string.Equals(redirectUri.Authority, $"127.0.0.1:{redirectUri.Port}", StringComparison.Ordinal) &&
+            string.Equals(redirectUri.Authority, $"{CallbackHostName}:{redirectUri.Port}", StringComparison.Ordinal) &&
             string.Equals(redirectUri.AbsolutePath, "/sunrise-auth/", StringComparison.Ordinal) &&
             string.IsNullOrEmpty(redirectUri.Query) &&
             string.IsNullOrEmpty(redirectUri.Fragment) &&
