@@ -1395,4 +1395,67 @@
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Dekking</value>
   </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>ASLM-account</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Lokaal account. Profielgegevens worden alleen op dit apparaat opgeslagen.</value>
+  </data>
+  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
+    <value>Cloudaccount verbonden als {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Cloudaccount gebruiken</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Lokaal account gebruiken</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>Wachten totdat u zich via uw browser aanmeldt...</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Overschakelen naar een lokaal account?</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>De SUNRISE-aanmeldgegevens worden van dit apparaat verwijderd. Uw lokale ASLM-profiel blijft beschikbaar.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Lokaal account gebruiken</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Aanmelden bij cloudaccount mislukt: {0}</value>
+  </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>Kies een accounttype</value>
+  </data>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Lokaal account</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>Bewaar uw ASLM-profiel alleen op dit apparaat.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>Cloudaccount</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>Meld u aan met SUNRISE en synchroniseer uw ASLM-profiel.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>Aanmelden met SUNRISE</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>Wachten totdat u zich via uw browser aanmeldt...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Meld u via uw browser aan om door te gaan.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>Verbonden als {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Voltooi de aanmelding bij SUNRISE voordat u doorgaat.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Aanmelden bij cloudaccount mislukt: {0}</value>
+  </data>
 </root>

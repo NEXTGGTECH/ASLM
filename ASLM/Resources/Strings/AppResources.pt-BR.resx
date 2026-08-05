@@ -1395,4 +1395,67 @@
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Opacidade</value>
   </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>Conta ASLM</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Conta local. Os dados do perfil ficam armazenados apenas neste dispositivo.</value>
+  </data>
+  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
+    <value>Conta na nuvem conectada como {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Usar conta na nuvem</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Usar conta local</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>Aguardando você entrar pelo navegador...</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Mudar para uma conta local?</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>As credenciais do SUNRISE serão removidas deste dispositivo. Seu perfil local do ASLM continuará disponível.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Usar conta local</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Falha ao entrar na conta na nuvem: {0}</value>
+  </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>Escolha um tipo de conta</value>
+  </data>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Conta local</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>Mantenha seu perfil do ASLM apenas neste dispositivo.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>Conta na nuvem</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>Entre com o SUNRISE e sincronize seu perfil do ASLM.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>Entrar com o SUNRISE</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>Aguardando você entrar pelo navegador...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Entre pelo navegador para continuar.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>Conectado como {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Conclua o login no SUNRISE antes de continuar.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Falha ao entrar na conta na nuvem: {0}</value>
+  </data>
 </root>

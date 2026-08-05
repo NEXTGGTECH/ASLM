@@ -1395,4 +1395,67 @@
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>الشفافية</value>
   </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>حساب ASLM</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>حساب محلي. تُخزَّن بيانات الملف الشخصي على هذا الجهاز فقط.</value>
+  </data>
+  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
+    <value>تم ربط الحساب السحابي باسم {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>استخدام حساب سحابي</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>استخدام حساب محلي</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>في انتظار تسجيل الدخول عبر المتصفح...</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>التبديل إلى حساب محلي؟</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>ستُحذف بيانات اعتماد SUNRISE من هذا الجهاز. وسيظل ملف ASLM المحلي متاحًا.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>استخدام الحساب المحلي</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>فشل تسجيل الدخول إلى الحساب السحابي: {0}</value>
+  </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>اختر نوع الحساب</value>
+  </data>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>حساب محلي</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>احتفظ بملف ASLM الشخصي الخاص بك على هذا الجهاز فقط.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>حساب سحابي</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>سجّل الدخول باستخدام SUNRISE وقم بمزامنة ملف ASLM الشخصي.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>تسجيل الدخول باستخدام SUNRISE</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>في انتظار تسجيل الدخول عبر المتصفح...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>سجّل الدخول عبر المتصفح للمتابعة.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>تم الاتصال باسم {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>أكمل تسجيل الدخول إلى SUNRISE قبل المتابعة.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>فشل تسجيل الدخول إلى الحساب السحابي: {0}</value>
+  </data>
 </root>

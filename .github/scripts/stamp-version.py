@@ -1,3 +1,5 @@
+# Copyright NEXTGGTECH. Apache License 2.0.
+
 #!/usr/bin/env python3
 # Stamp the release version into every app's csproj.
 # Usage: stamp-version.py <display G.S.Z> <appversion W> <full G.S.Z.W>
@@ -7,14 +9,14 @@ import sys
 # MAUI apps: ApplicationDisplayVersion (G.S.Z) + ApplicationVersion (W).
 MAUI_PROJECTS = [
     "ASLM/ASLM.csproj",
-    "ASLM/Patcher/Patcher.csproj",
-    "ASLM/Installer/Installer/Installer.csproj",
+    "ASLM/Patcher/Patcher/ASLM.Patcher.csproj",
+    "ASLM/Installer/Installer/ASLM.Installer.csproj",
 ]
 # Non-MAUI console/WinExe apps: standard assembly version fields (full G.S.Z.W).
 NONMAUI_PROJECTS = [
-    "ASLM/Launcher/Launcher.csproj",
-    "ASLM/Installer/Installer-Bootstrapper/Installer-Bootstrapper.csproj",
-    "ASLM/Patcher/Patcher-Cli/Patcher-Cli.csproj",
+    "ASLM/Launcher/ASLM.Launcher.csproj",
+    "ASLM/Installer/Installer-Bootstrapper/ASLM.Installer.Bootstrapper.csproj",
+    "ASLM/Patcher/Patcher-CLI/ASLM.Patcher.CLI.csproj",
 ]
 
 

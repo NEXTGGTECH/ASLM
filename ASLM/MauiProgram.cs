@@ -1,7 +1,6 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using ASLM.Pages;
-using ASLM.Services;
 using Microsoft.Extensions.Logging;
 #if WINDOWS
 using Microsoft.Maui.Handlers;
@@ -77,10 +76,11 @@ namespace ASLM
             builder.Services.AddSingleton<UpdateScheduler>();
             builder.Services.AddSingleton<ModuleLaunchCoordinator>();
             builder.Services.AddSingleton<AslmModuleInteropServer>();
-            builder.Services.AddSingleton<AslmApiServer>();
+            builder.Services.AddSingleton<AslmMirrorServer>();
             builder.Services.AddSingleton<SettingsService>();
             builder.Services.AddSingleton<CustomThemesStore>();
             builder.Services.AddSingleton<ThemeService>();
+            builder.Services.AddSingleton<SunriseService>();
 
             // Page registrations
             builder.Services.AddTransient<AppShellPage>();

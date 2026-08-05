@@ -1395,4 +1395,67 @@
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Deckkraft</value>
   </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>ASLM-Konto</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Lokales Konto. Profildaten werden nur auf diesem Gerät gespeichert.</value>
+  </data>
+  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
+    <value>Cloud-Konto verbunden als {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Cloud-Konto verwenden</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Lokales Konto verwenden</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>Warten auf die Anmeldung im Browser...</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Zum lokalen Konto wechseln?</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>Die SUNRISE-Anmeldedaten werden von diesem Gerät entfernt. Ihr lokales ASLM-Profil bleibt verfügbar.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Lokales Konto verwenden</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Anmeldung beim Cloud-Konto fehlgeschlagen: {0}</value>
+  </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>Kontotyp auswählen</value>
+  </data>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Lokales Konto</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>Ihr ASLM-Profil nur auf diesem Gerät speichern.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>Cloud-Konto</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>Mit SUNRISE anmelden und Ihr ASLM-Profil synchronisieren.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>Mit SUNRISE anmelden</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>Warten auf die Anmeldung im Browser...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Melden Sie sich im Browser an, um fortzufahren.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>Verbunden als {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Schließen Sie die SUNRISE-Anmeldung ab, bevor Sie fortfahren.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Anmeldung beim Cloud-Konto fehlgeschlagen: {0}</value>
+  </data>
 </root>

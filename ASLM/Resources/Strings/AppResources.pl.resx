@@ -1395,4 +1395,67 @@
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Krycie</value>
   </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>Konto ASLM</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Konto lokalne. Dane profilu są przechowywane tylko na tym urządzeniu.</value>
+  </data>
+  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
+    <value>Konto w chmurze połączone jako {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Użyj konta w chmurze</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Użyj konta lokalnego</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>Oczekiwanie na zalogowanie się w przeglądarce...</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Przełączyć na konto lokalne?</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>Dane logowania SUNRISE zostaną usunięte z tego urządzenia. Lokalny profil ASLM pozostanie dostępny.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Użyj konta lokalnego</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Logowanie do konta w chmurze nie powiodło się: {0}</value>
+  </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>Wybierz typ konta</value>
+  </data>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Konto lokalne</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>Przechowuj swój profil ASLM tylko na tym urządzeniu.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>Konto w chmurze</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>Zaloguj się przez SUNRISE i zsynchronizuj swój profil ASLM.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>Zaloguj się przez SUNRISE</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>Oczekiwanie na zalogowanie się w przeglądarce...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Zaloguj się w przeglądarce, aby kontynuować.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>Połączono jako {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Dokończ logowanie przez SUNRISE, zanim przejdziesz dalej.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Logowanie do konta w chmurze nie powiodło się: {0}</value>
+  </data>
 </root>

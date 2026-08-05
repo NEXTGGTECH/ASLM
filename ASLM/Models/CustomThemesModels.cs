@@ -1,7 +1,6 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Text.Json.Serialization;
-using ASLM.Services;
 
 namespace ASLM.Models
 {

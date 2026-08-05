@@ -1,7 +1,9 @@
 {
     "firstRunCompleted": false,
     "user": {
-        "name": ""
+        "accountMode": "Cloud",
+        "name": "",
+        "localName": ""
     },
     "ports": {
         "modulesStart": 20000

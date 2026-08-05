@@ -1,4 +1,4 @@
-<!-- Copyright NGGT.LightKeeper. All Rights Reserved. -->
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
@@ -102,6 +102,11 @@
                         <VerticalStackLayout x:Name="AslmSettingsContainer"
                                              Spacing="0"
                                              IsVisible="False">
+                            <VerticalStackLayout x:Name="AccountModeSection"
+                                                 Spacing="8"
+                                                 Margin="0,0,0,16"
+                                                 IsVisible="False" />
+
                             <VerticalStackLayout x:Name="UserProfileSection" Spacing="8">
                                 <Label x:Name="DisplayNameTitleLabel"
                                        Text="Display Name"

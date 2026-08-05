@@ -1,10 +1,9 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ASLM.Localization;
 using ASLM.Models;
-using ASLM.Services;
 using Microsoft.Maui.Controls.Shapes;
 
 namespace ASLM.Pages
@@ -37,7 +36,7 @@ namespace ASLM.Pages
         private readonly NotificationCenter _notifications;
         private readonly UpdateManager _updateManager;
         private readonly ModuleTrustService _moduleTrustService;
-        private readonly AslmApiServer _apiServer;
+        private readonly AslmMirrorServer _mirrorServer;
         private readonly ModuleStartThrottle _moduleStartThrottle;
         private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
         private readonly SettingsService _settingsService;
@@ -80,7 +79,7 @@ namespace ASLM.Pages
             NotificationCenter notifications,
             UpdateManager updateManager,
             ModuleTrustService moduleTrustService,
-            AslmApiServer apiServer,
+            AslmMirrorServer mirrorServer,
             ModuleStartThrottle moduleStartThrottle,
             ModuleLaunchCoordinator moduleLaunchCoordinator,
             SettingsService settingsService,
@@ -95,7 +94,7 @@ namespace ASLM.Pages
             _notifications = notifications;
             _updateManager = updateManager;
             _moduleTrustService = moduleTrustService;
-            _apiServer = apiServer;
+            _mirrorServer = mirrorServer;
             _moduleStartThrottle = moduleStartThrottle;
             _moduleLaunchCoordinator = moduleLaunchCoordinator;
             _settingsService = settingsService;
@@ -206,7 +205,7 @@ namespace ASLM.Pages
 
             _notifications.NotificationPublished += OnNotificationPublished;
             _notifications.UpdateNotificationActionRequested += OnUpdateNotificationActionRequested;
-            _apiServer.StateChanged += OnApiServerStateChanged;
+            _mirrorServer.StateChanged += OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged += OnModulesChanged;
             _ports.PortsRedistributed += OnPortsRedistributed;
             ThemeService.PaletteApplied += OnAppPaletteApplied;
@@ -225,7 +224,7 @@ namespace ASLM.Pages
 
             _notifications.NotificationPublished -= OnNotificationPublished;
             _notifications.UpdateNotificationActionRequested -= OnUpdateNotificationActionRequested;
-            _apiServer.StateChanged -= OnApiServerStateChanged;
+            _mirrorServer.StateChanged -= OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged -= OnModulesChanged;
             _ports.PortsRedistributed -= OnPortsRedistributed;
             ThemeService.PaletteApplied -= OnAppPaletteApplied;
@@ -389,7 +388,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Refreshes ASLM API sidebar visibility when the server setting changes.
         /// </summary>
-        private void OnApiServerStateChanged(object? sender, EventArgs e)
+        private void OnMirrorServerStateChanged(object? sender, EventArgs e)
         {
             MainThread.BeginInvokeOnMainThread(ApplyAslmApiNavigationState);
         }
@@ -399,7 +398,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ApplyAslmApiNavigationState()
         {
-            var isVisible = _apiServer.IsEnabled;
+            var isVisible = _mirrorServer.IsEnabled;
             AslmApiButton.IsVisible = isVisible;
 
             if (!isVisible && _activeNavButton == AslmApiButton)

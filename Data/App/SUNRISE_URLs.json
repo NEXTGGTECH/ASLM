@@ -1,0 +1,45 @@
+{
+  "fileVersion": 1,
+  "urls": [
+    {
+      "name": "API_Singup",
+      "url": "api/id/signup/",
+      "domainType": "NGGT_OSS"
+    },
+    {
+      "name": "JWT_Auth",
+      "url": "api/id/token/",
+      "domainType": "NGGT_OSS"
+    },
+    {
+      "name": "JWT_Refresh",
+      "url": "api/id/token/refresh/",
+      "domainType": "NGGT_OSS"
+    },
+    {
+      "name": "JWT_Verify",
+      "url": "api/id/token/verify/",
+      "domainType": "NGGT_OSS"
+    },
+    {
+      "name": "WEB_PasswordRecovery",
+      "url": "id/",
+      "domainType": "NGGT_OSS"
+    },
+    {
+      "name": "WEB_AuthApp",
+      "url": "id/authapp/",
+      "domainType": "NGGT_OSS"
+    },
+    {
+      "name": "API_AslmGetUserData",
+      "url": "api/aslm/getuserdata/",
+      "domainType": "NGGT_OSS"
+    },
+    {
+      "name": "API_AslmCreateProfile",
+      "url": "api/aslm/createprofile/",
+      "domainType": "NGGT_OSS"
+    }
+  ]
+}

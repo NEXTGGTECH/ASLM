@@ -1,4 +1,4 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -10,7 +10,6 @@ using System.Text.RegularExpressions;
 using System.Windows.Input;
 using ASLM.Localization;
 using ASLM.Models;
-using ASLM.Services;
 
 namespace ASLM.Pages
 {

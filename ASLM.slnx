@@ -13,30 +13,30 @@
     <Build Solution="Release|ARM64" Project="false" />
     <BuildDependency Project="ASLM/ASLM.csproj" />
   </Project>
-  <Project Path="ASLM/Installer/Installer/Installer.csproj">
+  <Project Path="ASLM/Installer/Installer/ASLM.Installer.csproj">
     <Platform Solution="*|AMD64" Project="x64" />
     <Platform Solution="*|ARM64" Project="ARM64" />
-    <BuildDependency Project="ASLM/Launcher/Launcher.csproj" />
+    <BuildDependency Project="ASLM/Launcher/ASLM.Launcher.csproj" />
   </Project>
-  <Project Path="ASLM/Installer/Installer-Bootstrapper/Installer-Bootstrapper.csproj">
+  <Project Path="ASLM/Installer/Installer-Bootstrapper/ASLM.Installer.Bootstrapper.csproj">
     <Platform Solution="*|AMD64" Project="x64" />
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Build Solution="Debug|AMD64" Project="false" />
     <Build Solution="Debug|ARM64" Project="false" />
-    <BuildDependency Project="ASLM/Installer/Installer/Installer.csproj" />
+    <BuildDependency Project="ASLM/Installer/Installer/ASLM.Installer.csproj" />
   </Project>
-  <Project Path="ASLM/Patcher/Patcher.csproj">
+  <Project Path="ASLM/Patcher/Patcher/ASLM.Patcher.csproj">
     <Platform Solution="*|AMD64" Project="x64" />
     <Platform Solution="*|ARM64" Project="ARM64" />
   </Project>
-  <Project Path="ASLM/Patcher/Patcher-Cli/Patcher-Cli.csproj">
+  <Project Path="ASLM/Patcher/Patcher-CLI/ASLM.Patcher.CLI.csproj">
     <Platform Solution="*|AMD64" Project="AnyCPU" />
     <Platform Solution="*|ARM64" Project="AnyCPU" />
   </Project>
-  <Project Path="ASLM/Launcher/Launcher.csproj" Id="ea771c0c-e673-4e08-9116-326070460555">
+  <Project Path="ASLM/Launcher/ASLM.Launcher.csproj" Id="ea771c0c-e673-4e08-9116-326070460555">
     <Platform Solution="*|AMD64" Project="x64" />
     <Platform Solution="*|ARM64" Project="ARM64" />
     <BuildDependency Project="ASLM/ASLM.csproj" />
-    <BuildDependency Project="ASLM/Patcher/Patcher.csproj" />
+    <BuildDependency Project="ASLM/Patcher/Patcher/ASLM.Patcher.csproj" />
   </Project>
 </Solution>

@@ -2500,6 +2500,96 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Cloud account sign-in failed: {0}.
+        /// </summary>
+        public static string Settings_AslmAccount_AuthenticationFailed {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_AuthenticationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Cloud account connected as {0}.
+        /// </summary>
+        public static string Settings_AslmAccount_CloudStatus {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_CloudStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Waiting for you to sign in through your browser....
+        /// </summary>
+        public static string Settings_AslmAccount_Connecting {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_Connecting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Local account. Profile data is stored only on this device..
+        /// </summary>
+        public static string Settings_AslmAccount_LocalStatus {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_LocalStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Use cloud account.
+        /// </summary>
+        public static string Settings_AslmAccount_SwitchToCloud {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_SwitchToCloud", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Use local account.
+        /// </summary>
+        public static string Settings_AslmAccount_SwitchToLocal {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_SwitchToLocal", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Use local account.
+        /// </summary>
+        public static string Settings_AslmAccount_SwitchToLocalConfirm {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_SwitchToLocalConfirm", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на SUNRISE credentials will be removed from this device. Your local ASLM profile will remain available..
+        /// </summary>
+        public static string Settings_AslmAccount_SwitchToLocalMessage {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_SwitchToLocalMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Switch to local account?.
+        /// </summary>
+        public static string Settings_AslmAccount_SwitchToLocalTitle {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_SwitchToLocalTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на ASLM Account.
+        /// </summary>
+        public static string Settings_AslmAccount_Title {
+            get {
+                return ResourceManager.GetString("Settings_AslmAccount_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Hours between background update checks.
         /// </summary>
         public static string Settings_AutoCheckPeriod_Description {
@@ -3924,11 +4014,92 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Choose an account type.
+        /// </summary>
+        public static string SetupWizard_AccountTypeTitle {
+            get {
+                return ResourceManager.GetString("SetupWizard_AccountTypeTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Installation canceled..
         /// </summary>
         public static string SetupWizard_Canceled {
             get {
                 return ResourceManager.GetString("SetupWizard_Canceled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Cloud account.
+        /// </summary>
+        public static string SetupWizard_CloudAccount {
+            get {
+                return ResourceManager.GetString("SetupWizard_CloudAccount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Sign in with SUNRISE.
+        /// </summary>
+        public static string SetupWizard_CloudAccountAction {
+            get {
+                return ResourceManager.GetString("SetupWizard_CloudAccountAction", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Cloud account sign-in failed: {0}.
+        /// </summary>
+        public static string SetupWizard_CloudAccountAuthenticationFailed {
+            get {
+                return ResourceManager.GetString("SetupWizard_CloudAccountAuthenticationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Connected as {0}.
+        /// </summary>
+        public static string SetupWizard_CloudAccountConnected {
+            get {
+                return ResourceManager.GetString("SetupWizard_CloudAccountConnected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Waiting for you to sign in through your browser....
+        /// </summary>
+        public static string SetupWizard_CloudAccountConnecting {
+            get {
+                return ResourceManager.GetString("SetupWizard_CloudAccountConnecting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Sign in with SUNRISE and synchronize your ASLM profile..
+        /// </summary>
+        public static string SetupWizard_CloudAccountDescription {
+            get {
+                return ResourceManager.GetString("SetupWizard_CloudAccountDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Sign in through your browser to continue..
+        /// </summary>
+        public static string SetupWizard_CloudAccountNotConnected {
+            get {
+                return ResourceManager.GetString("SetupWizard_CloudAccountNotConnected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Complete SUNRISE sign-in before continuing..
+        /// </summary>
+        public static string SetupWizard_CloudAccountRequired {
+            get {
+                return ResourceManager.GetString("SetupWizard_CloudAccountRequired", resourceCulture);
             }
         }
         
@@ -4001,6 +4172,24 @@ namespace ASLM.Resources.Strings {
         public static string SetupWizard_Installing {
             get {
                 return ResourceManager.GetString("SetupWizard_Installing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Local account.
+        /// </summary>
+        public static string SetupWizard_LocalAccount {
+            get {
+                return ResourceManager.GetString("SetupWizard_LocalAccount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Keep your ASLM profile only on this device..
+        /// </summary>
+        public static string SetupWizard_LocalAccountDescription {
+            get {
+                return ResourceManager.GetString("SetupWizard_LocalAccountDescription", resourceCulture);
             }
         }
         

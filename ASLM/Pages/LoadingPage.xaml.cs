@@ -1,7 +1,6 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using ASLM.Localization;
-using ASLM.Services;
 using Debug = System.Diagnostics.Debug;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,11 +18,12 @@ namespace ASLM.Pages
         private readonly GitHubAccountStore _githubAccountStore;
         private readonly GitHubUpdateClient _githubUpdateClient;
         private readonly UpdateScheduler _updateScheduler;
-        private readonly AslmApiServer _apiServer;
+        private readonly AslmMirrorServer _mirrorServer;
         private readonly AslmModuleInteropServer _moduleInteropServer;
         private readonly ThemeService _themeService;
         private readonly CustomThemesStore _customThemesStore;
         private readonly ModuleTrustService _moduleTrustService;
+        private readonly SunriseService _sunriseService;
         private readonly AppLocalizationService _localization;
         private readonly IServiceProvider _services;
         private bool _initialized;
@@ -42,11 +42,12 @@ namespace ASLM.Pages
             GitHubAccountStore githubAccountStore,
             GitHubUpdateClient githubUpdateClient,
             UpdateScheduler updateScheduler,
-            AslmApiServer apiServer,
+            AslmMirrorServer mirrorServer,
             AslmModuleInteropServer moduleInteropServer,
             ThemeService themeService,
             CustomThemesStore customThemesStore,
             ModuleTrustService moduleTrustService,
+            SunriseService sunriseService,
             AppLocalizationService localization,
             IServiceProvider services)
         {
@@ -58,11 +59,12 @@ namespace ASLM.Pages
             _githubAccountStore = githubAccountStore;
             _githubUpdateClient = githubUpdateClient;
             _updateScheduler = updateScheduler;
-            _apiServer = apiServer;
+            _mirrorServer = mirrorServer;
             _moduleInteropServer = moduleInteropServer;
             _themeService = themeService;
             _customThemesStore = customThemesStore;
             _moduleTrustService = moduleTrustService;
+            _sunriseService = sunriseService;
             _localization = localization;
             _services = services;
             LocalizableAttach.Hook(this, _localization, this);
@@ -93,12 +95,32 @@ namespace ASLM.Pages
 
             _initialized = true;
             await Task.Run(() => _appData.InitializeAsync());
+            await Task.Run(() => _sunriseService.InitializeAsync());
+            try
+            {
+                using var cloudSyncCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                var cloudSync = await _sunriseService.SynchronizeCloudAccountAsync(cloudSyncCts.Token);
+                if (!cloudSync.Success)
+                {
+                    Debug.WriteLine($"SUNRISE cloud-account synchronization failed: {cloudSync.Error}");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Continue with cached account data when SUNRISE is unavailable at startup.
+                Debug.WriteLine("SUNRISE cloud-account synchronization timed out during startup.");
+            }
+            catch (Exception ex)
+            {
+                // A temporary account/network failure must not prevent ASLM from starting.
+                Debug.WriteLine($"SUNRISE cloud-account synchronization failed during startup: {ex.Message}");
+            }
             await Task.Run(() => _legalAcceptance.InitializeAsync());
             _localization.ApplyCulture();
             await Task.Run(() => _moduleTrustService.InitializeAsync());
             await Task.Run(() => _customThemesStore.LoadAsync());
             await Task.Run(() => _notifications.InitializeAsync());
-            await Task.Run(() => _apiServer.StartIfEnabledAsync());
+            await Task.Run(() => _mirrorServer.StartIfEnabledAsync());
             await Task.Run(() => _moduleInteropServer.EnsureStartedAsync());
             await Task.Run(() => _rateLimitStore.InitializeAsync());
             await Task.Run(() => _githubAccountStore.InitializeAsync());

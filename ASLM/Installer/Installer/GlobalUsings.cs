@@ -1,4 +1,4 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 // Shared MAUI namespaces used by generated XAML partials and installer UI code.
 

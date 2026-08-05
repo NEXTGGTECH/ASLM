@@ -1,8 +1,7 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Diagnostics;
 using ASLM.Models;
-using ASLM.Services;
 using ASLM.Tests.TestSupport;
 
 namespace ASLM.Tests.Services;

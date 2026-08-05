@@ -1,4 +1,4 @@
-# Copyright NGGT.LightKeeper. All Rights Reserved.
+# Copyright NEXTGGTECH. Apache License 2.0.
 
 name: Release
 
@@ -367,7 +367,7 @@ jobs:
 
       - name: Build release (Windows; cascades full app + installer bootstrapper)
         if: runner.os == 'Windows'
-        run: dotnet build ASLM/Installer/Installer-Bootstrapper/Installer-Bootstrapper.csproj -c Release -v minimal -p:RuntimeIdentifier=${{ matrix.rid }}
+        run: dotnet build ASLM/Installer/Installer-Bootstrapper/ASLM.Installer.Bootstrapper.csproj -c Release -v minimal -p:RuntimeIdentifier=${{ matrix.rid }}
 
       - name: Package artifacts (Windows)
         if: runner.os == 'Windows'
@@ -420,8 +420,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           set -euo pipefail
-          dotnet publish ASLM/Patcher/Patcher-Cli/Patcher-Cli.csproj -c Release -r osx-x64 -p:SelfContained=true -o out/patcher-x64 -v minimal
-          dotnet publish ASLM/Patcher/Patcher-Cli/Patcher-Cli.csproj -c Release -r osx-arm64 -p:SelfContained=true -o out/patcher-arm64 -v minimal
+          dotnet publish ASLM/Patcher/Patcher-CLI/ASLM.Patcher.CLI.csproj -c Release -r osx-x64 -p:SelfContained=true -o out/patcher-x64 -v minimal
+          dotnet publish ASLM/Patcher/Patcher-CLI/ASLM.Patcher.CLI.csproj -c Release -r osx-arm64 -p:SelfContained=true -o out/patcher-arm64 -v minimal
           mkdir -p "$APP_BUNDLE/Contents/Helpers"
           cp out/patcher-x64/aslm-patcher "$APP_BUNDLE/Contents/Helpers/aslm-patcher-x64"
           cp out/patcher-arm64/aslm-patcher "$APP_BUNDLE/Contents/Helpers/aslm-patcher-arm64"

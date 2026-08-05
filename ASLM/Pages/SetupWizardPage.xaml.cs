@@ -1,4 +1,4 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.ComponentModel;
 using System.Diagnostics;
@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using ASLM.Localization;
 using ASLM.Models;
-using ASLM.Services;
 
 namespace ASLM.Pages
 {
@@ -24,6 +23,7 @@ namespace ASLM.Pages
         private readonly UpdateManager _updateManager;
         private readonly LegalAcceptanceService _legalAcceptance;
         private readonly AppLocalizationService _localization;
+        private readonly SunriseService _sunriseService;
         private readonly IServiceProvider _services;
 
         private readonly List<(ModuleConfig Module, CheckBox Check)> _moduleChecks = [];
@@ -38,6 +38,9 @@ namespace ASLM.Pages
         private int _logFlushQueued;
         private int _logFlushRequested;
         private int _installLogLayoutRefreshQueued;
+        private bool _suppressAccountSelectionEvents;
+        private bool _isAccountActionRunning;
+        private CancellationTokenSource? _accountActionCts;
 
         private long _lastDownloadedBytes;
         private DateTime _lastSpeedUpdate = DateTime.UtcNow;
@@ -56,6 +59,7 @@ namespace ASLM.Pages
             UpdateManager updateManager,
             LegalAcceptanceService legalAcceptance,
             AppLocalizationService localization,
+            SunriseService sunriseService,
             IServiceProvider services)
         {
             _appData = appData;
@@ -65,6 +69,7 @@ namespace ASLM.Pages
             _updateManager = updateManager;
             _legalAcceptance = legalAcceptance;
             _localization = localization;
+            _sunriseService = sunriseService;
             _services = services;
 
             InitializeComponent();
@@ -76,6 +81,12 @@ namespace ASLM.Pages
             UsernameEntry.Text = string.IsNullOrWhiteSpace(existingName)
                 ? Environment.UserName
                 : existingName;
+
+            _suppressAccountSelectionEvents = true;
+            LocalAccountRadioButton.IsChecked = _appData.Data.User.AccountMode == AppAccountMode.Local;
+            CloudAccountRadioButton.IsChecked = _appData.Data.User.AccountMode == AppAccountMode.Cloud;
+            _suppressAccountSelectionEvents = false;
+            UpdateAccountSelectionUI();
 
             ModulePortEntry.Text = _appData.Data.Ports.ModulesStart.ToString();
 
@@ -118,13 +129,249 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnFastSetupClicked(object? sender, EventArgs e)
         {
+            await _sunriseService.SelectLocalAccountAsync();
             _appData.Data.User.Name = Environment.UserName;
+            _appData.Data.User.LocalName = Environment.UserName;
             var defaultPorts = new AppPortConfig();
             _appData.Data.Ports.ModulesStart = defaultPorts.ModulesStart;
             await _appData.SaveAsync();
 
             _currentStep = 3;
             UpdateStepUI();
+        }
+
+        /// <summary>
+        /// Selects the local account card when any empty area inside it is clicked.
+        /// </summary>
+        private void OnLocalAccountCardTapped(object? sender, TappedEventArgs e)
+        {
+            if (!_isAccountActionRunning)
+            {
+                LocalAccountRadioButton.IsChecked = true;
+            }
+        }
+
+        /// <summary>
+        /// Selects the cloud account card and starts browser authorization.
+        /// </summary>
+        private void OnCloudAccountCardTapped(object? sender, TappedEventArgs e)
+        {
+            if (!_isAccountActionRunning)
+            {
+                CloudAccountRadioButton.IsChecked = true;
+            }
+        }
+
+        /// <summary>
+        /// Switches back to the local profile and removes credentials retained for SUNRISE.
+        /// </summary>
+        private async void OnLocalAccountCheckedChanged(object? sender, CheckedChangedEventArgs e)
+        {
+            if (!e.Value || _suppressAccountSelectionEvents || _isAccountActionRunning)
+            {
+                return;
+            }
+
+            try
+            {
+                _isAccountActionRunning = true;
+                UpdateAccountSelectionUI();
+                await _sunriseService.SelectLocalAccountAsync();
+                UsernameEntry.Text = string.IsNullOrWhiteSpace(_appData.Data.User.Name)
+                    ? Environment.UserName
+                    : _appData.Data.User.Name;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SetupWizard] Failed to select local account: {ex}");
+                await DisplayAlertAsync(
+                    L.Get(LocalizationKeys.Settings_AslmAccount_Title),
+                    ex.Message,
+                    L.Get(LocalizationKeys.Common_OK));
+            }
+            finally
+            {
+                _isAccountActionRunning = false;
+                UpdateAccountSelectionUI();
+            }
+        }
+
+        /// <summary>
+        /// Starts browser authorization as soon as the cloud account option is selected.
+        /// </summary>
+        private async void OnCloudAccountCheckedChanged(object? sender, CheckedChangedEventArgs e)
+        {
+            if (!e.Value || _suppressAccountSelectionEvents)
+            {
+                return;
+            }
+
+            UpdateAccountSelectionUI();
+            await AuthenticateCloudAccountAsync();
+        }
+
+        /// <summary>
+        /// Retries browser authorization for the selected cloud account option.
+        /// </summary>
+        private async void OnCloudAccountActionClicked(object? sender, EventArgs e)
+        {
+            if (_isAccountActionRunning)
+            {
+                _accountActionCts?.Cancel();
+                return;
+            }
+
+            if (!CloudAccountRadioButton.IsChecked)
+            {
+                CloudAccountRadioButton.IsChecked = true;
+                return;
+            }
+
+            await AuthenticateCloudAccountAsync();
+        }
+
+        /// <summary>
+        /// Authorizes SUNRISE in the browser and refreshes the wizard account state.
+        /// </summary>
+        private async Task<bool> AuthenticateCloudAccountAsync()
+        {
+            if (_isAccountActionRunning)
+            {
+                return false;
+            }
+
+            var actionCts = new CancellationTokenSource();
+            try
+            {
+                _isAccountActionRunning = true;
+                _accountActionCts = actionCts;
+                UpdateAccountSelectionUI();
+
+                var result = await _sunriseService.AuthenticateApplicationAsync(actionCts.Token);
+                if (actionCts.IsCancellationRequested)
+                {
+                    if (result.Success && _sunriseService.IsCloudAccount)
+                    {
+                        await _sunriseService.SelectLocalAccountAsync();
+                    }
+
+                    return false;
+                }
+
+                if (result.Success)
+                {
+                    UsernameEntry.Text = _appData.Data.User.Name;
+                    UpdateAccountSelectionUI();
+                    return true;
+                }
+
+                var error = string.IsNullOrWhiteSpace(result.Error)
+                    ? L.Get(LocalizationKeys.SetupWizard_CloudAccountRequired)
+                    : result.Error;
+                CloudAccountStatusLabel.Text = L.Get(
+                    LocalizationKeys.SetupWizard_CloudAccountAuthenticationFailed,
+                    error);
+                await DisplayAlertAsync(
+                    L.Get(LocalizationKeys.Settings_AslmAccount_Title),
+                    CloudAccountStatusLabel.Text,
+                    L.Get(LocalizationKeys.Common_OK));
+                return false;
+            }
+            catch (OperationCanceledException) when (actionCts.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SetupWizard] SUNRISE authorization failed: {ex}");
+                CloudAccountStatusLabel.Text = L.Get(
+                    LocalizationKeys.SetupWizard_CloudAccountAuthenticationFailed,
+                    ex.Message);
+                await DisplayAlertAsync(
+                    L.Get(LocalizationKeys.Settings_AslmAccount_Title),
+                    CloudAccountStatusLabel.Text,
+                    L.Get(LocalizationKeys.Common_OK));
+                return false;
+            }
+            finally
+            {
+                var wasCancelled = actionCts.IsCancellationRequested;
+                if (ReferenceEquals(_accountActionCts, actionCts))
+                {
+                    _accountActionCts = null;
+                }
+
+                actionCts.Dispose();
+                _isAccountActionRunning = false;
+                UpdateAccountSelectionUI(preserveFailureStatus: !wasCancelled);
+            }
+        }
+
+        /// <summary>
+        /// Updates account-specific panels, selected-card chrome, and authorization status.
+        /// </summary>
+        private void UpdateAccountSelectionUI(bool preserveFailureStatus = false)
+        {
+            var useCloud = CloudAccountRadioButton.IsChecked;
+            LocalAccountPanel.IsVisible = !useCloud;
+            CloudAccountPanel.IsVisible = useCloud;
+
+            LocalAccountCard.SetDynamicResource(
+                Border.BackgroundColorProperty,
+                useCloud ? "BackgroundSecondary" : "SystemBlueOverlay");
+            LocalAccountCard.SetDynamicResource(
+                Border.StrokeProperty,
+                useCloud ? "Separator" : "ActionBlue");
+            CloudAccountCard.SetDynamicResource(
+                Border.BackgroundColorProperty,
+                useCloud ? "SystemBlueOverlay" : "BackgroundSecondary");
+            CloudAccountCard.SetDynamicResource(
+                Border.StrokeProperty,
+                useCloud ? "ActionBlue" : "Separator");
+            LocalAccountCard.Opacity = useCloud ? 0.72 : 1.0;
+            CloudAccountCard.Opacity = useCloud ? 1.0 : 0.72;
+            LocalAccountRadioButton.IsEnabled = !_isAccountActionRunning;
+            CloudAccountRadioButton.IsEnabled = !_isAccountActionRunning;
+            CloudAccountActionButton.IsEnabled = useCloud;
+            CloudAccountActionButton.IsVisible = useCloud &&
+                (_isAccountActionRunning || !_sunriseService.IsCloudAccount);
+
+            if (_isAccountActionRunning && useCloud)
+            {
+                CloudAccountStatusLabel.Text = L.Get(LocalizationKeys.SetupWizard_CloudAccountConnecting);
+                CloudAccountActionButton.Text = L.Get(LocalizationKeys.Common_Cancel);
+                return;
+            }
+
+            CloudAccountActionButton.Text = L.Get(LocalizationKeys.SetupWizard_CloudAccountAction);
+            if (_sunriseService.IsCloudAccount)
+            {
+                CloudAccountStatusLabel.Text = L.Get(
+                    LocalizationKeys.SetupWizard_CloudAccountConnected,
+                    GetCloudAccountDisplayName(_sunriseService.UserData.Account));
+            }
+            else if (!preserveFailureStatus)
+            {
+                CloudAccountStatusLabel.Text = L.Get(LocalizationKeys.SetupWizard_CloudAccountNotConnected);
+            }
+        }
+
+        /// <summary>
+        /// Resolves the best user-facing name exposed by a SUNRISE account.
+        /// </summary>
+        private static string GetCloudAccountDisplayName(SunriseUserAccount account)
+        {
+            if (!string.IsNullOrWhiteSpace(account.Aslm?.Username))
+            {
+                return account.Aslm.Username;
+            }
+
+            if (!string.IsNullOrWhiteSpace(account.Username))
+            {
+                return account.Username;
+            }
+
+            return account.Email;
         }
 
 
@@ -220,17 +467,31 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnNextClicked(object? sender, EventArgs e)
         {
+            if (_isAccountActionRunning)
+            {
+                return;
+            }
+
             if (_currentStep < TotalSteps)
             {
                 if (_currentStep == 1)
                 {
-                    if (!SettingsService.TryValidateDisplayName(UsernameEntry.Text, out var validatedUserName, out var displayNameErrorMessage))
+                    if (CloudAccountRadioButton.IsChecked)
+                    {
+                        if (!_sunriseService.IsCloudAccount && !await AuthenticateCloudAccountAsync())
+                        {
+                            return;
+                        }
+                    }
+                    else if (!SettingsService.TryValidateDisplayName(UsernameEntry.Text, out var validatedUserName, out var displayNameErrorMessage))
                     {
                         await DisplayAlertAsync("Error", displayNameErrorMessage, "OK");
                         return;
                     }
-
-                    UsernameEntry.Text = validatedUserName;
+                    else
+                    {
+                        UsernameEntry.Text = validatedUserName;
+                    }
                 }
 
                 if (_currentStep == 2 && !ValidatePorts())
@@ -260,6 +521,11 @@ namespace ASLM.Pages
             SetupButton.Text = L.Get(LocalizationKeys.SetupWizard_Setup);
             FastSetupButton.Text = L.Get(LocalizationKeys.SetupWizard_FastSetup);
             FastSetupHintLabel.Text = L.Get(LocalizationKeys.SetupWizard_FastSetupHint);
+            AccountTypeTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_AccountTypeTitle);
+            LocalAccountRadioButton.Content = L.Get(LocalizationKeys.SetupWizard_LocalAccount);
+            LocalAccountDescriptionLabel.Text = L.Get(LocalizationKeys.SetupWizard_LocalAccountDescription);
+            CloudAccountRadioButton.Content = L.Get(LocalizationKeys.SetupWizard_CloudAccount);
+            CloudAccountDescriptionLabel.Text = L.Get(LocalizationKeys.SetupWizard_CloudAccountDescription);
             DisplayNameTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_DisplayNameTitle);
             UsernameEntry.Placeholder = L.Get(LocalizationKeys.SetupWizard_DisplayNamePlaceholder);
             PortAllocationTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_PortAllocationTitle);
@@ -267,6 +533,7 @@ namespace ASLM.Pages
             InstallStatusLabel.Text = L.Get(LocalizationKeys.SetupWizard_Preparing);
             OverallProgressLabel.Text = L.Get(LocalizationKeys.SetupWizard_OverallProgress);
             BackButton.Text = L.Get(LocalizationKeys.Common_Back);
+            UpdateAccountSelectionUI();
             UpdateStepUI();
         }
 
@@ -293,7 +560,7 @@ namespace ASLM.Pages
 
             StepLabel.Text = _currentStep switch
             {
-                1 => L.Get(LocalizationKeys.SetupWizard_StepFormat, 1, 3, L.Get(LocalizationKeys.SetupWizard_Step_UserProfile)),
+                1 => L.Get(LocalizationKeys.SetupWizard_StepFormat, 1, 3, L.Get(LocalizationKeys.Settings_Accounts_SectionAslm)),
                 2 => L.Get(LocalizationKeys.SetupWizard_StepFormat, 2, 3, L.Get(LocalizationKeys.SetupWizard_Step_PortConfiguration)),
                 3 => L.Get(LocalizationKeys.SetupWizard_StepFormat, 3, 3, L.Get(LocalizationKeys.SetupWizard_Step_ModuleSelection)),
                 _ => string.Empty
@@ -412,9 +679,11 @@ namespace ASLM.Pages
         private async Task StartInstallAsync()
         {
             // Persist the profile and port values before any installation begins.
-            if (SettingsService.TryValidateDisplayName(UsernameEntry.Text, out var validatedUserName, out _))
+            if (_appData.Data.User.AccountMode == AppAccountMode.Local &&
+                SettingsService.TryValidateDisplayName(UsernameEntry.Text, out var validatedUserName, out _))
             {
                 _appData.Data.User.Name = validatedUserName;
+                _appData.Data.User.LocalName = validatedUserName;
             }
 
             var portResult = SettingsService.TryParsePortStart(

@@ -1,11 +1,10 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ASLM.Localization;
 using ASLM.Models;
-using ASLM.Services;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 

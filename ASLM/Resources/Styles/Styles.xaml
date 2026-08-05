@@ -1,9 +1,10 @@
 ﻿<?xml version="1.0" encoding="UTF-8" ?>
 
-<!-- Copyright NGGT.LightKeeper. All Rights Reserved. -->
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
 
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:controls="clr-namespace:Microsoft.Maui.Controls;assembly=Microsoft.Maui.Controls"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:shimmer="clr-namespace:Syncfusion.Maui.Toolkit.Shimmer;assembly=Syncfusion.Maui.Toolkit">
 
@@ -409,7 +410,74 @@
         </Setter>
     </Style>
 
+    <!-- Keep the radio indicator on the ASLM palette instead of using the native OS accent. -->
+    <ControlTemplate x:Key="ThemedRadioButtonTemplate">
+        <Grid x:DataType="controls:RadioButton"
+              ColumnDefinitions="20,*"
+              ColumnSpacing="8"
+              MinimumHeightRequest="44"
+              BackgroundColor="Transparent">
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroupList>
+                    <VisualStateGroup x:Name="CheckedStates">
+                        <VisualState x:Name="Checked">
+                            <VisualState.Setters>
+                                <Setter TargetName="RadioOutline"
+                                        Property="Border.Stroke"
+                                        Value="{DynamicResource ActionBlue}" />
+                                <Setter TargetName="RadioDot"
+                                        Property="Opacity"
+                                        Value="1" />
+                            </VisualState.Setters>
+                        </VisualState>
+                        <VisualState x:Name="Unchecked">
+                            <VisualState.Setters>
+                                <Setter TargetName="RadioOutline"
+                                        Property="Border.Stroke"
+                                        Value="{DynamicResource Separator}" />
+                                <Setter TargetName="RadioDot"
+                                        Property="Opacity"
+                                        Value="0" />
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateGroupList>
+            </VisualStateManager.VisualStateGroups>
+
+            <Border x:Name="RadioOutline"
+                    WidthRequest="18"
+                    HeightRequest="18"
+                    Padding="4"
+                    BackgroundColor="{DynamicResource BackgroundSecondary}"
+                    Stroke="{DynamicResource Separator}"
+                    StrokeThickness="2"
+                    StrokeShape="RoundRectangle 9"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center">
+                <Border x:Name="RadioDot"
+                        WidthRequest="8"
+                        HeightRequest="8"
+                        Padding="0"
+                        BackgroundColor="{DynamicResource ActionBlue}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 4"
+                        Opacity="0"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center" />
+            </Border>
+
+            <Label Grid.Column="1"
+                   Text="{TemplateBinding Content}"
+                   TextColor="{TemplateBinding TextColor}"
+                   FontFamily="{TemplateBinding FontFamily}"
+                   FontSize="{TemplateBinding FontSize}"
+                   VerticalTextAlignment="Center"
+                   VerticalOptions="Center" />
+        </Grid>
+    </ControlTemplate>
+
     <Style TargetType="RadioButton">
+        <Setter Property="ControlTemplate" Value="{StaticResource ThemedRadioButtonTemplate}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />

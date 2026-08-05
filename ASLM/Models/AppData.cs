@@ -1,10 +1,20 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace ASLM.Models
 {
+    /// <summary>
+    /// Selects whether ASLM uses its local display-name profile or a SUNRISE cloud account.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<AppAccountMode>))]
+    public enum AppAccountMode
+    {
+        Local,
+        Cloud
+    }
+
     // Application data
 
     /// <summary>
@@ -120,6 +130,14 @@ namespace ASLM.Models
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
+        // Preserves the local profile name while the active cloud profile owns Name.
+        [JsonPropertyName("localName")]
+        public string LocalName { get; set; } = string.Empty;
+
+        // Chooses between the existing local profile and a SUNRISE-backed cloud profile.
+        [JsonPropertyName("accountMode")]
+        public AppAccountMode AccountMode { get; set; } = AppAccountMode.Local;
+
         /// <summary>
         /// Restores string fields after JSON deserialization.
         /// </summary>
@@ -127,6 +145,19 @@ namespace ASLM.Models
         {
             // Keep string properties safe for UI binding and serialization.
             Name ??= string.Empty;
+            LocalName ??= string.Empty;
+
+            // Unknown numeric enum values can be produced by manually edited files.
+            if (!Enum.IsDefined(AccountMode))
+            {
+                AccountMode = AppAccountMode.Local;
+            }
+
+            // Files created before account modes existed only contain Name, which is local.
+            if (string.IsNullOrWhiteSpace(LocalName) && AccountMode == AppAccountMode.Local)
+            {
+                LocalName = Name;
+            }
         }
     }
 

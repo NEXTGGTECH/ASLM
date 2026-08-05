@@ -1,9 +1,8 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using ASLM.Services;
 
 namespace ASLM
 {

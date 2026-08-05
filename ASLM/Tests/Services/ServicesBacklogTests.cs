@@ -1,4 +1,4 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 namespace ASLM.Tests.Services;
 
@@ -7,8 +7,8 @@ namespace ASLM.Tests.Services;
 /// </summary>
 public sealed class ServicesBacklogTests
 {
-    [Fact(Skip = "Requires live HttpListener and proxy loop (AslmApiServer.StartAsync/StopAsync).")]
-    public void AslmApiServer_lifecycle() { }
+    [Fact(Skip = "Requires live HttpListener and proxy loop (AslmMirrorServer.StartAsync/StopAsync).")]
+    public void AslmMirrorServer_lifecycle() { }
 
     [Fact(Skip = "Requires live HttpListener (AslmModuleInteropServer.StartAsync).")]
     public void AslmModuleInteropServer_lifecycle() { }
@@ -47,5 +47,5 @@ public sealed class ServicesBacklogTests
     public void PackagedIconTintCache_tint() { }
 
     [Fact(Skip = "Private nested ProxyRoute factories; covered indirectly via HTTP integration backlog.")]
-    public void AslmApiServer_proxy_route_resolution() { }
+    public void AslmMirrorServer_proxy_route_resolution() { }
 }

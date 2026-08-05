@@ -1,8 +1,8 @@
-<!-- Copyright NGGT.LightKeeper. All Rights Reserved. -->
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
 
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:services="clr-namespace:ASLM.Services"
+             xmlns:services="clr-namespace:ASLM.Services.Internal"
              x:Class="ASLM.Pages.SetupWizardPage"
              x:Name="RootView"
              Title="ASLM Setup"
@@ -83,20 +83,97 @@
                        Margin="0,4,0,0" />
             </VerticalStackLayout>
 
-            <!-- Step 1: User Profile -->
+            <!-- Step 1: Account -->
             <VerticalStackLayout x:Name="Step1Panel" IsVisible="False" Spacing="15"
                                  VerticalOptions="Center" HorizontalOptions="Center"
-                                 WidthRequest="400">
-                <Label x:Name="DisplayNameTitleLabel"
-                       Text="Choose a display name"
-                       FontSize="16"
+                                 WidthRequest="460">
+                <Label x:Name="AccountTypeTitleLabel"
+                       Text="Choose an account type"
+                       FontSize="18"
+                       FontAttributes="Bold"
                        TextColor="{DynamicResource LabelPrimary}" />
-                <Entry x:Name="UsernameEntry"
-                       Placeholder="Your name"
-                       FontSize="16"
-                       TextColor="{DynamicResource LabelPrimary}"
-                       PlaceholderColor="{DynamicResource PlaceholderText}"
-                       BackgroundColor="{DynamicResource BackgroundSecondary}" />
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <Border x:Name="LocalAccountCard"
+                            Grid.Column="0"
+                            BackgroundColor="{DynamicResource BackgroundSecondary}"
+                            Stroke="{DynamicResource Separator}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="12">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnLocalAccountCardTapped" />
+                        </Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="6">
+                            <RadioButton x:Name="LocalAccountRadioButton"
+                                         GroupName="SetupAccountType"
+                                         Content="Local account"
+                                         CheckedChanged="OnLocalAccountCheckedChanged" />
+                            <Label x:Name="LocalAccountDescriptionLabel"
+                                   Text="Keep the ASLM profile only on this device."
+                                   FontSize="12"
+                                   TextColor="{DynamicResource LabelSecondary}"
+                                   LineBreakMode="WordWrap"
+                                   InputTransparent="True" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border x:Name="CloudAccountCard"
+                            Grid.Column="1"
+                            BackgroundColor="{DynamicResource BackgroundSecondary}"
+                            Stroke="{DynamicResource Separator}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="12">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnCloudAccountCardTapped" />
+                        </Border.GestureRecognizers>
+                        <VerticalStackLayout Spacing="6">
+                            <RadioButton x:Name="CloudAccountRadioButton"
+                                         GroupName="SetupAccountType"
+                                         Content="Cloud account"
+                                         CheckedChanged="OnCloudAccountCheckedChanged" />
+                            <Label x:Name="CloudAccountDescriptionLabel"
+                                   Text="Sign in with SUNRISE and synchronize your ASLM profile."
+                                   FontSize="12"
+                                   TextColor="{DynamicResource LabelSecondary}"
+                                   LineBreakMode="WordWrap"
+                                   InputTransparent="True" />
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <VerticalStackLayout x:Name="LocalAccountPanel" Spacing="8">
+                    <Label x:Name="DisplayNameTitleLabel"
+                           Text="Choose a display name"
+                           FontSize="16"
+                           TextColor="{DynamicResource LabelPrimary}" />
+                    <Entry x:Name="UsernameEntry"
+                           Placeholder="Your name"
+                           FontSize="16"
+                           TextColor="{DynamicResource LabelPrimary}"
+                           PlaceholderColor="{DynamicResource PlaceholderText}"
+                           BackgroundColor="{DynamicResource BackgroundSecondary}" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout x:Name="CloudAccountPanel"
+                                     Spacing="10"
+                                     IsVisible="False">
+                    <Label x:Name="CloudAccountStatusLabel"
+                           Text="Sign in in your browser to continue."
+                           FontSize="13"
+                           TextColor="{DynamicResource LabelSecondary}"
+                           HorizontalTextAlignment="Center"
+                           LineBreakMode="WordWrap" />
+                    <Button x:Name="CloudAccountActionButton"
+                            Text="Sign in with SUNRISE"
+                            BackgroundColor="{DynamicResource ActionBlue}"
+                            TextColor="{DynamicResource White}"
+                            FontSize="14"
+                            HeightRequest="42"
+                            HorizontalOptions="Center"
+                            Clicked="OnCloudAccountActionClicked" />
+                </VerticalStackLayout>
             </VerticalStackLayout>
 
             <!-- Step 2: Port Configuration -->

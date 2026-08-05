@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<RootNamespace>ASLM.Patcher</RootNamespace>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<!-- Headless patcher helper shipped inside the macOS bundle (Contents/Helpers). -->
+		<AssemblyName>aslm-patcher</AssemblyName>
+		<InvariantGlobalization>true</InvariantGlobalization>
+		<Version>0.8.0.13</Version>
+		<FileVersion>0.8.0.13</FileVersion>
+		<InformationalVersion>0.8.0.13</InformationalVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(SelfContained)' == 'true'">
+		<PublishSingleFile>true</PublishSingleFile>
+		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="..\Patcher\Program.cs" Link="PatcherRunner.cs" />
+	</ItemGroup>
+
+</Project>

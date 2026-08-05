@@ -1,0 +1,10 @@
+{
+  "fileVersion": 1,
+  "domains": [
+    {
+      "protocol": "http",
+      "domain": "127.0.0.1:8000",
+      "domainType": "NGGT_OSS"
+    }
+  ]
+}

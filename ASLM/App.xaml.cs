@@ -1,7 +1,6 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using ASLM.Pages;
-using ASLM.Services;
 
 namespace ASLM
 {
@@ -86,11 +85,14 @@ namespace ASLM
                 var updateScheduler = _services.GetService<UpdateScheduler>();
                 updateScheduler?.Dispose();
 
-                var apiServer = _services.GetService<AslmApiServer>();
-                apiServer?.Dispose();
+                var mirrorServer = _services.GetService<AslmMirrorServer>();
+                mirrorServer?.Dispose();
 
                 var moduleInteropServer = _services.GetService<AslmModuleInteropServer>();
                 moduleInteropServer?.Dispose();
+
+                var sunriseService = _services.GetService<SunriseService>();
+                sunriseService?.Dispose();
             }
             catch (Exception ex)
             {

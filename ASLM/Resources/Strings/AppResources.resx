@@ -855,6 +855,36 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama Account</value>
   </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>ASLM Account</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Local account. Profile data is stored only on this device.</value>
+  </data>
+  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
+    <value>Cloud account connected as {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Use cloud account</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Use local account</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>Waiting for you to sign in through your browser...</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Switch to local account?</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>SUNRISE credentials will be removed from this device. Your local ASLM profile will remain available.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Use local account</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Cloud account sign-in failed: {0}</value>
+  </data>
   <data name="Settings_GitHub_NotConnected" xml:space="preserve">
     <value>Not connected</value>
   </data>
@@ -1303,6 +1333,39 @@
   </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
     <value>Installation canceled.</value>
+  </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>Choose an account type</value>
+  </data>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Local account</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>Keep your ASLM profile only on this device.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>Cloud account</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>Sign in with SUNRISE and synchronize your ASLM profile.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>Sign in with SUNRISE</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>Waiting for you to sign in through your browser...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Sign in through your browser to continue.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>Connected as {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Complete SUNRISE sign-in before continuing.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Cloud account sign-in failed: {0}</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>Your name</value>

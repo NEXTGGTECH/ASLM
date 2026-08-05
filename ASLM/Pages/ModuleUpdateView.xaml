@@ -1,8 +1,8 @@
-<!-- Copyright NGGT.LightKeeper. All Rights Reserved. -->
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:services="clr-namespace:ASLM.Services"
+             xmlns:services="clr-namespace:ASLM.Services.Internal"
              x:Class="ASLM.Pages.ModuleUpdateView"
              x:Name="RootView"
              BackgroundColor="{DynamicResource OverlayBackground}">

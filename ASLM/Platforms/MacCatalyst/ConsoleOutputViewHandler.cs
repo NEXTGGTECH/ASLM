@@ -1,4 +1,4 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using CoreGraphics;
 using Microsoft.Maui.ApplicationModel;
@@ -6,7 +6,7 @@ using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
 using UIKit;
 
-namespace ASLM.Services
+namespace ASLM.Services.Internal
 {
     /// <summary>
     /// Maps <see cref="ConsoleOutputView"/> to a native UITextView with bottom-pinned scrolling.

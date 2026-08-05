@@ -1,7 +1,6 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 using ASLM.Resources.Strings;
-using ASLM.Services;
 
 namespace ASLM.Localization
 {
