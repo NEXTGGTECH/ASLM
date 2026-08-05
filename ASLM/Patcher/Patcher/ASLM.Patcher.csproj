@@ -12,8 +12,8 @@
 		<AssemblyName>ASLM Patcher</AssemblyName>
 		<ApplicationTitle>ASLM Patcher</ApplicationTitle>
 		<ApplicationId>com.nextggtech.aslm.patcher</ApplicationId>
-		<ApplicationDisplayVersion>0.7.2</ApplicationDisplayVersion>
-		<ApplicationVersion>51</ApplicationVersion>
+		<ApplicationDisplayVersion>0.8.0</ApplicationDisplayVersion>
+		<ApplicationVersion>13</ApplicationVersion>
 		<WindowsPackageType>None</WindowsPackageType>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
