@@ -3,8 +3,8 @@
     "id": "aslm-chat",
     "name": "ASLM Chat",
     "description": "ASLM Chat Module",
-    "version": "0.7.6.6",
-    "author": "NGGT-ASLM",
+    "version": "0.8.2.11",
+    "author": "NEXTGGTECH",
     "type": "ui",
     "category": [
         "text-generation"
@@ -14,7 +14,7 @@
     "sidebarIcon": "sidebar_icon.png",
     "source": {
         "type": "github",
-        "repo": "NGGTLightKeeper/ASLM-Chat"
+        "repo": "NEXTGGTECH/ASLM-Chat"
     },
     "update": {
         "mode": "release",
