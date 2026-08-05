@@ -1,4 +1,4 @@
-// Copyright NGGT.LightKeeper. All Rights Reserved.
+// Copyright NEXTGGTECH. Apache License 2.0.
 
 /// <summary>
 /// Resolves installation paths for both the shared launcher location and the per-user application directory.

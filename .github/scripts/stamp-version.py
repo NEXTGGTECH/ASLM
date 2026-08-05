@@ -1,3 +1,5 @@
+# Copyright NEXTGGTECH. Apache License 2.0.
+
 #!/usr/bin/env python3
 # Stamp the release version into every app's csproj.
 # Usage: stamp-version.py <display G.S.Z> <appversion W> <full G.S.Z.W>
