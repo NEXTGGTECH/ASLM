@@ -45,6 +45,18 @@ namespace ASLM.Models
         [JsonIgnore]
         public string SourcePath { get; set; } = string.Empty;
 
+        // Original ASLM_Module.json path for module-provided engine definitions.
+        [JsonIgnore]
+        public string DefinitionSourcePath { get; set; } = string.Empty;
+
+        // Stable owner id for a module-provided engine; empty for standalone engines.
+        [JsonIgnore]
+        public string OwnerModuleId { get; set; } = string.Empty;
+
+        // True when the authoritative definition came from ASLM_Module.json.
+        [JsonIgnore]
+        public bool IsModuleProvided { get; set; }
+
         // Platform key whose block backs the flat view below; defaults before resolution.
         [JsonIgnore]
         public string ActivePlatformKey { get; private set; } = "windows-amd64";
@@ -147,6 +159,8 @@ namespace ASLM.Models
             Version ??= string.Empty;
             Type ??= string.Empty;
             SourcePath ??= string.Empty;
+            DefinitionSourcePath ??= string.Empty;
+            OwnerModuleId ??= string.Empty;
 
             if (FileVersion <= 0)
             {
@@ -292,6 +306,29 @@ namespace ASLM.Models
                 : new SupportedPlatform { Os = trimmed, Arch = string.Empty, Key = trimmed };
             platform.Normalize();
             return platform;
+        }
+
+        /// <summary>
+        /// Returns whether this descriptor matches one host os/architecture pair.
+        /// </summary>
+        public bool Matches(string osKey, string archKey) =>
+            string.Equals(CanonicalToken(Os), CanonicalToken(osKey), StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(CanonicalToken(Arch), CanonicalToken(archKey), StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Normalizes aliases shared by module and engine manifests.
+        /// </summary>
+        public static string CanonicalToken(string? value)
+        {
+            value = (value ?? string.Empty).Trim();
+            return value.ToLowerInvariant() switch
+            {
+                "x64" or "x86_64" => "amd64",
+                "aarch64" => "arm64",
+                "osx" => "macos",
+                "win" => "windows",
+                _ => value.ToLowerInvariant()
+            };
         }
     }
 
@@ -578,6 +615,10 @@ namespace ASLM.Models
         [JsonPropertyName("lastChecked")]
         public string? LastChecked { get; set; }
 
+        // Fingerprint of the declarative manifest used for the latest successful installation.
+        [JsonPropertyName("installedManifestHash")]
+        public string? InstalledManifestHash { get; set; }
+
         /// <summary>
         /// Normalizes optional persisted values after JSON deserialization.
         /// </summary>
@@ -587,6 +628,7 @@ namespace ASLM.Models
             InstalledVersion = string.IsNullOrWhiteSpace(InstalledVersion) ? null : InstalledVersion;
             InstalledReleaseTag = string.IsNullOrWhiteSpace(InstalledReleaseTag) ? null : InstalledReleaseTag;
             LastChecked = string.IsNullOrWhiteSpace(LastChecked) ? null : LastChecked;
+            InstalledManifestHash = string.IsNullOrWhiteSpace(InstalledManifestHash) ? null : InstalledManifestHash.Trim();
         }
     }
 

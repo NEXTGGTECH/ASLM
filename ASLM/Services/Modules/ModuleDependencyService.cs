@@ -92,6 +92,13 @@ namespace ASLM.Services.Modules
                         return false;
                     }
 
+                    if (!dependencyModule.IsSupportedOnCurrentPlatform)
+                    {
+                        log.Report(
+                            $"Required module dependency '{dependencyModule.Name}' does not support {PlatformInfo.PlatformKey}.");
+                        return false;
+                    }
+
                     if (!await EnsureFirstRunCompletedCoreAsync(dependencyModule, log, ct, visitStack))
                     {
                         return false;

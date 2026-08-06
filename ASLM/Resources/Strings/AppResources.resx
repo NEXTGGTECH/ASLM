@@ -1460,4 +1460,10 @@
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Opacity</value>
   </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>Not supported on {0}</value>
+  </data>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Other settings</value>
+  </data>
 </root>

@@ -49,6 +49,7 @@ namespace ASLM
             builder.Services.AddSingleton<AppDataStore>();
             builder.Services.AddSingleton<LegalAcceptanceService>();
             builder.Services.AddSingleton<EngineInstaller>();
+            builder.Services.AddSingleton<ModuleEngineReconciler>();
             builder.Services.AddSingleton<ModuleEnvironmentResolver>();
             builder.Services.AddSingleton<ModuleTrustService>();
             builder.Services.AddSingleton<ModuleInstaller>();

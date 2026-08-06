@@ -597,6 +597,14 @@ namespace ASLM.Services.Internal
             !string.Equals(setting.NormalizedType, "locale", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Returns whether categories and explicit dependencies may affect this user setting.
+        /// ASLM-managed engine/path/data/models settings remain on their legacy rendering path.
+        /// </summary>
+        public static bool IsSettingsMetadataEligible(ModuleSetting setting) =>
+            ShouldDisplaySetting(setting) &&
+            setting.NormalizedType is not ("engine" or "path" or "data" or "models");
+
+        /// <summary>
         /// Evaluates whether a setting should currently be visible based on its controlling toggle.
         /// </summary>
         public static bool ShouldRenderSetting(
@@ -604,13 +612,70 @@ namespace ASLM.Services.Internal
             IReadOnlyList<ModuleSetting> allSettings,
             IReadOnlyDictionary<string, object?> valuesByKey)
         {
+            return ShouldRenderSettingCore(
+                setting,
+                allSettings,
+                valuesByKey,
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Evaluates explicit and legacy visibility rules while guarding recursive chains.
+        /// </summary>
+        private static bool ShouldRenderSettingCore(
+            ModuleSetting setting,
+            IReadOnlyList<ModuleSetting> allSettings,
+            IReadOnlyDictionary<string, object?> valuesByKey,
+            HashSet<string> visitStack)
+        {
+            if (IsSettingsMetadataEligible(setting) && !string.IsNullOrWhiteSpace(setting.DependsOn))
+            {
+                // A malformed cycle must not make an arbitrary part of the settings page disappear.
+                // The parser reports the authoring error; rendering remains fail-open.
+                if (HasExplicitDependencyCycle(setting, allSettings))
+                {
+                    return true;
+                }
+
+                var explicitController = allSettings.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Key, setting.DependsOn, StringComparison.OrdinalIgnoreCase));
+
+                // Invalid metadata is fail-open and is reported by ModuleManifestParser.
+                if (explicitController == null ||
+                    !IsSettingsMetadataEligible(explicitController) ||
+                    explicitController.NormalizedType != "bool" ||
+                    !visitStack.Add(setting.Key))
+                {
+                    return true;
+                }
+
+                try
+                {
+                    if (!valuesByKey.TryGetValue(explicitController.Key, out var explicitValue) ||
+                        !TryResolveBoolean(explicitValue, out var enabled))
+                    {
+                        return true;
+                    }
+
+                    return enabled && ShouldRenderSettingCore(
+                        explicitController,
+                        allSettings,
+                        valuesByKey,
+                        visitStack);
+                }
+                finally
+                {
+                    visitStack.Remove(setting.Key);
+                }
+            }
+
             var controller = FindControllingSetting(setting, allSettings, valuesByKey);
             if (controller == null || !valuesByKey.TryGetValue(controller.Key, out var value))
             {
                 return true;
             }
 
-            return value is bool enabled ? enabled : true;
+            return TryResolveBoolean(value, out var legacyEnabled) ? legacyEnabled : true;
         }
 
         /// <summary>
@@ -629,6 +694,11 @@ namespace ASLM.Services.Internal
         /// Checks whether the current setting controls the visibility of any other setting.
         /// </summary>
         public static bool HasDependentSettings(ModuleConfig module, ModuleSetting setting) =>
+            (setting.NormalizedType == "bool" &&
+             IsSettingsMetadataEligible(setting) &&
+             module.Settings.Any(other =>
+                 IsSettingsMetadataEligible(other) &&
+                 string.Equals(other.DependsOn, setting.Key, StringComparison.OrdinalIgnoreCase))) ||
             module.Settings.Any(other =>
                 !string.Equals(other.Key, setting.Key, StringComparison.OrdinalIgnoreCase) &&
                 IsGroupedUnder(setting.Key, other.Key) &&
@@ -1036,6 +1106,52 @@ namespace ASLM.Services.Internal
             }
 
             return value is bool;
+        }
+
+        /// <summary>
+        /// Converts persisted boolean values without depending on their storage representation.
+        /// </summary>
+        private static bool TryResolveBoolean(object? value, out bool result)
+        {
+            if (value is bool boolValue)
+            {
+                result = boolValue;
+                return true;
+            }
+
+            return bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out result);
+        }
+
+        /// <summary>
+        /// Detects malformed explicit dependency cycles so rendering can remain fail-open.
+        /// </summary>
+        private static bool HasExplicitDependencyCycle(
+            ModuleSetting start,
+            IReadOnlyList<ModuleSetting> allSettings)
+        {
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var current = start;
+
+            while (IsSettingsMetadataEligible(current) && !string.IsNullOrWhiteSpace(current.DependsOn))
+            {
+                if (!visited.Add(current.Key))
+                {
+                    return true;
+                }
+
+                var controller = allSettings.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Key, current.DependsOn, StringComparison.OrdinalIgnoreCase));
+                if (controller == null ||
+                    !IsSettingsMetadataEligible(controller) ||
+                    controller.NormalizedType != "bool")
+                {
+                    return false;
+                }
+
+                current = controller;
+            }
+
+            return false;
         }
     }
 }

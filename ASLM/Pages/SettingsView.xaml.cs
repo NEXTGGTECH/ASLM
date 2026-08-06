@@ -2177,10 +2177,70 @@ namespace ASLM.Pages
 
             EmptyCategoryState.IsVisible = false;
 
+            // ASLM-managed settings keep their existing layout and ignore category/dependency metadata.
+            var automaticSettings = visibleSettings
+                .Where(item => !SettingsService.IsSettingsMetadataEligible(item.Setting))
+                .ToList();
+            AddModuleSettingsSection(module, automaticSettings, null, null);
+
+            var declaredCategoryIds = module.SettingCategories
+                .Select(category => category.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var category in module.SettingCategories)
+            {
+                var categorySettings = visibleSettings
+                    .Where(item =>
+                        SettingsService.IsSettingsMetadataEligible(item.Setting) &&
+                        string.Equals(item.Setting.Category, category.Id, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                AddModuleSettingsSection(
+                    module,
+                    categorySettings,
+                    category.Name,
+                    category.Description);
+            }
+
+            var uncategorizedSettings = visibleSettings
+                .Where(item =>
+                    SettingsService.IsSettingsMetadataEligible(item.Setting) &&
+                    (string.IsNullOrWhiteSpace(item.Setting.Category) ||
+                     !declaredCategoryIds.Contains(item.Setting.Category)))
+                .ToList();
+            AddModuleSettingsSection(
+                module,
+                uncategorizedSettings,
+                module.SettingCategories.Count > 0
+                    ? L.Get(LocalizationKeys.Settings_ModuleOtherSettings)
+                    : null,
+                null);
+        }
+
+        /// <summary>
+        /// Adds one non-empty module settings group with optional category metadata.
+        /// </summary>
+        private void AddModuleSettingsSection(
+            ModuleConfig module,
+            IReadOnlyList<LoadedSetting> items,
+            string? title,
+            string? description)
+        {
+            if (items.Count == 0)
+            {
+                return;
+            }
+
             var section = CreateModuleSectionBorder();
             var content = new VerticalStackLayout { Spacing = 8 };
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                content.Children.Add(CreateCardTitle(title));
+                if (!string.IsNullOrWhiteSpace(description))
+                {
+                    content.Children.Add(CreateCardDescription(description));
+                }
+            }
 
-            foreach (var item in visibleSettings)
+            foreach (var item in items)
             {
                 if (!item.Setting.IsAutomaticallyManaged || item.Setting.UseCustomValue)
                 {

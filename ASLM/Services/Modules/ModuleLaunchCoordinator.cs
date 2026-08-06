@@ -169,6 +169,14 @@ namespace ASLM.Services.Modules
                     null);
             }
 
+            if (!fresh.IsSupportedOnCurrentPlatform)
+            {
+                return new ModuleLaunchResult(
+                    ModuleLaunchStatus.Error,
+                    $"Module '{fresh.Name}' does not support {PlatformInfo.PlatformKey}.",
+                    fresh);
+            }
+
             if (fresh.Commands.Run.Count == 0)
             {
                 return new ModuleLaunchResult(

@@ -27,6 +27,7 @@ namespace ASLM.Services.Internal
         private readonly EngineInstaller _engineInstaller;
         private readonly ModuleRunner _moduleRunner;
         private readonly ModuleTrustService _moduleTrustService;
+        private readonly ModuleEngineReconciler _moduleEngineReconciler;
         private readonly OllamaSettingsStore _ollamaSettings;
         private readonly GitHubUpdateClient _github;
         private readonly NotificationCenter _notifications;
@@ -51,6 +52,7 @@ namespace ASLM.Services.Internal
             EngineInstaller engineInstaller,
             ModuleRunner moduleRunner,
             ModuleTrustService moduleTrustService,
+            ModuleEngineReconciler moduleEngineReconciler,
             OllamaSettingsStore ollamaSettings,
             GitHubUpdateClient github,
             NotificationCenter notifications,
@@ -61,6 +63,7 @@ namespace ASLM.Services.Internal
             _engineInstaller = engineInstaller;
             _moduleRunner = moduleRunner;
             _moduleTrustService = moduleTrustService;
+            _moduleEngineReconciler = moduleEngineReconciler;
             _ollamaSettings = ollamaSettings;
             _github = github;
             _notifications = notifications;
@@ -855,6 +858,12 @@ namespace ASLM.Services.Internal
                         "Downloaded module archive does not match the installed module id.");
                 }
 
+                if (!newConfig.IsSupportedOnCurrentPlatform)
+                {
+                    throw new PlatformNotSupportedException(
+                        $"Module '{newConfig.Name}' does not support {PlatformInfo.PlatformKey}.");
+                }
+
                 var wasEnabled = module.Status.Enabled;
 
                 // Stop the module and any orphaned processes holding locks under the install directory.
@@ -994,6 +1003,7 @@ namespace ASLM.Services.Internal
                 engine.Status.InstalledReleaseTag = installedTag;
                 engine.Status.InstalledVersion = installedTag;
                 engine.Status.LastChecked = DateTime.UtcNow.ToString("o");
+                engine.Status.InstalledManifestHash = EngineManifestFingerprint.Compute(engine);
 
                 await _engineInstaller.SaveEngineConfigAsync(engine);
                 _engineInstaller.InvalidateCache();
@@ -1575,10 +1585,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task<ModuleConfig?> LoadModuleConfigFromPathAsync(string path, CancellationToken ct)
         {
-            await using var stream = File.OpenRead(path);
-            var config = await JsonSerializer.DeserializeAsync<ModuleConfig>(stream, _jsonOptions, ct);
-            config?.Normalize();
-            return config;
+            return await ModuleManifestParser.LoadAsync(path, ct);
         }
 
         /// <summary>
@@ -1586,10 +1593,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private ModuleConfig? LoadModuleConfigFromPath(string path)
         {
-            using var stream = File.OpenRead(path);
-            var config = JsonSerializer.Deserialize<ModuleConfig>(stream, _jsonOptions);
-            config?.Normalize();
-            return config;
+            return ModuleManifestParser.Parse(File.ReadAllText(path), path);
         }
 
         /// <summary>
@@ -1624,6 +1628,12 @@ namespace ASLM.Services.Internal
 
                 MergeModuleState(module, installed, candidate);
                 await _moduleInstaller.SaveConfigAsync(installed, raiseModulesChanged: false);
+
+                await _moduleEngineReconciler.ReconcileRequiredEnginesAsync(
+                    installed,
+                    log ?? NoOpProgress<string>.Instance,
+                    downloadProgress: null,
+                    ct: ct);
 
                 if (installed.Update.RunFirstRunAfterUpdate)
                 {

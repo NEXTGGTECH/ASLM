@@ -56,6 +56,38 @@ public sealed class EngineInstallerStepContextTests
         }
     }
 
+    /// <summary>
+    /// Verifies that inline 7-Zip output paths resolve without treating the switch as a filename.
+    /// </summary>
+    [Fact]
+    public void StepContext_resolve_argument_paths_supports_7zip_output_switch()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), "ASLM.Tests", "argument-base");
+        var tempDir = Path.Combine(Path.GetTempPath(), "ASLM.Tests", "argument-temp");
+        Directory.CreateDirectory(baseDir);
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var context = CreateStepContext(baseDir, tempDir);
+            var archivePath = Path.Combine(tempDir, "ruby.7z");
+            var outputPath = Path.Combine(tempDir, "ruby-extract");
+
+            var resolved = Invoke<string>(
+                context,
+                "ResolveArgPaths",
+                (object)new[] { "x", archivePath, $"-o{outputPath}", "-y" });
+
+            resolved.Should().Contain($"-o{outputPath}");
+            resolved.Should().NotContain(Path.Combine(baseDir, "-o"));
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     private static object CreateStepContext(string baseDir, string tempDir)
     {
         var stepContextType = typeof(EngineInstaller).GetNestedTypes(BindingFlags.NonPublic)

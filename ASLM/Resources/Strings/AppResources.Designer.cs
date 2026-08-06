@@ -3112,6 +3112,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Other settings.
+        /// </summary>
+        public static string Settings_ModuleOtherSettings {
+            get {
+                return ResourceManager.GetString("Settings_ModuleOtherSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Starting port for all modules. Ports are allocated sequentially from this value.
         /// </summary>
         public static string Settings_ModulePortDescription {
@@ -4199,6 +4208,15 @@ namespace ASLM.Resources.Strings {
         public static string SetupWizard_ModulesPortLabel {
             get {
                 return ResourceManager.GetString("SetupWizard_ModulesPortLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Not supported on {0}.
+        /// </summary>
+        public static string SetupWizard_ModuleUnsupported {
+            get {
+                return ResourceManager.GetString("SetupWizard_ModuleUnsupported", resourceCulture);
             }
         }
         
