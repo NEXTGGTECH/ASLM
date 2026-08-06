@@ -19,7 +19,7 @@ namespace ASLM.Services.Modules
 
         private static readonly OfficialModuleTrustEntry[] OfficialModules =
         [
-            new("aslm-chat", "NGGTLightKeeper/ASLM-Chat"),
+            new("aslm-chat", "NEXTGGTECH/ASLM-Chat"),
         ];
 
         private readonly HttpClient _httpClient;
