@@ -14,9 +14,9 @@
 		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
-		<Version>0.8.0.13</Version>
-		<FileVersion>0.8.0.13</FileVersion>
-		<InformationalVersion>0.8.0.13</InformationalVersion>
+		<Version>0.8.1.6</Version>
+		<FileVersion>0.8.1.6</FileVersion>
+		<InformationalVersion>0.8.1.6</InformationalVersion>
 		<DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
 	</PropertyGroup>
 
