@@ -214,6 +214,13 @@ namespace ASLM.Services.Modules
                 return new ModuleLaunchResult(ModuleLaunchStatus.AlreadyRunning, null, fresh);
             }
 
+            // Required runtimes must be ready before setup resolves libraries, settings, or command engines.
+            await _installer.ReconcileRequiredEnginesAsync(
+                fresh,
+                moduleLog,
+                downloadProgress: null,
+                ct: ct);
+
             var completedFirstRunDuringLaunch = false;
             if (!fresh.Status.FirstRunCompleted)
             {

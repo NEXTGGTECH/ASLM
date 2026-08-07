@@ -58,6 +58,9 @@ namespace ASLM.Services.Modules
             }
         }
 
+        /// <summary>
+        /// Traverses transitive dependencies and prepares each module once in dependency order.
+        /// </summary>
         private async Task<bool> EnsureFirstRunCompletedCoreAsync(
             ModuleConfig module,
             IProgress<string> log,
@@ -109,6 +112,26 @@ namespace ASLM.Services.Modules
                         continue;
                     }
 
+                    try
+                    {
+                        // A dependency module needs its own runtimes before its setup commands can execute.
+                        await _installer.ReconcileRequiredEnginesAsync(
+                            dependencyModule,
+                            log,
+                            downloadProgress: null,
+                            ct: ct);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Engine preparation failed for dependency module '{ModuleId}'.",
+                            dependencyId);
+                        log.Report(
+                            $"✗ Required engines could not be prepared for dependency module '{dependencyModule.Name}': {ex.Message}");
+                        return false;
+                    }
+
                     log.Report($"[Deps] Running first-run setup for dependency module '{dependencyModule.Name}'...");
                     if (!await _runner.ExecuteFirstRunAsync(dependencyModule, log, ct, skipModuleDependencies: true))
                     {
@@ -129,6 +152,9 @@ namespace ASLM.Services.Modules
             return true;
         }
 
+        /// <summary>
+        /// Resolves one installed dependency manifest by its stable module identifier.
+        /// </summary>
         private async Task<ModuleConfig?> ResolveInstalledModuleAsync(
             string moduleId,
             IProgress<string> log,

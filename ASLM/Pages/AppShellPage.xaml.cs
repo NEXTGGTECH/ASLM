@@ -37,7 +37,6 @@ namespace ASLM.Pages
         private readonly UpdateManager _updateManager;
         private readonly ModuleTrustService _moduleTrustService;
         private readonly AslmMirrorServer _mirrorServer;
-        private readonly ModuleStartThrottle _moduleStartThrottle;
         private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
         private readonly SettingsService _settingsService;
         private readonly LegalAcceptanceService _legalAcceptance;
@@ -80,7 +79,6 @@ namespace ASLM.Pages
             UpdateManager updateManager,
             ModuleTrustService moduleTrustService,
             AslmMirrorServer mirrorServer,
-            ModuleStartThrottle moduleStartThrottle,
             ModuleLaunchCoordinator moduleLaunchCoordinator,
             SettingsService settingsService,
             LegalAcceptanceService legalAcceptance,
@@ -95,7 +93,6 @@ namespace ASLM.Pages
             _updateManager = updateManager;
             _moduleTrustService = moduleTrustService;
             _mirrorServer = mirrorServer;
-            _moduleStartThrottle = moduleStartThrottle;
             _moduleLaunchCoordinator = moduleLaunchCoordinator;
             _settingsService = settingsService;
             _legalAcceptance = legalAcceptance;
@@ -1433,16 +1430,17 @@ namespace ASLM.Pages
 
             var startTasks = enabledModules.Select(async module =>
             {
-                await _moduleStartThrottle.WaitAsync();
-                try
-                {
-                    var logProgress = new Progress<string>(message => System.Diagnostics.Debug.WriteLine($"[ModuleStart:{module.Name}] {message}"));
+                var logProgress = new Progress<string>(message =>
+                    System.Diagnostics.Debug.WriteLine($"[ModuleStart:{module.Name}] {message}"));
+                var result = await _moduleLaunchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
+                    module.SourcePath,
+                    logProgress,
+                    CancellationToken.None);
 
-                    await Task.Run(() => _moduleRunner.ExecuteRunAsync(module, logProgress, CancellationToken.None));
-                }
-                finally
+                if (result.Status is not ModuleLaunchStatus.Started and not ModuleLaunchStatus.AlreadyRunning)
                 {
-                    _moduleStartThrottle.Release();
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[ModuleStart:{module.Name}] Launch failed ({result.Status}): {result.Message}");
                 }
             });
 
