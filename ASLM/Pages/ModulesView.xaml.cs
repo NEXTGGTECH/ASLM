@@ -1868,10 +1868,10 @@ namespace ASLM.Pages
 
             IsStarting = true;
 
-            await ReloadEditableConfigAsync();
-
             try
             {
+                await ReloadEditableConfigAsync();
+
                 var launchLog = new Progress<string>(message => Debug.WriteLine($"[Launch] {message}"));
                 var result = await _launchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
                     _config.SourcePath,
@@ -1896,6 +1896,11 @@ namespace ASLM.Pages
                 {
                     Debug.WriteLine($"Launch failed ({result.Status}): {result.Message}");
                 }
+            }
+            catch (Exception ex)
+            {
+                // UI event handlers must contain unexpected failures so WinUI can keep processing input.
+                Debug.WriteLine($"Launch failed with an unexpected error: {ex}");
             }
             finally
             {

@@ -13,6 +13,9 @@ namespace ASLM.Services.Modules
     /// </summary>
     public class ModuleInstaller
     {
+        private const int ManifestWriteAttemptCount = 5;
+        private static readonly TimeSpan ManifestWriteRetryDelay = TimeSpan.FromMilliseconds(50);
+
         private readonly HttpClient _httpClient = new();
         private readonly ModuleRunner _moduleRunner;
         private readonly ModuleTrustService _moduleTrustService;
@@ -433,7 +436,7 @@ namespace ASLM.Services.Modules
             }
 
             var json = JsonSerializer.Serialize(config, _jsonOptions);
-            File.WriteAllText(config.SourcePath, json);
+            WriteManifest(config.SourcePath, json);
             if (raiseModulesChanged)
             {
                 RaiseModulesChanged();
@@ -456,11 +459,58 @@ namespace ASLM.Services.Modules
             }
 
             var json = JsonSerializer.Serialize(config, _jsonOptions);
-            await File.WriteAllTextAsync(config.SourcePath, json);
+            await WriteManifestAsync(config.SourcePath, json);
             if (raiseModulesChanged)
             {
                 RaiseModulesChanged();
             }
+        }
+
+        /// <summary>
+        /// Writes a manifest synchronously and retries brief reader/writer collisions.
+        /// </summary>
+        private static void WriteManifest(string path, string json)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    File.WriteAllText(path, json);
+                    return;
+                }
+                catch (IOException ex) when (IsManifestSharingViolation(ex) && attempt < ManifestWriteAttemptCount)
+                {
+                    Thread.Sleep(ManifestWriteRetryDelay);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes a manifest asynchronously and retries brief reader/writer collisions.
+        /// </summary>
+        private static async Task WriteManifestAsync(string path, string json)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    await File.WriteAllTextAsync(path, json);
+                    return;
+                }
+                catch (IOException ex) when (IsManifestSharingViolation(ex) && attempt < ManifestWriteAttemptCount)
+                {
+                    await Task.Delay(ManifestWriteRetryDelay);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Identifies transient Windows sharing and file-lock violations that are safe to retry.
+        /// </summary>
+        private static bool IsManifestSharingViolation(IOException exception)
+        {
+            var errorCode = exception.HResult & 0xFFFF;
+            return errorCode is 32 or 33;
         }
 
 
