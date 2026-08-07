@@ -1458,4 +1458,10 @@
   <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
     <value>Gagal masuk ke akun cloud: {0}</value>
   </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>Tidak didukung di {0}</value>
+  </data>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Pengaturan lainnya</value>
+  </data>
 </root>

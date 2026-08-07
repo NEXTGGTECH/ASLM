@@ -2,7 +2,7 @@
     "fileVersion": 1,
     "source": {
         "type": "github",
-        "repo": "NGGTLightKeeper/ASLM"
+        "repo": "NEXTGGTECH/ASLM"
     },
     "defaultChannel": "release",
     "assets": {

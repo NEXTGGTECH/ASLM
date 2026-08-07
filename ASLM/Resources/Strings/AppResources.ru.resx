@@ -1458,4 +1458,10 @@
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Непрозрачность</value>
   </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>Не поддерживается на {0}</value>
+  </data>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Другие параметры</value>
+  </data>
 </root>

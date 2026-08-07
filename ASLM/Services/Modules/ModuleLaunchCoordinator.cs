@@ -135,14 +135,37 @@ namespace ASLM.Services.Modules
                     null);
             }
 
-            await _startThrottle.WaitAsync(ct);
+            var launchSlotAcquired = false;
             try
             {
+                await _startThrottle.WaitAsync(ct);
+                launchSlotAcquired = true;
                 return await LaunchOrEnsureRunningCoreAsync(discovered, log, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                _logger.LogInformation(
+                    "Module launch was canceled for manifest {SourcePath}.",
+                    discovered.SourcePath);
+                return new ModuleLaunchResult(
+                    ModuleLaunchStatus.Error,
+                    "Module launch was canceled.",
+                    discovered);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Module launch failed for manifest {SourcePath}.",
+                    discovered.SourcePath);
+                return new ModuleLaunchResult(ModuleLaunchStatus.Error, ex.Message, discovered);
             }
             finally
             {
-                _startThrottle.Release();
+                if (launchSlotAcquired)
+                {
+                    _startThrottle.Release();
+                }
             }
         }
 
@@ -169,6 +192,14 @@ namespace ASLM.Services.Modules
                     null);
             }
 
+            if (!fresh.IsSupportedOnCurrentPlatform)
+            {
+                return new ModuleLaunchResult(
+                    ModuleLaunchStatus.Error,
+                    $"Module '{fresh.Name}' does not support {PlatformInfo.PlatformKey}.",
+                    fresh);
+            }
+
             if (fresh.Commands.Run.Count == 0)
             {
                 return new ModuleLaunchResult(
@@ -183,6 +214,14 @@ namespace ASLM.Services.Modules
                 return new ModuleLaunchResult(ModuleLaunchStatus.AlreadyRunning, null, fresh);
             }
 
+            // Required runtimes must be ready before setup resolves libraries, settings, or command engines.
+            await _installer.ReconcileRequiredEnginesAsync(
+                fresh,
+                moduleLog,
+                downloadProgress: null,
+                ct: ct);
+
+            var completedFirstRunDuringLaunch = false;
             if (!fresh.Status.FirstRunCompleted)
             {
                 // Run setup once before the module can be enabled for normal operation.
@@ -200,12 +239,21 @@ namespace ASLM.Services.Modules
 
                 fresh.Status.Installed = true;
                 fresh.Status.FirstRunCompleted = true;
-                await _installer.SaveConfigAsync(fresh);
+                completedFirstRunDuringLaunch = true;
+
+                // Persist completed setup without rebuilding module cards while launch still owns the old view model.
+                await _installer.SaveConfigAsync(fresh, raiseModulesChanged: false);
             }
 
             var dependencyFailure = await EnsureDependencyModulesRunningAsync(fresh, moduleLog, ct);
             if (dependencyFailure != null)
             {
+                // Publish the persisted setup state once when a dependency prevents normal startup.
+                if (completedFirstRunDuringLaunch)
+                {
+                    await _installer.SaveConfigAsync(fresh);
+                }
+
                 return dependencyFailure;
             }
 

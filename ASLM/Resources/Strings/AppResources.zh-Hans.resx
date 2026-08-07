@@ -1458,4 +1458,10 @@
   <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
     <value>云帐户登录失败：{0}</value>
   </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>不支持 {0}</value>
+  </data>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>其他设置</value>
+  </data>
 </root>

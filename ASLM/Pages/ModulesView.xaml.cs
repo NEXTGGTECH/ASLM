@@ -1868,10 +1868,10 @@ namespace ASLM.Pages
 
             IsStarting = true;
 
-            await ReloadEditableConfigAsync();
-
             try
             {
+                await ReloadEditableConfigAsync();
+
                 var launchLog = new Progress<string>(message => Debug.WriteLine($"[Launch] {message}"));
                 var result = await _launchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
                     _config.SourcePath,
@@ -1896,6 +1896,11 @@ namespace ASLM.Pages
                 {
                     Debug.WriteLine($"Launch failed ({result.Status}): {result.Message}");
                 }
+            }
+            catch (Exception ex)
+            {
+                // UI event handlers must contain unexpected failures so WinUI can keep processing input.
+                Debug.WriteLine($"Launch failed with an unexpected error: {ex}");
             }
             finally
             {
@@ -2018,6 +2023,8 @@ namespace ASLM.Pages
             _config.Author = freshConfig.Author;
             _config.Type = freshConfig.Type;
             _config.Category = freshConfig.Category;
+            _config.SupportedPlatforms = freshConfig.SupportedPlatforms;
+            _config.Engines = freshConfig.Engines;
             _config.Source = freshConfig.Source;
             _config.Dependencies = freshConfig.Dependencies;
             _config.Commands = freshConfig.Commands;
@@ -2025,10 +2032,14 @@ namespace ASLM.Pages
             _config.Icon = freshConfig.Icon;
             _config.SidebarIcon = freshConfig.SidebarIcon;
             _config.Settings = freshConfig.Settings;
+            _config.SettingCategories = freshConfig.SettingCategories;
             _config.DownloadsBridge = freshConfig.DownloadsBridge;
+            _config.ModuleInterop = freshConfig.ModuleInterop;
             _config.Update = freshConfig.Update;
             _config.Status = freshConfig.Status;
             _config.SourcePath = freshConfig.SourcePath;
+
+            _config.ResolveForPlatform(PlatformInfo.OsKey, PlatformInfo.ArchKey);
 
             _config.Update.Normalize();
             _selectedSourceMode = _config.Update.Mode;

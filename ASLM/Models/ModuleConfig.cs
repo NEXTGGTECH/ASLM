@@ -45,18 +45,6 @@ namespace ASLM.Models
         [JsonPropertyName("category")]
         public List<string> Category { get; set; } = [];
 
-        // Remote source definition for the module package.
-        [JsonPropertyName("source")]
-        public ModuleSource Source { get; set; } = new();
-
-        // Engine, module, and model dependencies required by the module.
-        [JsonPropertyName("dependencies")]
-        public ModuleDependencies Dependencies { get; set; } = new();
-
-        // Commands used to prepare and launch the module.
-        [JsonPropertyName("commands")]
-        public ModuleCommands Commands { get; set; } = new();
-
         // Indicates whether the module contributes a page to the shell UI.
         [JsonPropertyName("hasPage")]
         public bool HasPage { get; set; }
@@ -77,6 +65,34 @@ namespace ASLM.Models
         [JsonIgnore]
         public string? SidebarIconFullPath => ResolveModuleAssetPath(SidebarIcon);
 
+        // Remote source definition for the module package.
+        [JsonPropertyName("source")]
+        public ModuleSource Source { get; set; } = new();
+
+        // Platforms supported by ModulesAPI v2 manifests. Legacy v1 modules are platform agnostic.
+        [JsonPropertyName("supportedPlatforms")]
+        public List<SupportedPlatform> SupportedPlatforms { get; set; } = [];
+
+        // Third-party engine manifests provided by this module (ModulesAPI v2 only).
+        [JsonPropertyName("engines")]
+        public List<EngineConfig> Engines { get; set; } = [];
+
+        // Update behavior for this module package.
+        [JsonPropertyName("update")]
+        public ModuleUpdateConfig Update { get; set; } = new();
+
+        // Engine, module, and model dependencies required by the module.
+        [JsonPropertyName("dependencies")]
+        public ModuleDependencies Dependencies { get; set; } = new();
+
+        // Commands used to prepare and launch the module.
+        [JsonPropertyName("commands")]
+        public ModuleCommands Commands { get; set; } = new();
+
+        // Declarative groups used to render user-configurable settings.
+        [JsonPropertyName("settingCategories")]
+        public List<ModuleSettingCategory> SettingCategories { get; set; } = [];
+
         // User-configurable settings exposed by the module.
         [JsonPropertyName("settings")]
         public List<ModuleSetting> Settings { get; set; } = [];
@@ -89,10 +105,6 @@ namespace ASLM.Models
         [JsonPropertyName("moduleInterop")]
         public ModuleInteropManifest? ModuleInterop { get; set; }
 
-        // Update behavior for this module package.
-        [JsonPropertyName("update")]
-        public ModuleUpdateConfig Update { get; set; } = new();
-
         // Persisted installation and runtime state of the module.
         [JsonPropertyName("status")]
         public ModuleStatus Status { get; set; } = new();
@@ -104,6 +116,18 @@ namespace ASLM.Models
         // Indicates whether the original manifest explicitly declared an update block.
         [JsonIgnore]
         public bool HasDeclaredUpdateConfig { get; set; }
+
+        // Whether the manifest supports the currently resolved host platform.
+        [JsonIgnore]
+        public bool IsSupportedOnCurrentPlatform { get; private set; } = true;
+
+        // Canonical platform key used for the latest compatibility resolution.
+        [JsonIgnore]
+        public string ActivePlatformKey { get; private set; } = string.Empty;
+
+        // Non-fatal schema diagnostics retained for logs and authoring tools.
+        [JsonIgnore]
+        public List<string> ValidationWarnings { get; set; } = [];
 
         /// <summary>
         /// Restores nested objects, collections, and strings after JSON deserialization.
@@ -122,6 +146,35 @@ namespace ASLM.Models
                 .Where(static tag => !string.IsNullOrWhiteSpace(tag))
                 .Select(static tag => tag.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            SupportedPlatforms ??= [];
+            foreach (var platform in SupportedPlatforms)
+            {
+                platform?.Normalize();
+            }
+
+            SupportedPlatforms = SupportedPlatforms
+                .Where(static platform => platform != null &&
+                    !string.IsNullOrWhiteSpace(platform.Os) &&
+                    !string.IsNullOrWhiteSpace(platform.Arch))
+                .GroupBy(static platform => $"{platform.Os}::{platform.Arch}", StringComparer.OrdinalIgnoreCase)
+                .Select(static group => group.First())
+                .ToList();
+
+            Engines ??= [];
+            foreach (var engine in Engines)
+            {
+                engine?.Normalize();
+            }
+
+            SettingCategories ??= [];
+            foreach (var settingCategory in SettingCategories)
+            {
+                settingCategory?.Normalize();
+            }
+
+            SettingCategories = SettingCategories
+                .Where(static category => category != null && !string.IsNullOrWhiteSpace(category.Id))
                 .ToList();
             Icon = string.IsNullOrWhiteSpace(Icon) ? null : Icon;
             SidebarIcon = string.IsNullOrWhiteSpace(SidebarIcon) ? null : SidebarIcon;
@@ -157,6 +210,19 @@ namespace ASLM.Models
             // Ensure persisted runtime status is always available.
             Status ??= new();
             Status.Normalize();
+
+            ValidationWarnings ??= [];
+        }
+
+        /// <summary>
+        /// Resolves whether this module supports one host os/architecture pair.
+        /// Version 1 manifests remain compatible with every platform supported by ASLM.
+        /// </summary>
+        public void ResolveForPlatform(string osKey, string archKey)
+        {
+            ActivePlatformKey = $"{SupportedPlatform.CanonicalToken(osKey)}-{SupportedPlatform.CanonicalToken(archKey)}";
+            IsSupportedOnCurrentPlatform = FileVersion < 2 ||
+                SupportedPlatforms.Any(platform => platform.Matches(osKey, archKey));
         }
 
 
@@ -624,6 +690,34 @@ namespace ASLM.Models
     // Module settings
 
     /// <summary>
+    /// Describes one visual category for user-configurable module settings.
+    /// </summary>
+    public sealed class ModuleSettingCategory
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("description")]
+        public string Description { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Normalizes category text so rendering and lookup use stable values.
+        /// </summary>
+        public void Normalize()
+        {
+            Id = (Id ?? string.Empty).Trim();
+            Name = string.IsNullOrWhiteSpace(Name) ? Id : Name.Trim();
+            Description = (Description ?? string.Empty).Trim();
+        }
+    }
+
+
+    // Individual module settings
+
+    /// <summary>
     /// Describes one user-configurable module setting.
     /// </summary>
     public class ModuleSetting
@@ -673,6 +767,14 @@ namespace ASLM.Models
         [JsonPropertyName("setExec")]
         public string SetExec { get; set; } = string.Empty;
 
+        // Optional visual category id for user-configurable settings.
+        [JsonPropertyName("category")]
+        public string? Category { get; set; }
+
+        // Optional bool setting key that controls whether this setting is shown.
+        [JsonPropertyName("dependsOn")]
+        public string? DependsOn { get; set; }
+
         /// <summary>
         /// Gets the normalized setting type used by parsing and rendering logic.
         /// </summary>
@@ -698,6 +800,8 @@ namespace ASLM.Models
             Engine ??= string.Empty;
             GetExec ??= string.Empty;
             SetExec ??= string.Empty;
+            Category = string.IsNullOrWhiteSpace(Category) ? null : Category.Trim();
+            DependsOn = string.IsNullOrWhiteSpace(DependsOn) ? null : DependsOn.Trim();
 
             // Convert JSON scalar wrappers into CLR values expected by the rest of the codebase.
             Default = NormalizeScalarValue(Default);

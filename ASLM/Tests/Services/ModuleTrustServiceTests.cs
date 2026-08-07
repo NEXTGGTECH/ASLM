@@ -13,7 +13,7 @@ public sealed class ModuleTrustServiceTests
         var service = new ModuleTrustService(TestLoggerFactory.Create<ModuleTrustService>());
         var module = ModuleConfigBuilder.Create(
             id: "aslm-chat",
-            configure: m => m.Source.Repo = "NGGTLightKeeper/ASLM-Chat");
+            configure: m => m.Source.Repo = "NEXTGGTECH/ASLM-Chat");
 
         service.Resolve(module).Should().Be(ModuleTrustLevel.Official);
     }

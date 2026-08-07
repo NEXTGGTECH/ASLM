@@ -13,9 +13,13 @@ namespace ASLM.Services.Modules
     /// </summary>
     public class ModuleInstaller
     {
+        private const int ManifestWriteAttemptCount = 5;
+        private static readonly TimeSpan ManifestWriteRetryDelay = TimeSpan.FromMilliseconds(50);
+
         private readonly HttpClient _httpClient = new();
         private readonly ModuleRunner _moduleRunner;
         private readonly ModuleTrustService _moduleTrustService;
+        private readonly ModuleEngineReconciler _moduleEngineReconciler;
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -33,10 +37,14 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Creates the module installer.
         /// </summary>
-        public ModuleInstaller(ModuleRunner moduleRunner, ModuleTrustService moduleTrustService)
+        public ModuleInstaller(
+            ModuleRunner moduleRunner,
+            ModuleTrustService moduleTrustService,
+            ModuleEngineReconciler moduleEngineReconciler)
         {
             _moduleRunner = moduleRunner;
             _moduleTrustService = moduleTrustService;
+            _moduleEngineReconciler = moduleEngineReconciler;
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ASLM-ModuleInstaller");
         }
 
@@ -101,29 +109,7 @@ namespace ASLM.Services.Modules
             try
             {
                 var json = await File.ReadAllTextAsync(jsonFile);
-                var config = JsonSerializer.Deserialize<ModuleConfig>(json, _jsonOptions);
-                if (config == null)
-                {
-                    return null;
-                }
-
-                config.Normalize();
-                config.HasDeclaredUpdateConfig = HasDeclaredUpdateBlock(json);
-
-                // Treat manifests without an explicit version as the initial schema.
-                if (config.FileVersion == 0)
-                {
-                    config.FileVersion = 1;
-                }
-
-                if (config.FileVersion != 1)
-                {
-                    Debug.WriteLine($"Unsupported fileVersion {config.FileVersion} in {jsonFile}, skipping.");
-                    return null;
-                }
-
-                config.SourcePath = jsonFile;
-                return config;
+                return ModuleManifestParser.Parse(json, jsonFile);
             }
             catch (Exception ex)
             {
@@ -178,6 +164,27 @@ namespace ASLM.Services.Modules
                     // GitHub archives wrap the repository inside one top-level folder.
                     var innerDir = Directory.GetDirectories(tempExtractDir).FirstOrDefault();
                     var sourceDir = innerDir ?? tempExtractDir;
+
+                    // Validate a downloaded manifest before it can replace the installed one.
+                    // Legacy source archives without a manifest continue to use the catalog manifest.
+                    var downloadedManifestPath = Path.Combine(sourceDir, ModuleManifestDiscovery.ManifestFileName);
+                    if (File.Exists(downloadedManifestPath))
+                    {
+                        var downloadedConfig = ModuleManifestParser.Parse(
+                            File.ReadAllText(downloadedManifestPath),
+                            downloadedManifestPath);
+                        if (!string.Equals(downloadedConfig.Id, module.Id, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidDataException(
+                                $"Downloaded module id '{downloadedConfig.Id}' does not match '{module.Id}'.");
+                        }
+
+                        if (!downloadedConfig.IsSupportedOnCurrentPlatform)
+                        {
+                            throw new PlatformNotSupportedException(
+                                $"Module '{downloadedConfig.Name}' does not support {PlatformInfo.PlatformKey}.");
+                        }
+                    }
 
                     // Merge the extracted content into the existing module directory.
                     CopyDirectory(sourceDir, moduleDir);
@@ -241,25 +248,11 @@ namespace ASLM.Services.Modules
 
                     // Load the manifest first so the final install location can be derived from the module id.
                     var json = await File.ReadAllTextAsync(jsonFile, ct);
-                    var config = JsonSerializer.Deserialize<ModuleConfig>(json, _jsonOptions);
-
-                    if (config == null || string.IsNullOrWhiteSpace(config.Id))
+                    var config = ModuleManifestParser.Parse(json, jsonFile);
+                    if (!config.IsSupportedOnCurrentPlatform)
                     {
-                        throw new InvalidOperationException("Invalid module: Could not parse config or ID is missing.");
-                    }
-
-                    config.Normalize();
-                    config.HasDeclaredUpdateConfig = HasDeclaredUpdateBlock(json);
-
-                    if (config.FileVersion == 0)
-                    {
-                        config.FileVersion = 1;
-                    }
-
-                    if (config.FileVersion != 1)
-                    {
-                        throw new InvalidOperationException(
-                            $"Unsupported fileVersion {config.FileVersion}. This version of ASLM does not support this module format.");
+                        throw new PlatformNotSupportedException(
+                            $"Module '{config.Name}' does not support {PlatformInfo.PlatformKey}.");
                     }
 
                     var moduleSourceDir = Path.GetDirectoryName(jsonFile)!;
@@ -282,6 +275,12 @@ namespace ASLM.Services.Modules
                     }, ct);
 
                     config.SourcePath = Path.Combine(finalDir, "ASLM_Module.json");
+                    await _moduleEngineReconciler.ReconcileRequiredEnginesAsync(
+                        config,
+                        log,
+                        downloadProgress,
+                        ct);
+
                     config.Status.Installed = true;
                     config.Status.InstalledVersion = config.Version;
                     config.Status.LastUpdated = DateTime.UtcNow.ToString("o");
@@ -315,6 +314,16 @@ namespace ASLM.Services.Modules
                 TryDeleteFile(tempZip);
             }
         }
+
+        /// <summary>
+        /// Reconciles the engine definitions and dependencies declared by an installed module manifest.
+        /// </summary>
+        public Task ReconcileRequiredEnginesAsync(
+            ModuleConfig module,
+            IProgress<string> log,
+            IProgress<DownloadProgress>? downloadProgress = null,
+            CancellationToken ct = default) =>
+            _moduleEngineReconciler.ReconcileRequiredEnginesAsync(module, log, downloadProgress, ct);
 
 
         // File copy
@@ -427,7 +436,7 @@ namespace ASLM.Services.Modules
             }
 
             var json = JsonSerializer.Serialize(config, _jsonOptions);
-            File.WriteAllText(config.SourcePath, json);
+            WriteManifest(config.SourcePath, json);
             if (raiseModulesChanged)
             {
                 RaiseModulesChanged();
@@ -450,11 +459,58 @@ namespace ASLM.Services.Modules
             }
 
             var json = JsonSerializer.Serialize(config, _jsonOptions);
-            await File.WriteAllTextAsync(config.SourcePath, json);
+            await WriteManifestAsync(config.SourcePath, json);
             if (raiseModulesChanged)
             {
                 RaiseModulesChanged();
             }
+        }
+
+        /// <summary>
+        /// Writes a manifest synchronously and retries brief reader/writer collisions.
+        /// </summary>
+        private static void WriteManifest(string path, string json)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    File.WriteAllText(path, json);
+                    return;
+                }
+                catch (IOException ex) when (IsManifestSharingViolation(ex) && attempt < ManifestWriteAttemptCount)
+                {
+                    Thread.Sleep(ManifestWriteRetryDelay);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes a manifest asynchronously and retries brief reader/writer collisions.
+        /// </summary>
+        private static async Task WriteManifestAsync(string path, string json)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    await File.WriteAllTextAsync(path, json);
+                    return;
+                }
+                catch (IOException ex) when (IsManifestSharingViolation(ex) && attempt < ManifestWriteAttemptCount)
+                {
+                    await Task.Delay(ManifestWriteRetryDelay);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Identifies transient Windows sharing and file-lock violations that are safe to retry.
+        /// </summary>
+        private static bool IsManifestSharingViolation(IOException exception)
+        {
+            var errorCode = exception.HResult & 0xFFFF;
+            return errorCode is 32 or 33;
         }
 
 
@@ -494,21 +550,6 @@ namespace ASLM.Services.Modules
             {
                 // Ignore cleanup failures for temporary directories.
             }
-        }
-
-        /// <summary>
-        /// Returns whether the source manifest explicitly declared an update configuration block.
-        /// </summary>
-        private static bool HasDeclaredUpdateBlock(string json)
-        {
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                return false;
-            }
-
-            using var document = JsonDocument.Parse(json);
-            return document.RootElement.ValueKind == JsonValueKind.Object &&
-                   document.RootElement.TryGetProperty("update", out _);
         }
 
         /// <summary>

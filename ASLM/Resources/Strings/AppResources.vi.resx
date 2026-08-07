@@ -1458,4 +1458,10 @@
   <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
     <value>Đăng nhập tài khoản đám mây không thành công: {0}</value>
   </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>Không được hỗ trợ trên {0}</value>
+  </data>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Cài đặt khác</value>
+  </data>
 </root>

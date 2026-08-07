@@ -95,6 +95,8 @@ namespace ASLM.Services.Engines
                                         Debug.WriteLine($"Runtime missing for {config.Name}, resetting installed status.");
                                         config.Status.Installed = false;
                                         config.Status.InstalledVersion = null;
+                                        config.Status.InstalledReleaseTag = null;
+                                        config.Status.InstalledManifestHash = null;
 
                                         // Persist the reset status back to JSON.
                                         var updatedJson = JsonSerializer.Serialize(config, _jsonOptions);
@@ -118,9 +120,181 @@ namespace ASLM.Services.Engines
                     }
                 }
 
+                DiscoverModuleProvidedEngines(baseDir, engines);
+
                 _cachedEngines = engines;
                 EnsureEngineLookups(_cachedEngines);
                 return _cachedEngines.ToList();
+            }
+        }
+
+        /// <summary>
+        /// Converts one engine definition embedded in a module manifest into a working config.
+        /// Declarative metadata stays in ASLM_Module.json; mutable state is stored under Engines/Modules.
+        /// </summary>
+        public EngineConfig PrepareModuleProvidedEngine(ModuleConfig module, EngineConfig config)
+        {
+            // Validate ownership before deriving persistent paths from manifest identifiers.
+            if (module.FileVersion < 2)
+            {
+                throw new InvalidOperationException("Module-provided engines require ModulesAPI v2.");
+            }
+
+            EnsureSafePathSegment(module.Id, "module id");
+            EnsureSafePathSegment(config.Id, "engine id");
+
+            config.Normalize();
+            config.DefinitionSourcePath = module.SourcePath;
+            config.OwnerModuleId = module.Id;
+            config.IsModuleProvided = true;
+            config.Status = new EngineStatus();
+
+            // Mutable state lives outside ASLM_Module.json so module updates remain authoritative.
+            var stateDir = Path.Combine(GetRootDirectory(), "Engines", "Modules", module.Id, config.Id);
+            var statePath = Path.Combine(stateDir, "ASLM_Engine.json");
+            if (File.Exists(statePath))
+            {
+                try
+                {
+                    var stateJson = File.ReadAllText(statePath);
+                    var stateConfig = JsonSerializer.Deserialize<EngineConfig>(stateJson, _jsonOptions);
+                    if (stateConfig != null)
+                    {
+                        stateConfig.Normalize();
+                        config.Status = stateConfig.Status;
+                        if (config.Status.Installed && string.IsNullOrWhiteSpace(config.Status.InstalledManifestHash))
+                        {
+                            config.Status.InstalledManifestHash = EngineManifestFingerprint.Compute(stateConfig);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to load module engine state {statePath}: {ex.Message}");
+                }
+            }
+
+            // Runtime lookups use the state directory while definitions retain their module source.
+            config.SourcePath = statePath;
+            config.ResolveForPlatform(PlatformInfo.OsKey, PlatformInfo.ArchKey);
+            ResetMissingRuntimeIfNeeded(config, persist: false);
+            return config;
+        }
+
+        /// <summary>
+        /// Resolves an available engine regardless of its current installation status.
+        /// </summary>
+        public EngineConfig? FindAvailableEngine(string engineId) =>
+            DiscoverEngines().FirstOrDefault(engine =>
+                string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// Adds engine definitions embedded in installed module manifests to discovery results.
+        /// </summary>
+        private void DiscoverModuleProvidedEngines(string baseDir, List<EngineConfig> engines)
+        {
+            // Build a shared index so standalone and embedded definitions follow one precedence rule.
+            var modulesRoot = Path.Combine(baseDir, "Modules");
+            if (!Directory.Exists(modulesRoot))
+            {
+                return;
+            }
+
+            var byId = engines
+                .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
+                .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+            // Parse modules through the version-aware path used by installation and updates.
+            foreach (var moduleManifestPath in ModuleManifestDiscovery.EnumerateInstalledManifests(modulesRoot))
+            {
+                try
+                {
+                    var json = File.ReadAllText(moduleManifestPath);
+                    if (!ModuleManifestParser.TryParse(json, moduleManifestPath, out var module, out var error) || module == null)
+                    {
+                        Debug.WriteLine($"Skipping module engine source {moduleManifestPath}: {error}");
+                        continue;
+                    }
+
+                    foreach (var definition in module.Engines)
+                    {
+                        // Standalone definitions win; identical embedded definitions are deduplicated.
+                        var candidate = PrepareModuleProvidedEngine(module, definition);
+                        if (byId.TryGetValue(candidate.Id, out var existing))
+                        {
+                            if (!existing.IsModuleProvided)
+                            {
+                                Debug.WriteLine(
+                                    $"Standalone engine '{candidate.Id}' takes precedence over module '{module.Id}'.");
+                                continue;
+                            }
+
+                            if (!EngineManifestFingerprint.AreEquivalent(existing, candidate))
+                            {
+                                Debug.WriteLine(
+                                    $"Conflicting module-provided engine '{candidate.Id}' from '{module.Id}' and '{existing.OwnerModuleId}', skipping later definition.");
+                            }
+
+                            continue;
+                        }
+
+                        engines.Add(candidate);
+                        byId[candidate.Id] = candidate;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to discover engines from {moduleManifestPath}: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Clears stale installed state when an engine runtime is missing from disk.
+        /// </summary>
+        private void ResetMissingRuntimeIfNeeded(EngineConfig config, bool persist)
+        {
+            if (!config.Status.Installed)
+            {
+                return;
+            }
+
+            var engineDir = Path.GetDirectoryName(config.SourcePath);
+            if (string.IsNullOrWhiteSpace(engineDir))
+            {
+                return;
+            }
+
+            var runtimeDir = Path.Combine(engineDir, "runtime");
+            if (Directory.Exists(runtimeDir) && Directory.EnumerateFileSystemEntries(runtimeDir).Any())
+            {
+                return;
+            }
+
+            config.Status.Installed = false;
+            config.Status.InstalledVersion = null;
+            config.Status.InstalledReleaseTag = null;
+            config.Status.InstalledManifestHash = null;
+
+            if (persist && File.Exists(config.SourcePath))
+            {
+                File.WriteAllText(config.SourcePath, JsonSerializer.Serialize(config, _jsonOptions));
+            }
+        }
+
+        /// <summary>
+        /// Rejects identifiers that could escape the module engine state directory.
+        /// </summary>
+        private static void EnsureSafePathSegment(string value, string label)
+        {
+            if (string.IsNullOrWhiteSpace(value) ||
+                value is "." or ".." ||
+                value.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+                value.Contains(Path.DirectorySeparatorChar) ||
+                value.Contains(Path.AltDirectorySeparatorChar))
+            {
+                throw new InvalidDataException($"Invalid {label} '{value}'.");
             }
         }
 
@@ -264,7 +438,10 @@ namespace ASLM.Services.Engines
                 log.Report($"=== Installing {config.Name} {versionLabel} ===");
                 log.Report($"Base directory: {baseDir}");
 
-                var context = new StepContext(baseDir, tempDir);
+                var engineDir = Path.GetDirectoryName(config.SourcePath) ?? baseDir;
+                // Module-provided engines store state below Engines/Modules, which may not exist yet.
+                Directory.CreateDirectory(engineDir);
+                var context = new StepContext(baseDir, tempDir, engineDir);
 
                 for (int i = 0; i < config.Install.Count; i++)
                 {
@@ -343,6 +520,7 @@ namespace ASLM.Services.Engines
                 config.Status.Installed = true;
                 config.Status.InstalledVersion = config.Version;
                 config.Status.LastChecked = DateTime.UtcNow.ToString("o");
+                config.Status.InstalledManifestHash = EngineManifestFingerprint.Compute(config);
 
                 await SaveEngineConfigAsync(config);
                 log.Report($"=== {config.Name} installed successfully ===");
@@ -610,9 +788,12 @@ namespace ASLM.Services.Engines
             await process.WaitForExitAsync(ct);
 
             if (process.ExitCode != 0)
-                log.Report($"  ⚠ Process exited with code {process.ExitCode}");
-            else
-                log.Report("  ✓ Command complete.");
+            {
+                throw new InvalidOperationException(
+                    $"Install command exited with code {process.ExitCode}: {Path.GetFileName(exePath)} {arguments}");
+            }
+
+            log.Report("  ✓ Command complete.");
         }
 
         /// <summary>
@@ -628,6 +809,11 @@ namespace ASLM.Services.Engines
 
             log.Report($"  Moving: {source}");
             log.Report($"  To: {dest}");
+
+            // Nested runtime destinations require their engine-owned parent before Directory.Move.
+            var destinationParent = Path.GetDirectoryName(dest)
+                ?? throw new InvalidOperationException($"Move destination has no parent directory: {dest}");
+            Directory.CreateDirectory(destinationParent);
 
             if (Directory.Exists(dest))
                 Directory.Delete(dest, true);
@@ -768,6 +954,7 @@ namespace ASLM.Services.Engines
             if (string.IsNullOrEmpty(config.SourcePath))
                 return;
 
+            Directory.CreateDirectory(Path.GetDirectoryName(config.SourcePath)!);
             var json = JsonSerializer.Serialize(config, _jsonOptions);
             await File.WriteAllTextAsync(config.SourcePath, json);
         }
@@ -857,14 +1044,28 @@ namespace ASLM.Services.Engines
             public string TempDir { get; }
 
             /// <summary>
+            /// Normalized root directory that owns the engine runtime and local state.
+            /// </summary>
+            public string EngineDir { get; }
+
+            /// <summary>
             /// Initializes a new instance of the <see cref="StepContext"/> class.
             /// </summary>
             /// <param name="baseDir">The application base directory.</param>
             /// <param name="tempDir">The temporary directory for this installation.</param>
             public StepContext(string baseDir, string tempDir)
+                : this(baseDir, tempDir, baseDir)
+            {
+            }
+
+            /// <summary>
+            /// Creates an install context with an explicit engine-owned directory.
+            /// </summary>
+            public StepContext(string baseDir, string tempDir, string engineDir)
             {
                 BaseDir = EnsureTrailingSeparator(Path.GetFullPath(baseDir));
                 TempDir = EnsureTrailingSeparator(Path.GetFullPath(tempDir));
+                EngineDir = EnsureTrailingSeparator(Path.GetFullPath(engineDir));
             }
 
             /// <summary>
@@ -879,11 +1080,13 @@ namespace ASLM.Services.Engines
                 return path;
             }
 
-            /// <summary>Replaces <c>{temp}</c> placeholder with the actual temp directory.</summary>
+            /// <summary>Resolves temporary and engine directory placeholders used by install steps.</summary>
             /// <param name="input">The string containing variables to resolve.</param>
             /// <returns>The string with variables replaced.</returns>
-            public string ResolveVariables(string input)
-                => input.Replace("{temp}", TempDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            public string ResolveVariables(string input) => input
+                .Replace("{temp}", TempDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                .Replace("{engineDir}", EngineDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                .Replace("{engine}", EngineDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
             /// <summary>
             /// Resolves <c>{temp}</c> variable and converts relative paths to absolute
@@ -906,7 +1109,8 @@ namespace ASLM.Services.Engines
                     comparePath += Path.DirectorySeparatorChar;
 
                 if (!comparePath.StartsWith(BaseDir, StringComparison.OrdinalIgnoreCase) &&
-                    !comparePath.StartsWith(TempDir, StringComparison.OrdinalIgnoreCase))
+                    !comparePath.StartsWith(TempDir, StringComparison.OrdinalIgnoreCase) &&
+                    !comparePath.StartsWith(EngineDir, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new InvalidOperationException($"Security violation: Path '{path}' resolves to '{fullPath}' which is outside allowed boundaries.");
                 }
@@ -915,8 +1119,8 @@ namespace ASLM.Services.Engines
             }
 
             /// <summary>
-            /// Resolves path-like tokens inside argument values and rebuilds the argument string.
-            /// Any token containing <c>/</c> or <c>\</c> is treated as a path and resolved.
+            /// Resolves path-like tokens, including the inline 7-Zip <c>-o</c> output switch,
+            /// and rebuilds the argument string.
             /// </summary>
             /// <param name="args">The argument values to process.</param>
             /// <returns>The argument string with resolved paths.</returns>
@@ -925,8 +1129,15 @@ namespace ASLM.Services.Engines
                 var tokens = args.ToArray();
                 for (int i = 0; i < tokens.Length; i++)
                 {
-                    if (tokens[i].Contains('/') || tokens[i].Contains('\\'))
+                    // 7-Zip joins -o and its directory into one argument, so resolve only its path suffix.
+                    if (tokens[i].StartsWith("-o", StringComparison.OrdinalIgnoreCase) && tokens[i].Length > 2)
+                    {
+                        tokens[i] = $"-o{ResolvePath(tokens[i][2..])}";
+                    }
+                    else if (tokens[i].Contains('/') || tokens[i].Contains('\\'))
+                    {
                         tokens[i] = ResolvePath(tokens[i]);
+                    }
                 }
 
                 return EngineInstaller.JoinArguments(tokens);

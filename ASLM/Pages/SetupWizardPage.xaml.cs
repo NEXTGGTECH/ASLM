@@ -403,7 +403,12 @@ namespace ASLM.Pages
 
             foreach (var module in modules)
             {
-                var check = new CheckBox { IsChecked = true };
+                var isSupported = module.IsSupportedOnCurrentPlatform;
+                var check = new CheckBox
+                {
+                    IsChecked = isSupported,
+                    IsEnabled = isSupported
+                };
                 check.SetDynamicResource(CheckBox.ColorProperty, "LabelPrimary");
                 var row = new HorizontalStackLayout { Spacing = 10 };
 
@@ -428,6 +433,20 @@ namespace ASLM.Pages
                 row.Children.Add(check);
                 row.Children.Add(nameLabel);
                 row.Children.Add(descLabel);
+
+                if (!isSupported)
+                {
+                    var unsupportedLabel = new Label
+                    {
+                        Text = L.Get(
+                            LocalizationKeys.SetupWizard_ModuleUnsupported,
+                            PlatformInfo.PlatformKey),
+                        FontSize = 12,
+                        VerticalOptions = LayoutOptions.Center
+                    };
+                    unsupportedLabel.SetDynamicResource(Label.TextColorProperty, "ActionRed");
+                    row.Children.Add(unsupportedLabel);
+                }
 
                 ModuleList.Children.Add(row);
                 _moduleChecks.Add((module, check));
@@ -696,7 +715,7 @@ namespace ASLM.Pages
             await _appData.SaveAsync();
 
             var selectedModules = _moduleChecks
-                .Where(moduleCheck => moduleCheck.Check.IsChecked)
+                .Where(moduleCheck => moduleCheck.Check.IsEnabled && moduleCheck.Check.IsChecked)
                 .Select(moduleCheck => moduleCheck.Module)
                 .ToList();
 
@@ -747,9 +766,10 @@ namespace ASLM.Pages
             var requiredEngineIds = installModules
                 .SelectMany(module => module.Dependencies.Engines)
                 .Select(engine => engine.Id)
-                .Distinct()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            _engineInstaller.InvalidateCache();
             var allEngines = await Task.Run(() => _engineInstaller.DiscoverEngines(), _cts.Token);
             totalSteps += requiredEngineIds.Count;
             totalSteps += installModules.Sum(GetModuleInstallStepCount);
@@ -794,10 +814,18 @@ namespace ASLM.Pages
 
             try
             {
+                var unsupportedModule = installModules.FirstOrDefault(module => !module.IsSupportedOnCurrentPlatform);
+                if (unsupportedModule != null)
+                {
+                    throw new PlatformNotSupportedException(
+                        $"Module '{unsupportedModule.Name}' does not support {PlatformInfo.PlatformKey}.");
+                }
+
                 // Install each required engine before module downloads begin.
                 foreach (var engineId in requiredEngineIds)
                 {
-                    var engine = allEngines.FirstOrDefault(candidate => candidate.Id == engineId);
+                    var engine = allEngines.FirstOrDefault(candidate =>
+                        string.Equals(candidate.Id, engineId, StringComparison.OrdinalIgnoreCase));
                     if (engine == null)
                     {
                         AddLog($"[Missing] Engine '{engineId}' not found.");
@@ -883,10 +911,29 @@ namespace ASLM.Pages
                         continue;
                     }
 
-                    UpdateInstallStatus($"Setting up {module.Name}...");
-                    var success = await Task.Run(
-                        () => _moduleRunner.ExecuteFirstRunAsync(module, logProgress, _cts.Token),
+                    var installedModule = await _moduleInstaller.LoadModuleConfig(module.SourcePath)
+                        ?? throw new InvalidOperationException(
+                            $"Installed manifest for '{module.Name}' could not be loaded.");
+                    if (!installedModule.IsSupportedOnCurrentPlatform)
+                    {
+                        throw new PlatformNotSupportedException(
+                            $"Module '{installedModule.Name}' does not support {PlatformInfo.PlatformKey}.");
+                    }
+
+                    await _moduleInstaller.ReconcileRequiredEnginesAsync(
+                        installedModule,
+                        logProgress,
+                        downloadProgress,
                         _cts.Token);
+
+                    UpdateInstallStatus($"Setting up {installedModule.Name}...");
+                    var success = await Task.Run(
+                        () => _moduleRunner.ExecuteFirstRunAsync(installedModule, logProgress, _cts.Token),
+                        _cts.Token);
+                    if (success)
+                    {
+                        await _moduleInstaller.SaveConfigAsync(installedModule);
+                    }
                     completedSteps++;
                     UpdateOverallProgress(completedSteps, totalSteps);
 

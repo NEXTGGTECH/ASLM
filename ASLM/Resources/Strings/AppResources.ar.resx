@@ -1458,4 +1458,10 @@
   <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
     <value>فشل تسجيل الدخول إلى الحساب السحابي: {0}</value>
   </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>غير مدعوم على {0}</value>
+  </data>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>إعدادات أخرى</value>
+  </data>
 </root>

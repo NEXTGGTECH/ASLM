@@ -340,6 +340,7 @@ public static class LocalizationKeys
     public const string Settings_ModuleChannel_Description = "Settings_ModuleChannel_Description";
     public const string Settings_ModuleChannel_Title = "Settings_ModuleChannel_Title";
     public const string Settings_ModuleNoSettings = "Settings_ModuleNoSettings";
+    public const string Settings_ModuleOtherSettings = "Settings_ModuleOtherSettings";
     public const string Settings_ModuleUpdateMode_Description = "Settings_ModuleUpdateMode_Description";
     public const string Settings_ModuleUpdateMode_Title = "Settings_ModuleUpdateMode_Title";
     public const string Settings_NoSettingsAvailable = "Settings_NoSettingsAvailable";
@@ -464,6 +465,7 @@ public static class LocalizationKeys
     public const string SetupWizard_Installing = "SetupWizard_Installing";
     public const string SetupWizard_Next_Install = "SetupWizard_Next_Install";
     public const string SetupWizard_ModulesPortLabel = "SetupWizard_ModulesPortLabel";
+    public const string SetupWizard_ModuleUnsupported = "SetupWizard_ModuleUnsupported";
     public const string SetupWizard_OverallProgress = "SetupWizard_OverallProgress";
     public const string SetupWizard_PortAllocationTitle = "SetupWizard_PortAllocationTitle";
     public const string SetupWizard_Preparing = "SetupWizard_Preparing";

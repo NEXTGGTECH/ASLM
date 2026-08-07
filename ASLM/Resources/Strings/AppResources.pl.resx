@@ -1458,4 +1458,10 @@
   <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
     <value>Logowanie do konta w chmurze nie powiodło się: {0}</value>
   </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>Nieobsługiwany na platformie {0}</value>
+  </data>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Inne ustawienia</value>
+  </data>
 </root>

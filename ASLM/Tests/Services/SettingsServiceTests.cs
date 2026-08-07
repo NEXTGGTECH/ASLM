@@ -120,6 +120,68 @@ public sealed class SettingsServiceTests
     }
 
     [Fact]
+    public void Explicit_dependency_uses_only_user_bool_controller()
+    {
+        var controller = new ModuleSetting { Key = "enabled", Type = "bool" };
+        var child = new ModuleSetting { Key = "url", Type = "string", DependsOn = "enabled" };
+        var settings = new[] { controller, child };
+
+        SettingsService.ShouldRenderSetting(
+                child,
+                settings,
+                new Dictionary<string, object?> { ["enabled"] = false })
+            .Should().BeFalse();
+
+        SettingsService.ShouldRenderSetting(
+                child,
+                settings,
+                new Dictionary<string, object?> { ["enabled"] = true })
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public void Explicit_dependency_honors_parent_visibility_recursively()
+    {
+        var root = new ModuleSetting { Key = "root", Type = "bool" };
+        var nested = new ModuleSetting { Key = "nested", Type = "bool", DependsOn = "root" };
+        var child = new ModuleSetting { Key = "value", Type = "string", DependsOn = "nested" };
+        var settings = new[] { root, nested, child };
+
+        SettingsService.ShouldRenderSetting(
+                child,
+                settings,
+                new Dictionary<string, object?> { ["root"] = false, ["nested"] = true })
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void Explicit_dependency_cycle_is_fail_open()
+    {
+        var first = new ModuleSetting { Key = "first", Type = "bool", DependsOn = "second" };
+        var second = new ModuleSetting { Key = "second", Type = "bool", DependsOn = "first" };
+        var settings = new[] { first, second };
+
+        SettingsService.ShouldRenderSetting(
+                first,
+                settings,
+                new Dictionary<string, object?> { ["first"] = false, ["second"] = false })
+            .Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("engine", false)]
+    [InlineData("path", false)]
+    [InlineData("data", false)]
+    [InlineData("models", false)]
+    [InlineData("bool", true)]
+    [InlineData("string", true)]
+    public void Settings_metadata_does_not_affect_automatic_types(string type, bool expected)
+    {
+        SettingsService.IsSettingsMetadataEligible(new ModuleSetting { Type = type })
+            .Should().Be(expected);
+    }
+
+    [Fact]
     public void ResetModuleToDefaults_restores_manifest_defaults()
     {
         var module = ModuleConfigBuilder.Create(configure: m =>
