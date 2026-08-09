@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             x:Class="ASLM.Controls.Settings.SettingsToggle"
+             x:DataType="settings:SettingsToggle"
+             x:Name="Root"
+             WidthRequest="44"
+             HeightRequest="32"
+             MinimumWidthRequest="44"
+             MinimumHeightRequest="32"
+             HorizontalOptions="Start"
+             VerticalOptions="Center">
+    <Switch IsToggled="{Binding IsToggled, Source={x:Reference Root}, Mode=TwoWay}"
+            IsEnabled="{Binding IsEnabled, Source={x:Reference Root}}"
+            HeightRequest="32"
+            MinimumHeightRequest="32"
+            OnColor="{DynamicResource ActionBlue}"
+            ThumbColor="{DynamicResource LabelPrimary}"
+            HorizontalOptions="Center"
+            VerticalOptions="Center" />
+</ContentView>

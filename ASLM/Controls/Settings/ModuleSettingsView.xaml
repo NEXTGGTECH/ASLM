@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:presentation="clr-namespace:ASLM.Services.Internal"
+             x:Class="ASLM.Controls.Settings.ModuleSettingsView"
+             x:DataType="presentation:ModuleSettingsPageViewModel"
+             MinimumWidthRequest="0"
+             HorizontalOptions="Fill">
+    <VerticalStackLayout Spacing="16"
+                         MinimumWidthRequest="0"
+                         HorizontalOptions="Fill"
+                         BindableLayout.ItemsSource="{Binding Sections}">
+        <BindableLayout.ItemTemplate>
+            <DataTemplate x:DataType="presentation:ModuleSettingsSectionViewModel">
+                <settings:SettingsSectionView Title="{Binding Title}"
+                                              Description="{Binding Description}"
+                                              IsVisible="{Binding IsVisible}">
+                    <settings:SettingsSectionView.SectionContent>
+                        <VerticalStackLayout Spacing="8"
+                                             MinimumWidthRequest="0"
+                                             HorizontalOptions="Fill"
+                                             BindableLayout.ItemsSource="{Binding Settings}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="presentation:ModuleSettingItemViewModel">
+                                    <settings:ModuleSettingView />
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </settings:SettingsSectionView.SectionContent>
+                </settings:SettingsSectionView>
+            </DataTemplate>
+        </BindableLayout.ItemTemplate>
+    </VerticalStackLayout>
+</ContentView>

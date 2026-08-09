@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:presentation="clr-namespace:ASLM.Services.Internal"
+             x:Class="ASLM.Controls.Settings.SettingsCategorySelectorView"
+             x:DataType="presentation:SettingsCategorySidebarViewModel">
+    <VerticalStackLayout Spacing="1">
+        <Label Text="{Binding AslmHeader}"
+               Style="{StaticResource SettingsSelectorHeaderLabelStyle}" />
+        <VerticalStackLayout Spacing="1"
+                             BindableLayout.ItemsSource="{Binding AslmCategories}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="presentation:SettingsCategorySelectorItemViewModel">
+                    <settings:SettingsCategorySelectorItemView />
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Spacing="1"
+                             IsVisible="{Binding HasModuleCategories}">
+            <BoxView HeightRequest="12"
+                     Color="Transparent" />
+            <Label Text="{Binding ModulesHeader}"
+                   Style="{StaticResource SettingsSelectorHeaderLabelStyle}" />
+            <VerticalStackLayout Spacing="1"
+                                 BindableLayout.ItemsSource="{Binding ModuleCategories}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="presentation:SettingsCategorySelectorItemViewModel">
+                        <settings:SettingsCategorySelectorItemView />
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </VerticalStackLayout>
+</ContentView>

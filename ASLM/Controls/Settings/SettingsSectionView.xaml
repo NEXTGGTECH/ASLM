@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<Border xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+        xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+        x:Class="ASLM.Controls.Settings.SettingsSectionView"
+        x:DataType="settings:SettingsSectionView"
+        x:Name="Root"
+        Style="{StaticResource SettingsSectionBorderStyle}">
+    <Border.Content>
+        <VerticalStackLayout Spacing="8"
+                             MinimumWidthRequest="0"
+                             HorizontalOptions="Fill">
+            <Label Text="{Binding Title, Source={x:Reference Root}}"
+                   IsVisible="{Binding HasTitle, Source={x:Reference Root}}"
+                   Style="{StaticResource SettingsCardTitleLabelStyle}" />
+            <Label Text="{Binding Description, Source={x:Reference Root}}"
+                   IsVisible="{Binding HasDescription, Source={x:Reference Root}}"
+                   Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
+            <ContentView Content="{Binding SectionContent, Source={x:Reference Root}}"
+                         MinimumWidthRequest="0"
+                         HorizontalOptions="Fill" />
+        </VerticalStackLayout>
+    </Border.Content>
+</Border>

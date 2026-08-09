@@ -2,6 +2,7 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
              x:Class="ASLM.Pages.SettingsView"
              BackgroundColor="{DynamicResource OverlayBackground}">
 
@@ -14,11 +15,7 @@
             HeightRequest="576"
             HorizontalOptions="Center"
             VerticalOptions="Center"
-                            BackgroundColor="{DynamicResource BackgroundSecondary}"
-                            Stroke="{DynamicResource Separator}"
-            StrokeThickness="1"
-            Padding="0"
-            StrokeShape="RoundRectangle 8">
+            Style="{StaticResource SettingsDialogBorderStyle}">
 
         <Border.GestureRecognizers>
             <TapGestureRecognizer Tapped="OnBorderTapped" />
@@ -27,23 +24,17 @@
         <Grid ColumnDefinitions="220,*" ColumnSpacing="0">
 
             <Border Grid.Column="0"
-                    BackgroundColor="{DynamicResource BackgroundSecondary}"
-                    StrokeThickness="0"
-                    StrokeShape="RoundRectangle 0"
-                    Margin="12"
-                    Padding="0">
+                    Style="{StaticResource SettingsSidebarBorderStyle}">
                 <Grid RowDefinitions="Auto,*">
                     <Label x:Name="SettingsSidebarTitleLabel"
                            Text="Settings"
-                           FontSize="16"
-                           FontAttributes="Bold"
-                           TextColor="{DynamicResource LabelPrimary}" />
+                           Style="{StaticResource SettingsDialogTitleLabelStyle}" />
 
                     <ScrollView x:Name="CategoryScroll"
                                 Grid.Row="1"
                                 Margin="0,12,0,0"
                                 VerticalScrollBarVisibility="Never">
-                                <VerticalStackLayout x:Name="CategoryPanel" Spacing="1" />
+                        <settings:SettingsCategorySelectorView x:Name="CategorySelector" />
                     </ScrollView>
                 </Grid>
             </Border>
@@ -67,9 +58,7 @@
                       HeightRequest="50">
                     <Label x:Name="ActiveCategoryTitleLabel"
                            Text=""
-                           FontSize="16"
-                           FontAttributes="Bold"
-                           TextColor="{DynamicResource LabelPrimary}"
+                           Style="{StaticResource SettingsDialogTitleLabelStyle}"
                            VerticalOptions="Start" />
 
                     <Button x:Name="CloseSettingsButton"
@@ -93,85 +82,24 @@
                 <ScrollView Grid.Row="1"
                             x:Name="SettingsScroll"
                             Margin="0"
+                            Orientation="Vertical"
+                            HorizontalOptions="Fill"
                             VerticalScrollBarVisibility="Never"
                             HorizontalScrollBarVisibility="Never">
                     <VerticalStackLayout x:Name="SettingsContentContainer"
                                          Spacing="16"
-                                         Padding="0">
+                                         Padding="0"
+                                         MinimumWidthRequest="0"
+                                         HorizontalOptions="Fill"
+                                         WidthRequest="{Binding Width, Source={x:Reference SettingsScroll}, x:DataType={x:Type ScrollView}}">
 
-                        <VerticalStackLayout x:Name="AslmSettingsContainer"
-                                             Spacing="0"
-                                             IsVisible="False">
-                            <VerticalStackLayout x:Name="AccountModeSection"
-                                                 Spacing="8"
-                                                 Margin="0,0,0,16"
-                                                 IsVisible="False" />
+                        <settings:BuiltInSettingsView x:Name="BuiltInSettingsContainer"
+                                                      IsVisible="False" />
 
-                            <VerticalStackLayout x:Name="UserProfileSection" Spacing="8">
-                                <Label x:Name="DisplayNameTitleLabel"
-                                       Text="Display Name"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       TextColor="{DynamicResource LabelPrimary}" />
-                                <Label x:Name="DisplayNameDescriptionLabel"
-                                       Text="Name shown in ASLM and shared with modules."
-                                       FontSize="12"
-                                       TextColor="{DynamicResource LabelSecondary}" />
-                                <Border BackgroundColor="{DynamicResource BackgroundSecondary}"
-                                        Stroke="{DynamicResource Separator}"
-                                        StrokeThickness="1"
-                                        StrokeShape="RoundRectangle 5"
-                                        Padding="8,0">
-                                    <Entry x:Name="UsernameEntry"
-                                           FontSize="13"
-                                           HeightRequest="40"
-                                           TextColor="{DynamicResource LabelPrimary}"
-                                           BackgroundColor="Transparent" />
-                                </Border>
-                            </VerticalStackLayout>
-
-                            <VerticalStackLayout x:Name="PortsSection" Spacing="8">
-                                <Label x:Name="PortsGroupHeader"
-                                       Text="Ports"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       TextColor="{DynamicResource LabelTertiary}"
-                                       Margin="0" />
-                                <VerticalStackLayout Spacing="8">
-                                    <Label x:Name="ModulePortTitleLabel"
-                                           Text="Module start port"
-                                           FontSize="14"
-                                           FontAttributes="Bold"
-                                           TextColor="{DynamicResource LabelPrimary}" />
-                                    <Label x:Name="ModulePortDescriptionLabel"
-                                           Text=""
-                                           FontSize="12"
-                                           TextColor="{DynamicResource LabelSecondary}" />
-                                    <Border BackgroundColor="{DynamicResource BackgroundSecondary}"
-                                            Stroke="{DynamicResource Separator}"
-                                            StrokeThickness="1"
-                                            StrokeShape="RoundRectangle 4"
-                                            Padding="8,0">
-                                        <Entry x:Name="ModulePortEntry"
-                                               Keyboard="Numeric"
-                                               FontSize="13"
-                                               HeightRequest="40"
-                                               TextColor="{DynamicResource LabelPrimary}"
-                                               BackgroundColor="Transparent" />
-                                    </Border>
-                                </VerticalStackLayout>
-
-                                <Label x:Name="PortErrorLabel"
-                                       Text=""
-                                       FontSize="12"
-                                       TextColor="{DynamicResource ActionRed}"
-                                       IsVisible="False" />
-                            </VerticalStackLayout>
-                        </VerticalStackLayout>
-
-                        <VerticalStackLayout x:Name="ModuleSettingsContainer"
-                                             Spacing="0"
-                                             IsVisible="False" />
+                        <ContentView x:Name="ModuleSettingsContainer"
+                                     MinimumWidthRequest="0"
+                                     HorizontalOptions="Fill"
+                                     IsVisible="False" />
 
                         <VerticalStackLayout x:Name="EmptyCategoryState"
                                              IsVisible="False"
@@ -193,35 +121,46 @@
                              Opacity="0.45" />
 
                     <Grid Grid.Row="1"
-                          ColumnDefinitions="Auto,Auto,*,Auto,Auto"
-                          ColumnSpacing="6"
+                          ColumnDefinitions="*,*"
+                          ColumnSpacing="12"
                           Margin="0,10,0,0">
-                        <Button x:Name="DefaultButton"
-                                Text="Load default"
-                                Style="{StaticResource SettingsFooterButtonStyle}"
-                                IsVisible="False"
-                                Clicked="OnDefaultClicked" />
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    AlignItems="Start">
+                            <Button x:Name="DefaultButton"
+                                    Text="Load default"
+                                    Margin="0,0,6,6"
+                                    Style="{StaticResource SettingsFooterButtonStyle}"
+                                    IsVisible="False"
+                                    Clicked="OnDefaultClicked" />
 
-                        <Button x:Name="DiscardButton"
-                                Grid.Column="1"
-                                Text="Discard Changes"
-                                Style="{StaticResource SettingsFooterDangerButtonStyle}"
-                                IsVisible="False"
-                                Clicked="OnDiscardChangesClicked" />
+                            <Button x:Name="DiscardButton"
+                                    Text="Discard Changes"
+                                    Margin="0,0,6,6"
+                                    Style="{StaticResource SettingsFooterDangerButtonStyle}"
+                                    IsVisible="False"
+                                    Clicked="OnDiscardChangesClicked" />
+                        </FlexLayout>
 
-                        <Button x:Name="SaveButton"
-                                Grid.Column="3"
-                                Text="Save"
-                                Style="{StaticResource SettingsFooterButtonStyle}"
-                                IsVisible="False"
-                                Clicked="OnSaveClicked" />
+                        <FlexLayout Grid.Column="1"
+                                    Direction="Row"
+                                    Wrap="Wrap"
+                                    JustifyContent="End"
+                                    AlignItems="Start">
+                            <Button x:Name="SaveButton"
+                                    Text="Save"
+                                    Margin="6,0,0,6"
+                                    Style="{StaticResource SettingsFooterButtonStyle}"
+                                    IsVisible="False"
+                                    Clicked="OnSaveClicked" />
 
-                        <Button x:Name="SaveAndRestartButton"
-                                Grid.Column="4"
-                                Text="Save and restart"
-                                Style="{StaticResource SettingsFooterPrimaryButtonStyle}"
-                                IsVisible="False"
-                                Clicked="OnSaveAndRestartClicked" />
+                            <Button x:Name="SaveAndRestartButton"
+                                    Text="Save and restart"
+                                    Margin="6,0,0,6"
+                                    Style="{StaticResource SettingsFooterPrimaryButtonStyle}"
+                                    IsVisible="False"
+                                    Clicked="OnSaveAndRestartClicked" />
+                        </FlexLayout>
                     </Grid>
                 </Grid>
             </Grid>
