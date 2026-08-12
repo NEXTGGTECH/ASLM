@@ -18,6 +18,8 @@ namespace ASLM.Pages
         private const double MinDialogHeight = 540;
         private const double MaxDialogWidth = 1280;
         private const double MaxDialogHeight = 720;
+        private const string GitHubHomeUrl = "https://github.com/";
+        private const string OllamaSettingsUrl = "https://ollama.com/settings";
         private static readonly TimeSpan OllamaSignInPollInterval = TimeSpan.FromSeconds(3);
         private static readonly TimeSpan OllamaSignInPollDuration = TimeSpan.FromMinutes(5);
 
@@ -29,8 +31,10 @@ namespace ASLM.Pages
         private readonly AppLocalizationService _localization;
         private readonly OllamaSettingsStore _ollamaSettings;
         private readonly GitHubAccountStore _githubAccountStore;
+        private readonly GitHubRateLimitStore _githubRateLimitStore;
         private readonly GitHubUpdateClient _githubUpdateClient;
         private readonly UpdateManager _updateManager;
+        private readonly UpdateScheduler _updateScheduler;
         private readonly EngineInstaller _engineInstaller;
         private readonly AslmMirrorServer _mirrorServer;
         private readonly NotificationCenter _notifications;
@@ -59,6 +63,7 @@ namespace ASLM.Pages
         private bool _isOllamaMetadataRefreshRunning;
         private bool _isGitHubAccountActionRunning;
         private bool _isAslmAccountActionRunning;
+        private bool _isUpdateSchedulerSubscribed;
         private int _actionButtonUpdateQueued;
         private int _moduleSettingsWarmupGeneration;
         private string _ollamaAccountAction = string.Empty;
@@ -71,16 +76,24 @@ namespace ASLM.Pages
         private SettingsToggle? _checkUpdatesToggle;
         private SettingsToggle? _autoUpdatesToggle;
         private Picker? _appUpdateChannelPicker;
-        private Picker? _moduleUpdateModePicker;
         private Picker? _moduleUpdateChannelPicker;
-        private Label? _updateStatusLabel;
+        private Label? _aslmInstalledVersionLabel;
+        private Label? _aslmAvailableVersionLabel;
+        private HorizontalStackLayout? _aslmUpdateActionHost;
+        private Grid? _prepareAppUpdateHost;
         private Button? _prepareAppUpdateButton;
+        private HorizontalStackLayout? _prepareAppUpdateProgress;
+        private ActivityIndicator? _prepareAppUpdateSpinner;
+        private Label? _prepareAppUpdateProgressPercent;
         private Button? _restartAppUpdateButton;
         private UpdateCandidate? _pendingAppUpdateCandidate;
+        private Grid? _ollamaUpdateHost;
         private Button? _ollamaUpdateButton;
-        private Button? _ollamaCheckUpdateButton;
-        private Label? _ollamaUpdateStatusLabel;
-        private Label? _ollamaVersionDescriptionLabel;
+        private HorizontalStackLayout? _ollamaUpdateProgress;
+        private ActivityIndicator? _ollamaUpdateSpinner;
+        private Label? _ollamaUpdateProgressPercent;
+        private Label? _ollamaInstalledVersionLabel;
+        private Label? _ollamaAvailableVersionLabel;
         private UpdateCandidate? _pendingOllamaUpdateCandidate;
         private SettingsToggle? _apiServerToggle;
         private SettingsToggle? _consoleSidebarToggle;
@@ -97,7 +110,7 @@ namespace ASLM.Pages
         private Picker? _languagePicker;
         private VerticalStackLayout? _customThemeSection;
         private Picker? _customThemePicker;
-        private VerticalStackLayout? _themeEditorSection;
+        private SettingsSectionView? _themeEditorSection;
         private bool _suppressCustomThemePickerEvents;
         private bool _personalizationControlsInitialized;
 
@@ -219,8 +232,10 @@ namespace ASLM.Pages
             AppLocalizationService localization,
             OllamaSettingsStore ollamaSettings,
             GitHubAccountStore githubAccountStore,
+            GitHubRateLimitStore githubRateLimitStore,
             GitHubUpdateClient githubUpdateClient,
             UpdateManager updateManager,
+            UpdateScheduler updateScheduler,
             EngineInstaller engineInstaller,
             AslmMirrorServer mirrorServer,
             NotificationCenter notifications,
@@ -233,8 +248,10 @@ namespace ASLM.Pages
             _localization = localization;
             _ollamaSettings = ollamaSettings;
             _githubAccountStore = githubAccountStore;
+            _githubRateLimitStore = githubRateLimitStore;
             _githubUpdateClient = githubUpdateClient;
             _updateManager = updateManager;
+            _updateScheduler = updateScheduler;
             _engineInstaller = engineInstaller;
             _mirrorServer = mirrorServer;
             _notifications = notifications;
@@ -283,15 +300,23 @@ namespace ASLM.Pages
             _checkUpdatesToggle = BuiltInSettingsContainer.CheckUpdatesInput;
             _autoUpdatesToggle = BuiltInSettingsContainer.AutoUpdatesInput;
             _appUpdateChannelPicker = BuiltInSettingsContainer.AppChannelInput;
-            _moduleUpdateModePicker = BuiltInSettingsContainer.ModuleModeInput;
             _moduleUpdateChannelPicker = BuiltInSettingsContainer.ModuleChannelInput;
-            _updateStatusLabel = BuiltInSettingsContainer.AppUpdateState;
+            _aslmInstalledVersionLabel = BuiltInSettingsContainer.AslmInstalledVersion;
+            _aslmAvailableVersionLabel = BuiltInSettingsContainer.AslmAvailableVersion;
+            _aslmUpdateActionHost = BuiltInSettingsContainer.AslmUpdateActionContainer;
+            _prepareAppUpdateHost = BuiltInSettingsContainer.PrepareAppUpdateContainer;
             _prepareAppUpdateButton = BuiltInSettingsContainer.PrepareAppUpdateAction;
+            _prepareAppUpdateProgress = BuiltInSettingsContainer.PrepareAppUpdateProgressContent;
+            _prepareAppUpdateSpinner = BuiltInSettingsContainer.PrepareAppUpdateProgressSpinner;
+            _prepareAppUpdateProgressPercent = BuiltInSettingsContainer.PrepareAppUpdateProgressValue;
             _restartAppUpdateButton = BuiltInSettingsContainer.RestartAppUpdateAction;
+            _ollamaUpdateHost = BuiltInSettingsContainer.OllamaUpdateContainer;
             _ollamaUpdateButton = BuiltInSettingsContainer.OllamaUpdateAction;
-            _ollamaCheckUpdateButton = BuiltInSettingsContainer.CheckOllamaUpdateAction;
-            _ollamaUpdateStatusLabel = BuiltInSettingsContainer.OllamaUpdateState;
-            _ollamaVersionDescriptionLabel = BuiltInSettingsContainer.OllamaVersionDescriptionLabel;
+            _ollamaUpdateProgress = BuiltInSettingsContainer.OllamaUpdateProgressContent;
+            _ollamaUpdateSpinner = BuiltInSettingsContainer.OllamaUpdateProgressSpinner;
+            _ollamaUpdateProgressPercent = BuiltInSettingsContainer.OllamaUpdateProgressValue;
+            _ollamaInstalledVersionLabel = BuiltInSettingsContainer.OllamaInstalledVersion;
+            _ollamaAvailableVersionLabel = BuiltInSettingsContainer.OllamaAvailableVersion;
             _languagePicker = BuiltInSettingsContainer.LanguageInput;
             _appearancePicker = BuiltInSettingsContainer.AppearanceInput;
             _customThemeSection = BuiltInSettingsContainer.CustomThemesHost;
@@ -300,7 +325,6 @@ namespace ASLM.Pages
 
             // Populate invariant choices once and wire all interaction handlers once.
             _appUpdateChannelPicker.ItemsSource = new List<string> { "release", "pre-release" };
-            _moduleUpdateModePicker.ItemsSource = new List<string> { "release", "branch" };
             _moduleUpdateChannelPicker.ItemsSource = new List<string> { "release", "pre-release" };
             _apiServerToggle.Toggled += OnAslmBuiltInToggleChanged;
             _consoleSidebarToggle.Toggled += OnAslmBuiltInToggleChanged;
@@ -310,23 +334,24 @@ namespace ASLM.Pages
             _checkUpdatesToggle.Toggled += OnUpdateControlChanged;
             _autoUpdatesToggle.Toggled += OnUpdateControlChanged;
             _appUpdateChannelPicker.SelectedIndexChanged += OnUpdateControlChanged;
-            _moduleUpdateModePicker.SelectedIndexChanged += OnUpdateControlChanged;
             _moduleUpdateChannelPicker.SelectedIndexChanged += OnUpdateControlChanged;
             _languagePicker.SelectedIndexChanged += OnLanguagePickerChanged;
             _appearancePicker.SelectedIndexChanged += OnAppearancePickerChanged;
             _customThemePicker.SelectedIndexChanged += OnCustomThemePickerSelectionChanged;
             BuiltInSettingsContainer.BaseAppearanceInput.SelectedIndexChanged += OnBaseAppearancePickerChanged;
             _aslmAccountButton.Clicked += OnAslmAccountButtonClicked;
+            BuiltInSettingsContainer.AslmAccountLink.Clicked += OnAslmAccountLinkClicked;
             _githubAccountButton.Clicked += OnGitHubAccountButtonClicked;
+            BuiltInSettingsContainer.GitHubAccountLink.Clicked += OnGitHubAccountLinkClicked;
             _ollamaAccountButton.Clicked += OnOllamaAccountButtonClicked;
-            BuiltInSettingsContainer.CheckAslmUpdateAction.Clicked += OnCheckAslmUpdatesClicked;
+            BuiltInSettingsContainer.OllamaAccountLink.Clicked += OnOllamaAccountLinkClicked;
             _prepareAppUpdateButton.Clicked += OnPrepareAppUpdateClicked;
             _restartAppUpdateButton.Clicked += OnRestartNowClicked;
-            _ollamaCheckUpdateButton.Clicked += OnCheckOllamaUpdatesClicked;
             _ollamaUpdateButton.Clicked += OnUpdateOllamaClicked;
             BuiltInSettingsContainer.CreateThemeAction.Clicked += OnCreateThemeClicked;
             BuiltInSettingsContainer.ImportThemeAction.Clicked += OnImportThemeClicked;
             BuiltInSettingsContainer.ExportThemeAction.Clicked += OnExportThemeClicked;
+            BuiltInSettingsContainer.RenameThemeAction.Clicked += OnRenameCurrentCustomThemeClicked;
             BuiltInSettingsContainer.DeleteThemeAction.Clicked += OnDeleteCurrentCustomThemeClicked;
         }
 
@@ -463,6 +488,9 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnLoaded(object? sender, EventArgs e)
         {
+            AttachAccountLinkThemeHandlers();
+            AttachUpdateSchedulerHandler();
+
             if (_hasLoaded || _isLoading)
             {
                 return;
@@ -491,6 +519,8 @@ namespace ASLM.Pages
         /// </summary>
         private void OnUnloaded(object? sender, EventArgs e)
         {
+            DetachAccountLinkThemeHandlers();
+            DetachUpdateSchedulerHandler();
             StopOllamaStatusPolling();
             StopOllamaMetadataRefresh();
             StopAslmAccountAction();
@@ -503,6 +533,8 @@ namespace ASLM.Pages
             SettingsSidebarTitleLabel.Text = L.Get(LocalizationKeys.Settings_Title);
             ToolTipProperties.SetText(CloseSettingsButton, L.Get(LocalizationKeys.Settings_CloseTooltip));
             BuiltInSettingsContainer.ApplyLocalization();
+            RefreshAslmVersionInformation();
+            RefreshOllamaVersionInformation();
 
             DefaultButton.Text = L.Get(LocalizationKeys.Settings_LoadDefault);
             DiscardButton.Text = L.Get(LocalizationKeys.Settings_DiscardChanges);

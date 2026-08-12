@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Voorwaarden en licenties</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>Laden...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Nu bijwerken</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>Start de lokale mirrorserver samen met ASLM</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>API-server</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>Release gebruikt alleen stabiele GitHub-releases. Pre-release accepteert ook preview-releases</value>
+    <value>ASLM Mirror Server inschakelen</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>Updatekanaal van de applicatie</value>
+    <value>ASLM-updatekanaal</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Uren tussen achtergrondcontroles op updates</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>Automatische controleperiode</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>Pas module-updates automatisch toe en bereid ASLM-builds voor op de volgende herstart</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>Updates automatisch installeren</value>
+    <value>Automatische installatie van updates inschakelen</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama-account</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>Niet verbonden</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>Maak verbinding om de API-limiet te verhogen van 60 naar 5.000 verzoeken per uur</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>Verbonden</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>Verbonden als {0}</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>Verbinden</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>GitHub-account</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>Meld je aan met een persoonlijk toegangstoken om de hogere GitHub API-limiet te gebruiken.</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Verbinding mislukt: {0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>Voorkeuren voor applicatie- en module-updates</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Ollama-update {0} is beschikbaar</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Ollama bijwerken</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>Huidige versie: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>Update mislukt: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama bijgewerkt naar {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Ollama-update</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Ollama wordt bijgewerkt...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama is up-to-date</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>ASLM-updates controleren</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>Controleren op updates</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>Nu controleren</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>Sta ASLM toe geconfigureerde GitHub-repositories te bevragen</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>Controleren op updates</value>
+    <value>Automatisch controleren op updates inschakelen</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>Instellingen sluiten</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>Houd voltooide procesconsoles zichtbaar wanneer individuele consoles zijn ingeschakeld</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>Voltooide procesconsoles</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>Toon de ingebouwde consolepagina in de zijbalk</value>
+    <value>Consoles van voltooide processen weergeven</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>Consolepagina</value>
+    <value>Pagina Consoles weergeven</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Wijzigingen verwerpen</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Weergavenaam</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>Naam getoond in ASLM en gedeeld met modules</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>Deze categorie heeft geen instellingen</value>
   </data>
@@ -995,41 +930,23 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>MODULES</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>Toon consoles per proces naast geünificeerde module-uitvoer</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>Individuele consoles</value>
+    <value>Afzonderlijke consoles voor moduleprocessen weergeven</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Standaard laden</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>Handmatige controle</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>Gebruikt door modules die GitHub-releases volgen</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>Standaard module-releasekanaal</value>
+    <value>Standaard updatekanaal voor modules</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>Deze module heeft geen instellingen in de huidige staat</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>Nieuwe modulevoorkeuren beginnen vanuit deze modus; individuele modules kunnen dit overschrijven</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>Standaard module-updatemodus</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>Geen instellingen beschikbaar</value>
   </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>Startpoort voor alle modules. Poorten worden opeenvolgend toegewezen vanaf deze waarde</value>
-  </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
-    <value>Startpoort modules</value>
+    <value>Startpoort voor modules</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Ollama-account</value>
@@ -1050,19 +967,13 @@
     <value>Interne Ollama is niet geïnstalleerd</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>Niet aangemeld</value>
+    <value>Verbind je Ollama-account om cloudmodellen te gebruiken</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>Aanmelden</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>Afmelden</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>Aangemeld</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>Aangemeld als {0}</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>Aanmelden...</value>
@@ -1077,7 +988,7 @@
     <value>Wachten op aanmelding in browser</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>Actief thema</value>
+    <value>Aangepast thema</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>Aangepast</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Taal</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>Stelt de interfacetaal in voor ASLM en ondersteunde modules</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>Modus</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>Bepaalt hoe de app het algehele uiterlijk van de interface kiest</value>
+    <value>Thema</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>Nieuw</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>Nog geen aangepaste thema's. Maak er een om het uiterlijk Aangepast te gebruiken</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>Van welk opgeslagen palet de tokenrijen hieronder zijn</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>Kies welk aangepast thema actief is</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>Maak eerst een palet; het verschijnt hier om te selecteren</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>Naam wijzigen</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>Thema's</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>Paletdefinities toevoegen, importeren of delen die als bestanden zijn opgeslagen</value>
+    <value>Aangepaste thema's beheren</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Poorten</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>ASLM-update voorbereiden</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>Nu opnieuw starten</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Opslaan</value>
@@ -1187,11 +1077,9 @@
     <value>Voorwaarden</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Voorwaarden-updates automatisch accepteren</value>
+    <value>Beleidsupdates automatisch accepteren</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>Nieuwe en bijgewerkte voorwaarden accepteren na de eerste controle.</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Verwijderen</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>Thema verwijderen</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>Thema-kleureneditor</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>Ingebouwde semantische standaardwaarden voor tokens die u nog niet hebt overschreven</value>
+    <value>Basisthema</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Wissen</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>Kleureditor voor het thema: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Thema-editor: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Kiezen</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>Nieuw thema</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>Voer een nieuwe naam voor dit thema in</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>Thema hernoemen</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>Instellingen</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>ASLM-update {0} is beschikbaar. Gebruik "ASLM-update voorbereiden" om deze te downloaden</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>ASLM-update {0} is beschikbaar; {1} staat al klaar voor herstart</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} is voorbereid en wordt toegepast bij herstart</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>Updatecontrole mislukt: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>GitHub-repositories controleren...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>ASLM-update kon niet worden voorbereid</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>ASLM-build downloaden...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>{0} engine-update(s) beschikbaar</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>{0} update(s) beschikbaar. Module-updates kunnen worden toegepast vanaf de pagina Modules</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} staat klaar voor herstart</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} Een ASLM-zelfupdate staat klaar voor herstart</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>Er is in deze sessie nog geen updatecontrole uitgevoerd</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>ASLM-update is voorbereid en wordt toegepast bij herstart</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>ASLM-update {0} is voorbereid en wordt toegepast bij herstart</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Herstart mislukt: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>ASLM opnieuw starten...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Update downloaden</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>Alles is up-to-date.</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>Downloaden</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>Aangepaste waarde gebruiken</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Installeren en opnieuw starten</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Validatiefout</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>Lokaal account. Profielgegevens worden alleen op dit apparaat opgeslagen.</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>Cloudaccount verbonden als {0}</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Cloudaccount gebruiken</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>Overige instellingen</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Beschikbare versie: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Geïnstalleerde versie: {0}</value>
   </data>
 </root>

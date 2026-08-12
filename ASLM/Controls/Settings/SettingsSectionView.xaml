@@ -8,17 +8,21 @@
         x:Class="ASLM.Controls.Settings.SettingsSectionView"
         x:DataType="settings:SettingsSectionView"
         x:Name="Root"
-        Style="{StaticResource SettingsSectionBorderStyle}">
+        Style="{StaticResource SettingsCategoryCardBorderStyle}">
     <Border.Content>
         <VerticalStackLayout Spacing="8"
                              MinimumWidthRequest="0"
                              HorizontalOptions="Fill">
-            <Label Text="{Binding Title, Source={x:Reference Root}}"
-                   IsVisible="{Binding HasTitle, Source={x:Reference Root}}"
-                   Style="{StaticResource SettingsCardTitleLabelStyle}" />
-            <Label Text="{Binding Description, Source={x:Reference Root}}"
-                   IsVisible="{Binding HasDescription, Source={x:Reference Root}}"
-                   Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
+            <Grid ColumnDefinitions="Auto,Auto,*"
+                  ColumnSpacing="6"
+                  MinimumWidthRequest="0"
+                  HorizontalOptions="Fill"
+                  IsVisible="{Binding HasTitle, Source={x:Reference Root}}">
+                <Label Text="{Binding Title, Source={x:Reference Root}}"
+                       Style="{StaticResource SettingsAccountTitleLabelStyle}" />
+                <settings:SettingsInfoButton Description="{Binding Description, Source={x:Reference Root}}"
+                                             Grid.Column="1" />
+            </Grid>
             <ContentView Content="{Binding SectionContent, Source={x:Reference Root}}"
                          MinimumWidthRequest="0"
                          HorizontalOptions="Fill" />

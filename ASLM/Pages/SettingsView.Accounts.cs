@@ -1,5 +1,6 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using System.Globalization;
 using Debug = System.Diagnostics.Debug;
 using ASLM.Localization;
 using ASLM.Models;
@@ -118,9 +119,11 @@ namespace ASLM.Pages
                 return L.Get(LocalizationKeys.Settings_AslmAccount_LocalStatus);
             }
 
-            return L.Get(
-                LocalizationKeys.Settings_AslmAccount_CloudStatus,
-                GetCloudAccountDisplayName(_sunriseService.UserData.Account));
+            var account = _sunriseService.UserData.Account;
+            return string.Join("\n",
+                $"User: {FormatAccountIdentity(account.Username, account.Email)}",
+                $"UID: {FormatAccountValue(account.Uid)}",
+                $"ASLM UID: {FormatAccountValue(account.Aslm?.Uid)}");
         }
 
         /// <summary>
@@ -128,6 +131,13 @@ namespace ASLM.Pages
         /// </summary>
         private void UpdateAslmAccountActionControls()
         {
+            var isCloudAccount = _sunriseService.IsCloudAccount;
+            BuiltInSettingsContainer.AslmAccountTypeBadge.Text = L.Get(
+                isCloudAccount
+                    ? LocalizationKeys.SetupWizard_CloudAccount
+                    : LocalizationKeys.SetupWizard_LocalAccount);
+            BuiltInSettingsContainer.AslmAccountLink.IsVisible = isCloudAccount;
+
             if (_aslmAccountStatusLabel != null)
             {
                 _aslmAccountStatusLabel.Text = BuildAslmAccountStatusText();
@@ -137,29 +147,25 @@ namespace ASLM.Pages
             {
                 _aslmAccountButton.Text = _isAslmAccountActionRunning
                     ? L.Get(LocalizationKeys.Settings_AslmAccount_Connecting)
-                    : _sunriseService.IsCloudAccount
+                    : isCloudAccount
                         ? L.Get(LocalizationKeys.Settings_AslmAccount_SwitchToLocal)
                         : L.Get(LocalizationKeys.Settings_AslmAccount_SwitchToCloud);
                 _aslmAccountButton.IsEnabled = !_isAslmAccountActionRunning;
+                ApplyAccountConnectionButtonState(_aslmAccountButton, isCloudAccount);
             }
         }
 
         /// <summary>
-        /// Resolves the best user-facing name exposed by a SUNRISE account.
+        /// Opens the configured SUNRISE profile page for the active cloud account.
         /// </summary>
-        private static string GetCloudAccountDisplayName(SunriseUserAccount account)
+        private async void OnAslmAccountLinkClicked(object? sender, EventArgs e)
         {
-            if (!string.IsNullOrWhiteSpace(account.Aslm?.Username))
+            if (!_sunriseService.IsCloudAccount)
             {
-                return account.Aslm.Username;
+                return;
             }
 
-            if (!string.IsNullOrWhiteSpace(account.Username))
-            {
-                return account.Username;
-            }
-
-            return account.Email;
+            await OpenAccountLinkAsync(() => _sunriseService.CreateFullUri(SunriseService.ProfileEndpoint));
         }
 
         /// <summary>
@@ -249,17 +255,39 @@ namespace ASLM.Pages
                 return L.Get(LocalizationKeys.Settings_GitHub_Connecting);
             }
 
-            if (_githubDraft.IsConnected && !string.IsNullOrWhiteSpace(_githubDraft.UserName))
+            var usage = BuildGitHubRateLimitUsageText();
+            if (!_githubDraft.IsConnected && !string.IsNullOrWhiteSpace(_githubDraft.ErrorMessage))
             {
-                return L.Get(LocalizationKeys.Settings_GitHub_ConnectedAs, _githubDraft.UserName);
+                return string.Join("\n",
+                    L.Get(LocalizationKeys.Settings_GitHub_ConnectFailed, _githubDraft.ErrorMessage),
+                    usage);
             }
 
-            if (!string.IsNullOrWhiteSpace(_githubDraft.ErrorMessage))
+            if (!_githubDraft.IsConnected)
             {
-                return L.Get(LocalizationKeys.Settings_GitHub_ConnectFailed, _githubDraft.ErrorMessage);
+                return string.Join("\n",
+                    L.Get(LocalizationKeys.Settings_GitHub_NotConnectedHint),
+                    usage);
             }
 
-            return L.Get(LocalizationKeys.Settings_GitHub_NotConnectedHint);
+            return string.Join("\n",
+                $"User: {FormatAccountIdentity(_githubDraft.Name, _githubDraft.UserName)}",
+                usage);
+        }
+
+        /// <summary>
+        /// Formats the used portion of the current primary GitHub API request window.
+        /// </summary>
+        private string BuildGitHubRateLimitUsageText()
+        {
+            var rateLimit = _githubRateLimitStore.GetSnapshot();
+            var usedRequests = Math.Clamp(rateLimit.Limit - rateLimit.Remaining, 0, rateLimit.Limit);
+            var usedPercent = rateLimit.Limit == 0
+                ? 0
+                : (double)usedRequests / rateLimit.Limit * 100;
+            return string.Create(
+                CultureInfo.CurrentCulture,
+                $"API: {usedRequests:N0}/{rateLimit.Limit:N0} ({usedPercent:0.##}%)");
         }
 
         /// <summary>
@@ -283,6 +311,20 @@ namespace ASLM.Pages
                 _githubAccountButton.IsEnabled = !_isGitHubAccountActionRunning;
                 ApplyAccountConnectionButtonState(_githubAccountButton, isConnected);
             }
+        }
+
+        /// <summary>
+        /// Opens the connected GitHub profile or the GitHub home page when no account is connected.
+        /// </summary>
+        private async void OnGitHubAccountLinkClicked(object? sender, EventArgs e)
+        {
+            await OpenAccountLinkAsync(() =>
+            {
+                var target = IsGitHubConnected() && !string.IsNullOrWhiteSpace(_githubDraft.ProfileUrl)
+                    ? _githubDraft.ProfileUrl
+                    : GitHubHomeUrl;
+                return new Uri(target, UriKind.Absolute);
+            });
         }
 
         /// <summary>
@@ -397,6 +439,13 @@ namespace ASLM.Pages
             _ollamaDraft.IsCliAvailable = refreshed.IsCliAvailable;
             _ollamaDraft.IsSignedIn = refreshed.IsSignedIn;
             _ollamaDraft.UserName = refreshed.UserName;
+            _ollamaDraft.UserId = refreshed.UserId;
+            _ollamaDraft.Email = refreshed.Email;
+            _ollamaDraft.Bio = refreshed.Bio;
+            _ollamaDraft.AvatarUrl = refreshed.AvatarUrl;
+            _ollamaDraft.FirstName = refreshed.FirstName;
+            _ollamaDraft.LastName = refreshed.LastName;
+            _ollamaDraft.Plan = refreshed.Plan;
         }
 
         /// <summary>
@@ -600,14 +649,67 @@ namespace ASLM.Pages
                 return L.Get(LocalizationKeys.Settings_Ollama_WaitingSignIn);
             }
 
-            if (_ollamaDraft.IsSignedIn)
+            if (!_ollamaDraft.IsSignedIn)
             {
-                return string.IsNullOrWhiteSpace(_ollamaDraft.UserName)
-                    ? L.Get(LocalizationKeys.Settings_Ollama_SignedIn)
-                    : L.Get(LocalizationKeys.Settings_Ollama_SignedInAs, _ollamaDraft.UserName);
+                return L.Get(LocalizationKeys.Settings_Ollama_NotSignedIn);
             }
 
-            return L.Get(LocalizationKeys.Settings_Ollama_NotSignedIn);
+            return string.Join("\n",
+                $"User: {FormatAccountIdentity(_ollamaDraft.UserName, _ollamaDraft.Email)}",
+                $"ID: {FormatAccountValue(_ollamaDraft.UserId)}",
+                $"Plan: {FormatAccountValue(_ollamaDraft.Plan)}");
+        }
+
+        /// <summary>
+        /// Opens the Ollama account settings page.
+        /// </summary>
+        private async void OnOllamaAccountLinkClicked(object? sender, EventArgs e)
+        {
+            await OpenAccountLinkAsync(() => new Uri(OllamaSettingsUrl, UriKind.Absolute));
+        }
+
+        /// <summary>
+        /// Resolves and opens an account link while keeping launcher failures out of UI event handlers.
+        /// </summary>
+        private static async Task OpenAccountLinkAsync(Func<Uri> resolveUri)
+        {
+            try
+            {
+                await Launcher.OpenAsync(resolveUri());
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to open account link: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Formats a primary account name with a distinct secondary identifier in parentheses.
+        /// </summary>
+        private static string FormatAccountIdentity(string? primary, string? secondary)
+        {
+            var normalizedPrimary = primary?.Trim() ?? string.Empty;
+            var normalizedSecondary = secondary?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(normalizedPrimary))
+            {
+                return FormatAccountValue(normalizedSecondary);
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedSecondary) ||
+                string.Equals(normalizedPrimary, normalizedSecondary, StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedPrimary;
+            }
+
+            return $"{normalizedPrimary} ({normalizedSecondary})";
+        }
+
+        /// <summary>
+        /// Replaces unavailable account values with a stable visual placeholder.
+        /// </summary>
+        private static string FormatAccountValue(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
         }
 
     }

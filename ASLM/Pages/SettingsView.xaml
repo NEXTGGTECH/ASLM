@@ -25,14 +25,15 @@
 
             <Border Grid.Column="0"
                     Style="{StaticResource SettingsSidebarBorderStyle}">
-                <Grid RowDefinitions="Auto,*">
+                <Grid RowDefinitions="24,*"
+                      RowSpacing="12">
                     <Label x:Name="SettingsSidebarTitleLabel"
                            Text="Settings"
                            Style="{StaticResource SettingsDialogTitleLabelStyle}" />
 
                     <ScrollView x:Name="CategoryScroll"
                                 Grid.Row="1"
-                                Margin="0,12,0,0"
+                                Margin="0,4,0,0"
                                 VerticalScrollBarVisibility="Never">
                         <settings:SettingsCategorySelectorView x:Name="CategorySelector" />
                     </ScrollView>
@@ -48,14 +49,15 @@
             <Grid Grid.Column="1"
                   RowDefinitions="Auto,*,Auto"
                   RowSpacing="0"
-                  Margin="12"
-                  Padding="0">
+                  Margin="0"
+                  Padding="12"
+                  BackgroundColor="{DynamicResource BackgroundPrimary}">
 
                 <Grid Grid.Row="0"
                       ColumnDefinitions="*,Auto"
-                      Margin="0"
+                      Margin="0,0,0,12"
                       Padding="0"
-                      HeightRequest="50">
+                      HeightRequest="24">
                     <Label x:Name="ActiveCategoryTitleLabel"
                            Text=""
                            Style="{StaticResource SettingsDialogTitleLabelStyle}"
@@ -65,10 +67,10 @@
                             Grid.Column="1"
                             Text="&#x2715;"
                             FontSize="17"
-                            WidthRequest="36"
-                            MinimumWidthRequest="36"
-                            HeightRequest="36"
-                            MinimumHeightRequest="36"
+                            WidthRequest="24"
+                            MinimumWidthRequest="24"
+                            HeightRequest="24"
+                            MinimumHeightRequest="24"
                             Padding="0"
                             Margin="0"
                             ToolTipProperties.Text="Close Settings"
@@ -81,7 +83,7 @@
 
                 <ScrollView Grid.Row="1"
                             x:Name="SettingsScroll"
-                            Margin="0"
+                            Margin="0,4,0,0"
                             Orientation="Vertical"
                             HorizontalOptions="Fill"
                             VerticalScrollBarVisibility="Never"
@@ -117,26 +119,25 @@
                       RowDefinitions="Auto,Auto"
                       Margin="0,8,0,0">
                     <BoxView HeightRequest="1"
-                             Color="{DynamicResource Separator}"
-                             Opacity="0.45" />
+                             Color="{DynamicResource Separator}"/>
 
                     <Grid Grid.Row="1"
                           ColumnDefinitions="*,*"
-                          ColumnSpacing="12"
-                          Margin="0,10,0,0">
+                          ColumnSpacing="0"
+                          Margin="0,12,0,0">
                         <FlexLayout Direction="Row"
                                     Wrap="Wrap"
                                     AlignItems="Start">
                             <Button x:Name="DefaultButton"
                                     Text="Load default"
-                                    Margin="0,0,6,6"
+                                    Margin="0,0,8,0"
                                     Style="{StaticResource SettingsFooterButtonStyle}"
                                     IsVisible="False"
                                     Clicked="OnDefaultClicked" />
 
                             <Button x:Name="DiscardButton"
                                     Text="Discard Changes"
-                                    Margin="0,0,6,6"
+                                    Margin="0,0,8,0"
                                     Style="{StaticResource SettingsFooterDangerButtonStyle}"
                                     IsVisible="False"
                                     Clicked="OnDiscardChangesClicked" />
@@ -149,14 +150,14 @@
                                     AlignItems="Start">
                             <Button x:Name="SaveButton"
                                     Text="Save"
-                                    Margin="6,0,0,6"
+                                    Margin="8,0,0,0"
                                     Style="{StaticResource SettingsFooterButtonStyle}"
                                     IsVisible="False"
                                     Clicked="OnSaveClicked" />
 
                             <Button x:Name="SaveAndRestartButton"
                                     Text="Save and restart"
-                                    Margin="6,0,0,6"
+                                    Margin="8,0,0,0"
                                     Style="{StaticResource SettingsFooterPrimaryButtonStyle}"
                                     IsVisible="False"
                                     Clicked="OnSaveAndRestartClicked" />

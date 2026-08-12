@@ -41,7 +41,6 @@ namespace ASLM.Services.Internal
     /// </summary>
     public enum ModuleSettingsSectionKind
     {
-        HostManaged,
         ManifestCategory,
         Uncategorized
     }
@@ -139,19 +138,22 @@ namespace ASLM.Services.Internal
                 .ToList();
             var sections = new List<ModuleSettingsSectionPresentation>();
 
-            // Host-managed settings retain their legacy leading block and ignore category metadata.
-            AddSection(
-                sections,
-                ModuleSettingsSectionKind.HostManaged,
-                null,
-                null,
-                visibleSettings.Where(static draft =>
-                    !SettingsService.IsSettingsMetadataEligible(draft.Setting)));
-
-            // Manifest categories remain stable and render strictly in declaration order.
             var declaredCategoryIds = moduleDraft.Module.SettingCategories
                 .Select(static category => category.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // All settings without a declared category share one unlabelled leading block.
+            AddSection(
+                sections,
+                ModuleSettingsSectionKind.Uncategorized,
+                null,
+                null,
+                visibleSettings.Where(draft =>
+                    !SettingsService.IsSettingsMetadataEligible(draft.Setting) ||
+                    string.IsNullOrWhiteSpace(draft.Setting.Category) ||
+                    !declaredCategoryIds.Contains(draft.Setting.Category)));
+
+            // Manifest categories remain stable and render strictly in declaration order.
             foreach (var category in moduleDraft.Module.SettingCategories)
             {
                 AddSection(
@@ -166,17 +168,6 @@ namespace ASLM.Services.Internal
                             category.Id,
                             StringComparison.OrdinalIgnoreCase)));
             }
-
-            // Missing or unknown category ids intentionally fall back to one final unlabelled block.
-            AddSection(
-                sections,
-                ModuleSettingsSectionKind.Uncategorized,
-                null,
-                null,
-                visibleSettings.Where(draft =>
-                    SettingsService.IsSettingsMetadataEligible(draft.Setting) &&
-                    (string.IsNullOrWhiteSpace(draft.Setting.Category) ||
-                     !declaredCategoryIds.Contains(draft.Setting.Category))));
 
             return sections;
         }

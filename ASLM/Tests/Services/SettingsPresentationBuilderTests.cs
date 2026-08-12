@@ -11,10 +11,10 @@ namespace ASLM.Tests.Services;
 public sealed class SettingsPresentationBuilderTests
 {
     /// <summary>
-    /// Verifies host, declared, and fallback sections keep their established ordering and membership.
+    /// Verifies uncategorized settings lead declared categories while preserving manifest order.
     /// </summary>
     [Fact]
-    public void BuildModuleSections_preserves_contract_order_and_grouping()
+    public void BuildModuleSections_places_one_default_group_before_manifest_categories()
     {
         var module = ModuleConfigBuilder.Create(configure: config =>
         {
@@ -38,18 +38,18 @@ public sealed class SettingsPresentationBuilderTests
         var sections = SettingsPresentationBuilder.BuildModuleSections(new ModuleSettingsDraft(module));
 
         sections.Select(static section => section.Kind).Should().Equal(
-            ModuleSettingsSectionKind.HostManaged,
+            ModuleSettingsSectionKind.Uncategorized,
             ModuleSettingsSectionKind.ManifestCategory,
-            ModuleSettingsSectionKind.ManifestCategory,
-            ModuleSettingsSectionKind.Uncategorized);
-        sections[0].Settings.Select(static draft => draft.Setting.Key).Should().Equal("runtime_path");
+            ModuleSettingsSectionKind.ManifestCategory);
+        sections[0].Title.Should().BeNull();
+        sections[0].Settings.Select(static draft => draft.Setting.Key).Should().Equal(
+            "runtime_path",
+            "unknown-value",
+            "plain-value");
         sections[1].Title.Should().Be("General");
         sections[1].Settings.Select(static draft => draft.Setting.Key).Should().Equal("general-value");
         sections[2].Title.Should().Be("Advanced");
         sections[2].Settings.Select(static draft => draft.Setting.Key).Should().Equal("advanced-value");
-        sections[3].Settings.Select(static draft => draft.Setting.Key).Should().Equal(
-            "unknown-value",
-            "plain-value");
     }
 
     /// <summary>

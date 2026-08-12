@@ -14,16 +14,16 @@
               MinimumWidthRequest="0"
               HorizontalOptions="Fill"
               MinimumHeightRequest="32">
-            <VerticalStackLayout Spacing="8"
-                                 MinimumWidthRequest="0"
-                                 HorizontalOptions="Fill"
-                                 VerticalOptions="Center">
+            <Grid ColumnDefinitions="Auto,Auto,*"
+                  ColumnSpacing="6"
+                  MinimumWidthRequest="0"
+                  HorizontalOptions="Fill"
+                  VerticalOptions="Center">
                 <Label Text="{Binding Title, Source={x:Reference Root}}"
                        Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                <Label Text="{Binding Description, Source={x:Reference Root}}"
-                       IsVisible="{Binding HasDescription, Source={x:Reference Root}}"
-                       Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
-            </VerticalStackLayout>
+                <settings:SettingsInfoButton Description="{Binding Description, Source={x:Reference Root}}"
+                                             Grid.Column="1" />
+            </Grid>
 
             <ContentView Grid.Column="1"
                          Content="{Binding TrailingContent, Source={x:Reference Root}}"

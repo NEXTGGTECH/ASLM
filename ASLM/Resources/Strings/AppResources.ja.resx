@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>利用条件とライセンス</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>読み込み中...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>今すぐ更新</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>ASLM 起動時にローカルミラーサーバーを開始します</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>API サーバー</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>リリースは安定版の GitHub リリースのみです。プレリリースではプレビューリリースも受け付けます</value>
+    <value>ASLM ミラーサーバーを有効にする</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>アプリケーション更新チャネル</value>
+    <value>ASLM 更新チャンネル</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>バックグラウンド更新確認の間隔（時間）</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>自動確認の間隔</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>モジュール更新を自動適用し、次回再起動用に ASLM ビルドを準備します</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>更新を自動インストール</value>
+    <value>更新の自動インストールを有効にする</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama アカウント</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>未接続</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>接続すると API 制限が時間あたり 60 回から 5,000 回に増えます</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>接続済み</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>{0} として接続済み</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>接続</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>GitHub アカウント</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>個人用アクセストークンでサインインすると、より高い GitHub API 制限が使えます。</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>接続に失敗しました: {0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>アプリケーションおよびモジュールの更新設定</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Ollama のアップデート {0} が利用可能です</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Ollama を更新</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>現在のバージョン: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>更新に失敗しました: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama を {0} に更新しました</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Ollama のアップデート</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Ollama を更新しています...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama は最新です</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>ASLM の更新を確認</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>更新を確認</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>今すぐ確認</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>ASLM が設定済みの GitHub リポジトリを照会できるようにします</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>更新を確認</value>
+    <value>更新の自動確認を有効にする</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>設定を閉じる</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>個別コンソールが有効な場合、終了したプロセスコンソールを表示したままにします</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>完了したプロセスコンソール</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>サイドバーに組み込みのコンソールページを表示します</value>
+    <value>完了したプロセスのコンソールを表示</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>コンソールページ</value>
+    <value>コンソールページを表示</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>変更を破棄</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>表示名</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>ASLM およびモジュールと共有する表示名</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>このカテゴリには設定がありません</value>
   </data>
@@ -995,38 +930,20 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>モジュール</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>統合モジュール出力と併せてプロセスごとのコンソールを表示します</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>個別コンソール</value>
+    <value>モジュールプロセスごとに個別のコンソールを表示</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>既定値を読み込む</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>手動確認</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>GitHub リリースに従うモジュールで使用されます</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>既定のモジュールリリースチャネル</value>
+    <value>既定のモジュール更新チャンネル</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>このモジュールには、現在の状態で設定がありません</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>新しいモジュール設定はこのモードから開始します。各モジュールで上書きできます</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>既定のモジュール更新モード</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>利用できる設定はありません</value>
-  </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>すべてのモジュールの開始ポート。この値から順にポートが割り当てられます</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>モジュール開始ポート</value>
@@ -1050,19 +967,13 @@
     <value>内部 Ollama がインストールされていません</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>サインインしていません</value>
+    <value>クラウドモデルを使用するには、Ollama アカウントを接続してください</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>サインイン</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>サインアウト</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>サインイン済み</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>{0} としてサインイン</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>サインイン中...</value>
@@ -1077,7 +988,7 @@
     <value>ブラウザでのサインインを待機しています</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>アクティブなテーマ</value>
+    <value>カスタムテーマ</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>カスタム</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>言語</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>ASLM および対応モジュールのインターフェース言語を設定します</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>モード</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>アプリ全体の外観の選択方法を設定します</value>
+    <value>テーマ</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>新規</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>カスタムテーマはまだありません。カスタム外観を使うには作成してください</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>下のトークン行が属する保存済みパレット</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>有効にするカスタムテーマを選択します</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>先にパレットを作成してください。選択用にここに表示されます</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>名前を変更</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>テーマ</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>ファイルとして保存されたパレット定義の追加、取り込み、共有</value>
+    <value>カスタムテーマを管理</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>ポート</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>ASLM 更新の準備</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>今すぐ再起動</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>保存</value>
@@ -1187,11 +1077,9 @@
     <value>利用条件</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>条件の更新を自動的に同意</value>
+    <value>ポリシーの更新を自動的に承認</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>初回確認後、新規・更新された条件を自動的に同意します。</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>削除</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>テーマを削除</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>テーマカラーエディター</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>まだ上書きしていないトークン用の組み込みセマンティック既定値</value>
+    <value>ベーステーマ</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>クリア</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>テーマの色エディター: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>テーマエディター: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>選択</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>新しいテーマ</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>このテーマの新しい名前を入力してください</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>テーマ名を変更</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>設定</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>ASLM 更新 {0} が利用可能です。「ASLM 更新の準備」でダウンロードしてください</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>ASLM 更新 {0} が利用可能です。{1} は再起動用にすでにステージング済みです</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} の準備が完了し、再起動時に適用されます</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>更新の確認に失敗しました: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>GitHub リポジトリを確認しています...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>ASLM 更新を準備できませんでした</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>ASLM ビルドをダウンロードしています...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>エンジンのアップデートが {0} 件利用可能です</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>更新 {0} 件が利用可能です。モジュール更新はモジュールページから適用できます</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} は再起動用にステージング済みです</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} ASLM の自己更新は再起動用にステージング済みです</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>このセッションでは更新確認が実行されていません</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>ASLM 更新の準備が完了し、再起動時に適用されます</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>ASLM 更新 {0} の準備が完了し、再起動時に適用されます</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>再起動に失敗しました: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>ASLM を再起動しています...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>更新をダウンロード</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>すべて最新です。</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>ダウンロード中</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>カスタム値を使用</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>インストールして再起動</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>検証エラー</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>ローカル アカウント。プロフィール データはこのデバイスにのみ保存されます。</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>クラウド アカウント: {0} として接続済み</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>クラウド アカウントを使用</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>その他の設定</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>利用可能なバージョン: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>インストール済みバージョン: {0}</value>
   </data>
 </root>

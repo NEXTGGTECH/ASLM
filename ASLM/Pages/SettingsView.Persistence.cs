@@ -222,13 +222,11 @@ namespace ASLM.Pages
             _checkUpdatesToggle != null &&
             _autoUpdatesToggle != null &&
             _appUpdateChannelPicker != null &&
-            _moduleUpdateModePicker != null &&
             _moduleUpdateChannelPicker != null
                 ? new UpdateBaseline(
                     _checkUpdatesToggle.IsToggled,
                     _autoUpdatesToggle.IsToggled,
                     _appUpdateChannelPicker.SelectedItem?.ToString() ?? "release",
-                    _moduleUpdateModePicker.SelectedItem?.ToString() ?? "release",
                     _moduleUpdateChannelPicker.SelectedItem?.ToString() ?? "release")
                 : _updateDraft;
 

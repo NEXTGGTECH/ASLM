@@ -103,7 +103,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets or sets the editable update preferences.
         /// </summary>
-        public UpdateBaseline Update { get; set; } = new(true, false, "release", "release", "release");
+        public UpdateBaseline Update { get; set; } = new(true, false, "release", "release");
 
         /// <summary>
         /// Gets or sets whether newly added legal documents are accepted automatically.
@@ -128,7 +128,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets or sets the accepted update baseline used by dirty-state checks.
         /// </summary>
-        public UpdateBaseline UpdateBaseline { get; set; } = new(true, false, "release", "release", "release");
+        public UpdateBaseline UpdateBaseline { get; set; } = new(true, false, "release", "release");
 
         /// <summary>
         /// Gets or sets the accepted legal baseline used by dirty-state checks.

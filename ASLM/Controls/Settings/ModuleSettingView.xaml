@@ -20,15 +20,16 @@
                   MinimumWidthRequest="0"
                   HorizontalOptions="Fill"
                   ColumnSpacing="8">
-                <VerticalStackLayout Spacing="8"
-                                     MinimumWidthRequest="0"
-                                     HorizontalOptions="Fill">
+                <Grid ColumnDefinitions="Auto,Auto,*"
+                      ColumnSpacing="6"
+                      MinimumWidthRequest="0"
+                      HorizontalOptions="Fill"
+                      VerticalOptions="Center">
                     <Label Text="{Binding Title}"
                            Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                    <Label Text="{Binding Description}"
-                           IsVisible="{Binding HasDescription}"
-                           Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
-                </VerticalStackLayout>
+                    <settings:SettingsInfoButton Description="{Binding Description}"
+                                                 Grid.Column="1" />
+                </Grid>
 
                 <Label Grid.Column="1"
                        Text="{Binding EngineInstalledText}"
@@ -58,15 +59,16 @@
                   MinimumWidthRequest="0"
                   HorizontalOptions="Fill"
                   ColumnSpacing="8">
-                <VerticalStackLayout Spacing="8"
-                                     MinimumWidthRequest="0"
-                                     HorizontalOptions="Fill">
+                <Grid ColumnDefinitions="Auto,Auto,*"
+                      ColumnSpacing="6"
+                      MinimumWidthRequest="0"
+                      HorizontalOptions="Fill"
+                      VerticalOptions="Center">
                     <Label Text="{Binding Title}"
                            Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                    <Label Text="{Binding Description}"
-                           IsVisible="{Binding HasDescription}"
-                           Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
-                </VerticalStackLayout>
+                    <settings:SettingsInfoButton Description="{Binding Description}"
+                                                 Grid.Column="1" />
+                </Grid>
 
                 <settings:SettingsToggle Grid.Column="1"
                                          IsToggled="{Binding BooleanValue, Mode=TwoWay}"
@@ -78,29 +80,31 @@
                                  MinimumWidthRequest="0"
                                  HorizontalOptions="Fill"
                                  Spacing="8">
-                <Label Text="{Binding Title}"
-                       Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                <Label Text="{Binding Description}"
-                       IsVisible="{Binding HasDescription}"
-                       Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="8"
+                      MinimumWidthRequest="0"
+                      HorizontalOptions="Fill">
+                    <Grid ColumnDefinitions="Auto,Auto,*"
+                          ColumnSpacing="6"
+                          MinimumWidthRequest="0"
+                          HorizontalOptions="Fill"
+                          VerticalOptions="Center">
+                        <Label Text="{Binding Title}"
+                               Style="{StaticResource SettingsCardTitleLabelStyle}" />
+                        <settings:SettingsInfoButton Description="{Binding Description}"
+                                                     Grid.Column="1" />
+                    </Grid>
+
+                    <settings:SettingsToggle Grid.Column="1"
+                                             IsVisible="{Binding IsManagedEditor}"
+                                             IsToggled="{Binding UseCustomValue, Mode=TwoWay}"
+                                             HorizontalOptions="End" />
+                </Grid>
 
                 <VerticalStackLayout IsVisible="{Binding IsManagedEditor}"
                                      MinimumWidthRequest="0"
                                      HorizontalOptions="Fill"
-                                     Spacing="10">
-                    <Grid ColumnDefinitions="*,Auto"
-                          ColumnSpacing="8"
-                          MinimumWidthRequest="0"
-                          HorizontalOptions="Fill"
-                          MinimumHeightRequest="22"
-                          Margin="0,4,0,0">
-                        <Label Text="{Binding UseCustomValueText}"
-                               Style="{StaticResource SettingsSecondaryLabelStyle}"
-                               VerticalOptions="Center" />
-                        <settings:SettingsToggle Grid.Column="1"
-                                                 IsToggled="{Binding UseCustomValue, Mode=TwoWay}"
-                                                 HorizontalOptions="End" />
-                    </Grid>
+                                     Spacing="8">
                     <settings:SettingsFieldView>
                         <settings:SettingsFieldView.FieldContent>
                             <Entry Text="{Binding TextValue, Mode=TwoWay}"

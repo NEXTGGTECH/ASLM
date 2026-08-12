@@ -17,6 +17,27 @@ namespace ASLM.Models
 
         // Display name returned by Ollama for the authenticated account.
         public string UserName { get; set; } = string.Empty;
+
+        // Stable account identifier returned by Ollama.
+        public string UserId { get; set; } = string.Empty;
+
+        // Email address associated with the Ollama account.
+        public string Email { get; set; } = string.Empty;
+
+        // Public biography associated with the Ollama account.
+        public string Bio { get; set; } = string.Empty;
+
+        // Public avatar URL associated with the Ollama account.
+        public string AvatarUrl { get; set; } = string.Empty;
+
+        // First name associated with the Ollama account.
+        public string FirstName { get; set; } = string.Empty;
+
+        // Last name associated with the Ollama account.
+        public string LastName { get; set; } = string.Empty;
+
+        // Subscription plan reported for the Ollama account.
+        public string Plan { get; set; } = string.Empty;
     }
 
 

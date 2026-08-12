@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>條款與授權</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>載入中...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>立即更新</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>隨 ASLM 啟動本機鏡像伺服器</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>API 伺服器</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>正式版僅使用穩定的 GitHub 發行版。預覽版也接受預覽發行版</value>
+    <value>啟用 ASLM 鏡像伺服器</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>應用程式更新管道</value>
+    <value>ASLM 更新通道</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>背景更新檢查的間隔（小時）</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>自動檢查週期</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>自動套用模組更新，並為下次重新啟動準備 ASLM 組建</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>自動安裝更新</value>
+    <value>啟用自動安裝更新</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama 帳戶</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>未連線</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>連線可將 API 上限從每小時 60 次提升至 5,000 次</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>已連線</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>已以 {0} 連線</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>連線</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>GitHub 帳戶</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>使用個人存取權杖登入以使用更高的 GitHub API 上限。</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>連線失敗：{0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>應用程式與模組更新偏好設定</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Ollama 更新 {0} 可用</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>更新 Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>目前版本：{0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>更新失敗：{0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama 已更新至 {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Ollama 更新</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>正在更新 Ollama...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama 已是最新版本</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>檢查 ASLM 更新</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>檢查更新</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>立即檢查</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>允許 ASLM 查詢已設定的 GitHub 儲存庫</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>檢查更新</value>
+    <value>啟用自動檢查更新</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>關閉設定</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>啟用個別主控台時，保留已結束程序的主控台可見</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>已完成程序的主控台</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>在側邊欄顯示內建主控台頁面</value>
+    <value>顯示已完成程序的主控台</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>主控台頁面</value>
+    <value>顯示「主控台」頁面</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>捨棄變更</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>顯示名稱</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>在 ASLM 中顯示並與模組共用的名稱</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>此分類沒有設定</value>
   </data>
@@ -995,38 +930,20 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>模組</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>在統一模組輸出旁顯示各程序的專用主控台</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>個別主控台</value>
+    <value>為模組程序顯示獨立主控台</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>載入預設值</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>手動檢查</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>供遵循 GitHub 發行版的模組使用</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>預設模組發行管道</value>
+    <value>預設模組更新通道</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>此模組在目前狀態下沒有設定</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>新模組偏好設定以此模式為起點；個別模組可覆寫</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>預設模組更新模式</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>沒有可用的設定</value>
-  </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>所有模組的起始連接埠。從此值起依序分配連接埠</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>模組起始連接埠</value>
@@ -1050,19 +967,13 @@
     <value>未安裝內建 Ollama</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>未登入</value>
+    <value>連結 Ollama 帳戶以使用雲端模型</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>登入</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>登出</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>已登入</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>已以 {0} 登入</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>正在登入...</value>
@@ -1077,7 +988,7 @@
     <value>等待瀏覽器登入</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>作用中佈景主題</value>
+    <value>自訂主題</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>自訂</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>語言</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>設定 ASLM 與支援模組的介面語言</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>模式</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>設定應用程式如何選擇整體介面外觀</value>
+    <value>主題</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>新增</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>尚無自訂佈景主題。建立一個以使用自訂外觀</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>下方權杖列所屬的已儲存調色盤</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>選擇作用中的自訂佈景主題</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>請先建立調色盤；建立後會出現在此供選取</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>重新命名</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>佈景主題</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>新增、匯入或分享以檔案儲存的調色盤定義</value>
+    <value>管理自訂主題</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>連接埠</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>準備 ASLM 更新</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>立即重新啟動</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>儲存</value>
@@ -1187,11 +1077,9 @@
     <value>條款</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>自動接受條款更新</value>
+    <value>自動接受政策更新</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>首次確認後自動接受新增和更新的條款。</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>刪除</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>刪除佈景主題</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>主題色彩編輯器</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>尚未覆寫權杖的內建語意預設值</value>
+    <value>基礎主題</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>清除</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>佈景主題 {0} 的顏色編輯器</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>佈景主題編輯器：{0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>挑選</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>新佈景主題</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>輸入此佈景主題的新名稱</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>重新命名佈景主題</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>設定</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>有 ASLM 更新 {0} 可用。請使用「準備 ASLM 更新」以下載</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>有 ASLM 更新 {0} 可用；{1} 已暫存待重新啟動</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} 已準備完成，將在重新啟動時套用</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>更新檢查失敗：{0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>正在檢查 GitHub 儲存庫...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>無法準備 ASLM 更新</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>正在下載 ASLM 組建...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>有 {0} 個引擎更新可用</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>有 {0} 個更新可用。可從模組頁面套用模組更新</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} 已暫存待重新啟動</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} ASLM 自我更新已暫存待重新啟動</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>此工作階段尚未執行更新檢查</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>ASLM 更新已準備完成，將在重新啟動時套用</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>ASLM 更新 {0} 已準備完成，將在重新啟動時套用</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>重新啟動失敗：{0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>正在重新啟動 ASLM...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>下載更新</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>一切均已為最新版本。</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>正在下載</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>使用自訂值</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>安裝並重新啟動</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>驗證錯誤</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>本機帳戶。個人檔案資料僅儲存在此裝置上。</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>雲端帳戶已連線：{0}</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>使用雲端帳戶</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>其他設定</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>可用版本：{0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>已安裝版本：{0}</value>
   </data>
 </root>

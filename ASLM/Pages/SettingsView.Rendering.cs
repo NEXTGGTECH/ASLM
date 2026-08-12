@@ -81,8 +81,6 @@ namespace ASLM.Pages
                 _moduleSettingsPresentations[runtimeKey] = presentation;
                 presentation.Load(
                     _editSession.GetModule(module),
-                    L.Get(LocalizationKeys.Settings_ModuleOtherSettings),
-                    L.Get(LocalizationKeys.Settings_UseCustomValue),
                     L.Get(LocalizationKeys.Settings_Engine_Installed),
                     L.Get(LocalizationKeys.Settings_Engine_NotInstalled));
                 _moduleSettingsPresentationsNeedingRefresh.Remove(runtimeKey);
@@ -236,11 +234,6 @@ namespace ASLM.Pages
                 if (_appUpdateChannelPicker != null)
                 {
                     _appUpdateChannelPicker.SelectedItem = _updateDraft.AppChannel;
-                }
-
-                if (_moduleUpdateModePicker != null)
-                {
-                    _moduleUpdateModePicker.SelectedItem = _updateDraft.ModuleDefaultMode;
                 }
 
                 if (_moduleUpdateChannelPicker != null)

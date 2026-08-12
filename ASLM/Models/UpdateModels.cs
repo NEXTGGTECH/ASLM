@@ -24,6 +24,9 @@ namespace ASLM.Models
         [JsonPropertyName("preserve")]
         public List<string> Preserve { get; set; } = [];
 
+        /// <summary>
+        /// Restores safe defaults and canonical source values after deserialization.
+        /// </summary>
         public void Normalize()
         {
             if (FileVersion == 0)
@@ -78,6 +81,102 @@ namespace ASLM.Models
     }
 
     /// <summary>
+    /// Stores the actionable part of a discovered update across application restarts.
+    /// </summary>
+    public sealed class PersistedUpdateCandidate
+    {
+        [JsonPropertyName("targetKind")]
+        public string TargetKind { get; set; } = string.Empty;
+
+        [JsonPropertyName("targetId")]
+        public string TargetId { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("remoteVersion")]
+        public string RemoteVersion { get; set; } = string.Empty;
+
+        [JsonPropertyName("channel")]
+        public string Channel { get; set; } = "release";
+
+        [JsonPropertyName("downloadUrl")]
+        public string DownloadUrl { get; set; } = string.Empty;
+
+        [JsonPropertyName("releaseTag")]
+        public string? ReleaseTag { get; set; }
+
+        [JsonPropertyName("isPrerelease")]
+        public bool IsPrerelease { get; set; }
+
+        [JsonPropertyName("publishedAt")]
+        public DateTimeOffset? PublishedAt { get; set; }
+
+        /// <summary>
+        /// Normalizes persisted candidate values and rejects incomplete snapshots.
+        /// </summary>
+        public bool Normalize()
+        {
+            TargetKind = TargetKind?.Trim() ?? string.Empty;
+            TargetId = TargetId?.Trim() ?? string.Empty;
+            Name = Name?.Trim() ?? string.Empty;
+            RemoteVersion = RemoteVersion?.Trim() ?? string.Empty;
+            Channel = string.Equals(Channel, "pre-release", StringComparison.OrdinalIgnoreCase)
+                ? "pre-release"
+                : "release";
+            DownloadUrl = DownloadUrl?.Trim() ?? string.Empty;
+            ReleaseTag = string.IsNullOrWhiteSpace(ReleaseTag) ? null : ReleaseTag.Trim();
+            return TargetKind.Length > 0 &&
+                   TargetId.Length > 0 &&
+                   RemoteVersion.Length > 0 &&
+                   DownloadUrl.Length > 0;
+        }
+
+        /// <summary>
+        /// Creates a compact persisted snapshot from one discovered update.
+        /// </summary>
+        public static PersistedUpdateCandidate FromCandidate(UpdateCandidate candidate)
+        {
+            ArgumentNullException.ThrowIfNull(candidate);
+            return new PersistedUpdateCandidate
+            {
+                TargetKind = candidate.TargetKind,
+                TargetId = candidate.TargetId,
+                Name = candidate.Name,
+                RemoteVersion = candidate.RemoteVersion,
+                Channel = candidate.Channel,
+                DownloadUrl = candidate.DownloadUrl,
+                ReleaseTag = candidate.ReleaseTag,
+                IsPrerelease = candidate.IsPrerelease,
+                PublishedAt = candidate.PublishedAt
+            };
+        }
+
+        /// <summary>
+        /// Rebuilds an actionable candidate and attaches current engine metadata when required.
+        /// </summary>
+        public UpdateCandidate ToCandidate(EngineConfig? engine = null)
+        {
+            return new UpdateCandidate
+            {
+                TargetKind = TargetKind,
+                TargetId = TargetId,
+                Name = Name,
+                DisplayName = Name,
+                CurrentVersion = engine?.Status.InstalledReleaseTag ?? string.Empty,
+                RemoteVersion = RemoteVersion,
+                Channel = Channel,
+                Mode = "release",
+                DownloadUrl = DownloadUrl,
+                ReleaseTag = ReleaseTag,
+                IsPrerelease = IsPrerelease,
+                PublishedAt = PublishedAt,
+                Engine = engine
+            };
+        }
+    }
+
+    /// <summary>
     /// Stores the pending self-update operation consumed by the external patcher.
     /// </summary>
     public sealed class PendingAppUpdate
@@ -103,6 +202,9 @@ namespace ASLM.Models
         [JsonPropertyName("createdUtc")]
         public string CreatedUtc { get; set; } = DateTime.UtcNow.ToString("o");
 
+        /// <summary>
+        /// Restores safe pending-update values after deserialization.
+        /// </summary>
         public void Normalize()
         {
             Kind = string.IsNullOrWhiteSpace(Kind) ? "app" : Kind.Trim();

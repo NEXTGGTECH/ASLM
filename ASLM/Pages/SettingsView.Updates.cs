@@ -7,7 +7,14 @@ namespace ASLM.Pages
 {
     public partial class SettingsView
     {
-        // Update actions
+        private const string MissingVersionDisplay = "—";
+        private static readonly TimeSpan DownloadProgressUpdateInterval = TimeSpan.FromMilliseconds(100);
+
+        private bool _isAslmUpdateDownloadRunning;
+        private bool _isOllamaUpdateDownloadRunning;
+
+
+        // Update state
 
         /// <summary>
         /// Returns the managed Ollama engine manifest when it is present on disk.
@@ -36,7 +43,7 @@ namespace ASLM.Pages
                 return engine.Status.InstalledVersion.Trim();
             }
 
-            return "—";
+            return MissingVersionDisplay;
         }
 
         /// <summary>
@@ -47,13 +54,96 @@ namespace ASLM.Pages
             string.Equals(value.Trim(), "latest", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Builds the Ollama update status label shown before a check runs in this session.
+        /// Returns the installed ASLM release tag, falling back to the running assembly version.
         /// </summary>
-        private string BuildInitialOllamaUpdateStatusText() =>
-            L.Get(LocalizationKeys.Settings_UpdateStatus_None);
+        private string ResolveAslmDisplayVersion()
+        {
+            var installedTag = _appData.Data.Updates.InstalledReleaseTag;
+            if (!string.IsNullOrWhiteSpace(installedTag))
+            {
+                return installedTag.Trim();
+            }
+
+            return string.IsNullOrWhiteSpace(_updateManager.CurrentAppVersion)
+                ? MissingVersionDisplay
+                : _updateManager.CurrentAppVersion.Trim();
+        }
 
         /// <summary>
-        /// Resolves and refreshes only the installed Ollama version label in the Updates category.
+        /// Returns the release label carried by an update candidate.
+        /// </summary>
+        private static string? ResolveCandidateDisplayVersion(UpdateCandidate? candidate)
+        {
+            var version = !string.IsNullOrWhiteSpace(candidate?.ReleaseTag)
+                ? candidate.ReleaseTag
+                : candidate?.RemoteVersion;
+            return string.IsNullOrWhiteSpace(version) ? null : version.Trim();
+        }
+
+        /// <summary>
+        /// Writes installed and optional available versions into one update card.
+        /// </summary>
+        private static void SetVersionInformation(
+            Label? installedLabel,
+            Label? availableLabel,
+            string installedVersion,
+            string? availableVersion)
+        {
+            if (installedLabel != null)
+            {
+                installedLabel.Text = L.Get(
+                    LocalizationKeys.Settings_UpdateCard_InstalledVersion,
+                    installedVersion);
+            }
+
+            if (availableLabel == null)
+            {
+                return;
+            }
+
+            var hasAvailableVersion = !string.IsNullOrWhiteSpace(availableVersion);
+            availableLabel.IsVisible = hasAvailableVersion;
+            availableLabel.Text = hasAvailableVersion
+                ? L.Get(LocalizationKeys.Settings_UpdateCard_AvailableVersion, availableVersion!)
+                : string.Empty;
+        }
+
+        /// <summary>
+        /// Refreshes ASLM version rows from the installed, discovered, and prepared update state.
+        /// </summary>
+        private void RefreshAslmVersionInformation()
+        {
+            var availableVersion = ResolveCandidateDisplayVersion(_pendingAppUpdateCandidate);
+            if (string.IsNullOrWhiteSpace(availableVersion))
+            {
+                availableVersion = _updateManager.TryGetPendingPreparedAppVersion()?.Trim();
+            }
+
+            SetVersionInformation(
+                _aslmInstalledVersionLabel,
+                _aslmAvailableVersionLabel,
+                ResolveAslmDisplayVersion(),
+                availableVersion);
+        }
+
+        /// <summary>
+        /// Refreshes Ollama version rows from the installed engine and discovered update state.
+        /// </summary>
+        private void RefreshOllamaVersionInformation(EngineConfig? engine = null)
+        {
+            engine ??= ResolveOllamaEngineConfig();
+            var installedVersion = engine?.Status.Installed == true
+                ? ResolveOllamaDisplayVersion(engine)
+                : MissingVersionDisplay;
+            SetVersionInformation(
+                _ollamaInstalledVersionLabel,
+                _ollamaAvailableVersionLabel,
+                installedVersion,
+                ResolveCandidateDisplayVersion(_pendingOllamaUpdateCandidate));
+        }
+
+        /// <summary>
+        /// Resolves and refreshes the installed Ollama version shown in its update card.
         /// </summary>
         private async Task RefreshOllamaVersionDisplayAsync()
         {
@@ -76,356 +166,238 @@ namespace ASLM.Pages
                 var version = ResolveOllamaDisplayVersion(engine);
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    if (_ollamaVersionDescriptionLabel != null)
-                    {
-                        _ollamaVersionDescriptionLabel.Text = L.Get(
-                            LocalizationKeys.Settings_OllamaUpdate_Description,
-                            version);
-                    }
+                    SetVersionInformation(
+                        _ollamaInstalledVersionLabel,
+                        _ollamaAvailableVersionLabel,
+                        version,
+                        ResolveCandidateDisplayVersion(_pendingOllamaUpdateCandidate));
                 });
             }
             catch
             {
-                // Version sync is best-effort UI enrichment only.
+                // Runtime version probing only enriches the card and must not disrupt settings.
             }
         }
 
         /// <summary>
-        /// Builds the manual-check status label shown before a check runs in this session.
-        /// </summary>
-        private string BuildInitialManualUpdateStatusText()
-        {
-            if (_updateManager.HasPendingAppUpdate)
-            {
-                var pending = _updateManager.TryGetPendingPreparedAppVersion()?.Trim();
-                return string.IsNullOrWhiteSpace(pending)
-                    ? L.Get(LocalizationKeys.Settings_UpdateStatus_Prepared)
-                    : L.Get(LocalizationKeys.Settings_UpdateStatus_PreparedWithVersion, pending);
-            }
-
-            return L.Get(LocalizationKeys.Settings_UpdateStatus_None);
-        }
-
-        /// <summary>
-        /// Resets transient update actions after persisted settings are loaded or discarded.
+        /// Reloads update candidates and action visibility from the shared scheduler state.
         /// </summary>
         private void ResetUpdateActionControls()
         {
-            _pendingAppUpdateCandidate = null;
-            _pendingOllamaUpdateCandidate = null;
+            _pendingAppUpdateCandidate = _updateScheduler.GetAvailableAppUpdate();
+            _pendingOllamaUpdateCandidate = _updateScheduler.GetAvailableOllamaUpdate();
 
-            // ASLM status is derived from the currently installed and already prepared releases.
-            var installedReleaseSummary = SettingsService.BuildAslmInstalledReleaseSummary(_appData);
-            BuiltInSettingsContainer.InstalledReleaseSummary.Text = installedReleaseSummary;
-            BuiltInSettingsContainer.InstalledReleaseSummary.IsVisible = !string.IsNullOrWhiteSpace(installedReleaseSummary);
-            if (_updateStatusLabel != null)
+            // ASLM switches from download to installation as soon as the patcher payload is prepared.
+            var hasPreparedAppUpdate = _updateManager.HasPendingAppUpdate;
+            var hasDownloadableAppUpdate = _pendingAppUpdateCandidate != null && !hasPreparedAppUpdate;
+            RefreshAslmVersionInformation();
+            if (_prepareAppUpdateHost != null)
             {
-                _updateStatusLabel.Text = BuildInitialManualUpdateStatusText();
-            }
-
-            if (_prepareAppUpdateButton != null)
-            {
-                _prepareAppUpdateButton.IsVisible = false;
+                _prepareAppUpdateHost.IsVisible = hasDownloadableAppUpdate;
             }
 
             if (_restartAppUpdateButton != null)
             {
-                _restartAppUpdateButton.IsVisible = _updateManager.HasPendingAppUpdate;
+                _restartAppUpdateButton.IsVisible = hasPreparedAppUpdate;
             }
 
-            // Ollama availability and version are independent from editable update preferences.
+            if (_aslmUpdateActionHost != null)
+            {
+                _aslmUpdateActionHost.IsVisible = hasDownloadableAppUpdate || hasPreparedAppUpdate;
+            }
+
+            SetDownloadProgressState(
+                _prepareAppUpdateButton,
+                _prepareAppUpdateProgress,
+                _prepareAppUpdateSpinner,
+                _prepareAppUpdateProgressPercent,
+                isRunning: false,
+                fraction: 0);
+
+            // Ollama exposes its download action only while the persisted candidate remains actionable.
             var engine = ResolveOllamaEngineConfig();
-            var isInstalled = engine?.Status.Installed == true;
-            var currentVersion = isInstalled
-                ? ResolveOllamaDisplayVersion(engine!)
-                : "-";
-            if (_ollamaVersionDescriptionLabel != null)
+            RefreshOllamaVersionInformation(engine);
+            if (_ollamaUpdateHost != null)
             {
-                _ollamaVersionDescriptionLabel.Text = L.Get(
-                    LocalizationKeys.Settings_OllamaUpdate_Description,
-                    currentVersion);
+                _ollamaUpdateHost.IsVisible = engine?.Status.Installed == true &&
+                                              _pendingOllamaUpdateCandidate != null;
             }
 
-            if (_ollamaCheckUpdateButton != null)
-            {
-                _ollamaCheckUpdateButton.IsEnabled = isInstalled;
-            }
-
-            if (_ollamaUpdateButton != null)
-            {
-                _ollamaUpdateButton.IsVisible = false;
-                _ollamaUpdateButton.IsEnabled = isInstalled;
-            }
-
-            if (_ollamaUpdateStatusLabel != null)
-            {
-                _ollamaUpdateStatusLabel.Text = BuildInitialOllamaUpdateStatusText();
-            }
+            SetDownloadProgressState(
+                _ollamaUpdateButton,
+                _ollamaUpdateProgress,
+                _ollamaUpdateSpinner,
+                _ollamaUpdateProgressPercent,
+                isRunning: false,
+                fraction: 0);
 
             _ = RefreshOllamaVersionDisplayAsync();
         }
 
+
+        // Scheduler integration
+
         /// <summary>
-        /// Builds the ASLM manual-check summary after <see cref="UpdateManager.CheckAppUpdateAsync"/> completes.
+        /// Subscribes the visible settings view to shared background update results once.
         /// </summary>
-        private string BuildAslmManualUpdateCheckStatusMessage()
+        private void AttachUpdateSchedulerHandler()
         {
-            var appTag = _pendingAppUpdateCandidate != null
-                ? (_pendingAppUpdateCandidate.ReleaseTag ?? _pendingAppUpdateCandidate.RemoteVersion).Trim()
-                : string.Empty;
-
-            if (!string.IsNullOrWhiteSpace(appTag))
+            if (_isUpdateSchedulerSubscribed)
             {
-                if (_updateManager.HasPendingAppUpdate)
-                {
-                    var pending = _updateManager.TryGetPendingPreparedAppVersion()?.Trim();
-                    if (!string.IsNullOrWhiteSpace(pending) &&
-                        string.Equals(pending, appTag, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return L.Get(LocalizationKeys.Settings_UpdateStatus_AslmTagPrepared, appTag);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(pending))
-                    {
-                        return L.Get(LocalizationKeys.Settings_UpdateStatus_AslmAvailableStaged, appTag, pending);
-                    }
-                }
-
-                return L.Get(LocalizationKeys.Settings_UpdateStatus_AslmAvailable, appTag);
+                return;
             }
 
-            if (_updateManager.HasPendingAppUpdate)
-            {
-                var pendingOnly = _updateManager.TryGetPendingPreparedAppVersion()?.Trim();
-                return string.IsNullOrWhiteSpace(pendingOnly)
-                    ? L.Get(LocalizationKeys.Settings_UpdateStatus_Prepared)
-                    : L.Get(LocalizationKeys.Settings_UpdateStatus_PreparedWithVersion, pendingOnly);
-            }
-
-            return L.Get(LocalizationKeys.Settings_UpdateStatus_UpToDate);
+            _updateScheduler.UpdateStateChanged += OnUpdateSchedulerStateChanged;
+            _isUpdateSchedulerSubscribed = true;
         }
 
         /// <summary>
-        /// Runs a manual ASLM update check and exposes self-update preparation when available.
+        /// Detaches the update listener when the settings view leaves the visual tree.
         /// </summary>
-        private async void OnCheckAslmUpdatesClicked(object? sender, EventArgs e)
+        private void DetachUpdateSchedulerHandler()
         {
-            if (sender is Button button)
+            if (!_isUpdateSchedulerSubscribed)
             {
-                button.IsEnabled = false;
+                return;
             }
 
-            try
-            {
-                _pendingAppUpdateCandidate = null;
-                if (_prepareAppUpdateButton != null)
-                {
-                    _prepareAppUpdateButton.IsVisible = false;
-                }
-
-                if (_restartAppUpdateButton != null)
-                {
-                    _restartAppUpdateButton.IsVisible = _updateManager.HasPendingAppUpdate;
-                }
-
-                if (_updateStatusLabel != null)
-                {
-                    _updateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_Checking);
-                }
-
-                _pendingAppUpdateCandidate = await Task.Run(() =>
-                    _updateManager.CheckAppUpdateAsync(isManualRequest: true));
-
-                if (_prepareAppUpdateButton != null)
-                {
-                    _prepareAppUpdateButton.IsVisible = _pendingAppUpdateCandidate != null &&
-                                                        !_updateManager.HasPendingAppUpdate;
-                }
-
-                if (_restartAppUpdateButton != null)
-                {
-                    _restartAppUpdateButton.IsVisible = _updateManager.HasPendingAppUpdate;
-                }
-
-                if (_updateStatusLabel != null)
-                {
-                    _updateStatusLabel.Text = BuildAslmManualUpdateCheckStatusMessage();
-                }
-            }
-            catch (Exception ex)
-            {
-                if (_updateStatusLabel != null)
-                {
-                    _updateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_CheckFailed, ex.Message);
-                }
-            }
-            finally
-            {
-                if (sender is Button senderButton)
-                {
-                    senderButton.IsEnabled = true;
-                }
-            }
+            _updateScheduler.UpdateStateChanged -= OnUpdateSchedulerStateChanged;
+            _isUpdateSchedulerSubscribed = false;
         }
 
         /// <summary>
-        /// Runs a manual Ollama engine update check and exposes the update action when available.
+        /// Refreshes update cards when a background check or automatic installation changes state.
         /// </summary>
-        private async void OnCheckOllamaUpdatesClicked(object? sender, EventArgs e)
+        private void OnUpdateSchedulerStateChanged(object? sender, EventArgs e)
         {
-            if (sender is Button button)
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                button.IsEnabled = false;
-            }
-
-            try
-            {
-                _pendingOllamaUpdateCandidate = null;
-                if (_ollamaUpdateButton != null)
+                if (_isAslmUpdateDownloadRunning || _isOllamaUpdateDownloadRunning)
                 {
-                    _ollamaUpdateButton.IsVisible = false;
-                }
-
-                if (_ollamaUpdateStatusLabel != null)
-                {
-                    _ollamaUpdateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_Checking);
-                }
-
-                var engine = ResolveOllamaEngineConfig();
-                if (engine?.Status.Installed != true)
-                {
-                    if (_ollamaUpdateStatusLabel != null)
-                    {
-                        _ollamaUpdateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_CheckFailed, "Ollama is not installed.");
-                    }
-
                     return;
                 }
 
-                _pendingOllamaUpdateCandidate = await Task.Run(() =>
-                    _updateManager.CheckEngineUpdateAsync(engine, isManualRequest: true));
+                ResetUpdateActionControls();
+            });
+        }
 
-                await RefreshOllamaVersionDisplayAsync();
-                engine = ResolveOllamaEngineConfig();
 
-                if (_ollamaUpdateButton != null)
-                {
-                    _ollamaUpdateButton.IsVisible = _pendingOllamaUpdateCandidate != null;
-                }
+        // Download presentation
 
-                if (_ollamaUpdateStatusLabel != null)
-                {
-                    if (_pendingOllamaUpdateCandidate != null)
-                    {
-                        var ollamaTag = (_pendingOllamaUpdateCandidate.ReleaseTag ??
-                                         _pendingOllamaUpdateCandidate.RemoteVersion).Trim();
-                        _ollamaUpdateStatusLabel.Text = L.Get(
-                            LocalizationKeys.Settings_OllamaUpdate_Available,
-                            ollamaTag);
-                    }
-                    else if (engine?.Status.Installed == true)
-                    {
-                        _ollamaUpdateStatusLabel.Text = L.Get(LocalizationKeys.Settings_OllamaUpdate_UpToDate);
-                    }
-                }
-            }
-            catch (Exception ex)
+        /// <summary>
+        /// Creates a UI progress sink that limits visual updates to ten times per second.
+        /// </summary>
+        private static IProgress<DownloadProgress> CreateThrottledDownloadProgress(
+            Action<double> applyProgress)
+        {
+            var lastUpdateUtc = DateTimeOffset.MinValue;
+            return new Progress<DownloadProgress>(progress =>
             {
-                if (_ollamaUpdateStatusLabel != null)
+                var now = DateTimeOffset.UtcNow;
+                if (progress.Fraction < 1 && now - lastUpdateUtc < DownloadProgressUpdateInterval)
                 {
-                    _ollamaUpdateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_CheckFailed, ex.Message);
+                    return;
                 }
-            }
-            finally
+
+                lastUpdateUtc = now;
+                applyProgress(Math.Clamp(progress.Fraction, 0, 1));
+            });
+        }
+
+        /// <summary>
+        /// Switches one update button between its normal label and inline download progress.
+        /// </summary>
+        private static void SetDownloadProgressState(
+            Button? button,
+            HorizontalStackLayout? progressContent,
+            ActivityIndicator? spinner,
+            Label? progressPercent,
+            bool isRunning,
+            double fraction)
+        {
+            if (button != null)
             {
-                if (sender is Button senderButton)
-                {
-                    senderButton.IsEnabled = true;
-                }
+                button.IsEnabled = !isRunning;
+                button.Text = isRunning
+                    ? string.Empty
+                    : L.Get(LocalizationKeys.Settings_DownloadUpdate);
+            }
+
+            if (progressContent != null)
+            {
+                progressContent.IsVisible = isRunning;
+            }
+
+            if (spinner != null)
+            {
+                spinner.IsRunning = isRunning;
+            }
+
+            if (progressPercent != null)
+            {
+                var percentage = (int)Math.Round(Math.Clamp(fraction, 0, 1) * 100);
+                progressPercent.Text = isRunning ? $"{percentage}%" : string.Empty;
             }
         }
+
+
+        // Update actions
 
         /// <summary>
         /// Downloads and applies an available Ollama engine update.
         /// </summary>
         private async void OnUpdateOllamaClicked(object? sender, EventArgs e)
         {
-            if (_pendingOllamaUpdateCandidate == null)
+            var candidate = _pendingOllamaUpdateCandidate;
+            if (candidate == null || _isOllamaUpdateDownloadRunning)
             {
                 return;
             }
 
-            if (sender is Button updateButton)
-            {
-                updateButton.IsEnabled = false;
-            }
+            _isOllamaUpdateDownloadRunning = true;
+            SetDownloadProgressState(
+                _ollamaUpdateButton,
+                _ollamaUpdateProgress,
+                _ollamaUpdateSpinner,
+                _ollamaUpdateProgressPercent,
+                isRunning: true,
+                fraction: 0);
 
             try
             {
-                if (_ollamaUpdateStatusLabel != null)
-                {
-                    _ollamaUpdateStatusLabel.Text = L.Get(LocalizationKeys.Settings_OllamaUpdate_Updating);
-                }
-
-                var candidate = _pendingOllamaUpdateCandidate;
-                var log = new Progress<string>(message =>
-                {
-                    if (_ollamaUpdateStatusLabel != null)
-                    {
-                        MainThread.BeginInvokeOnMainThread(() => _ollamaUpdateStatusLabel.Text = message);
-                    }
-                });
-
+                var progress = CreateThrottledDownloadProgress(fraction =>
+                    SetDownloadProgressState(
+                        _ollamaUpdateButton,
+                        _ollamaUpdateProgress,
+                        _ollamaUpdateSpinner,
+                        _ollamaUpdateProgressPercent,
+                        isRunning: true,
+                        fraction));
                 var success = await Task.Run(() => _updateManager.ApplyEngineUpdateAsync(
                     candidate,
-                    log,
+                    log: null,
+                    progress: progress,
                     isManualRequest: true));
 
-                if (_ollamaUpdateStatusLabel != null)
+                if (!success)
                 {
-                    if (success)
-                    {
-                        var installedTag = (candidate.ReleaseTag ?? candidate.RemoteVersion).Trim();
-                        _ollamaUpdateStatusLabel.Text = L.Get(
-                            LocalizationKeys.Settings_OllamaUpdate_Success,
-                            installedTag);
-                        if (_ollamaVersionDescriptionLabel != null)
-                        {
-                            _ollamaVersionDescriptionLabel.Text = L.Get(
-                                LocalizationKeys.Settings_OllamaUpdate_Description,
-                                installedTag);
-                        }
-
-                        _pendingOllamaUpdateCandidate = null;
-                    }
-                    else
-                    {
-                        _ollamaUpdateStatusLabel.Text = L.Get(
-                            LocalizationKeys.Settings_OllamaUpdate_Failed,
-                            "The update could not be applied.");
-                    }
+                    await ShowErrorAsync(L.Get(LocalizationKeys.Notifications_EngineUpdateFailed));
+                    return;
                 }
 
-                if (_ollamaUpdateButton != null)
-                {
-                    _ollamaUpdateButton.IsVisible = !success && _pendingOllamaUpdateCandidate != null;
-                }
+                _pendingOllamaUpdateCandidate = null;
+                await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
+                _engineInstaller.InvalidateCache();
             }
             catch (Exception ex)
             {
-                if (_ollamaUpdateStatusLabel != null)
-                {
-                    _ollamaUpdateStatusLabel.Text = L.Get(
-                        LocalizationKeys.Settings_OllamaUpdate_Failed,
-                        ex.Message);
-                }
+                await ShowErrorAsync(
+                    $"{L.Get(LocalizationKeys.Notifications_EngineUpdateFailed)}\n\n{ex.Message}");
             }
             finally
             {
-                if (sender is Button senderButton)
-                {
-                    senderButton.IsEnabled = true;
-                }
+                _isOllamaUpdateDownloadRunning = false;
+                ResetUpdateActionControls();
             }
         }
 
@@ -434,71 +406,60 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnPrepareAppUpdateClicked(object? sender, EventArgs e)
         {
-            if (_pendingAppUpdateCandidate == null)
+            var candidate = _pendingAppUpdateCandidate;
+            if (candidate == null || _isAslmUpdateDownloadRunning)
             {
                 return;
             }
 
-            if (sender is Button prepareButton)
-            {
-                prepareButton.IsEnabled = false;
-            }
+            _isAslmUpdateDownloadRunning = true;
+            SetDownloadProgressState(
+                _prepareAppUpdateButton,
+                _prepareAppUpdateProgress,
+                _prepareAppUpdateSpinner,
+                _prepareAppUpdateProgressPercent,
+                isRunning: true,
+                fraction: 0);
 
             try
             {
-                if (_updateStatusLabel != null)
-                {
-                    _updateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_Downloading);
-                }
-
-                var log = new Progress<string>(message =>
-                {
-                    if (_updateStatusLabel != null)
-                    {
-                        MainThread.BeginInvokeOnMainThread(() => _updateStatusLabel.Text = message);
-                    }
-                });
-
+                var progress = CreateThrottledDownloadProgress(fraction =>
+                    SetDownloadProgressState(
+                        _prepareAppUpdateButton,
+                        _prepareAppUpdateProgress,
+                        _prepareAppUpdateSpinner,
+                        _prepareAppUpdateProgressPercent,
+                        isRunning: true,
+                        fraction));
                 var success = await Task.Run(() => _updateManager.PrepareAppUpdateAsync(
-                    _pendingAppUpdateCandidate,
-                    log,
+                    candidate,
+                    log: null,
+                    progress: progress,
                     isManualRequest: true));
-                if (_updateStatusLabel != null)
+
+                if (!success)
                 {
-                    if (success)
-                    {
-                        var preparedTag = _pendingAppUpdateCandidate?.ReleaseTag ?? _pendingAppUpdateCandidate?.RemoteVersion;
-                        _updateStatusLabel.Text = string.IsNullOrWhiteSpace(preparedTag)
-                            ? L.Get(LocalizationKeys.Settings_UpdateStatus_Prepared)
-                            : L.Get(LocalizationKeys.Settings_UpdateStatus_PreparedWithVersion, preparedTag.Trim());
-                    }
-                    else
-                    {
-                        _updateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_CouldNotPrepare);
-                    }
+                    await ShowErrorAsync(L.Get(LocalizationKeys.Settings_UpdateStatus_CouldNotPrepare));
+                    return;
                 }
 
-                if (_prepareAppUpdateButton != null)
-                {
-                    _prepareAppUpdateButton.IsVisible = !success;
-                }
-
-                if (_restartAppUpdateButton != null)
-                {
-                    _restartAppUpdateButton.IsVisible = success || _updateManager.HasPendingAppUpdate;
-                }
+                _pendingAppUpdateCandidate = null;
+                await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorAsync(
+                    $"{L.Get(LocalizationKeys.Notifications_AslmUpdatePrepareFailed)}\n\n{ex.Message}");
             }
             finally
             {
-                if (sender is Button senderButton)
-                {
-                    senderButton.IsEnabled = true;
-                }
+                _isAslmUpdateDownloadRunning = false;
+                ResetUpdateActionControls();
             }
         }
 
         /// <summary>
-        /// Restarts through the launcher so the prepared ASLM update can be applied by the patcher.
+        /// Restarts through the launcher so the prepared ASLM update can be installed by the patcher.
         /// </summary>
         private async void OnRestartNowClicked(object? sender, EventArgs e)
         {
@@ -509,20 +470,11 @@ namespace ASLM.Pages
 
             try
             {
-                if (_updateStatusLabel != null)
-                {
-                    _updateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_Restarting);
-                }
-
                 await RestartApplicationThroughLauncherAsync();
             }
             catch (Exception ex)
             {
-                if (_updateStatusLabel != null)
-                {
-                    _updateStatusLabel.Text = L.Get(LocalizationKeys.Settings_UpdateStatus_RestartFailed, ex.Message);
-                }
-
+                await ShowErrorAsync(L.Get(LocalizationKeys.Settings_UpdateStatus_RestartFailed, ex.Message));
                 if (sender is Button failedButton)
                 {
                     failedButton.IsEnabled = true;

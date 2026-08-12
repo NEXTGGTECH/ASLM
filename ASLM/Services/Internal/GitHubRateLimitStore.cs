@@ -48,6 +48,18 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Returns a thread-safe snapshot of the current primary GitHub API rate-limit window.
+        /// </summary>
+        public (int Limit, int Remaining, string? ResetUtc) GetSnapshot()
+        {
+            lock (_sync)
+            {
+                Data.Normalize();
+                return (Data.KnownLimit, Data.KnownRemaining, Data.ResetUtc);
+            }
+        }
+
+        /// <summary>
         /// Loads persisted GitHub usage data or recreates defaults when the file is missing or invalid.
         /// </summary>
         public async Task LoadAsync()

@@ -131,7 +131,7 @@ public sealed class ModuleSettingsPageViewModelTests
         var secondDraft = new ModuleSettingsDraft(CreateModule(CreateSetting("second", "string", "two")));
         var page = CreatePage(firstDraft);
 
-        page.Load(secondDraft, "Other", "Custom", "Installed", "Missing");
+        page.Load(secondDraft, "Installed", "Missing");
 
         page.Sections.Should().ContainSingle();
         page.Sections.Single().Settings.Should().ContainSingle();
@@ -151,14 +151,14 @@ public sealed class ModuleSettingsPageViewModelTests
         var item = section.Settings.Single();
 
         draft.GetSetting("message").Value = "edited";
-        page.Load(draft, "Other", "Custom", "Installed", "Missing");
+        page.Load(draft, "Installed", "Missing");
 
         page.Sections.Single().Should().BeSameAs(section);
         page.Sections.Single().Settings.Single().Should().BeSameAs(item);
         item.TextValue.Should().Be("edited");
 
         draft.DiscardChanges();
-        page.Load(draft, "Other", "Custom", "Installed", "Missing");
+        page.Load(draft, "Installed", "Missing");
 
         page.Sections.Single().Settings.Single().Should().BeSameAs(item);
         item.TextValue.Should().Be("saved");
@@ -193,7 +193,7 @@ public sealed class ModuleSettingsPageViewModelTests
     private static ModuleSettingsPageViewModel CreatePage(ModuleSettingsDraft draft)
     {
         var page = new ModuleSettingsPageViewModel(static () => { });
-        page.Load(draft, "Other", "Custom", "Installed", "Missing");
+        page.Load(draft, "Installed", "Missing");
         return page;
     }
 
@@ -201,5 +201,5 @@ public sealed class ModuleSettingsPageViewModelTests
     /// Creates one item presenter for focused editor contract checks.
     /// </summary>
     private static ModuleSettingItemViewModel CreateItem(ModuleSettingDraft draft) =>
-        new(draft, "Custom", "Installed", "Missing", static () => { });
+        new(draft, "Installed", "Missing", static () => { });
 }

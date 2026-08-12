@@ -79,18 +79,16 @@ namespace ASLM.Pages
 
             var themes = _customThemesStore.Root.Themes;
             BuiltInSettingsContainer.ExportThemeAction.IsEnabled = themes.Count > 0;
+            BuiltInSettingsContainer.RenameThemeAction.IsEnabled = themes.Count > 0;
             BuiltInSettingsContainer.DeleteThemeAction.IsEnabled = themes.Count > 0;
             _customThemePicker.IsEnabled = themes.Count > 0;
-            _customThemePicker.ItemsSource = themes;
-
-            var selectDescription = themes.Count == 0
-                ? L.Get(LocalizationKeys.Settings_Personalization_SelectThemeEmpty)
-                : L.Get(LocalizationKeys.Settings_Personalization_SelectThemeActive);
-            BuiltInSettingsContainer.SetActiveThemeDescription(selectDescription);
 
             _suppressCustomThemePickerEvents = true;
             try
             {
+                // Reattach the collection so renamed theme objects refresh their picker text.
+                _customThemePicker.ItemsSource = null;
+                _customThemePicker.ItemsSource = themes;
                 if (themes.Count > 0)
                 {
                     // Match the picker to the persisted draft without assigning an implicit theme id.
@@ -154,6 +152,44 @@ namespace ASLM.Pages
         }
 
         /// <summary>
+        /// Prompts for and persists a unique display name for the selected custom theme.
+        /// </summary>
+        private async void OnRenameCurrentCustomThemeClicked(object? sender, EventArgs e)
+        {
+            if (_customThemePicker?.SelectedItem is not CustomTheme selectedTheme)
+            {
+                return;
+            }
+
+            var requestedName = await PromptAsync(
+                L.Get(LocalizationKeys.Settings_ThemeRename_PromptTitle),
+                L.Get(LocalizationKeys.Settings_ThemeRename_PromptMessage),
+                selectedTheme.Name);
+            if (string.IsNullOrWhiteSpace(requestedName) ||
+                string.Equals(requestedName.Trim(), selectedTheme.Name, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var renamedTheme = _customThemesStore.RenameTheme(selectedTheme.Id, requestedName);
+            if (renamedTheme == null)
+            {
+                return;
+            }
+
+            await _customThemesStore.SaveAsync();
+            if (_editingThemeDraft != null &&
+                string.Equals(_editingThemeDraft.Id, renamedTheme.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                _editingThemeDraft.Name = renamedTheme.Name;
+            }
+
+            RebuildCustomThemeSection();
+            BuildThemeColorEditor();
+            QueueActionButtonUpdate();
+        }
+
+        /// <summary>
         /// Deletes the theme currently selected in the custom theme picker.
         /// </summary>
         private async void OnDeleteCurrentCustomThemeClicked(object? sender, EventArgs e)
@@ -176,9 +212,9 @@ namespace ASLM.Pages
                 return;
             }
 
-            BuiltInSettingsContainer.ThemeColorsTitle.Text = L.Get(
-                LocalizationKeys.Settings_ThemeEditor_ColorsFormat,
-                _editingThemeDraft.Name);
+            BuiltInSettingsContainer.SetThemeEditorTitle(L.Get(
+                LocalizationKeys.Settings_ThemeEditor_TitleFormat,
+                _editingThemeDraft.Name));
 
             var basePicker = BuiltInSettingsContainer.BaseAppearanceInput;
             var baseDarkLabel = GetAppearanceDisplayName("Dark");
@@ -194,10 +230,8 @@ namespace ASLM.Pages
             });
 
             var keys = ThemePaletteResolver.AllKeys.ToList();
-            var mid = (keys.Count + 1) / 2;
             var items = keys.Select(CreateThemeColorItem).ToList();
-            BuiltInSettingsContainer.ThemeColorsLeft = items.Take(mid).ToList();
-            BuiltInSettingsContainer.ThemeColorsRight = items.Skip(mid).ToList();
+            BuiltInSettingsContainer.SetThemeColors(items);
         }
 
         /// <summary>
@@ -260,7 +294,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Removes one palette override and restores its inherited preview color.
+        /// Replaces one palette override with the selected base theme's default color.
         /// </summary>
         private void ClearThemeColor(ThemeColorItemViewModel item)
         {
@@ -269,8 +303,9 @@ namespace ASLM.Pages
                 return;
             }
 
-            _editingThemeDraft.Colors.Remove(item.Key);
-            item.SetHex(null);
+            var defaultHex = ThemePaletteResolver.ToHex(ResolveThemeBaseColor(item.Key));
+            _editingThemeDraft.Colors[item.Key] = defaultHex;
+            item.SetHex(defaultHex);
             PreviewEditingTheme();
         }
 

@@ -33,7 +33,6 @@ namespace ASLM.Services.Internal
         bool CheckEnabled,
         bool AutoUpdateEnabled,
         string AppChannel,
-        string ModuleDefaultMode,
         string ModuleDefaultChannel);
 
     /// <summary>
@@ -163,7 +162,7 @@ namespace ASLM.Services.Internal
             settings.CheckEnabled = draft.CheckEnabled;
             settings.AutoUpdateEnabled = draft.AutoUpdateEnabled;
             settings.AppChannel = draft.AppChannel;
-            settings.ModuleDefaultMode = draft.ModuleDefaultMode;
+            settings.ModuleDefaultMode = "release";
             settings.ModuleDefaultChannel = draft.ModuleDefaultChannel;
             settings.Normalize();
             return true;
@@ -218,7 +217,6 @@ namespace ASLM.Services.Internal
                     appData.Data.Updates.CheckEnabled,
                     appData.Data.Updates.AutoUpdateEnabled,
                     appData.Data.Updates.AppChannel,
-                    appData.Data.Updates.ModuleDefaultMode,
                     appData.Data.Updates.ModuleDefaultChannel));
         }
 
@@ -256,16 +254,6 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Builds optional copy for the Updates manual-check card when the patcher persisted a GitHub release tag.
-        /// </summary>
-        public static string? BuildAslmInstalledReleaseSummary(AppDataStore appData)
-        {
-            appData.Data.Updates.Normalize();
-            var tag = appData.Data.Updates.InstalledReleaseTag;
-            return string.IsNullOrWhiteSpace(tag) ? null : $"Installed release (GitHub): {tag.Trim()}";
-        }
-
-        /// <summary>
         /// Creates the default update baseline used by reset actions in settings UI.
         /// </summary>
         public static UpdateBaseline BuildDefaultUpdateBaseline()
@@ -276,7 +264,6 @@ namespace ASLM.Services.Internal
                 defaults.CheckEnabled,
                 defaults.AutoUpdateEnabled,
                 defaults.AppChannel,
-                defaults.ModuleDefaultMode,
                 defaults.ModuleDefaultChannel);
         }
 
@@ -333,7 +320,6 @@ namespace ASLM.Services.Internal
             draft.CheckEnabled != baseline.CheckEnabled ||
             draft.AutoUpdateEnabled != baseline.AutoUpdateEnabled ||
             !string.Equals(draft.AppChannel, baseline.AppChannel, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(draft.ModuleDefaultMode, baseline.ModuleDefaultMode, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(draft.ModuleDefaultChannel, baseline.ModuleDefaultChannel, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>

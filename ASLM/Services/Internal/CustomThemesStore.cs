@@ -144,6 +144,21 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Renames one theme while preserving display-name uniqueness.
+        /// </summary>
+        public CustomTheme? RenameTheme(string id, string desiredName)
+        {
+            var theme = FindById(id);
+            if (theme == null || string.IsNullOrWhiteSpace(desiredName))
+            {
+                return null;
+            }
+
+            theme.Name = AllocateUniqueDisplayName(desiredName, theme.Id);
+            return theme;
+        }
+
+        /// <summary>
         /// Adds a copy of an imported theme with a new id and a non-colliding name.
         /// </summary>
         public CustomTheme ImportThemeCopy(CustomTheme source)

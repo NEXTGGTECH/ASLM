@@ -23,7 +23,7 @@ public sealed class SettingsEditSessionTests
                 "20000",
                 true,
                 new ConsoleBaseline(true, false, true),
-                new UpdateBaseline(true, false, "release", "release", "release")),
+                new UpdateBaseline(true, false, "release", "release")),
             legalAutoAcceptUpdates: true);
 
         draft.UserName = "Bob";
@@ -53,24 +53,24 @@ public sealed class SettingsEditSessionTests
                 "20000",
                 true,
                 new ConsoleBaseline(true, false, true),
-                new UpdateBaseline(true, false, "release", "release", "release")),
+                new UpdateBaseline(true, false, "release", "release")),
             legalAutoAcceptUpdates: true);
 
         draft.ApiServerEnabled = false;
         draft.Console = new ConsoleBaseline(false, true, false);
-        draft.Update = new UpdateBaseline(false, true, "pre-release", "branch", "pre-release");
+        draft.Update = new UpdateBaseline(false, true, "pre-release", "pre-release");
         draft.LegalAutoAcceptUpdates = false;
         draft.AcceptAslm();
 
         draft.ApiServerEnabled = true;
         draft.Console = new ConsoleBaseline(true, true, true);
-        draft.Update = new UpdateBaseline(true, false, "release", "release", "release");
+        draft.Update = new UpdateBaseline(true, false, "release", "release");
         draft.LegalAutoAcceptUpdates = true;
         draft.DiscardAslm();
 
         draft.ApiServerEnabled.Should().BeFalse();
         draft.Console.Should().Be(new ConsoleBaseline(false, true, false));
-        draft.Update.Should().Be(new UpdateBaseline(false, true, "pre-release", "branch", "pre-release"));
+        draft.Update.Should().Be(new UpdateBaseline(false, true, "pre-release", "pre-release"));
         draft.LegalAutoAcceptUpdates.Should().BeFalse();
         draft.HasAslmChanges.Should().BeFalse();
     }

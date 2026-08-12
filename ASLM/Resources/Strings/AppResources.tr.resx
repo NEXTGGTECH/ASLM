@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Koşullar ve lisanslar</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>Yükleniyor...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Şimdi güncelle</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>Yerel yansı sunucusunu ASLM ile birlikte başlat</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>API sunucusu</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>Yayın yalnızca kararlı GitHub sürümlerini kullanır. Ön sürüm ayrıca önizleme sürümlerini de kabul eder</value>
+    <value>ASLM Yansıtma Sunucusunu etkinleştir</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>Uygulama güncelleme kanalı</value>
+    <value>ASLM güncelleme kanalı</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Arka plandaki güncelleme denetimleri arasındaki saat</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>Otomatik denetim aralığı</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>Modül güncellemelerini otomatik uygula ve bir sonraki yeniden başlatma için ASLM derlemelerini hazırla</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>Güncellemeleri otomatik yükle</value>
+    <value>Otomatik güncelleme kurulumunu etkinleştir</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama Hesabı</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>Bağlı değil</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>API limitini saatte 60'tan 5.000 isteğe çıkarmak için bağlanın</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>Bağlandı</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>{0} olarak bağlandı</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>Bağlan</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>GitHub Hesabı</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>Daha yüksek GitHub API limiti için kişisel erişim belirteciyle oturum açın.</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Bağlantı başarısız: {0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>Uygulama ve modül güncelleme tercihleri</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Ollama {0} güncellemesi mevcut</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Ollama'yı güncelle</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>Geçerli sürüm: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>Güncelleme başarısız: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama {0} sürümüne güncellendi</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Ollama güncellemesi</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Ollama güncelleniyor...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama güncel</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>ASLM güncellemelerini denetle</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>Güncellemeleri denetle</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>Şimdi denetle</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>ASLM'nin yapılandırılmış GitHub depolarını sorgulamasına izin ver</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>Güncellemeleri denetle</value>
+    <value>Otomatik güncelleme denetimini etkinleştir</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>Ayarları kapat</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>Bireysel konsollar etkinleştirildiğinde tamamlanan süreç konsollarını görünür tut</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>Tamamlanan süreç konsolları</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>Yan çubukta yerleşik konsollar sayfasını göster</value>
+    <value>Tamamlanan işlemlerin konsollarını göster</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>Konsollar sayfası</value>
+    <value>Konsollar sayfasını göster</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Değişiklikleri vazgeç</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Görünen ad</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>ASLM'de gösterilen ve modüllerle paylaşılan ad</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>Bu kategoride ayar yok</value>
   </data>
@@ -995,38 +930,20 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>MODÜLLER</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>Birleşik modül çıktısının yanında süreç başına konsolları göster</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>Bireysel konsollar</value>
+    <value>Modül işlemleri için ayrı konsollar göster</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Varsayılanı yükle</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>Elle denetleme</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>GitHub sürümlerini izleyen modüller tarafından kullanılır</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>Varsayılan modül yayın kanalı</value>
+    <value>Varsayılan modül güncelleme kanalı</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>Bu modülün geçerli durumda ayarı yok</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>Yeni modül tercihleri bu moddan başlar; modüller bunu geçersiz kılabilir</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>Varsayılan modül güncelleme modu</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>Kullanılabilir ayar yok</value>
-  </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>Tüm modüller için başlangıç bağlantı noktası. Bağlantı noktaları bu değerden itibaren sırayla ayrılır</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>Modül başlangıç bağlantı noktası</value>
@@ -1050,19 +967,13 @@
     <value>Dahili Ollama yüklü değil</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>Oturum açılmadı</value>
+    <value>Bulut modellerini kullanmak için Ollama hesabınızı bağlayın</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>Oturum aç</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>Oturumu kapat</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>Oturum açıldı</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>{0} olarak oturum açıldı</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>Oturum açılıyor...</value>
@@ -1077,7 +988,7 @@
     <value>Tarayıcıda oturum açılması bekleniyor</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>Etkin tema</value>
+    <value>Özel tema</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>Özel</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Dil</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>ASLM ve desteklenen modüller için arayüz dilini ayarlar</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>Mod</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>Uygulamanın genel arayüz görünümünü nasıl seçeceğini belirler</value>
+    <value>Tema</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>Yeni</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>Henüz özel tema yok. Özel görünüm için bir tane oluşturun</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>Aşağıdaki belirteç satırlarının ait olduğu kayıtlı palet</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>Hangi özel temanın etkin olduğunu seçin</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>Önce bir palet oluşturun; seçim için burada görünecek</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>Yeniden adlandır</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>Temalar</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>Dosya olarak saklanan palet tanımlarını ekleyin, içe aktarın veya paylaşın</value>
+    <value>Özel temaları yönet</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Bağlantı noktaları</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>ASLM güncellemesini hazırla</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>Şimdi yeniden başlat</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Kaydet</value>
@@ -1187,11 +1077,9 @@
     <value>Koşullar</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Koşul güncellemelerini otomatik kabul et</value>
+    <value>Politika güncellemelerini otomatik olarak kabul et</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>İlk incelemeden sonra yeni ve güncellenmiş koşulları kabul et.</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Sil</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>Temayı sil</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>Tema renk düzenleyicisi</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>Henüz geçersiz kılmadığınız belirteçler için yerleşik anlamsal varsayılanlar</value>
+    <value>Temel tema</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Temizle</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>Tema için renk düzenleyici: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Tema düzenleyici: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Seç</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>Yeni tema</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>Bu tema için yeni bir ad girin</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>Temayı yeniden adlandır</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>Ayarlar</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>ASLM {0} güncellemesi kullanılabilir. İndirmek için "ASLM güncellemesini hazırla" seçeneğini kullanın</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>ASLM {0} güncellemesi kullanılabilir; {1} yeniden başlatma için zaten hazırlandı</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} hazırlandı ve yeniden başlatmada uygulanacak</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>Güncelleme denetimi başarısız: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>GitHub depoları denetleniyor...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>ASLM güncellemesi hazırlanamadı</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>ASLM derlemesi indiriliyor...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>{0} motor güncellemesi mevcut</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>{0} güncelleme kullanılabilir. Modül güncellemeleri Modüller sayfasından uygulanabilir</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} yeniden başlatma için hazırlandı</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} Bir ASLM kendi kendine güncellemesi yeniden başlatma için hazırlandı</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>Bu oturumda güncelleme denetimi çalıştırılmadı</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>ASLM güncellemesi hazırlandı ve yeniden başlatmada uygulanacak</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>ASLM {0} güncellemesi hazırlandı ve yeniden başlatmada uygulanacak</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Yeniden başlatma başarısız: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>ASLM yeniden başlatılıyor...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Güncellemeyi indir</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>Her şey güncel.</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>İndiriliyor</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>Özel değer kullan</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Yükle ve yeniden başlat</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Doğrulama hatası</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>Yerel hesap. Profil verileri yalnızca bu cihazda saklanır.</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>Bulut hesabı {0} olarak bağlandı</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Bulut hesabını kullan</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>Diğer ayarlar</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Kullanılabilir sürüm: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Yüklü sürüm: {0}</value>
   </data>
 </root>

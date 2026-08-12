@@ -25,7 +25,7 @@ namespace ASLM.Services.Engines
         private Process? _managedRuntimeProcess;
         private bool _hasVerifiedSignInState;
         private bool _isSignedIn;
-        private string _userName = string.Empty;
+        private OllamaPersistentSettings _accountDetails = new();
 
 
         // Construction
@@ -58,7 +58,7 @@ namespace ASLM.Services.Engines
             {
                 _hasVerifiedSignInState = false;
                 _isSignedIn = false;
-                _userName = string.Empty;
+                ClearAccountDetails();
             }
 
             return BuildSettingsSnapshot(!string.IsNullOrWhiteSpace(executable));
@@ -74,7 +74,7 @@ namespace ASLM.Services.Engines
             {
                 _hasVerifiedSignInState = false;
                 _isSignedIn = false;
-                _userName = string.Empty;
+                ClearAccountDetails();
                 return BuildSettingsSnapshot(isCliAvailable: false);
             }
 
@@ -177,12 +177,28 @@ namespace ASLM.Services.Engines
         /// </summary>
         private OllamaPersistentSettings BuildSettingsSnapshot(bool isCliAvailable)
         {
+            var exposesAccount = isCliAvailable && _hasVerifiedSignInState && _isSignedIn;
             return new OllamaPersistentSettings
             {
                 IsCliAvailable = isCliAvailable,
-                IsSignedIn = isCliAvailable && _hasVerifiedSignInState && _isSignedIn,
-                UserName = isCliAvailable && _hasVerifiedSignInState && _isSignedIn ? _userName : string.Empty
+                IsSignedIn = exposesAccount,
+                UserName = exposesAccount ? _accountDetails.UserName : string.Empty,
+                UserId = exposesAccount ? _accountDetails.UserId : string.Empty,
+                Email = exposesAccount ? _accountDetails.Email : string.Empty,
+                Bio = exposesAccount ? _accountDetails.Bio : string.Empty,
+                AvatarUrl = exposesAccount ? _accountDetails.AvatarUrl : string.Empty,
+                FirstName = exposesAccount ? _accountDetails.FirstName : string.Empty,
+                LastName = exposesAccount ? _accountDetails.LastName : string.Empty,
+                Plan = exposesAccount ? _accountDetails.Plan : string.Empty
             };
+        }
+
+        /// <summary>
+        /// Clears account metadata when the managed runtime or authenticated session is unavailable.
+        /// </summary>
+        private void ClearAccountDetails()
+        {
+            _accountDetails = new OllamaPersistentSettings();
         }
 
 
@@ -293,7 +309,7 @@ namespace ASLM.Services.Engines
                     var payload = await response.Content.ReadAsStringAsync(ct);
                     _hasVerifiedSignInState = true;
                     _isSignedIn = true;
-                    _userName = TryExtractUserName(payload);
+                    _accountDetails = ParseAccountDetails(payload);
                     return true;
                 }
 
@@ -301,7 +317,7 @@ namespace ASLM.Services.Engines
                 {
                     _hasVerifiedSignInState = true;
                     _isSignedIn = false;
-                    _userName = string.Empty;
+                    ClearAccountDetails();
                     return false;
                 }
 
@@ -465,64 +481,60 @@ namespace ASLM.Services.Engines
         // API response parsing
 
         /// <summary>
-        /// Parses the display name returned by Ollama for the current account.
+        /// Parses all account fields exposed by Ollama's current-user response.
         /// </summary>
-        private static string TryExtractUserName(string payload)
+        private static OllamaPersistentSettings ParseAccountDetails(string payload)
         {
             if (string.IsNullOrWhiteSpace(payload))
             {
-                return string.Empty;
+                return new OllamaPersistentSettings();
             }
 
             try
             {
                 using var document = JsonDocument.Parse(payload);
-                return TryExtractUserName(document.RootElement);
+                var root = document.RootElement;
+                var name = ReadStringProperty(root, "name", "username", "user");
+                var email = ReadStringProperty(root, "email");
+                return new OllamaPersistentSettings
+                {
+                    UserName = string.IsNullOrWhiteSpace(name) ? email : name,
+                    UserId = ReadStringProperty(root, "id"),
+                    Email = email,
+                    Bio = ReadStringProperty(root, "bio"),
+                    AvatarUrl = ReadStringProperty(root, "avatarurl", "avatar_url"),
+                    FirstName = ReadStringProperty(root, "firstname", "first_name"),
+                    LastName = ReadStringProperty(root, "lastname", "last_name"),
+                    Plan = ReadStringProperty(root, "plan")
+                };
             }
             catch
             {
-                return string.Empty;
+                return new OllamaPersistentSettings();
             }
         }
 
         /// <summary>
-        /// Parses the most likely user name field from an Ollama API payload.
+        /// Reads the first non-empty string among compatible Ollama response field names.
         /// </summary>
-        private static string TryExtractUserName(JsonElement element)
+        private static string ReadStringProperty(JsonElement element, params string[] propertyNames)
         {
-            if (element.ValueKind == JsonValueKind.String)
-            {
-                return element.GetString() ?? string.Empty;
-            }
-
             if (element.ValueKind != JsonValueKind.Object)
             {
                 return string.Empty;
             }
 
-            foreach (var candidate in new[] { "username", "user", "name", "email" })
+            foreach (var propertyName in propertyNames)
             {
-                if (!element.TryGetProperty(candidate, out var property))
+                if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String)
                 {
                     continue;
                 }
 
-                if (property.ValueKind == JsonValueKind.String)
+                var value = property.GetString();
+                if (!string.IsNullOrWhiteSpace(value))
                 {
-                    var value = property.GetString();
-                    if (!string.IsNullOrWhiteSpace(value))
-                    {
-                        return value;
-                    }
-                }
-
-                if (property.ValueKind == JsonValueKind.Object)
-                {
-                    var nested = TryExtractUserName(property);
-                    if (!string.IsNullOrWhiteSpace(nested))
-                    {
-                        return nested;
-                    }
+                    return value.Trim();
                 }
             }
 

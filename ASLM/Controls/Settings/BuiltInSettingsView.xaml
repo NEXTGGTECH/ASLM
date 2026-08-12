@@ -14,16 +14,21 @@
     <Grid>
         <!-- Core ASLM settings -->
         <VerticalStackLayout x:Name="CoreContainer"
-                             Spacing="16"
+                             Spacing="12"
                              IsVisible="False">
             <settings:SettingsSectionView x:Name="PortsCategory">
                 <settings:SettingsSectionView.SectionContent>
                     <VerticalStackLayout x:Name="PortsSection"
                                          Spacing="8">
-                        <Label x:Name="ModulePortTitle"
-                               Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                        <Label x:Name="ModulePortDescription"
-                               Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
+                        <Grid ColumnDefinitions="Auto,Auto,*"
+                              ColumnSpacing="6"
+                              MinimumWidthRequest="0"
+                              HorizontalOptions="Fill">
+                            <Label x:Name="ModulePortTitle"
+                                   Style="{StaticResource SettingsCardTitleLabelStyle}" />
+                            <settings:SettingsInfoButton x:Name="ModulePortInfoButton"
+                                                         Grid.Column="1" />
+                        </Grid>
                         <settings:SettingsFieldView>
                             <settings:SettingsFieldView.FieldContent>
                                 <Entry x:Name="ModulePortEntry"
@@ -85,198 +90,237 @@
 
         <!-- Account settings -->
         <VerticalStackLayout x:Name="AccountsContainer"
-                             Spacing="8"
+                             Spacing="12"
                              IsVisible="False">
-            <settings:SettingsCardView>
-                <Grid ColumnDefinitions="*,Auto"
-                      ColumnSpacing="16"
-                      MinimumWidthRequest="0"
-                      HorizontalOptions="Fill"
-                      MinimumHeightRequest="44">
-                    <VerticalStackLayout Spacing="8"
-                                         MinimumWidthRequest="0"
-                                         HorizontalOptions="Fill"
-                                         VerticalOptions="Center">
+            <settings:SettingsCardView Style="{StaticResource SettingsAccountCardBorderStyle}">
+                <VerticalStackLayout Spacing="8"
+                                     MinimumWidthRequest="0"
+                                     HorizontalOptions="Fill">
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,*"
+                          ColumnSpacing="8">
                         <Label x:Name="AslmAccountTitle"
+                               HorizontalOptions="Start"
+                               Style="{StaticResource SettingsAccountTitleLabelStyle}" />
+                        <Border Grid.Column="1"
+                                Style="{StaticResource SettingsAccountTypeBadgeBorderStyle}">
+                            <Label x:Name="AslmAccountTypeBadgeLabel"
+                                   Style="{StaticResource SettingsAccountTypeBadgeLabelStyle}" />
+                        </Border>
+                        <ImageButton x:Name="AslmAccountLinkButton"
+                                     Grid.Column="2"
+                                     IsVisible="False"
+                                     Style="{StaticResource SettingsAccountLinkButtonStyle}" />
+                    </Grid>
+                    <Label x:Name="AslmAccountStatus"
+                           LineBreakMode="WordWrap"
+                           Style="{StaticResource SettingsAccountInformationLabelStyle}" />
+                    <VerticalStackLayout x:Name="UserProfileSection"
+                                         Spacing="8">
+                        <Label x:Name="DisplayNameTitle"
                                Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                        <Label x:Name="AslmAccountStatus"
-                               LineBreakMode="WordWrap"
-                               Style="{StaticResource SettingsSecondaryLabelStyle}" />
+                        <settings:SettingsFieldView>
+                            <settings:SettingsFieldView.FieldContent>
+                                <Entry x:Name="UsernameEntry"
+                                       Style="{StaticResource SettingsTextEntryStyle}"
+                                       settings:SettingsControlChrome.FlatEntry="True" />
+                            </settings:SettingsFieldView.FieldContent>
+                        </settings:SettingsFieldView>
                     </VerticalStackLayout>
                     <Button x:Name="AslmAccountButton"
-                            Grid.Column="1"
-                            Style="{StaticResource SettingsInlineActionButtonStyle}" />
-                </Grid>
+                            Style="{StaticResource SettingsAccountActionButtonStyle}" />
+                </VerticalStackLayout>
             </settings:SettingsCardView>
 
-            <VerticalStackLayout x:Name="UserProfileSection"
-                                 Spacing="8">
-                <Label x:Name="DisplayNameTitle"
-                       Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                <Label x:Name="DisplayNameDescription"
-                       Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
-                <settings:SettingsFieldView>
-                    <settings:SettingsFieldView.FieldContent>
-                        <Entry x:Name="UsernameEntry"
-                               Style="{StaticResource SettingsTextEntryStyle}"
-                               settings:SettingsControlChrome.FlatEntry="True" />
-                    </settings:SettingsFieldView.FieldContent>
-                </settings:SettingsFieldView>
-            </VerticalStackLayout>
-
-            <settings:SettingsCardView>
-                <Grid ColumnDefinitions="*,Auto"
-                      ColumnSpacing="16"
-                      MinimumWidthRequest="0"
-                      HorizontalOptions="Fill"
-                      MinimumHeightRequest="44">
-                    <VerticalStackLayout Spacing="8"
-                                         MinimumWidthRequest="0"
-                                         HorizontalOptions="Fill"
-                                         VerticalOptions="Center">
+            <settings:SettingsCardView Style="{StaticResource SettingsAccountCardBorderStyle}">
+                <VerticalStackLayout Spacing="8"
+                                     MinimumWidthRequest="0"
+                                     HorizontalOptions="Fill">
+                    <Grid ColumnDefinitions="Auto,Auto,*"
+                          ColumnSpacing="8">
                         <Label x:Name="GitHubAccountTitle"
-                               Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                        <Label x:Name="GitHubAccountStatus"
-                               LineBreakMode="WordWrap"
-                               Style="{StaticResource SettingsSecondaryLabelStyle}" />
-                    </VerticalStackLayout>
+                               HorizontalOptions="Start"
+                               Style="{StaticResource SettingsAccountTitleLabelStyle}" />
+                        <ImageButton x:Name="GitHubAccountLinkButton"
+                                     Grid.Column="1"
+                                     Style="{StaticResource SettingsAccountLinkButtonStyle}" />
+                    </Grid>
+                    <Label x:Name="GitHubAccountStatus"
+                           LineBreakMode="WordWrap"
+                           Style="{StaticResource SettingsAccountInformationLabelStyle}" />
                     <Button x:Name="GitHubAccountButton"
-                            Grid.Column="1"
-                            Style="{StaticResource SettingsInlineActionButtonStyle}" />
-                </Grid>
+                            Style="{StaticResource SettingsAccountActionButtonStyle}" />
+                </VerticalStackLayout>
             </settings:SettingsCardView>
 
-            <settings:SettingsCardView>
-                <Grid ColumnDefinitions="*,Auto"
-                      ColumnSpacing="16"
-                      MinimumWidthRequest="0"
-                      HorizontalOptions="Fill"
-                      MinimumHeightRequest="44">
-                    <VerticalStackLayout Spacing="8"
-                                         MinimumWidthRequest="0"
-                                         HorizontalOptions="Fill"
-                                         VerticalOptions="Center">
+            <settings:SettingsCardView Style="{StaticResource SettingsAccountCardBorderStyle}">
+                <VerticalStackLayout Spacing="8"
+                                     MinimumWidthRequest="0"
+                                     HorizontalOptions="Fill">
+                    <Grid ColumnDefinitions="Auto,Auto,*"
+                          ColumnSpacing="8">
                         <Label x:Name="OllamaAccountTitle"
-                               Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                        <Label x:Name="OllamaAccountStatus"
-                               LineBreakMode="WordWrap"
-                               Style="{StaticResource SettingsSecondaryLabelStyle}" />
-                    </VerticalStackLayout>
+                               HorizontalOptions="Start"
+                               Style="{StaticResource SettingsAccountTitleLabelStyle}" />
+                        <ImageButton x:Name="OllamaAccountLinkButton"
+                                     Grid.Column="1"
+                                     Style="{StaticResource SettingsAccountLinkButtonStyle}" />
+                    </Grid>
+                    <Label x:Name="OllamaAccountStatus"
+                           LineBreakMode="WordWrap"
+                           Style="{StaticResource SettingsAccountInformationLabelStyle}" />
                     <Button x:Name="OllamaAccountButton"
-                            Grid.Column="1"
-                            Style="{StaticResource SettingsInlineActionButtonStyle}" />
-                </Grid>
+                            Style="{StaticResource SettingsAccountActionButtonStyle}" />
+                </VerticalStackLayout>
             </settings:SettingsCardView>
         </VerticalStackLayout>
 
         <!-- Update settings -->
         <VerticalStackLayout x:Name="UpdatesContainer"
-                             Spacing="8"
+                             Spacing="12"
                              IsVisible="False">
-            <settings:SettingsRowView x:Name="CheckUpdatesRow">
-                <settings:SettingsRowView.TrailingContent>
-                    <settings:SettingsToggle x:Name="CheckUpdatesToggle" />
-                </settings:SettingsRowView.TrailingContent>
-            </settings:SettingsRowView>
-            <settings:SettingsRowView x:Name="AutoUpdatesRow">
-                <settings:SettingsRowView.TrailingContent>
-                    <settings:SettingsToggle x:Name="AutoUpdatesToggle" />
-                </settings:SettingsRowView.TrailingContent>
-            </settings:SettingsRowView>
-            <settings:SettingsRowView x:Name="AppChannelRow">
-                <settings:SettingsRowView.TrailingContent>
-                    <settings:SettingsFieldView WidthRequest="132"
-                                                MinimumWidthRequest="132">
-                        <settings:SettingsFieldView.FieldContent>
-                            <Picker x:Name="AppChannelPicker"
-                                    FontSize="13"
-                                    Style="{StaticResource SettingsPickerStyle}"
-                                    settings:SettingsControlChrome.CompactPicker="True" />
-                        </settings:SettingsFieldView.FieldContent>
-                    </settings:SettingsFieldView>
-                </settings:SettingsRowView.TrailingContent>
-            </settings:SettingsRowView>
-            <settings:SettingsRowView x:Name="ModuleModeRow">
-                <settings:SettingsRowView.TrailingContent>
-                    <settings:SettingsFieldView WidthRequest="132"
-                                                MinimumWidthRequest="132">
-                        <settings:SettingsFieldView.FieldContent>
-                            <Picker x:Name="ModuleModePicker"
-                                    FontSize="13"
-                                    Style="{StaticResource SettingsPickerStyle}"
-                                    settings:SettingsControlChrome.CompactPicker="True" />
-                        </settings:SettingsFieldView.FieldContent>
-                    </settings:SettingsFieldView>
-                </settings:SettingsRowView.TrailingContent>
-            </settings:SettingsRowView>
-            <settings:SettingsRowView x:Name="ModuleChannelRow">
-                <settings:SettingsRowView.TrailingContent>
-                    <settings:SettingsFieldView WidthRequest="132"
-                                                MinimumWidthRequest="132">
-                        <settings:SettingsFieldView.FieldContent>
-                            <Picker x:Name="ModuleChannelPicker"
-                                    FontSize="13"
-                                    Style="{StaticResource SettingsPickerStyle}"
-                                    settings:SettingsControlChrome.CompactPicker="True" />
-                        </settings:SettingsFieldView.FieldContent>
-                    </settings:SettingsFieldView>
-                </settings:SettingsRowView.TrailingContent>
-            </settings:SettingsRowView>
-
-            <settings:SettingsCardView>
-                <VerticalStackLayout Spacing="8">
-                    <Label x:Name="ManualUpdateTitle"
-                           Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                    <Label x:Name="ManualInstalledSummary"
-                           IsVisible="False"
-                           Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
-                    <FlexLayout Direction="Row"
-                                Wrap="Wrap"
-                                Margin="0,8,0,0">
-                        <Button x:Name="CheckAslmUpdateButton"
-                                Margin="0,0,8,8"
-                                Style="{StaticResource SettingsInlineActionButtonStyle}" />
-                        <Button x:Name="PrepareAppUpdateButton"
-                                Margin="0,0,8,8"
-                                IsVisible="False"
-                                Style="{StaticResource SettingsInlineActionButtonStyle}" />
-                        <Button x:Name="RestartAppUpdateButton"
-                                Margin="0,0,8,8"
-                                IsVisible="False"
-                                Style="{StaticResource SettingsInlineActionButtonStyle}" />
-                    </FlexLayout>
-                    <Label x:Name="UpdateStatusLabel"
-                           Style="{StaticResource SettingsSecondaryLabelStyle}" />
-                </VerticalStackLayout>
-            </settings:SettingsCardView>
-
-            <settings:SettingsCardView>
-                <VerticalStackLayout Spacing="8">
-                    <Label x:Name="OllamaUpdateTitle"
-                           Style="{StaticResource SettingsCardTitleLabelStyle}" />
-                    <Label x:Name="OllamaVersionDescription"
-                           Style="{StaticResource SettingsCardDescriptionLabelStyle}" />
-                    <FlexLayout Direction="Row"
-                                Wrap="Wrap"
-                                Margin="0,8,0,0">
-                        <Button x:Name="CheckOllamaUpdateButton"
-                                Margin="0,0,8,8"
-                                Style="{StaticResource SettingsInlineActionButtonStyle}" />
-                        <Button x:Name="OllamaUpdateButton"
-                                Margin="0,0,8,8"
-                                IsVisible="False"
-                                Style="{StaticResource SettingsInlineActionButtonStyle}" />
-                    </FlexLayout>
-                    <Label x:Name="OllamaUpdateStatusLabel"
-                           Style="{StaticResource SettingsSecondaryLabelStyle}" />
-                </VerticalStackLayout>
-            </settings:SettingsCardView>
+            <settings:SettingsSectionView Title="ASLM">
+                <settings:SettingsSectionView.SectionContent>
+                    <VerticalStackLayout Spacing="8"
+                                         MinimumWidthRequest="0"
+                                         HorizontalOptions="Fill">
+                        <VerticalStackLayout Spacing="0">
+                            <Label x:Name="AslmInstalledVersionLabel"
+                                   Style="{StaticResource SettingsAccountInformationLabelStyle}" />
+                            <Label x:Name="AslmAvailableVersionLabel"
+                                   IsVisible="False"
+                                   Style="{StaticResource SettingsAccountInformationLabelStyle}" />
+                        </VerticalStackLayout>
+                        <HorizontalStackLayout x:Name="AslmUpdateActionHost"
+                                               IsVisible="False"
+                                               Spacing="8"
+                                               Margin="0,8,0,0">
+                            <Grid x:Name="PrepareAppUpdateHost"
+                                  IsVisible="False">
+                                <Button x:Name="PrepareAppUpdateButton"
+                                        Style="{StaticResource SettingsInlineActionButtonStyle}" />
+                                <HorizontalStackLayout x:Name="PrepareAppUpdateProgress"
+                                                       IsVisible="False"
+                                                       InputTransparent="True"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"
+                                                       Spacing="6">
+                                    <ActivityIndicator x:Name="PrepareAppUpdateSpinner"
+                                                       WidthRequest="16"
+                                                       HeightRequest="16"
+                                                       Color="{DynamicResource LabelPrimary}" />
+                                    <Label x:Name="PrepareAppUpdateProgressText"
+                                           FontSize="13"
+                                           TextColor="{DynamicResource LabelPrimary}"
+                                           VerticalTextAlignment="Center" />
+                                    <Label x:Name="PrepareAppUpdateProgressPercent"
+                                           FontSize="13"
+                                           TextColor="{DynamicResource LabelPrimary}"
+                                           VerticalTextAlignment="Center" />
+                                </HorizontalStackLayout>
+                            </Grid>
+                            <Button x:Name="RestartAppUpdateButton"
+                                    IsVisible="False"
+                                    Style="{StaticResource SettingsInlineActionButtonStyle}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </settings:SettingsSectionView.SectionContent>
+            </settings:SettingsSectionView>
+            <settings:SettingsSectionView Title="Ollama">
+                <settings:SettingsSectionView.SectionContent>
+                    <VerticalStackLayout Spacing="8"
+                                         MinimumWidthRequest="0"
+                                         HorizontalOptions="Fill">
+                        <VerticalStackLayout Spacing="0">
+                            <Label x:Name="OllamaInstalledVersionLabel"
+                                   Style="{StaticResource SettingsAccountInformationLabelStyle}" />
+                            <Label x:Name="OllamaAvailableVersionLabel"
+                                   IsVisible="False"
+                                   Style="{StaticResource SettingsAccountInformationLabelStyle}" />
+                        </VerticalStackLayout>
+                        <Grid x:Name="OllamaUpdateHost"
+                              IsVisible="False"
+                              HorizontalOptions="Start"
+                              Margin="0,8,0,0">
+                            <Button x:Name="OllamaUpdateButton"
+                                    Style="{StaticResource SettingsInlineActionButtonStyle}" />
+                            <HorizontalStackLayout x:Name="OllamaUpdateProgress"
+                                                   IsVisible="False"
+                                                   InputTransparent="True"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center"
+                                                   Spacing="6">
+                                <ActivityIndicator x:Name="OllamaUpdateSpinner"
+                                                   WidthRequest="16"
+                                                   HeightRequest="16"
+                                                   Color="{DynamicResource LabelPrimary}" />
+                                <Label x:Name="OllamaUpdateProgressText"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       VerticalTextAlignment="Center" />
+                                <Label x:Name="OllamaUpdateProgressPercent"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       VerticalTextAlignment="Center" />
+                            </HorizontalStackLayout>
+                        </Grid>
+                    </VerticalStackLayout>
+                </settings:SettingsSectionView.SectionContent>
+            </settings:SettingsSectionView>
+            <settings:SettingsSectionView>
+                <settings:SettingsSectionView.SectionContent>
+                    <VerticalStackLayout Spacing="8"
+                                         MinimumWidthRequest="0"
+                                         HorizontalOptions="Fill">
+                        <settings:SettingsRowView x:Name="CheckUpdatesRow">
+                            <settings:SettingsRowView.TrailingContent>
+                                <settings:SettingsToggle x:Name="CheckUpdatesToggle" />
+                            </settings:SettingsRowView.TrailingContent>
+                        </settings:SettingsRowView>
+                        <settings:SettingsRowView x:Name="AutoUpdatesRow">
+                            <settings:SettingsRowView.TrailingContent>
+                                <settings:SettingsToggle x:Name="AutoUpdatesToggle" />
+                            </settings:SettingsRowView.TrailingContent>
+                        </settings:SettingsRowView>
+                        <settings:SettingsRowView x:Name="AppChannelRow">
+                            <settings:SettingsRowView.TrailingContent>
+                                <settings:SettingsFieldView WidthRequest="132"
+                                                            MinimumWidthRequest="132">
+                                    <settings:SettingsFieldView.FieldContent>
+                                        <Picker x:Name="AppChannelPicker"
+                                                FontSize="13"
+                                                Style="{StaticResource SettingsPickerStyle}"
+                                                settings:SettingsControlChrome.CompactPicker="True" />
+                                    </settings:SettingsFieldView.FieldContent>
+                                </settings:SettingsFieldView>
+                            </settings:SettingsRowView.TrailingContent>
+                        </settings:SettingsRowView>
+                        <settings:SettingsRowView x:Name="ModuleChannelRow">
+                            <settings:SettingsRowView.TrailingContent>
+                                <settings:SettingsFieldView WidthRequest="132"
+                                                            MinimumWidthRequest="132">
+                                    <settings:SettingsFieldView.FieldContent>
+                                        <Picker x:Name="ModuleChannelPicker"
+                                                FontSize="13"
+                                                Style="{StaticResource SettingsPickerStyle}"
+                                                settings:SettingsControlChrome.CompactPicker="True" />
+                                    </settings:SettingsFieldView.FieldContent>
+                                </settings:SettingsFieldView>
+                            </settings:SettingsRowView.TrailingContent>
+                        </settings:SettingsRowView>
+                    </VerticalStackLayout>
+                </settings:SettingsSectionView.SectionContent>
+            </settings:SettingsSectionView>
         </VerticalStackLayout>
 
         <!-- Personalization settings -->
         <VerticalStackLayout x:Name="PersonalizationContainer"
-                             Spacing="8"
+                             Spacing="12"
                              IsVisible="False">
+            <settings:SettingsSectionView>
+                <settings:SettingsSectionView.SectionContent>
+                    <VerticalStackLayout Spacing="8"
+                                         MinimumWidthRequest="0"
+                                         HorizontalOptions="Fill">
             <settings:SettingsRowView x:Name="LanguageRow">
                 <settings:SettingsRowView.TrailingContent>
                     <settings:SettingsFieldView MaximumWidthRequest="256"
@@ -324,7 +368,7 @@
                 </settings:SettingsRowView>
                 <settings:SettingsRowView x:Name="ActiveThemeRow">
                     <settings:SettingsRowView.TrailingContent>
-                        <Grid ColumnDefinitions="256,Auto"
+                        <Grid ColumnDefinitions="256,Auto,Auto"
                               ColumnSpacing="8"
                               VerticalOptions="Center">
                             <settings:SettingsFieldView WidthRequest="256"
@@ -338,18 +382,25 @@
                                             settings:SettingsControlChrome.CompactPicker="True" />
                                 </settings:SettingsFieldView.FieldContent>
                             </settings:SettingsFieldView>
-                            <Button x:Name="DeleteThemeButton"
+                            <Button x:Name="RenameThemeButton"
                                     Grid.Column="1"
-                                    Style="{StaticResource SettingsFooterDangerButtonStyle}" />
+                                    Style="{StaticResource SettingsInlineActionButtonStyle}" />
+                            <Button x:Name="DeleteThemeButton"
+                                    Grid.Column="2"
+                                    Style="{StaticResource SettingsInlineDangerActionButtonStyle}" />
                         </Grid>
                     </settings:SettingsRowView.TrailingContent>
                 </settings:SettingsRowView>
             </VerticalStackLayout>
-            <VerticalStackLayout x:Name="ThemeEditorSection"
-                                 Spacing="8"
-                                 IsVisible="False">
-                <Label x:Name="ThemeColorsHeader"
-                       Style="{StaticResource SettingsSubGroupHeaderLabelStyle}" />
+                    </VerticalStackLayout>
+                </settings:SettingsSectionView.SectionContent>
+            </settings:SettingsSectionView>
+            <settings:SettingsSectionView x:Name="ThemeEditorSection"
+                                          IsVisible="False">
+                <settings:SettingsSectionView.SectionContent>
+                    <VerticalStackLayout Spacing="8"
+                                         MinimumWidthRequest="0"
+                                         HorizontalOptions="Fill">
                 <settings:SettingsRowView x:Name="BaseAppearanceRow">
                     <settings:SettingsRowView.TrailingContent>
                         <settings:SettingsFieldView MaximumWidthRequest="256"
@@ -364,8 +415,10 @@
                     </settings:SettingsRowView.TrailingContent>
                 </settings:SettingsRowView>
                 <settings:SettingsCardView>
-                    <Grid ColumnDefinitions="*,1,*"
-                          ColumnSpacing="0">
+                    <Grid x:Name="ThemeColorsGrid"
+                          ColumnDefinitions="*,1,*"
+                          ColumnSpacing="0"
+                          SizeChanged="OnThemeColorsGridSizeChanged">
                         <VerticalStackLayout x:Name="ThemeColorsLeftLayout"
                                              Spacing="4"
                                              Margin="0,0,12,0"
@@ -376,7 +429,8 @@
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
                         </VerticalStackLayout>
-                        <BoxView Grid.Column="1"
+                        <BoxView x:Name="ThemeColorsDivider"
+                                 Grid.Column="1"
                                  WidthRequest="1"
                                  Margin="0,2"
                                  Opacity="0.55"
@@ -394,7 +448,9 @@
                         </VerticalStackLayout>
                     </Grid>
                 </settings:SettingsCardView>
-            </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </settings:SettingsSectionView.SectionContent>
+            </settings:SettingsSectionView>
         </VerticalStackLayout>
     </Grid>
 </ContentView>

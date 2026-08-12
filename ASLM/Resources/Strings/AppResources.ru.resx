@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Условия и лицензии</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>Загрузка...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Обновить сейчас</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>Запускать локальный зеркальный сервер вместе с ASLM</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>Сервер API</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>Release — только стабильные выпуски GitHub. Pre-release также принимает предварительные выпуски</value>
+    <value>Включить ASLM Mirror Server</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>Канал обновления приложения</value>
+    <value>Канал обновлений ASLM</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Интервал в часах между фоновыми проверками обновлений</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>Период автопроверки</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>Автоматически применять обновления модулей и подготавливать сборки ASLM к следующему перезапуску</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>Устанавливать обновления автоматически</value>
+    <value>Включить автоматическую установку обновлений</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -860,9 +852,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>Локальная учётная запись. Данные профиля хранятся только на этом устройстве.</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>Облачная учётная запись подключена как {0}</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Использовать облачную</value>
   </data>
@@ -884,17 +873,8 @@
   <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
     <value>Не удалось войти в облачную учётную запись: {0}</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>Не подключено</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>Подключите, чтобы повысить лимит API с 60 до 5 000 запросов в час</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>Подключено</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>Подключено как {0}</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>Подключить</value>
@@ -916,9 +896,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>Учётная запись GitHub</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>Войдите с помощью персонального токена доступа, чтобы использовать повышенный лимит API GitHub.</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Не удалось подключиться: {0}</value>
@@ -944,59 +921,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>Параметры обновления приложения и модулей</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Доступно обновление Ollama {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Обновить Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>Текущая версия: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>Обновление не удалось: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama обновлён до {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Обновление Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Обновление Ollama...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama актуален</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>Проверить обновления ASLM</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>Проверить обновления</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>Проверить сейчас</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>Разрешить ASLM запрашивать настроенные репозитории GitHub</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>Проверять обновления</value>
+    <value>Включить автоматическую проверку обновлений</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>Закрыть настройки</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>Оставлять консоли завершённых процессов видимыми, когда включены отдельные консоли</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>Консоли завершённых процессов</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>Показывать встроенную страницу консолей на боковой панели</value>
+    <value>Показывать консоли завершённых процессов</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>Страница консолей</value>
+    <value>Показывать страницу «Консоли»</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Отменить изменения</value>
@@ -1010,9 +945,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Отображаемое имя</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>Имя в ASLM, общее для модулей</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>В этой категории нет параметров</value>
   </data>
@@ -1025,38 +957,20 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>МОДУЛИ</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>Показывать консоли по процессам вместе с объединённым выводом модуля</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>Отдельные консоли</value>
+    <value>Показывать отдельные консоли процессов модулей</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Загрузить по умолчанию</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>Ручная проверка</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>Используется модулями, которые следуют выпускам GitHub</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>Канал выпусков модулей по умолчанию</value>
+    <value>Канал обновлений модулей по умолчанию</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>У этого модуля нет параметров в текущем состоянии</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>Новые настройки модулей начинаются с этого режима; отдельные модули могут его переопределить</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>Режим обновления модулей по умолчанию</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>Параметры недоступны</value>
-  </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>Начальный порт для всех модулей. Порты выделяются последовательно начиная с этого значения</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>Начальный порт модулей</value>
@@ -1080,19 +994,13 @@
     <value>Встроенный Ollama не установлен</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>Вход не выполнен</value>
+    <value>Подключите аккаунт Ollama, чтобы использовать облачные модели</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>Войти</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>Выйти</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>Выполнен вход</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>Вход выполнен как {0}</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>Вход...</value>
@@ -1107,7 +1015,7 @@
     <value>Ожидание входа в браузере</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>Активная тема</value>
+    <value>Пользовательская тема</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>Своя</value>
@@ -1145,14 +1053,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Язык</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>Язык интерфейса ASLM и поддерживаемых модулей</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>Режим</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>Как приложение выбирает общий вид интерфейса</value>
+    <value>Тема</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>Создать</value>
@@ -1160,29 +1062,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>Пользовательских тем пока нет. Создайте тему для режима «Своя»</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>К какой сохранённой палитре относятся строки токенов ниже</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>Выберите активную пользовательскую тему</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>Сначала создайте палитру — она появится здесь для выбора</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>Переименовать</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>Темы</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>Добавляйте, импортируйте и делитесь определениями палитр в виде файлов</value>
+    <value>Управление пользовательскими темами</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Порты</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>Подготовить обновление ASLM</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>Перезапустить сейчас</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Сохранить</value>
@@ -1217,11 +1104,9 @@
     <value>Условия</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Автопринятие обновлений условий</value>
+    <value>Автоматически принимать обновления политики</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>Принимать новые и обновлённые условия после первого согласия.</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Удалить</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1231,16 +1116,13 @@
     <value>Удаление темы</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>Редактор цветов темы</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>Встроенные семантические значения по умолчанию для ещё не переопределённых токенов</value>
+    <value>Базовая тема</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Очистить</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>Редактор цветов темы: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Редактор темы: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Выбрать</value>
@@ -1269,62 +1151,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>Новая тема</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>Введите новое имя этой темы</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>Переименование темы</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>Настройки</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>Доступно обновление ASLM {0}. Нажмите «Подготовить обновление ASLM», чтобы загрузить его</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>Доступно обновление ASLM {0}; {1} уже подготовлено к перезапуску</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} подготовлен и будет применён при перезапуске</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>Проверка обновлений не удалась: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>Проверка репозиториев GitHub...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>Не удалось подготовить обновление ASLM</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>Загрузка сборки ASLM...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>Доступно обновлений движков: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>Доступно обновлений: {0}. Обновления модулей можно применить на странице «Модули»</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} подготовлен к перезапуску</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} Самообновление ASLM подготовлено к перезапуску</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>В этой сессии проверка обновлений ещё не выполнялась</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>Обновление ASLM подготовлено и будет применено при перезапуске</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>Обновление ASLM {0} подготовлено и будет применено при перезапуске</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Перезапуск не удался: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>Перезапуск ASLM...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Скачать обновление</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>Всё актуально.</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>Загрузка</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>Использовать своё значение</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Установить и перезапустить</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Ошибка проверки</value>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>Другие параметры</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Доступная версия: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Установленная версия: {0}</value>
   </data>
 </root>

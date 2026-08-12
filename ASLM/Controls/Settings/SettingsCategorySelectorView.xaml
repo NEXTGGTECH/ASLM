@@ -20,10 +20,11 @@
             </BindableLayout.ItemTemplate>
         </VerticalStackLayout>
 
+        <BoxView HeightRequest="12"
+                     Color="Transparent" />
+
         <VerticalStackLayout Spacing="1"
                              IsVisible="{Binding HasModuleCategories}">
-            <BoxView HeightRequest="12"
-                     Color="Transparent" />
             <Label Text="{Binding ModulesHeader}"
                    Style="{StaticResource SettingsSelectorHeaderLabelStyle}" />
             <VerticalStackLayout Spacing="1"

@@ -3,7 +3,7 @@
 namespace ASLM.Controls.Settings
 {
     /// <summary>
-    /// Renders one standard title, description, and trailing editor row from XAML.
+    /// Renders one standard title, contextual help icon, and trailing editor row from XAML.
     /// </summary>
     public partial class SettingsRowView : ContentView
     {
@@ -23,8 +23,7 @@ namespace ASLM.Controls.Settings
             nameof(Description),
             typeof(string),
             typeof(SettingsRowView),
-            string.Empty,
-            propertyChanged: OnDescriptionChanged);
+            string.Empty);
 
         /// <summary>
         /// Identifies the trailing editor bindable property.
@@ -33,15 +32,6 @@ namespace ASLM.Controls.Settings
             nameof(TrailingContent),
             typeof(View),
             typeof(SettingsRowView));
-
-        /// <summary>
-        /// Identifies whether the description label should be rendered.
-        /// </summary>
-        public static readonly BindableProperty HasDescriptionProperty = BindableProperty.Create(
-            nameof(HasDescription),
-            typeof(bool),
-            typeof(SettingsRowView),
-            false);
 
         /// <summary>
         /// Creates an empty settings row populated through bindable properties.
@@ -78,21 +68,5 @@ namespace ASLM.Controls.Settings
             set => SetValue(TrailingContentProperty, value);
         }
 
-        /// <summary>
-        /// Gets whether the optional description label is visible.
-        /// </summary>
-        public bool HasDescription
-        {
-            get => (bool)GetValue(HasDescriptionProperty);
-            private set => SetValue(HasDescriptionProperty, value);
-        }
-
-        /// <summary>
-        /// Updates description visibility when localized text changes.
-        /// </summary>
-        private static void OnDescriptionChanged(BindableObject bindable, object oldValue, object newValue)
-        {
-            ((SettingsRowView)bindable).HasDescription = !string.IsNullOrWhiteSpace(newValue as string);
-        }
     }
 }

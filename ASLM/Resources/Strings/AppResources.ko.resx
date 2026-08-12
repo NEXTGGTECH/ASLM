@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>약관 및 라이선스</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>로드 중...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>지금 업데이트</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>ASLM과 함께 로컬 미러 서버를 시작합니다</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>API 서버</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>릴리스는 안정적인 GitHub 릴리스만 사용합니다. 프리릴리스는 미리보기 릴리스도 허용합니다</value>
+    <value>ASLM 미러 서버 사용</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>애플리케이션 업데이트 채널</value>
+    <value>ASLM 업데이트 채널</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>백그라운드 업데이트 확인 간격(시간)</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>자동 확인 주기</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>모듈 업데이트를 자동으로 적용하고 다음 재시작을 위해 ASLM 빌드를 준비합니다</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>업데이트 자동 설치</value>
+    <value>자동 업데이트 설치 사용</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama 계정</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>연결되지 않음</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>연결하면 API 한도가 시간당 60회에서 5,000회로 늘어납니다</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>연결됨</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>{0}(으)로 연결됨</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>연결</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>GitHub 계정</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>개인 액세스 토큰으로 로그인하면 더 높은 GitHub API 한도를 사용할 수 있습니다.</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>연결 실패: {0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>애플리케이션 및 모듈 업데이트 기본 설정</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Ollama 업데이트 {0} 사용 가능</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Ollama 업데이트</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>현재 버전: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>업데이트 실패: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama가 {0}(으)로 업데이트되었습니다</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Ollama 업데이트</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Ollama 업데이트 중...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama가 최신 상태입니다</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>ASLM 업데이트 확인</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>업데이트 확인</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>지금 확인</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>ASLM이 구성된 GitHub 저장소를 조회하도록 허용합니다</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>업데이트 확인</value>
+    <value>자동 업데이트 확인 사용</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>설정 닫기</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>개별 콘솔이 활성화된 경우 완료된 프로세스 콘솔을 표시합니다</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>완료된 프로세스 콘솔</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>사이드바에 기본 제공 콘솔 페이지를 표시합니다</value>
+    <value>완료된 프로세스의 콘솔 표시</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>콘솔 페이지</value>
+    <value>콘솔 페이지 표시</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>변경 사항 버리기</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>표시 이름</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>ASLM에 표시되며 모듈과 공유되는 이름</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>이 카테고리에는 설정이 없습니다</value>
   </data>
@@ -995,38 +930,20 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>모듈</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>통합 모듈 출력과 함께 프로세스별 콘솔을 표시합니다</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>개별 콘솔</value>
+    <value>모듈 프로세스별 콘솔 표시</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>기본값 불러오기</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>수동 확인</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>GitHub 릴리스를 따르는 모듈에서 사용됩니다</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>기본 모듈 릴리스 채널</value>
+    <value>기본 모듈 업데이트 채널</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>현재 상태에서 이 모듈에는 설정이 없습니다</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>새 모듈 기본 설정이 이 모드에서 시작됩니다. 개별 모듈에서 재정의할 수 있습니다</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>기본 모듈 업데이트 모드</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>사용 가능한 설정이 없습니다</value>
-  </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>모든 모듈의 시작 포트입니다. 이 값부터 순서대로 포트가 할당됩니다</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>모듈 시작 포트</value>
@@ -1050,19 +967,13 @@
     <value>내장 Ollama가 설치되지 않았습니다</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>로그인되지 않음</value>
+    <value>클라우드 모델을 사용하려면 Ollama 계정을 연결하세요</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>로그인</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>로그아웃</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>로그인됨</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>{0}(으)로 로그인됨</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>로그인 중...</value>
@@ -1077,7 +988,7 @@
     <value>브라우저 로그인 대기 중</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>활성 테마</value>
+    <value>사용자 지정 테마</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>사용자 지정</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>언어</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>ASLM 및 지원 모듈의 인터페이스 언어를 설정합니다</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>모드</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>앱이 전체 인터페이스 모양을 선택하는 방식을 설정합니다</value>
+    <value>테마</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>새로 만들기</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>사용자 지정 테마가 아직 없습니다. 사용자 지정 모양을 사용하려면 테마를 만드세요</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>아래 토큰 행이 속한 저장된 팔레트</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>활성 사용자 지정 테마를 선택합니다</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>먼저 팔레트를 만드세요. 선택 목록에 표시됩니다</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>이름 바꾸기</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>테마</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>파일로 저장된 팔레트 정의를 추가, 가져오기 또는 공유합니다</value>
+    <value>사용자 지정 테마 관리</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>포트</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>ASLM 업데이트 준비</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>지금 다시 시작</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>저장</value>
@@ -1187,11 +1077,9 @@
     <value>약관</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>약관 업데이트 자동 동의</value>
+    <value>정책 업데이트 자동 수락</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>첫 검토 후 새 약관과 업데이트된 약관을 자동으로 동의합니다.</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>삭제</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>테마 삭제</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>테마 색상 편집기</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>아직 재정의하지 않은 토큰에 대한 기본 제공 의미 기본값</value>
+    <value>기본 테마</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>지우기</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>테마 색상 편집기: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>테마 편집기: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>선택</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>새 테마</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>이 테마의 새 이름을 입력하세요</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>테마 이름 바꾸기</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>설정</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>ASLM 업데이트 {0}을(를) 사용할 수 있습니다. "ASLM 업데이트 준비"를 사용하여 다운로드하세요</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>ASLM 업데이트 {0}을(를) 사용할 수 있습니다. {1}이(가) 이미 재시작을 위해 준비되었습니다</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0}이(가) 준비되었으며 재시작 시 적용됩니다</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>업데이트 확인 실패: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>GitHub 저장소 확인 중...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>ASLM 업데이트를 준비할 수 없습니다</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>ASLM 빌드 다운로드 중...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>엔진 업데이트 {0}개 사용 가능</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>업데이트 {0}개를 사용할 수 있습니다. 모듈 페이지에서 모듈 업데이트를 적용할 수 있습니다</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1}이(가) 재시작을 위해 준비되었습니다</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} ASLM 자체 업데이트가 재시작을 위해 준비되었습니다</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>이 세션에서 업데이트 확인을 실행하지 않았습니다</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>ASLM 업데이트가 준비되었으며 재시작 시 적용됩니다</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>ASLM 업데이트 {0}이(가) 준비되었으며 재시작 시 적용됩니다</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>다시 시작 실패: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>ASLM 다시 시작 중...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>업데이트 다운로드</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>모두 최신 상태입니다.</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>다운로드 중</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>사용자 지정 값 사용</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>설치하고 다시 시작</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>유효성 검사 오류</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>로컬 계정. 프로필 데이터는 이 기기에만 저장됩니다.</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>클라우드 계정 연결됨: {0}</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>클라우드 계정 사용</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>기타 설정</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>사용 가능한 버전: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>설치된 버전: {0}</value>
   </data>
 </root>

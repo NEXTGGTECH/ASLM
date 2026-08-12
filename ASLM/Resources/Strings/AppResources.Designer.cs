@@ -2464,16 +2464,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Start the local mirror server with ASLM.
-        /// </summary>
-        public static string Settings_ApiServer_Description {
-            get {
-                return ResourceManager.GetString("Settings_ApiServer_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на API server.
+        ///   Ищет локализованную строку, похожую на Enable ASLM Mirror Server.
         /// </summary>
         public static string Settings_ApiServer_Title {
             get {
@@ -2482,16 +2473,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Release uses stable GitHub releases only. Pre-release also accepts preview releases.
-        /// </summary>
-        public static string Settings_AppChannel_Description {
-            get {
-                return ResourceManager.GetString("Settings_AppChannel_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Application update channel.
+        ///   Ищет локализованную строку, похожую на ASLM updates channel.
         /// </summary>
         public static string Settings_AppChannel_Title {
             get {
@@ -2505,15 +2487,6 @@ namespace ASLM.Resources.Strings {
         public static string Settings_AslmAccount_AuthenticationFailed {
             get {
                 return ResourceManager.GetString("Settings_AslmAccount_AuthenticationFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Cloud account connected as {0}.
-        /// </summary>
-        public static string Settings_AslmAccount_CloudStatus {
-            get {
-                return ResourceManager.GetString("Settings_AslmAccount_CloudStatus", resourceCulture);
             }
         }
         
@@ -2608,16 +2581,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Automatically apply module updates and prepare ASLM builds for the next restart.
-        /// </summary>
-        public static string Settings_AutoInstall_Description {
-            get {
-                return ResourceManager.GetString("Settings_AutoInstall_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Install updates automatically.
+        ///   Ищет локализованную строку, похожую на Enable automatic update installation.
         /// </summary>
         public static string Settings_AutoInstall_Title {
             get {
@@ -2743,43 +2707,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Check ASLM updates.
-        /// </summary>
-        public static string Settings_CheckAslmUpdates {
-            get {
-                return ResourceManager.GetString("Settings_CheckAslmUpdates", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Check now.
-        /// </summary>
-        public static string Settings_CheckNow {
-            get {
-                return ResourceManager.GetString("Settings_CheckNow", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Check for updates.
-        /// </summary>
-        public static string Settings_CheckOllamaUpdates {
-            get {
-                return ResourceManager.GetString("Settings_CheckOllamaUpdates", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Allow ASLM to query configured GitHub repositories.
-        /// </summary>
-        public static string Settings_CheckUpdates_Description {
-            get {
-                return ResourceManager.GetString("Settings_CheckUpdates_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Check for updates.
+        ///   Ищет локализованную строку, похожую на Enable automatic update checks.
         /// </summary>
         public static string Settings_CheckUpdates_Title {
             get {
@@ -2797,16 +2725,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Keep finished process consoles visible when individual consoles are enabled.
-        /// </summary>
-        public static string Settings_CompletedConsoles_Description {
-            get {
-                return ResourceManager.GetString("Settings_CompletedConsoles_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Completed process consoles.
+        ///   Ищет локализованную строку, похожую на Show completed process consoles.
         /// </summary>
         public static string Settings_CompletedConsoles_Title {
             get {
@@ -2815,16 +2734,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Show the built-in consoles page in the sidebar.
-        /// </summary>
-        public static string Settings_ConsolesPage_Description {
-            get {
-                return ResourceManager.GetString("Settings_ConsolesPage_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Consoles page.
+        ///   Ищет локализованную строку, похожую на Show Consoles page.
         /// </summary>
         public static string Settings_ConsolesPage_Title {
             get {
@@ -2869,11 +2779,20 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Name shown in ASLM and shared with modules.
+        ///   Ищет локализованную строку, похожую на Downloading.
         /// </summary>
-        public static string Settings_DisplayNameDescription {
+        public static string Settings_Downloading {
             get {
-                return ResourceManager.GetString("Settings_DisplayNameDescription", resourceCulture);
+                return ResourceManager.GetString("Settings_Downloading", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Download update.
+        /// </summary>
+        public static string Settings_DownloadUpdate {
+            get {
+                return ResourceManager.GetString("Settings_DownloadUpdate", resourceCulture);
             }
         }
         
@@ -2910,24 +2829,6 @@ namespace ASLM.Resources.Strings {
         public static string Settings_GitHub_Connect {
             get {
                 return ResourceManager.GetString("Settings_GitHub_Connect", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Connected.
-        /// </summary>
-        public static string Settings_GitHub_Connected {
-            get {
-                return ResourceManager.GetString("Settings_GitHub_Connected", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Connected as {0}.
-        /// </summary>
-        public static string Settings_GitHub_ConnectedAs {
-            get {
-                return ResourceManager.GetString("Settings_GitHub_ConnectedAs", resourceCulture);
             }
         }
         
@@ -2977,29 +2878,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Not connected.
-        /// </summary>
-        public static string Settings_GitHub_NotConnected {
-            get {
-                return ResourceManager.GetString("Settings_GitHub_NotConnected", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Connect to raise the API limit from 60 to 5,000 requests/hour.
         /// </summary>
         public static string Settings_GitHub_NotConnectedHint {
             get {
                 return ResourceManager.GetString("Settings_GitHub_NotConnectedHint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Sign in with a personal access token to use the higher GitHub API rate limit..
-        /// </summary>
-        public static string Settings_GitHub_TokenDescription {
-            get {
-                return ResourceManager.GetString("Settings_GitHub_TokenDescription", resourceCulture);
             }
         }
         
@@ -3031,16 +2914,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Show per-process consoles alongside unified module output.
-        /// </summary>
-        public static string Settings_IndividualConsoles_Description {
-            get {
-                return ResourceManager.GetString("Settings_IndividualConsoles_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Individual consoles.
+        ///   Ищет локализованную строку, похожую на Show separate module process consoles.
         /// </summary>
         public static string Settings_IndividualConsoles_Title {
             get {
@@ -3049,16 +2923,16 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Accept new and updated terms after the first review..
+        ///   Ищет локализованную строку, похожую на Install and restart.
         /// </summary>
-        public static string Settings_Legal_AutoAcceptUpdates_Description {
+        public static string Settings_InstallAndRestart {
             get {
-                return ResourceManager.GetString("Settings_Legal_AutoAcceptUpdates_Description", resourceCulture);
+                return ResourceManager.GetString("Settings_InstallAndRestart", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Auto-accept term updates.
+        ///   Ищет локализованную строку, похожую на Accept policy updates automatically.
         /// </summary>
         public static string Settings_Legal_AutoAcceptUpdates_Title {
             get {
@@ -3076,25 +2950,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Manual check.
-        /// </summary>
-        public static string Settings_ManualCheck_Title {
-            get {
-                return ResourceManager.GetString("Settings_ManualCheck_Title", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Used by modules that follow GitHub releases.
-        /// </summary>
-        public static string Settings_ModuleChannel_Description {
-            get {
-                return ResourceManager.GetString("Settings_ModuleChannel_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Default module release channel.
+        ///   Ищет локализованную строку, похожую на Default module update channel.
         /// </summary>
         public static string Settings_ModuleChannel_Title {
             get {
@@ -3121,38 +2977,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Starting port for all modules. Ports are allocated sequentially from this value.
-        /// </summary>
-        public static string Settings_ModulePortDescription {
-            get {
-                return ResourceManager.GetString("Settings_ModulePortDescription", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Module start port.
         /// </summary>
         public static string Settings_ModulePortTitle {
             get {
                 return ResourceManager.GetString("Settings_ModulePortTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на New module preferences start from this mode; individual modules can override it.
-        /// </summary>
-        public static string Settings_ModuleUpdateMode_Description {
-            get {
-                return ResourceManager.GetString("Settings_ModuleUpdateMode_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Default module update mode.
-        /// </summary>
-        public static string Settings_ModuleUpdateMode_Title {
-            get {
-                return ResourceManager.GetString("Settings_ModuleUpdateMode_Title", resourceCulture);
             }
         }
         
@@ -3184,29 +3013,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Not signed in.
+        ///   Ищет локализованную строку, похожую на Connect Ollama account to use Cloud models.
         /// </summary>
         public static string Settings_Ollama_NotSignedIn {
             get {
                 return ResourceManager.GetString("Settings_Ollama_NotSignedIn", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Signed in.
-        /// </summary>
-        public static string Settings_Ollama_SignedIn {
-            get {
-                return ResourceManager.GetString("Settings_Ollama_SignedIn", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Signed in as {0}.
-        /// </summary>
-        public static string Settings_Ollama_SignedInAs {
-            get {
-                return ResourceManager.GetString("Settings_Ollama_SignedInAs", resourceCulture);
             }
         }
         
@@ -3301,79 +3112,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Ollama update {0} is available.
-        /// </summary>
-        public static string Settings_OllamaUpdate_Available {
-            get {
-                return ResourceManager.GetString("Settings_OllamaUpdate_Available", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Update Ollama.
-        /// </summary>
-        public static string Settings_OllamaUpdate_Button {
-            get {
-                return ResourceManager.GetString("Settings_OllamaUpdate_Button", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Current version: {0}.
-        /// </summary>
-        public static string Settings_OllamaUpdate_Description {
-            get {
-                return ResourceManager.GetString("Settings_OllamaUpdate_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Update failed: {0}.
-        /// </summary>
-        public static string Settings_OllamaUpdate_Failed {
-            get {
-                return ResourceManager.GetString("Settings_OllamaUpdate_Failed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Ollama updated to {0}.
-        /// </summary>
-        public static string Settings_OllamaUpdate_Success {
-            get {
-                return ResourceManager.GetString("Settings_OllamaUpdate_Success", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Ollama update.
-        /// </summary>
-        public static string Settings_OllamaUpdate_Title {
-            get {
-                return ResourceManager.GetString("Settings_OllamaUpdate_Title", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Updating Ollama....
-        /// </summary>
-        public static string Settings_OllamaUpdate_Updating {
-            get {
-                return ResourceManager.GetString("Settings_OllamaUpdate_Updating", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Ollama is up to date.
-        /// </summary>
-        public static string Settings_OllamaUpdate_UpToDate {
-            get {
-                return ResourceManager.GetString("Settings_OllamaUpdate_UpToDate", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Active theme.
+        ///   Ищет локализованную строку, похожую на Custom theme.
         /// </summary>
         public static string Settings_Personalization_ActiveTheme {
             get {
@@ -3490,29 +3229,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Sets the interface language for ASLM and supported modules.
-        /// </summary>
-        public static string Settings_Personalization_LanguageDescription {
-            get {
-                return ResourceManager.GetString("Settings_Personalization_LanguageDescription", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Mode.
+        ///   Ищет локализованную строку, похожую на Theme.
         /// </summary>
         public static string Settings_Personalization_Mode {
             get {
                 return ResourceManager.GetString("Settings_Personalization_Mode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Sets how the app chooses its overall interface appearance.
-        /// </summary>
-        public static string Settings_Personalization_ModeDescription {
-            get {
-                return ResourceManager.GetString("Settings_Personalization_ModeDescription", resourceCulture);
             }
         }
         
@@ -3535,47 +3256,20 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Which saved palette the token rows below belong to.
+        ///   Ищет локализованную строку, похожую на Rename.
         /// </summary>
-        public static string Settings_Personalization_SelectThemeActive {
+        public static string Settings_Personalization_Rename {
             get {
-                return ResourceManager.GetString("Settings_Personalization_SelectThemeActive", resourceCulture);
+                return ResourceManager.GetString("Settings_Personalization_Rename", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Choose which custom theme is active.
-        /// </summary>
-        public static string Settings_Personalization_SelectThemeDescription {
-            get {
-                return ResourceManager.GetString("Settings_Personalization_SelectThemeDescription", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Create a palette first; it will show up here for selection.
-        /// </summary>
-        public static string Settings_Personalization_SelectThemeEmpty {
-            get {
-                return ResourceManager.GetString("Settings_Personalization_SelectThemeEmpty", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Themes.
+        ///   Ищет локализованную строку, похожую на Manage custom themes.
         /// </summary>
         public static string Settings_Personalization_Themes {
             get {
                 return ResourceManager.GetString("Settings_Personalization_Themes", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Add, bring in, or share palette definitions stored as files.
-        /// </summary>
-        public static string Settings_Personalization_ThemesDescription {
-            get {
-                return ResourceManager.GetString("Settings_Personalization_ThemesDescription", resourceCulture);
             }
         }
         
@@ -3585,24 +3279,6 @@ namespace ASLM.Resources.Strings {
         public static string Settings_Ports {
             get {
                 return ResourceManager.GetString("Settings_Ports", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Prepare ASLM update.
-        /// </summary>
-        public static string Settings_PrepareAslmUpdate {
-            get {
-                return ResourceManager.GetString("Settings_PrepareAslmUpdate", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Restart now.
-        /// </summary>
-        public static string Settings_RestartNow {
-            get {
-                return ResourceManager.GetString("Settings_RestartNow", resourceCulture);
             }
         }
         
@@ -3726,20 +3402,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Theme color editor.
+        ///   Ищет локализованную строку, похожую на Base theme.
         /// </summary>
         public static string Settings_ThemeEditor_Base {
             get {
                 return ResourceManager.GetString("Settings_ThemeEditor_Base", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Built-in semantic defaults for tokens you have not overridden yet.
-        /// </summary>
-        public static string Settings_ThemeEditor_BaseDescription {
-            get {
-                return ResourceManager.GetString("Settings_ThemeEditor_BaseDescription", resourceCulture);
             }
         }
         
@@ -3753,20 +3420,20 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Color editor for the theme: {0}.
-        /// </summary>
-        public static string Settings_ThemeEditor_ColorsFormat {
-            get {
-                return ResourceManager.GetString("Settings_ThemeEditor_ColorsFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Pick.
         /// </summary>
         public static string Settings_ThemeEditor_Pick {
             get {
                 return ResourceManager.GetString("Settings_ThemeEditor_Pick", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Theme editor: {0}.
+        /// </summary>
+        public static string Settings_ThemeEditor_TitleFormat {
+            get {
+                return ResourceManager.GetString("Settings_ThemeEditor_TitleFormat", resourceCulture);
             }
         }
         
@@ -3843,6 +3510,24 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Enter a new name for this theme.
+        /// </summary>
+        public static string Settings_ThemeRename_PromptMessage {
+            get {
+                return ResourceManager.GetString("Settings_ThemeRename_PromptMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Rename theme.
+        /// </summary>
+        public static string Settings_ThemeRename_PromptTitle {
+            get {
+                return ResourceManager.GetString("Settings_ThemeRename_PromptTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Settings.
         /// </summary>
         public static string Settings_Title {
@@ -3852,47 +3537,20 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на ASLM update {0} is available. Use &quot;Prepare ASLM update&quot; to download it.
+        ///   Ищет локализованную строку, похожую на Available version: {0}.
         /// </summary>
-        public static string Settings_UpdateStatus_AslmAvailable {
+        public static string Settings_UpdateCard_AvailableVersion {
             get {
-                return ResourceManager.GetString("Settings_UpdateStatus_AslmAvailable", resourceCulture);
+                return ResourceManager.GetString("Settings_UpdateCard_AvailableVersion", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на ASLM update {0} is available; {1} is already staged for restart.
+        ///   Ищет локализованную строку, похожую на Installed version: {0}.
         /// </summary>
-        public static string Settings_UpdateStatus_AslmAvailableStaged {
+        public static string Settings_UpdateCard_InstalledVersion {
             get {
-                return ResourceManager.GetString("Settings_UpdateStatus_AslmAvailableStaged", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на ASLM {0} is prepared and will be applied on restart.
-        /// </summary>
-        public static string Settings_UpdateStatus_AslmTagPrepared {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_AslmTagPrepared", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Update check failed: {0}.
-        /// </summary>
-        public static string Settings_UpdateStatus_CheckFailed {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_CheckFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Checking GitHub repositories....
-        /// </summary>
-        public static string Settings_UpdateStatus_Checking {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_Checking", resourceCulture);
+                return ResourceManager.GetString("Settings_UpdateCard_InstalledVersion", resourceCulture);
             }
         }
         
@@ -3906,110 +3564,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Downloading ASLM build....
-        /// </summary>
-        public static string Settings_UpdateStatus_Downloading {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_Downloading", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} engine update(s) available.
-        /// </summary>
-        public static string Settings_UpdateStatus_EngineUpdatesCount {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_EngineUpdatesCount", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} update(s) available. Module updates can be applied from the Modules page.
-        /// </summary>
-        public static string Settings_UpdateStatus_ModuleUpdatesCount {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_ModuleUpdatesCount", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} ASLM {1} is staged for restart.
-        /// </summary>
-        public static string Settings_UpdateStatus_ModuleUpdatesStagedAslm {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_ModuleUpdatesStagedAslm", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} An ASLM self-update is staged for restart.
-        /// </summary>
-        public static string Settings_UpdateStatus_ModuleUpdatesStagedGeneric {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_ModuleUpdatesStagedGeneric", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на No update check has been run in this session.
-        /// </summary>
-        public static string Settings_UpdateStatus_None {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_None", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на ASLM update is prepared and will be applied on restart.
-        /// </summary>
-        public static string Settings_UpdateStatus_Prepared {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_Prepared", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на ASLM update {0} is prepared and will be applied on restart.
-        /// </summary>
-        public static string Settings_UpdateStatus_PreparedWithVersion {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_PreparedWithVersion", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Restart failed: {0}.
         /// </summary>
         public static string Settings_UpdateStatus_RestartFailed {
             get {
                 return ResourceManager.GetString("Settings_UpdateStatus_RestartFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Restarting ASLM....
-        /// </summary>
-        public static string Settings_UpdateStatus_Restarting {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_Restarting", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Everything is up to date..
-        /// </summary>
-        public static string Settings_UpdateStatus_UpToDate {
-            get {
-                return ResourceManager.GetString("Settings_UpdateStatus_UpToDate", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Use custom value.
-        /// </summary>
-        public static string Settings_UseCustomValue {
-            get {
-                return ResourceManager.GetString("Settings_UseCustomValue", resourceCulture);
             }
         }
         

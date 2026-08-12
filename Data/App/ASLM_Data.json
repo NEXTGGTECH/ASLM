@@ -19,7 +19,7 @@
     "updates": {
         "checkEnabled": true,
         "autoUpdateEnabled": true,
-        "autoCheckPeriodHours": 12,
+        "autoCheckPeriodHours": 1,
         "lastAutoCheckUtc": null,
         "appChannel": "release",
         "installedReleaseTag": null,

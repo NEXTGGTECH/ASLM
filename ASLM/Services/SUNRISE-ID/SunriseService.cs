@@ -44,6 +44,7 @@ namespace ASLM.Services.Sunrise
         public const string AuthenticationEndpoint = "JWT_Auth";
         public const string RefreshEndpoint = "JWT_Refresh";
         public const string VerifyEndpoint = "JWT_Verify";
+        public const string ProfileEndpoint = "WEB_Profile";
         public const string PasswordRecoveryEndpoint = "WEB_PasswordRecovery";
         public const string ApplicationAuthenticationEndpoint = "WEB_AuthApp";
         public const string ApplicationAuthenticationSuccessEndpoint = "WEB_AuthAppSuccess";
@@ -1575,6 +1576,7 @@ namespace ASLM.Services.Sunrise
             CreateUrl(AuthenticationEndpoint, "api/id/token/"),
             CreateUrl(RefreshEndpoint, "api/id/token/refresh/"),
             CreateUrl(VerifyEndpoint, "api/id/token/verify/"),
+            CreateUrl(ProfileEndpoint, "id/"),
             CreateUrl(PasswordRecoveryEndpoint, "id/"),
             CreateUrl(ApplicationAuthenticationEndpoint, "id/authapp/"),
             CreateUrl(ApplicationAuthenticationSuccessEndpoint, "id/authapp/success/"),

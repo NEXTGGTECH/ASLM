@@ -74,7 +74,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Clears the current palette override through the page-owned theme draft.
+        /// Resets the current palette color through the page-owned theme draft.
         /// </summary>
         private void ExecuteClear()
         {

@@ -24,8 +24,7 @@ namespace ASLM.Controls.Settings
             nameof(Description),
             typeof(string),
             typeof(SettingsSectionView),
-            default(string),
-            propertyChanged: OnDescriptionChanged);
+            default(string));
 
         /// <summary>
         /// Identifies the settings rows hosted below the shared section header.
@@ -76,20 +75,10 @@ namespace ASLM.Controls.Settings
         public bool HasTitle => !string.IsNullOrWhiteSpace(Title);
 
         /// <summary>
-        /// Gets whether the shared description row should be visible.
-        /// </summary>
-        public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
-
-        /// <summary>
         /// Refreshes title visibility when category metadata changes.
         /// </summary>
         private static void OnTitleChanged(BindableObject bindable, object oldValue, object newValue) =>
             ((SettingsSectionView)bindable).OnPropertyChanged(nameof(HasTitle));
 
-        /// <summary>
-        /// Refreshes description visibility when category metadata changes.
-        /// </summary>
-        private static void OnDescriptionChanged(BindableObject bindable, object oldValue, object newValue) =>
-            ((SettingsSectionView)bindable).OnPropertyChanged(nameof(HasDescription));
     }
 }

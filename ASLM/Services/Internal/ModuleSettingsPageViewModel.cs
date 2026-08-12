@@ -38,14 +38,12 @@ namespace ASLM.Services.Internal
         /// </summary>
         public ModuleSettingItemViewModel(
             ModuleSettingDraft draft,
-            string useCustomValueText,
             string engineInstalledText,
             string engineNotInstalledText,
             Action valueChanged)
         {
             Draft = draft;
             _valueChanged = valueChanged;
-            UseCustomValueText = useCustomValueText;
             EngineInstalledText = engineInstalledText;
             EngineNotInstalledText = engineNotInstalledText;
             EditorKind = ResolveEditorKind(draft);
@@ -79,11 +77,6 @@ namespace ASLM.Services.Internal
         public string Description => SettingsService.BuildSettingDescription(Draft.Setting);
 
         /// <summary>
-        /// Gets whether the description occupies a row in the template.
-        /// </summary>
-        public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
-
-        /// <summary>
         /// Gets choice values including a persisted value absent from current metadata.
         /// </summary>
         public IReadOnlyList<string> Options
@@ -91,11 +84,6 @@ namespace ASLM.Services.Internal
             get => _options;
             private set => SetProperty(ref _options, value);
         }
-
-        /// <summary>
-        /// Gets localized text displayed beside a managed custom-value toggle.
-        /// </summary>
-        public string UseCustomValueText { get; }
 
         /// <summary>
         /// Gets localized installed text for read-only engine state.
@@ -501,8 +489,6 @@ namespace ASLM.Services.Internal
         /// </summary>
         public void Load(
             ModuleSettingsDraft moduleDraft,
-            string uncategorizedTitle,
-            string useCustomValueText,
             string engineInstalledText,
             string engineNotInstalledText)
         {
@@ -520,18 +506,12 @@ namespace ASLM.Services.Internal
                 includeDependencyHiddenSettings: true);
             foreach (var section in sections)
             {
-                var title = section.Kind == ModuleSettingsSectionKind.Uncategorized &&
-                            moduleDraft.Module.SettingCategories.Count > 0
-                    ? uncategorizedTitle
-                    : section.Title;
-                var titledSection = section with { Title = title };
                 var items = section.Settings.Select(draft => new ModuleSettingItemViewModel(
                     draft,
-                    useCustomValueText,
                     engineInstalledText,
                     engineNotInstalledText,
                     OnItemValueChanged));
-                Sections.Add(new ModuleSettingsSectionViewModel(titledSection, items));
+                Sections.Add(new ModuleSettingsSectionViewModel(section, items));
             }
 
             HasSettings = Sections.Count > 0;

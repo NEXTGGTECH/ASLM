@@ -61,7 +61,6 @@ public sealed class SettingsServiceTests
             true,
             false,
             "release",
-            "release",
             "release");
 
         var success = SettingsService.TryValidateAndBuildUpdateSettings(draft, out var settings, out var error);
@@ -69,6 +68,20 @@ public sealed class SettingsServiceTests
         success.Should().BeTrue();
         error.Should().BeEmpty();
         settings.AutoCheckPeriodHours.Should().Be(1);
+        settings.ModuleDefaultMode.Should().Be("release");
+    }
+
+    /// <summary>
+    /// Verifies legacy branch defaults are normalized to the only supported release mode.
+    /// </summary>
+    [Fact]
+    public void AppUpdateSettings_normalize_forces_release_module_mode()
+    {
+        var settings = new AppUpdateSettings { ModuleDefaultMode = "branch" };
+
+        settings.Normalize();
+
+        settings.ModuleDefaultMode.Should().Be("release");
     }
 
     /// <summary>

@@ -24,7 +24,7 @@
     </Style>
 
     <Style x:Key="SettingsDialogTitleLabelStyle" TargetType="Label">
-        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontSize" Value="18" />
         <Setter Property="FontAttributes" Value="Bold" />
         <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
         <Setter Property="LineBreakMode" Value="WordWrap" />
@@ -80,17 +80,18 @@
 
     <!-- Category selector -->
     <Style x:Key="SettingsSelectorHeaderLabelStyle" TargetType="Label">
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="TextColor" Value="{DynamicResource SystemGray}" />
-        <Setter Property="Margin" Value="4,0,0,0" />
+        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="Padding" Value="0" />
     </Style>
 
     <Style x:Key="SettingsSelectorButtonBorderStyle" TargetType="Border">
-        <Setter Property="Padding" Value="8,0" />
-        <Setter Property="StrokeShape" Value="RoundRectangle 10" />
-        <Setter Property="MinimumHeightRequest" Value="32" />
-        <Setter Property="HeightRequest" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="StrokeShape" Value="0" />
+        <Setter Property="MinimumHeightRequest" Value="27" />
+        <Setter Property="HeightRequest" Value="27" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="StrokeThickness" Value="0" />
         <Setter Property="Margin" Value="0" />
@@ -100,6 +101,8 @@
     <Style x:Key="SettingsSelectorButtonLabelStyle" TargetType="Label">
         <Setter Property="FontSize" Value="14" />
         <Setter Property="TextColor" Value="{DynamicResource LabelSecondary}" />
+        <Setter Property="Margin" Value="8,0,0,0" />
+        <Setter Property="Padding" Value="0" />
         <Setter Property="VerticalOptions" Value="Center" />
         <Setter Property="HorizontalOptions" Value="Start" />
         <Setter Property="VerticalTextAlignment" Value="Center" />
@@ -114,18 +117,65 @@
         <Setter Property="BackgroundColor" Value="Transparent" />
     </Style>
 
-    <Style x:Key="SettingsSectionBorderStyle"
+    <Style x:Key="SettingsCardBorderStyle"
            TargetType="Border"
            BasedOn="{StaticResource SettingsTransparentBorderStyle}">
         <Setter Property="HorizontalOptions" Value="Fill" />
         <Setter Property="MinimumWidthRequest" Value="0" />
     </Style>
 
-    <Style x:Key="SettingsCardBorderStyle"
+    <Style x:Key="SettingsAccountCardBorderStyle"
+           TargetType="Border"
+           BasedOn="{StaticResource SettingsCardBorderStyle}">
+        <Setter Property="BackgroundColor" Value="{DynamicResource BackgroundSecondary}" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 8" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style x:Key="SettingsCategoryCardBorderStyle"
+           TargetType="Border"
+           BasedOn="{StaticResource SettingsAccountCardBorderStyle}" />
+
+    <Style x:Key="SettingsAccountTypeBadgeBorderStyle"
            TargetType="Border"
            BasedOn="{StaticResource SettingsTransparentBorderStyle}">
-        <Setter Property="HorizontalOptions" Value="Fill" />
-        <Setter Property="MinimumWidthRequest" Value="0" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource BackgroundSecondary}" />
+        <Setter Property="Stroke" Value="{DynamicResource Separator}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 4" />
+        <Setter Property="Padding" Value="4,1" />
+        <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
+    <Style x:Key="SettingsAccountTypeBadgeLabelStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
+        <Setter Property="LineBreakMode" Value="NoWrap" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="SettingsAccountLinkButtonStyle" TargetType="ImageButton">
+        <Setter Property="WidthRequest" Value="20" />
+        <Setter Property="HeightRequest" Value="20" />
+        <Setter Property="MinimumWidthRequest" Value="20" />
+        <Setter Property="MinimumHeightRequest" Value="20" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
+    <Style x:Key="SettingsInfoButtonStyle"
+           TargetType="ImageButton"
+           BasedOn="{StaticResource SettingsAccountLinkButtonStyle}">
+        <Setter Property="WidthRequest" Value="18" />
+        <Setter Property="HeightRequest" Value="18" />
+        <Setter Property="MinimumWidthRequest" Value="18" />
+        <Setter Property="MinimumHeightRequest" Value="18" />
     </Style>
 
     <Style x:Key="SettingsSubGroupHeaderLabelStyle" TargetType="Label">
@@ -161,6 +211,19 @@
         <Setter Property="LineBreakMode" Value="WordWrap" />
         <Setter Property="HorizontalOptions" Value="Fill" />
         <Setter Property="MinimumWidthRequest" Value="0" />
+    </Style>
+
+    <Style x:Key="SettingsAccountTitleLabelStyle"
+           TargetType="Label"
+           BasedOn="{StaticResource SettingsCardTitleLabelStyle}">
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <Style x:Key="SettingsAccountInformationLabelStyle"
+           TargetType="Label"
+           BasedOn="{StaticResource SettingsSecondaryLabelStyle}">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
     </Style>
 
     <!-- Input shells -->
@@ -215,6 +278,41 @@
            TargetType="Button"
            BasedOn="{StaticResource SettingsInlineActionButtonStyle}">
         <Setter Property="BackgroundColor" Value="{DynamicResource ActionRed}" />
+    </Style>
+
+    <Style x:Key="SettingsAccountActionButtonStyle"
+           TargetType="Button"
+           BasedOn="{StaticResource SettingsInlineActionButtonStyle}">
+        <Setter Property="TextColor" Value="{DynamicResource ActionBlue}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource BackgroundSecondary}" />
+        <Setter Property="BorderColor" Value="{DynamicResource ActionBlue}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+        <Setter Property="MaximumWidthRequest" Value="Infinity" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Pressed" />
+                    <VisualState x:Name="PointerOver" />
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="BackgroundColor" Value="{DynamicResource BackgroundSecondary}" />
+                            <Setter Property="BorderColor" Value="{DynamicResource Separator}" />
+                            <Setter Property="Opacity" Value="0.65" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SettingsAccountDangerActionButtonStyle"
+           TargetType="Button"
+           BasedOn="{StaticResource SettingsAccountActionButtonStyle}">
+        <Setter Property="TextColor" Value="{DynamicResource ActionRed}" />
+        <Setter Property="BorderColor" Value="{DynamicResource ActionRed}" />
     </Style>
 
     <Style x:Key="SettingsPasswordToggleImageStyle" TargetType="Image">

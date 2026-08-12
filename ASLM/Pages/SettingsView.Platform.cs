@@ -7,14 +7,74 @@ namespace ASLM.Pages
         // Styling helpers
 
         /// <summary>
+        /// Subscribes account-link icons to palette changes while the settings view is visible.
+        /// </summary>
+        private void AttachAccountLinkThemeHandlers()
+        {
+            ThemeService.PaletteApplied -= OnPaletteAppliedForAccountLinks;
+            ThemeService.PaletteApplied += OnPaletteAppliedForAccountLinks;
+            if (Application.Current is { } app)
+            {
+                app.RequestedThemeChanged -= OnRequestedThemeChangedForAccountLinks;
+                app.RequestedThemeChanged += OnRequestedThemeChangedForAccountLinks;
+            }
+
+            RefreshAccountLinkIconChrome();
+        }
+
+        /// <summary>
+        /// Removes account-link theme handlers when the settings view leaves the visual tree.
+        /// </summary>
+        private void DetachAccountLinkThemeHandlers()
+        {
+            ThemeService.PaletteApplied -= OnPaletteAppliedForAccountLinks;
+            if (Application.Current is { } app)
+            {
+                app.RequestedThemeChanged -= OnRequestedThemeChangedForAccountLinks;
+            }
+        }
+
+        /// <summary>
+        /// Refreshes account-link icons after a custom palette is applied.
+        /// </summary>
+        private void OnPaletteAppliedForAccountLinks()
+        {
+            MainThread.BeginInvokeOnMainThread(RefreshAccountLinkIconChrome);
+        }
+
+        /// <summary>
+        /// Refreshes account-link icons after the application appearance changes.
+        /// </summary>
+        private void OnRequestedThemeChangedForAccountLinks(object? sender, AppThemeChangedEventArgs e)
+        {
+            MainThread.BeginInvokeOnMainThread(RefreshAccountLinkIconChrome);
+        }
+
+        /// <summary>
+        /// Applies the current primary-label color to every packaged account-link icon.
+        /// </summary>
+        private void RefreshAccountLinkIconChrome()
+        {
+            var iconTint = IconTintHelper.ResolvePaletteColor("LabelPrimary");
+            var iconSource = PackagedIconTintCache.Get("icon_link.png", iconTint);
+            BuiltInSettingsContainer.AslmAccountLink.Source = iconSource;
+            BuiltInSettingsContainer.GitHubAccountLink.Source = iconSource;
+            BuiltInSettingsContainer.OllamaAccountLink.Source = iconSource;
+        }
+
+        /// <summary>
         /// Selects the shared connect or disconnect style for an account action button.
         /// </summary>
         private static void ApplyAccountConnectionButtonState(Button button, bool isConnected)
         {
+            var colorResource = isConnected ? "ActionRed" : "ActionBlue";
             button.Style = GetStyleResource(
                 isConnected
-                    ? "SettingsInlineDangerActionButtonStyle"
-                    : "SettingsInlineActionButtonStyle");
+                    ? "SettingsAccountDangerActionButtonStyle"
+                    : "SettingsAccountActionButtonStyle");
+            button.SetDynamicResource(Button.TextColorProperty, colorResource);
+            button.SetDynamicResource(Button.BackgroundColorProperty, "BackgroundSecondary");
+            button.SetDynamicResource(Button.BorderColorProperty, colorResource);
         }
 
         /// <summary>
