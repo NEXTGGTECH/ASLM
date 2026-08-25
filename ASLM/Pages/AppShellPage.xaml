@@ -87,6 +87,12 @@
             </VerticalStackLayout>
         </Grid>
 
+        <BoxView Grid.Column="0"
+                 HorizontalOptions="End"
+                 WidthRequest="1"
+                 Color="{DynamicResource Separator}"
+                 Opacity="0.5"/>
+
         <!-- Main Content Area -->
         <Grid Grid.Column="1">
             <ContentView x:Name="ContentArea"
