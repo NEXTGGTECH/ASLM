@@ -804,17 +804,11 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>Update</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>Start the local mirror server with ASLM</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>API server</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>Release uses stable GitHub releases only. Pre-release also accepts preview releases</value>
+    <value>Enable ASLM Mirror Server</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>Application update channel</value>
+    <value>ASLM updates channel</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Hours between background update checks</value>
@@ -822,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>Auto-check period</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>Automatically apply module updates and prepare ASLM builds for the next restart</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>Install updates automatically</value>
+    <value>Enable automatic update installation</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -861,9 +852,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>Local account. Profile data is stored only on this device.</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>Cloud account connected as {0}</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Use cloud account</value>
   </data>
@@ -885,17 +873,8 @@
   <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
     <value>Cloud account sign-in failed: {0}</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>Not connected</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>Connect to raise the API limit from 60 to 5,000 requests/hour</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>Connected</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>Connected as {0}</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>Connect</value>
@@ -917,9 +896,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>GitHub Account</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>Sign in with a personal access token to use the higher GitHub API rate limit.</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Connection failed: {0}</value>
@@ -945,59 +921,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>Application and module update preferences</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Ollama update {0} is available</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Update Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>Current version: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>Update failed: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama updated to {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Ollama update</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Updating Ollama...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama is up to date</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>Check ASLM updates</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>Check for updates</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>Check now</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>Allow ASLM to query configured GitHub repositories</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>Check for updates</value>
+    <value>Enable automatic update checks</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>Close Settings</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>Keep finished process consoles visible when individual consoles are enabled</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>Completed process consoles</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>Show the built-in consoles page in the sidebar</value>
+    <value>Show completed process consoles</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>Consoles page</value>
+    <value>Show Consoles page</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Discard Changes</value>
@@ -1011,9 +945,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Display Name</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>Name shown in ASLM and shared with modules</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>This category has no settings</value>
   </data>
@@ -1026,38 +957,20 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>MODULES</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>Show per-process consoles alongside unified module output</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>Individual consoles</value>
+    <value>Show separate module process consoles</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Load default</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>Manual check</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>Used by modules that follow GitHub releases</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>Default module release channel</value>
+    <value>Default module update channel</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>This module has no settings in the current state</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>New module preferences start from this mode; individual modules can override it</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>Default module update mode</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>No settings are available</value>
-  </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>Starting port for all modules. Ports are allocated sequentially from this value</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>Module start port</value>
@@ -1081,19 +994,13 @@
     <value>Internal Ollama is not installed</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>Not signed in</value>
+    <value>Connect Ollama account to use Cloud models</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>Sign In</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>Sign Out</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>Signed in</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>Signed in as {0}</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>Signing In...</value>
@@ -1108,7 +1015,7 @@
     <value>Waiting for browser sign-in</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>Active theme</value>
+    <value>Custom theme</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>Custom</value>
@@ -1146,14 +1053,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Language</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>Sets the interface language for ASLM and supported modules</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>Mode</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>Sets how the app chooses its overall interface appearance</value>
+    <value>Theme</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>New</value>
@@ -1161,29 +1062,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>No custom themes yet. Create one to use Custom appearance</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>Which saved palette the token rows below belong to</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>Choose which custom theme is active</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>Create a palette first; it will show up here for selection</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>Rename</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>Themes</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>Add, bring in, or share palette definitions stored as files</value>
+    <value>Manage custom themes</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Ports</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>Prepare ASLM update</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>Restart now</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Save</value>
@@ -1218,10 +1104,7 @@
     <value>Terms</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Auto-accept term updates</value>
-  </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>Accept new and updated terms after the first review.</value>
+    <value>Accept policy updates automatically</value>
   </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Delete</value>
@@ -1233,16 +1116,13 @@
     <value>Delete theme</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>Theme color editor</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>Built-in semantic defaults for tokens you have not overridden yet</value>
+    <value>Base theme</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Clear</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>Color editor for the theme: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Theme editor: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Pick</value>
@@ -1271,62 +1151,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>New Theme</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>Enter a new name for this theme</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>Rename theme</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>Settings</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>ASLM update {0} is available. Use "Prepare ASLM update" to download it</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>ASLM update {0} is available; {1} is already staged for restart</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} is prepared and will be applied on restart</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>Update check failed: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>Checking GitHub repositories...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>ASLM update could not be prepared</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>Downloading ASLM build...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>{0} engine update(s) available</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>{0} update(s) available. Module updates can be applied from the Modules page</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} is staged for restart</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} An ASLM self-update is staged for restart</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>No update check has been run in this session</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>ASLM update is prepared and will be applied on restart</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>ASLM update {0} is prepared and will be applied on restart</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Restart failed: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>Restarting ASLM...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Download update</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>Everything is up to date.</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>Downloading</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>Use custom value</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Install and restart</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Validation Error</value>
@@ -1465,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>Other settings</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Available version: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Installed version: {0}</value>
   </data>
 </root>

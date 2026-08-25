@@ -5,8 +5,14 @@ using ASLM.Tests.TestSupport;
 
 namespace ASLM.Tests.Services;
 
+/// <summary>
+/// Verifies built-in settings validation, drafts, categories, and module visibility rules.
+/// </summary>
 public sealed class SettingsServiceTests
 {
+    /// <summary>
+    /// Verifies module port drafts accept only the supported range.
+    /// </summary>
     [Theory]
     [InlineData("20000", true)]
     [InlineData("abc", false)]
@@ -27,6 +33,9 @@ public sealed class SettingsServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies display names are trimmed and cannot be empty.
+    /// </summary>
     [Theory]
     [InlineData(" Alice ", true, "Alice")]
     [InlineData("   ", false, "")]
@@ -42,13 +51,15 @@ public sealed class SettingsServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies update drafts retain the fixed automatic-check period.
+    /// </summary>
     [Fact]
     public void TryValidateAndBuildUpdateSettings_normalizes_fixed_check_period()
     {
         var draft = new UpdateBaseline(
             true,
             false,
-            "release",
             "release",
             "release");
 
@@ -57,8 +68,25 @@ public sealed class SettingsServiceTests
         success.Should().BeTrue();
         error.Should().BeEmpty();
         settings.AutoCheckPeriodHours.Should().Be(1);
+        settings.ModuleDefaultMode.Should().Be("release");
     }
 
+    /// <summary>
+    /// Verifies legacy branch defaults are normalized to the only supported release mode.
+    /// </summary>
+    [Fact]
+    public void AppUpdateSettings_normalize_forces_release_module_mode()
+    {
+        var settings = new AppUpdateSettings { ModuleDefaultMode = "branch" };
+
+        settings.Normalize();
+
+        settings.ModuleDefaultMode.Should().Be("release");
+    }
+
+    /// <summary>
+    /// Verifies save summaries include deferred runtime settings.
+    /// </summary>
     [Fact]
     public void BuildSaveMessage_describes_deferred_settings()
     {
@@ -71,6 +99,9 @@ public sealed class SettingsServiceTests
         message.Should().Contain("Setting A");
     }
 
+    /// <summary>
+    /// Verifies persisted application data is copied into detached drafts.
+    /// </summary>
     [Fact]
     public void BuildAslmDraftSnapshot_reads_app_data()
     {
@@ -86,6 +117,9 @@ public sealed class SettingsServiceTests
         draft.ApiServerEnabled.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies built-in drafts are copied into application data before persistence.
+    /// </summary>
     [Fact]
     public void ApplyDraftsToAppData_persists_values_in_memory()
     {
@@ -102,6 +136,9 @@ public sealed class SettingsServiceTests
         store.Data.Updates.AutoCheckPeriodHours.Should().Be(1);
     }
 
+    /// <summary>
+    /// Verifies built-in dirty checks detect values that differ from their baseline.
+    /// </summary>
     [Fact]
     public void HasUnsaved_changes_detect_differences()
     {
@@ -111,6 +148,9 @@ public sealed class SettingsServiceTests
         SettingsService.HasUnsavedApiServerChanges(false, baseline).Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies host-only settings stay outside the user-facing editor.
+    /// </summary>
     [Fact]
     public void ShouldDisplaySetting_hides_automatic_types()
     {
@@ -119,6 +159,9 @@ public sealed class SettingsServiceTests
         SettingsService.ShouldDisplaySetting(new ModuleSetting { Type = "text" }).Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies explicit dependencies accept only user-editable boolean controllers.
+    /// </summary>
     [Fact]
     public void Explicit_dependency_uses_only_user_bool_controller()
     {
@@ -139,6 +182,9 @@ public sealed class SettingsServiceTests
             .Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies dependent visibility includes the complete parent chain.
+    /// </summary>
     [Fact]
     public void Explicit_dependency_honors_parent_visibility_recursively()
     {
@@ -154,6 +200,9 @@ public sealed class SettingsServiceTests
             .Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies dependency cycles fail open instead of hiding settings permanently.
+    /// </summary>
     [Fact]
     public void Explicit_dependency_cycle_is_fail_open()
     {
@@ -168,6 +217,9 @@ public sealed class SettingsServiceTests
             .Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies category and dependency metadata applies only to user settings.
+    /// </summary>
     [Theory]
     [InlineData("engine", false)]
     [InlineData("path", false)]
@@ -181,6 +233,9 @@ public sealed class SettingsServiceTests
             .Should().Be(expected);
     }
 
+    /// <summary>
+    /// Verifies that reset drafts restore manifest defaults when committed.
+    /// </summary>
     [Fact]
     public void ResetModuleToDefaults_restores_manifest_defaults()
     {
@@ -199,13 +254,19 @@ public sealed class SettingsServiceTests
             ];
         });
 
-        SettingsService.ResetModuleToDefaults(module);
+        var moduleDraft = new ModuleSettingsDraft(module);
+
+        SettingsService.ResetModuleToDefaults(moduleDraft);
+        moduleDraft.ApplyToModule();
 
         Convert.ToString(module.Settings[0].Value).Should().Be("False");
     }
 
+    /// <summary>
+    /// Verifies module categories are assigned to the module sidebar group.
+    /// </summary>
     [Fact]
-    public void GetGroupForCategory_maps_module_kind()
+    public void GetCategoryGroup_maps_module_kind()
     {
         var moduleCategory = new SettingsCategory(
             "module::x",
@@ -215,9 +276,12 @@ public sealed class SettingsServiceTests
             ModuleConfigBuilder.Create(),
             false);
 
-        SettingsService.GetGroupForCategory(moduleCategory).Should().Be(SettingsCategoryGroup.Modules);
+        SettingsPresentationBuilder.GetCategoryGroup(moduleCategory).Should().Be(SettingsCategoryGroup.Modules);
     }
 
+    /// <summary>
+    /// Verifies only installed and initialized modules expose settings categories.
+    /// </summary>
     [Theory]
     [InlineData(false, false, false)]
     [InlineData(true, false, false)]
@@ -246,6 +310,9 @@ public sealed class SettingsServiceTests
         SettingsService.IsModuleEligibleForSettings(module).Should().Be(expected);
     }
 
+    /// <summary>
+    /// Verifies modules containing only host settings do not expose empty categories.
+    /// </summary>
     [Fact]
     public void IsModuleEligibleForSettings_excludes_modules_without_displayable_settings()
     {
@@ -267,8 +334,11 @@ public sealed class SettingsServiceTests
         SettingsService.IsModuleEligibleForSettings(module).Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies sidebar construction excludes modules that cannot expose settings yet.
+    /// </summary>
     [Fact]
-    public void CreateOrderedCategories_includes_only_eligible_modules()
+    public void BuildCategories_includes_only_eligible_modules()
     {
         var eligible = ModuleConfigBuilder.Create(
             id: "ready-module",
@@ -306,8 +376,7 @@ public sealed class SettingsServiceTests
                 ];
             });
 
-        var service = new SettingsService(null!, null!, null!);
-        var categories = service.CreateOrderedCategories([eligible, stub]);
+        var categories = SettingsPresentationBuilder.BuildCategories([eligible, stub]);
 
         categories
             .Where(category => category.Kind == SettingsCategoryKind.Module)

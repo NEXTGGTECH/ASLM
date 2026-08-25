@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:presentation="clr-namespace:ASLM.Services.Internal"
+             x:Class="ASLM.Controls.Settings.ThemeColorEditorView"
+             x:DataType="presentation:ThemeColorItemViewModel">
+    <Grid ColumnDefinitions="2*,28,*,Auto,Auto"
+          ColumnSpacing="8"
+          HeightRequest="28"
+          MinimumHeightRequest="28">
+        <Label Text="{Binding Key}"
+               FontSize="14"
+               MaxLines="1"
+               LineBreakMode="TailTruncation"
+               MinimumWidthRequest="0"
+               VerticalOptions="Center"
+               TextColor="{DynamicResource LabelPrimary}" />
+        <Border Grid.Column="1"
+                WidthRequest="24"
+                HeightRequest="24"
+                Padding="1"
+                StrokeThickness="1"
+                Stroke="{Binding SwatchStroke}"
+                StrokeShape="RoundRectangle 6"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding PickCommand}" />
+            </Border.GestureRecognizers>
+            <BoxView CornerRadius="4"
+                     Color="{Binding SwatchColor}" />
+        </Border>
+        <Label Grid.Column="2"
+               Text="{Binding DisplayValue}"
+               FontSize="13"
+               MaxLines="1"
+               LineBreakMode="TailTruncation"
+               MinimumWidthRequest="0"
+               VerticalOptions="Center"
+               TextColor="{DynamicResource LabelPrimary}" />
+        <Button Grid.Column="3"
+                Text="{Binding PickText}"
+                Command="{Binding PickCommand}"
+                FontSize="13"
+                HeightRequest="24"
+                MinimumHeightRequest="24"
+                MinimumWidthRequest="64"
+                Padding="4,0"
+                CornerRadius="5"
+                BackgroundColor="{DynamicResource BackgroundTertiary}"
+                TextColor="{DynamicResource LabelPrimary}" />
+        <Button Grid.Column="4"
+                Text="{Binding ClearText}"
+                Command="{Binding ClearCommand}"
+                FontSize="13"
+                HeightRequest="24"
+                MinimumHeightRequest="24"
+                MinimumWidthRequest="64"
+                Padding="4,0"
+                CornerRadius="5"
+                BackgroundColor="{DynamicResource BackgroundTertiary}"
+                TextColor="{DynamicResource LabelSecondary}" />
+    </Grid>
+</ContentView>

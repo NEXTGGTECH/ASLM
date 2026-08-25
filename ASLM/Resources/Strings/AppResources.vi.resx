@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Điều khoản và giấy phép</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>Đang tải...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Cập nhật ngay</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>Khởi động máy chủ mirror cục bộ cùng ASLM</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>Máy chủ API</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>Bản phát hành chỉ dùng bản GitHub ổn định. Bản tiền phát hành cũng chấp nhận bản xem trước</value>
+    <value>Bật máy chủ phản chiếu ASLM</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>Kênh cập nhật ứng dụng</value>
+    <value>Kênh cập nhật ASLM</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Số giờ giữa các lần kiểm tra cập nhật nền</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>Chu kỳ tự kiểm tra</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>Tự áp dụng cập nhật mô-đun và chuẩn bị bản dựng ASLM cho lần khởi động lại tiếp theo</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>Tự cài cập nhật</value>
+    <value>Bật tự động cài đặt bản cập nhật</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Tài khoản Ollama</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>Chưa kết nối</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>Kết nối để tăng giới hạn API từ 60 lên 5.000 yêu cầu mỗi giờ</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>Đã kết nối</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>Đã kết nối với tư cách {0}</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>Kết nối</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>Tài khoản GitHub</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>Đăng nhập bằng token truy cập cá nhân để dùng giới hạn API GitHub cao hơn.</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Kết nối thất bại: {0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>Tùy chọn cập nhật ứng dụng và mô-đun</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Có bản cập nhật Ollama {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Cập nhật Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>Phiên bản hiện tại: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>Cập nhật thất bại: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Đã cập nhật Ollama lên {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Cập nhật Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Đang cập nhật Ollama...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama đã ở phiên bản mới nhất</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>Kiểm tra cập nhật ASLM</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>Kiểm tra cập nhật</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>Kiểm tra ngay</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>Cho phép ASLM truy vấn kho GitHub đã cấu hình</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>Kiểm tra cập nhật</value>
+    <value>Bật tự động kiểm tra bản cập nhật</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>Đóng Cài đặt</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>Giữ bảng điều khiển tiến trình đã kết thúc khi bật bảng điều khiển riêng lẻ</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>Bảng điều khiển tiến trình đã hoàn tất</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>Hiển thị trang bảng điều khiển tích hợp trên thanh bên</value>
+    <value>Hiển thị bảng điều khiển của các tiến trình đã hoàn tất</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>Trang bảng điều khiển</value>
+    <value>Hiển thị trang Bảng điều khiển</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Bỏ thay đổi</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Tên hiển thị</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>Tên hiển thị trong ASLM và chia sẻ với mô-đun</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>Danh mục này không có cài đặt</value>
   </data>
@@ -995,41 +930,23 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>MÔ-ĐUN</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>Hiển thị bảng điều khiển theo tiến trình cùng đầu ra mô-đun thống nhất</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>Bảng điều khiển riêng lẻ</value>
+    <value>Hiển thị bảng điều khiển riêng cho từng tiến trình mô-đun</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Tải mặc định</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>Kiểm tra thủ công</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>Dùng bởi mô-đun theo bản phát hành GitHub</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>Kênh phát hành mô-đun mặc định</value>
+    <value>Kênh cập nhật mô-đun mặc định</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>Mô-đun này không có cài đặt ở trạng thái hiện tại</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>Tùy chọn mô-đun mới bắt đầu từ chế độ này; từng mô-đun có thể ghi đè</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>Chế độ cập nhật mô-đun mặc định</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>Không có cài đặt</value>
   </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>Cổng bắt đầu cho tất cả mô-đun. Cổng được phân bổ tuần tự từ giá trị này</value>
-  </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
-    <value>Cổng bắt đầu mô-đun</value>
+    <value>Cổng bắt đầu của mô-đun</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Tài khoản Ollama</value>
@@ -1050,19 +967,13 @@
     <value>Ollama nội bộ chưa được cài</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>Chưa đăng nhập</value>
+    <value>Kết nối tài khoản Ollama để sử dụng các mô hình đám mây</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>Đăng nhập</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>Đăng xuất</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>Đã đăng nhập</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>Đã đăng nhập với tư cách {0}</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>Đang đăng nhập...</value>
@@ -1077,7 +988,7 @@
     <value>Đang chờ đăng nhập trên trình duyệt</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>Chủ đề đang dùng</value>
+    <value>Chủ đề tùy chỉnh</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>Tùy chỉnh</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Ngôn ngữ</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>Đặt ngôn ngữ giao diện cho ASLM và mô-đun được hỗ trợ</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>Chế độ</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>Đặt cách ứng dụng chọn giao diện tổng thể</value>
+    <value>Chủ đề</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>Mới</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>Chưa có chủ đề tùy chỉnh. Tạo một chủ đề để dùng giao diện Tùy chỉnh</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>Bảng màu đã lưu mà các hàng token bên dưới thuộc về</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>Chọn chủ đề tùy chỉnh đang hoạt động</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>Tạo bảng màu trước; nó sẽ hiển thị tại đây để chọn</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>Đổi tên</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>Chủ đề</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>Thêm, nhập hoặc chia sẻ định nghĩa bảng màu lưu dưới dạng tệp</value>
+    <value>Quản lý chủ đề tùy chỉnh</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Cổng</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>Chuẩn bị cập nhật ASLM</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>Khởi động lại ngay</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Lưu</value>
@@ -1187,11 +1077,9 @@
     <value>Điều khoản</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Tự động chấp nhận cập nhật điều khoản</value>
+    <value>Tự động chấp nhận bản cập nhật chính sách</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>Chấp nhận điều khoản mới và cập nhật sau lần xem xét đầu tiên.</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Xóa</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>Xóa chủ đề</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>Trình chỉnh sửa màu chủ đề</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>Mặc định ngữ nghĩa tích hợp cho token bạn chưa ghi đè</value>
+    <value>Chủ đề cơ sở</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Xóa</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>Trình chỉnh màu cho chủ đề: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Trình chỉnh sửa chủ đề: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Chọn</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>Chủ đề mới</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>Nhập tên mới cho chủ đề này</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>Đổi tên chủ đề</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>Cài đặt</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>Có bản cập nhật ASLM {0}. Dùng "Chuẩn bị cập nhật ASLM" để tải</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>Có bản cập nhật ASLM {0}; {1} đã sẵn sàng cho khởi động lại</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} đã chuẩn bị và sẽ áp dụng khi khởi động lại</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>Kiểm tra cập nhật thất bại: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>Đang kiểm tra kho GitHub...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>Không thể chuẩn bị cập nhật ASLM</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>Đang tải bản dựng ASLM...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>Có {0} bản cập nhật engine</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>Có {0} bản cập nhật. Có thể áp dụng từ trang Mô-đun</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} sẵn sàng cho khởi động lại</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} Bản tự cập nhật ASLM sẵn sàng cho khởi động lại</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>Chưa chạy kiểm tra cập nhật trong phiên này</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>Cập nhật ASLM đã chuẩn bị và sẽ áp dụng khi khởi động lại</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>Cập nhật ASLM {0} đã chuẩn bị và sẽ áp dụng khi khởi động lại</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Khởi động lại thất bại: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>Đang khởi động lại ASLM...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Tải bản cập nhật</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>Mọi thứ đã được cập nhật.</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>Đang tải xuống</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>Dùng giá trị tùy chỉnh</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Cài đặt và khởi động lại</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Lỗi xác thực</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>Tài khoản cục bộ. Dữ liệu hồ sơ chỉ được lưu trữ trên thiết bị này.</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>Tài khoản đám mây đã kết nối với tài khoản {0}</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Sử dụng tài khoản đám mây</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>Cài đặt khác</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Phiên bản khả dụng: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Phiên bản đã cài đặt: {0}</value>
   </data>
 </root>

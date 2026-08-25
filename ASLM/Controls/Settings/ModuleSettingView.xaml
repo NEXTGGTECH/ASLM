@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:presentation="clr-namespace:ASLM.Services.Internal"
+             x:Class="ASLM.Controls.Settings.ModuleSettingView"
+             x:DataType="presentation:ModuleSettingItemViewModel"
+             MinimumWidthRequest="0"
+             HorizontalOptions="Fill"
+             IsVisible="{Binding IsVisible}">
+
+    <settings:SettingsCardView>
+        <Grid>
+            <!-- Read-only host engine status -->
+            <Grid IsVisible="{Binding IsEngineStatus}"
+                  ColumnDefinitions="*,Auto"
+                  MinimumWidthRequest="0"
+                  HorizontalOptions="Fill"
+                  ColumnSpacing="8">
+                <Grid ColumnDefinitions="Auto,Auto,*"
+                      ColumnSpacing="6"
+                      MinimumWidthRequest="0"
+                      HorizontalOptions="Fill"
+                      VerticalOptions="Center">
+                    <Label Text="{Binding Title}"
+                           Style="{StaticResource SettingsCardTitleLabelStyle}" />
+                    <settings:SettingsInfoButton Description="{Binding Description}"
+                                                 Grid.Column="1" />
+                </Grid>
+
+                <Label Grid.Column="1"
+                       Text="{Binding EngineInstalledText}"
+                       IsVisible="{Binding IsEngineInstalled}"
+                       FontSize="13"
+                       FontAttributes="Bold"
+                       MaximumWidthRequest="180"
+                       LineBreakMode="WordWrap"
+                       HorizontalTextAlignment="End"
+                       TextColor="{DynamicResource LinkColor}"
+                       VerticalOptions="Center" />
+                <Label Grid.Column="1"
+                       Text="{Binding EngineNotInstalledText}"
+                       IsVisible="{Binding IsEngineMissing}"
+                       FontSize="13"
+                       FontAttributes="Bold"
+                       MaximumWidthRequest="180"
+                       LineBreakMode="WordWrap"
+                       HorizontalTextAlignment="End"
+                       TextColor="{DynamicResource LabelSecondary}"
+                       VerticalOptions="Center" />
+            </Grid>
+
+            <!-- Boolean and boolean-like engine values -->
+            <Grid IsVisible="{Binding IsBooleanEditor}"
+                  ColumnDefinitions="*,Auto"
+                  MinimumWidthRequest="0"
+                  HorizontalOptions="Fill"
+                  ColumnSpacing="8">
+                <Grid ColumnDefinitions="Auto,Auto,*"
+                      ColumnSpacing="6"
+                      MinimumWidthRequest="0"
+                      HorizontalOptions="Fill"
+                      VerticalOptions="Center">
+                    <Label Text="{Binding Title}"
+                           Style="{StaticResource SettingsCardTitleLabelStyle}" />
+                    <settings:SettingsInfoButton Description="{Binding Description}"
+                                                 Grid.Column="1" />
+                </Grid>
+
+                <settings:SettingsToggle Grid.Column="1"
+                                         IsToggled="{Binding BooleanValue, Mode=TwoWay}"
+                                         HorizontalOptions="End" />
+            </Grid>
+
+            <!-- Text, numeric, choice, password, and managed values -->
+            <VerticalStackLayout IsVisible="{Binding IsValueEditor}"
+                                 MinimumWidthRequest="0"
+                                 HorizontalOptions="Fill"
+                                 Spacing="8">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="8"
+                      MinimumWidthRequest="0"
+                      HorizontalOptions="Fill">
+                    <Grid ColumnDefinitions="Auto,Auto,*"
+                          ColumnSpacing="6"
+                          MinimumWidthRequest="0"
+                          HorizontalOptions="Fill"
+                          VerticalOptions="Center">
+                        <Label Text="{Binding Title}"
+                               Style="{StaticResource SettingsCardTitleLabelStyle}" />
+                        <settings:SettingsInfoButton Description="{Binding Description}"
+                                                     Grid.Column="1" />
+                    </Grid>
+
+                    <settings:SettingsToggle Grid.Column="1"
+                                             IsVisible="{Binding IsManagedEditor}"
+                                             IsToggled="{Binding UseCustomValue, Mode=TwoWay}"
+                                             HorizontalOptions="End" />
+                </Grid>
+
+                <VerticalStackLayout IsVisible="{Binding IsManagedEditor}"
+                                     MinimumWidthRequest="0"
+                                     HorizontalOptions="Fill"
+                                     Spacing="8">
+                    <settings:SettingsFieldView>
+                        <settings:SettingsFieldView.FieldContent>
+                            <Entry Text="{Binding TextValue, Mode=TwoWay}"
+                                   IsReadOnly="{Binding IsManagedReadOnly}"
+                                   IsPassword="{Binding IsManagedPassword}"
+                                   Opacity="{Binding ManagedEditorOpacity}"
+                                   Style="{StaticResource SettingsTextEntryStyle}"
+                                   settings:SettingsControlChrome.FlatEntry="True" />
+                        </settings:SettingsFieldView.FieldContent>
+                    </settings:SettingsFieldView>
+                </VerticalStackLayout>
+
+                <settings:SettingsFieldView IsVisible="{Binding IsChoiceEditor}">
+                    <settings:SettingsFieldView.FieldContent>
+                        <Picker ItemsSource="{Binding Options}"
+                                SelectedItem="{Binding SelectedValue, Mode=TwoWay}"
+                                FontSize="13"
+                                Style="{StaticResource SettingsPickerStyle}"
+                                settings:SettingsControlChrome.CompactPicker="True" />
+                    </settings:SettingsFieldView.FieldContent>
+                </settings:SettingsFieldView>
+
+                <settings:SettingsFieldView IsVisible="{Binding IsNumericEditor}">
+                    <settings:SettingsFieldView.FieldContent>
+                        <Entry Text="{Binding TextValue, Mode=TwoWay}"
+                               Keyboard="Numeric"
+                               Style="{StaticResource SettingsTextEntryStyle}"
+                               settings:SettingsControlChrome.FlatEntry="True" />
+                    </settings:SettingsFieldView.FieldContent>
+                </settings:SettingsFieldView>
+
+                <settings:SettingsPasswordField IsVisible="{Binding IsPasswordEditor}"
+                                                Text="{Binding TextValue, Mode=TwoWay}" />
+
+                <settings:SettingsFieldView IsVisible="{Binding IsTextEditor}">
+                    <settings:SettingsFieldView.FieldContent>
+                        <Entry Text="{Binding TextValue, Mode=TwoWay}"
+                               Style="{StaticResource SettingsTextEntryStyle}"
+                               settings:SettingsControlChrome.FlatEntry="True" />
+                    </settings:SettingsFieldView.FieldContent>
+                </settings:SettingsFieldView>
+            </VerticalStackLayout>
+        </Grid>
+    </settings:SettingsCardView>
+</ContentView>

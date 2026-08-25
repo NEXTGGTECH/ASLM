@@ -35,6 +35,7 @@ namespace ASLM.Pages
         private readonly PortRegistry _ports;
         private readonly NotificationCenter _notifications;
         private readonly UpdateManager _updateManager;
+        private readonly UpdateScheduler _updateScheduler;
         private readonly ModuleTrustService _moduleTrustService;
         private readonly AslmMirrorServer _mirrorServer;
         private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
@@ -77,6 +78,7 @@ namespace ASLM.Pages
             PortRegistry ports,
             NotificationCenter notifications,
             UpdateManager updateManager,
+            UpdateScheduler updateScheduler,
             ModuleTrustService moduleTrustService,
             AslmMirrorServer mirrorServer,
             ModuleLaunchCoordinator moduleLaunchCoordinator,
@@ -91,6 +93,7 @@ namespace ASLM.Pages
             _ports = ports;
             _notifications = notifications;
             _updateManager = updateManager;
+            _updateScheduler = updateScheduler;
             _moduleTrustService = moduleTrustService;
             _mirrorServer = mirrorServer;
             _moduleLaunchCoordinator = moduleLaunchCoordinator;
@@ -899,18 +902,20 @@ namespace ASLM.Pages
                 return;
             }
 
-            var candidate = await Task.Run(() =>
-                _updateManager.CheckEngineUpdateAsync(
-                    engine,
-                    publishUpdateNotification: false,
-                    isManualRequest: true));
+            var candidate = string.Equals(engineId, "ollama-service", StringComparison.OrdinalIgnoreCase)
+                ? _updateScheduler.GetAvailableOllamaUpdate()
+                : await Task.Run(() =>
+                    _updateManager.CheckEngineUpdateAsync(
+                        engine,
+                        publishUpdateNotification: false,
+                        isManualRequest: true));
 
             if (candidate == null)
             {
                 _notifications.PublishSystemToast(
                     L.Get(LocalizationKeys.Notifications_EngineUpdateTitle),
                     L.Get(LocalizationKeys.Notifications_EngineUpdateNotAvailable),
-                    L.Get(LocalizationKeys.Settings_OllamaUpdate_UpToDate),
+                    L.Get(LocalizationKeys.ModuleUpdate_Status_UpToDate),
                     engineId);
                 return;
             }
@@ -926,6 +931,12 @@ namespace ASLM.Pages
                     L.Get(LocalizationKeys.Notifications_EngineUpdateFailed),
                     L.Get(LocalizationKeys.Notifications_ActionFailed),
                     engineId);
+                return;
+            }
+
+            if (string.Equals(engineId, "ollama-service", StringComparison.OrdinalIgnoreCase))
+            {
+                await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
             }
         }
 
@@ -934,8 +945,7 @@ namespace ASLM.Pages
         /// </summary>
         private async Task RunAppSelfUpdateFromNotificationAsync()
         {
-            var candidate = await Task.Run(() =>
-                _updateManager.CheckAppUpdateAsync(CancellationToken.None, publishUpdateNotification: false));
+            var candidate = _updateScheduler.GetAvailableAppUpdate();
 
             if (candidate == null && !_updateManager.HasPendingAppUpdate)
             {
@@ -965,6 +975,8 @@ namespace ASLM.Pages
                         "aslm");
                     return;
                 }
+
+                await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
             }
 
             await _settingsService.StopAllModulesAsync();

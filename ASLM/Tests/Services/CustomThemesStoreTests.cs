@@ -7,6 +7,23 @@ namespace ASLM.Tests.Services;
 
 public sealed class CustomThemesStoreTests
 {
+    /// <summary>
+    /// Verifies renaming keeps the selected theme id and resolves display-name collisions.
+    /// </summary>
+    [Fact]
+    public void RenameTheme_allocates_unique_name_without_replacing_theme()
+    {
+        var store = new CustomThemesStore(TestLoggerFactory.Create<CustomThemesStore>());
+        var first = store.CreateTheme("Ocean", "dark");
+        var second = store.CreateTheme("Forest", "light");
+
+        var renamed = store.RenameTheme(second.Id, first.Name);
+
+        renamed.Should().BeSameAs(second);
+        renamed!.Id.Should().Be(second.Id);
+        renamed.Name.Should().Be("Ocean #2");
+    }
+
     [Fact]
     public void AllocateUniqueDisplayName_appends_suffix_on_collision()
     {

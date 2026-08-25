@@ -7,38 +7,6 @@ using ASLM.Models;
 namespace ASLM.Services.Internal
 {
     /// <summary>
-    /// Distinguishes the supported top-level settings groups.
-    /// </summary>
-    public enum SettingsCategoryGroup
-    {
-        Aslm,
-        Modules
-    }
-
-    /// <summary>
-    /// Distinguishes the supported settings category types in the selector.
-    /// </summary>
-    public enum SettingsCategoryKind
-    {
-        Aslm,
-        Accounts,
-        Updates,
-        Module,
-        Personalization
-    }
-
-    /// <summary>
-    /// Describes one selectable settings category shown in the sidebar.
-    /// </summary>
-    public sealed record SettingsCategory(
-        string Id,
-        string Title,
-        string Description,
-        SettingsCategoryKind Kind,
-        ModuleConfig? Module,
-        bool SupportsAppRestart);
-
-    /// <summary>
     /// Couples one setting with the runtime value loaded for the current refresh pass.
     /// </summary>
     public sealed record LoadedSetting(ModuleSetting Setting, object? Value);
@@ -65,7 +33,6 @@ namespace ASLM.Services.Internal
         bool CheckEnabled,
         bool AutoUpdateEnabled,
         string AppChannel,
-        string ModuleDefaultMode,
         string ModuleDefaultChannel);
 
     /// <summary>
@@ -104,6 +71,9 @@ namespace ASLM.Services.Internal
 
         // Constructor
 
+        /// <summary>
+        /// Creates the settings service with module discovery, persistence, and runtime dependencies.
+        /// </summary>
         public SettingsService(
             EngineInstaller engineInstaller,
             ModuleInstaller moduleInstaller,
@@ -114,16 +84,6 @@ namespace ASLM.Services.Internal
             _moduleRunner = moduleRunner;
         }
 
-
-        // Categories & grouping
-
-        /// <summary>
-        /// Returns the top-level group that owns the specified category.
-        /// </summary>
-        public static SettingsCategoryGroup GetGroupForCategory(SettingsCategory category) =>
-            category.Kind == SettingsCategoryKind.Module
-                ? SettingsCategoryGroup.Modules
-                : SettingsCategoryGroup.Aslm;
 
         /// <summary>
         /// Stable key used to remember whether live runtime values were already loaded for a module.
@@ -137,61 +97,6 @@ namespace ASLM.Services.Internal
             module.Status.Installed &&
             module.Status.FirstRunCompleted &&
             module.Settings.Any(ShouldDisplaySetting);
-
-        /// <summary>
-        /// Builds the ordered category list with ASLM categories first and modules after them.
-        /// </summary>
-        public List<SettingsCategory> CreateOrderedCategories(IReadOnlyList<ModuleConfig> loadedModules)
-        {
-            // Built-in ASLM categories always appear first in the sidebar.
-            var categories = new List<SettingsCategory>
-            {
-                new(
-                    "aslm",
-                    "ASLM",
-                    "Core ASLM behavior, ports, API, and consoles.",
-                    SettingsCategoryKind.Aslm,
-                    null,
-                    true),
-                new(
-                    "aslm-updates",
-                    "Updates",
-                    "Application and module update preferences.",
-                    SettingsCategoryKind.Updates,
-                    null,
-                    true),
-                new(
-                    "aslm-accounts",
-                    "Accounts",
-                    "ASLM display name, GitHub and Ollama sign-in.",
-                    SettingsCategoryKind.Accounts,
-                    null,
-                    false),
-                new(
-                    "aslm-personalization",
-                    "Personalization",
-                    "Theme mode, language, and custom theme settings.",
-                    SettingsCategoryKind.Personalization,
-                    null,
-                    false)
-            };
-
-            // Module categories follow, sorted by name and limited to modules with visible settings.
-            categories.AddRange(
-                loadedModules
-                    .Where(IsModuleEligibleForSettings)
-                    .OrderBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
-                    .Select(module => new SettingsCategory(
-                        $"module::{module.Id}",
-                        module.Name,
-                        string.IsNullOrWhiteSpace(module.Description) ? "Module-specific configuration." : module.Description.Trim(),
-                        SettingsCategoryKind.Module,
-                        module,
-                        false)));
-
-            return categories;
-        }
-
 
         // Discovery
 
@@ -257,7 +162,7 @@ namespace ASLM.Services.Internal
             settings.CheckEnabled = draft.CheckEnabled;
             settings.AutoUpdateEnabled = draft.AutoUpdateEnabled;
             settings.AppChannel = draft.AppChannel;
-            settings.ModuleDefaultMode = draft.ModuleDefaultMode;
+            settings.ModuleDefaultMode = "release";
             settings.ModuleDefaultChannel = draft.ModuleDefaultChannel;
             settings.Normalize();
             return true;
@@ -312,7 +217,6 @@ namespace ASLM.Services.Internal
                     appData.Data.Updates.CheckEnabled,
                     appData.Data.Updates.AutoUpdateEnabled,
                     appData.Data.Updates.AppChannel,
-                    appData.Data.Updates.ModuleDefaultMode,
                     appData.Data.Updates.ModuleDefaultChannel));
         }
 
@@ -350,16 +254,6 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Builds optional copy for the Updates manual-check card when the patcher persisted a GitHub release tag.
-        /// </summary>
-        public static string? BuildAslmInstalledReleaseSummary(AppDataStore appData)
-        {
-            appData.Data.Updates.Normalize();
-            var tag = appData.Data.Updates.InstalledReleaseTag;
-            return string.IsNullOrWhiteSpace(tag) ? null : $"Installed release (GitHub): {tag.Trim()}";
-        }
-
-        /// <summary>
         /// Creates the default update baseline used by reset actions in settings UI.
         /// </summary>
         public static UpdateBaseline BuildDefaultUpdateBaseline()
@@ -370,7 +264,6 @@ namespace ASLM.Services.Internal
                 defaults.CheckEnabled,
                 defaults.AutoUpdateEnabled,
                 defaults.AppChannel,
-                defaults.ModuleDefaultMode,
                 defaults.ModuleDefaultChannel);
         }
 
@@ -427,7 +320,6 @@ namespace ASLM.Services.Internal
             draft.CheckEnabled != baseline.CheckEnabled ||
             draft.AutoUpdateEnabled != baseline.AutoUpdateEnabled ||
             !string.Equals(draft.AppChannel, baseline.AppChannel, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(draft.ModuleDefaultMode, baseline.ModuleDefaultMode, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(draft.ModuleDefaultChannel, baseline.ModuleDefaultChannel, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
@@ -573,19 +465,16 @@ namespace ASLM.Services.Internal
         // Module display rules
 
         /// <summary>
-        /// Restores every editable setting in the selected module back to its manifest default.
+        /// Restores detached module drafts without mutating the manifest before save.
         /// </summary>
-        public static void ResetModuleToDefaults(ModuleConfig module)
+        public static void ResetModuleToDefaults(ModuleSettingsDraft moduleDraft)
         {
-            foreach (var setting in module.Settings.Where(ShouldDisplaySetting))
+            foreach (var draft in moduleDraft.Settings.Where(static draft => ShouldDisplaySetting(draft.Setting)))
             {
-                if (setting.IsAutomaticallyManaged)
-                {
-                    setting.UseCustomValue = false;
-                }
-
-                setting.Value = setting.NormalizeUserValue(setting.Default);
+                draft.ResetToDefault();
             }
+
+            RefreshModuleDraftVisibility(moduleDraft);
         }
 
         /// <summary>
@@ -617,6 +506,25 @@ namespace ASLM.Services.Internal
                 allSettings,
                 valuesByKey,
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Updates render visibility for every setting from one consistent draft snapshot.
+        /// </summary>
+        public static void RefreshModuleDraftVisibility(ModuleSettingsDraft moduleDraft)
+        {
+            var definitions = moduleDraft.Settings
+                .Where(static draft => ShouldDisplaySetting(draft.Setting))
+                .Select(static draft => draft.Setting)
+                .ToList();
+            var valuesByKey = moduleDraft.BuildEffectiveValuesByKey();
+
+            foreach (var draft in moduleDraft.Settings)
+            {
+                draft.SetVisibility(
+                    ShouldDisplaySetting(draft.Setting) &&
+                    ShouldRenderSetting(draft.Setting, definitions, valuesByKey));
+            }
         }
 
         /// <summary>
@@ -708,21 +616,21 @@ namespace ASLM.Services.Internal
         // Module validation & changes
 
         /// <summary>
-        /// Validates the saved draft values for one loaded module.
+        /// Validates detached setting drafts before they are committed to a module manifest.
         /// </summary>
-        public bool TryValidateModuleSettings(ModuleConfig module, out string errorMessage)
+        public bool TryValidateModuleSettings(ModuleSettingsDraft moduleDraft, out string errorMessage)
         {
             errorMessage = string.Empty;
 
-            foreach (var setting in module.Settings.Where(ShouldDisplaySetting))
+            foreach (var draft in moduleDraft.Settings.Where(static draft => ShouldDisplaySetting(draft.Setting)))
             {
-                if (IsAutoDetectedAslmEngine(setting) ||
-                    setting.IsAutomaticallyManaged && !setting.UseCustomValue)
+                if (draft.IsReadOnly ||
+                    draft.Setting.IsAutomaticallyManaged && !draft.UseCustomValue)
                 {
                     continue;
                 }
 
-                if (!TryValidateSettingValue(setting, GetCurrentSettingValue(module, setting), out errorMessage))
+                if (!TryValidateSettingValue(draft.Setting, draft.Value, out errorMessage))
                 {
                     return false;
                 }
@@ -732,112 +640,103 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Determines whether a loaded module has settings that differ from the saved baseline.
+        /// Returns whether a detached module draft differs from its accepted baseline.
         /// </summary>
-        public bool ModuleHasChangesComparedToBaseline(ModuleConfig module, Dictionary<string, SettingBaseline> baselines)
-        {
-            foreach (var setting in module.Settings.Where(ShouldDisplaySetting))
-            {
-                if (IsAutoDetectedAslmEngine(setting))
-                {
-                    continue;
-                }
-
-                var currentValue = GetCurrentSettingValue(module, setting);
-                var baseline = GetSettingBaseline(module, setting, currentValue, baselines);
-                var effectiveValue = ResolveEffectiveSettingValue(module, setting, currentValue);
-                var displayValue = setting.FormatValueForDisplay(effectiveValue);
-
-                if (baseline.UseCustomValue != setting.UseCustomValue ||
-                    !string.Equals(baseline.DisplayValue, displayValue, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
+        public static bool ModuleHasChangesComparedToBaseline(ModuleSettingsDraft moduleDraft) =>
+            moduleDraft.HasChanges;
 
 
         // Module load & save
 
         /// <summary>
-        /// Loads one module's visible settings, optionally using live runtime getters.
+        /// Loads visible values into a detached module draft and accepts the resulting baseline.
         /// </summary>
         public async Task LoadModuleDraftAsync(
-            ModuleConfig module,
-            bool reloadRuntimeValues,
-            Dictionary<string, SettingBaseline> baselines)
+            ModuleSettingsDraft moduleDraft,
+            bool reloadRuntimeValues)
         {
-            var settings = module.Settings?.Where(ShouldDisplaySetting).ToList() ?? [];
-            if (settings.Count == 0)
+            var editableDrafts = moduleDraft.Settings
+                .Where(static draft => ShouldDisplaySetting(draft.Setting))
+                .ToList();
+            if (editableDrafts.Count == 0)
             {
                 return;
             }
 
-            // Load from runtime getters or fall back to cached manifest values.
+            // Runtime getters execute only for explicitly requested refreshes; other passes use manifest fallbacks.
             var loaded = reloadRuntimeValues
-                ? await Task.WhenAll(settings.Select(setting => LoadSettingValueAsync(module, setting)))
-                : settings.Select(setting => new LoadedSetting(setting, GetFallbackValue(module, setting))).ToArray();
+                ? await Task.WhenAll(editableDrafts.Select(draft => LoadSettingValueAsync(moduleDraft.Module, draft.Setting)))
+                : editableDrafts
+                    .Select(draft => new LoadedSetting(
+                        draft.Setting,
+                        GetFallbackValue(moduleDraft.Module, draft.Setting)))
+                    .ToArray();
 
-            UpdateSettingBaselines(module, loaded, baselines);
+            ApplyLoadedSettingsToDraft(moduleDraft, loaded);
+        }
 
-            // Apply loaded values to editable settings only.
-            foreach (var item in loaded)
+        /// <summary>
+        /// Applies one runtime load batch to detached setting drafts without touching the manifest model.
+        /// </summary>
+        public void ApplyLoadedSettingsToDraft(
+            ModuleSettingsDraft moduleDraft,
+            IEnumerable<LoadedSetting> loadedSettings)
+        {
+            foreach (var loaded in loadedSettings)
             {
-                if (!item.Setting.IsAutomaticallyManaged || item.Setting.UseCustomValue)
-                {
-                    item.Setting.Value = item.Value;
-                }
+                var draft = moduleDraft.GetSetting(loaded.Setting.Key);
+                var automaticValue = loaded.Setting.IsAutomaticallyManaged
+                    ? _moduleRunner.GetResolvedSettingValue(moduleDraft.Module, loaded.Setting)
+                    : null;
+                draft.LoadRuntimeValue(
+                    loaded.Value,
+                    automaticValue,
+                    IsAutoDetectedAslmEngine(loaded.Setting));
             }
         }
 
         /// <summary>
-        /// Persists the changed settings for a module and applies runtime updates where possible.
+        /// Commits changed detached drafts, applies runtime setters, and persists the module manifest.
         /// </summary>
-        public async Task<ModuleSaveResult> SaveActiveModuleAsync(
-            ModuleConfig module,
-            Dictionary<string, SettingBaseline> baselines)
+        public async Task<ModuleSaveResult> SaveActiveModuleAsync(ModuleSettingsDraft moduleDraft)
         {
             var touchedModules = new HashSet<ModuleConfig>();
             var deferredSettings = new List<string>();
+            var changedDrafts = moduleDraft.Settings
+                .Where(static draft =>
+                    ShouldDisplaySetting(draft.Setting) &&
+                    !draft.IsReadOnly &&
+                    draft.HasChanges)
+                .ToList();
 
-            // Compare each setting against baseline and apply runtime set-exec when changed.
-            foreach (var setting in module.Settings.Where(ShouldDisplaySetting))
+            if (changedDrafts.Count == 0)
             {
-                if (IsAutoDetectedAslmEngine(setting))
-                {
-                    continue;
-                }
+                return new ModuleSaveResult(touchedModules, deferredSettings);
+            }
 
-                var currentValue = GetCurrentSettingValue(module, setting);
-                var baseline = GetSettingBaseline(module, setting, currentValue, baselines);
-                var effectiveValue = ResolveEffectiveSettingValue(module, setting, currentValue);
-                var displayValue = setting.FormatValueForDisplay(effectiveValue);
+            // Commit every draft before command execution so injected settings form one consistent snapshot.
+            moduleDraft.ApplyToModule();
+            touchedModules.Add(moduleDraft.Module);
 
-                if (baseline.UseCustomValue == setting.UseCustomValue &&
-                    string.Equals(baseline.DisplayValue, displayValue, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                touchedModules.Add(module);
-
+            foreach (var draft in changedDrafts)
+            {
+                var setting = draft.Setting;
                 if (string.IsNullOrWhiteSpace(setting.SetExec))
                 {
                     continue;
                 }
 
-                if (!File.Exists(module.SourcePath))
+                if (!File.Exists(moduleDraft.Module.SourcePath))
                 {
-                    deferredSettings.Add($"{module.Name}: {setting.Name}");
+                    deferredSettings.Add($"{moduleDraft.Module.Name}: {setting.Name}");
                     continue;
                 }
 
                 try
                 {
+                    var displayValue = setting.FormatValueForDisplay(draft.EffectiveValue);
                     var applyResult = await Task.Run(() => _moduleRunner.ExecuteSettingCommandAsync(
-                        module,
+                        moduleDraft.Module,
                         setting,
                         isSet: true,
                         newValue: displayValue,
@@ -845,22 +744,18 @@ namespace ASLM.Services.Internal
 
                     if (applyResult == null)
                     {
-                        deferredSettings.Add($"{module.Name}: {setting.Name}");
+                        deferredSettings.Add($"{moduleDraft.Module.Name}: {setting.Name}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Failed to apply setting '{setting.Key}' for module '{module.Name}': {ex.Message}");
-                    deferredSettings.Add($"{module.Name}: {setting.Name}");
+                    Debug.WriteLine(
+                        $"Failed to apply setting '{setting.Key}' for module '{moduleDraft.Module.Name}': {ex.Message}");
+                    deferredSettings.Add($"{moduleDraft.Module.Name}: {setting.Name}");
                 }
             }
 
-            // Persist manifest changes for every module that had at least one edited setting.
-            foreach (var touchedModule in touchedModules)
-            {
-                await Task.Run(() => _moduleInstaller.SaveConfigAsync(touchedModule));
-            }
-
+            await Task.Run(() => _moduleInstaller.SaveConfigAsync(moduleDraft.Module));
             return new ModuleSaveResult(touchedModules, deferredSettings);
         }
 
@@ -903,16 +798,6 @@ namespace ASLM.Services.Internal
         // Setting values & baselines
 
         /// <summary>
-        /// Resolves the current draft value used for rendering and save comparison.
-        /// </summary>
-        public object? GetCurrentSettingValue(ModuleConfig module, ModuleSetting setting) =>
-            IsAutoDetectedAslmEngine(setting)
-                ? IsAslmEngineInstalled(setting.Key)
-                : setting.IsAutomaticallyManaged && !setting.UseCustomValue
-                    ? _moduleRunner.GetResolvedSettingValue(module, setting) ?? setting.Value ?? setting.Default
-                    : setting.Value ?? setting.Default;
-
-        /// <summary>
         /// Resolves the best available value when runtime loading is skipped or fails.
         /// </summary>
         public object? GetFallbackValue(ModuleConfig module, ModuleSetting setting) =>
@@ -921,58 +806,6 @@ namespace ASLM.Services.Internal
                 : setting.IsAutomaticallyManaged && !setting.UseCustomValue
                     ? _moduleRunner.GetResolvedSettingValue(module, setting) ?? setting.Value ?? setting.Default
                     : setting.Value ?? setting.Default;
-
-        /// <summary>
-        /// Returns the value that ASLM will effectively apply for the current setting state.
-        /// </summary>
-        public object? ResolveEffectiveSettingValue(ModuleConfig module, ModuleSetting setting, object? currentValue) =>
-            setting.IsAutomaticallyManaged && !setting.UseCustomValue
-                ? _moduleRunner.GetResolvedSettingValue(module, setting) ?? currentValue
-                : currentValue;
-
-        /// <summary>
-        /// Refreshes per-setting baselines after a load pass so unsaved-change detection stays accurate.
-        /// </summary>
-        public void UpdateSettingBaselines(
-            ModuleConfig module,
-            IEnumerable<LoadedSetting> loadedSettings,
-            Dictionary<string, SettingBaseline> baselines)
-        {
-            foreach (var loadedSetting in loadedSettings)
-            {
-                var setting = loadedSetting.Setting;
-                var effectiveValue = ResolveEffectiveSettingValue(module, setting, loadedSetting.Value);
-
-                baselines[GetSettingIdentity(module, setting)] = new SettingBaseline(
-                    setting.FormatValueForDisplay(effectiveValue),
-                    setting.UseCustomValue);
-            }
-        }
-
-        /// <summary>
-        /// Returns the stored baseline for one setting, or builds a snapshot from the current value.
-        /// </summary>
-        public SettingBaseline GetSettingBaseline(
-            ModuleConfig module,
-            ModuleSetting setting,
-            object? currentValue,
-            Dictionary<string, SettingBaseline> baselines)
-        {
-            if (baselines.TryGetValue(GetSettingIdentity(module, setting), out var baseline))
-            {
-                return baseline;
-            }
-
-            var effectiveValue = ResolveEffectiveSettingValue(module, setting, currentValue);
-            return new SettingBaseline(setting.FormatValueForDisplay(effectiveValue), setting.UseCustomValue);
-        }
-
-        /// <summary>
-        /// Stable identity key for one module setting within baseline dictionaries.
-        /// </summary>
-        public static string GetSettingIdentity(ModuleConfig module, ModuleSetting setting) =>
-            $"{module.Id}::{setting.Key}";
-
 
         // Engine detection
 

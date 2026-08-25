@@ -3,7 +3,6 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using ASLM.Models;
 using Microsoft.Extensions.Logging;
 
@@ -67,12 +66,7 @@ namespace ASLM.Services.Internal
         {
             lock (_sync)
             {
-                return new GitHubAccountState
-                {
-                    IsConnected = _state.IsConnected,
-                    UserName = _state.UserName,
-                    ErrorMessage = _state.ErrorMessage
-                };
+                return _state.Clone();
             }
         }
 
@@ -101,13 +95,9 @@ namespace ASLM.Services.Internal
 
             try
             {
-                var userName = await VerifyTokenAsync(token, ct);
-                SetState(new GitHubAccountState
-                {
-                    IsConnected = true,
-                    UserName = userName
-                });
-                _appData.Data.GitHub.UserName = userName;
+                var state = await VerifyTokenAsync(token, ct);
+                SetState(state);
+                _appData.Data.GitHub.UserName = state.UserName;
                 _rateLimitStore.ApplyAuthenticatedLimitHint(isAuthenticated: true);
             }
             catch (Exception ex)
@@ -148,24 +138,19 @@ namespace ASLM.Services.Internal
 
             try
             {
-                var userName = await VerifyTokenAsync(normalizedToken, ct);
+                var state = await VerifyTokenAsync(normalizedToken, ct);
                 _appData.Data.GitHub.PersonalAccessToken = normalizedToken;
-                _appData.Data.GitHub.UserName = userName;
+                _appData.Data.GitHub.UserName = state.UserName;
                 _appData.Data.GitHub.Normalize();
                 await _appData.SaveAsync();
 
-                var state = new GitHubAccountState
-                {
-                    IsConnected = true,
-                    UserName = userName
-                };
                 SetState(state);
                 _rateLimitStore.ApplyAuthenticatedLimitHint(isAuthenticated: true);
 
                 return new GitHubAccountActionResult
                 {
                     Success = true,
-                    Message = userName,
+                    Message = state.UserName,
                     State = state
                 };
             }
@@ -208,7 +193,10 @@ namespace ASLM.Services.Internal
             };
         }
 
-        private async Task<string> VerifyTokenAsync(string token, CancellationToken ct)
+        /// <summary>
+        /// Verifies a token and returns all profile metadata exposed by GitHub's authenticated-user endpoint.
+        /// </summary>
+        private async Task<GitHubAccountState> VerifyTokenAsync(string token, CancellationToken ct)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, UserEndpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -224,27 +212,26 @@ namespace ASLM.Services.Internal
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            var payload = await JsonSerializer.DeserializeAsync<GitHubUserPayload>(stream, _jsonOptions, ct);
-            if (payload == null || string.IsNullOrWhiteSpace(payload.Login))
+            var state = await JsonSerializer.DeserializeAsync<GitHubAccountState>(stream, _jsonOptions, ct);
+            if (state == null || string.IsNullOrWhiteSpace(state.UserName))
             {
                 throw new InvalidOperationException("GitHub API did not return an account login.");
             }
 
-            return payload.Login.Trim();
+            state.IsConnected = true;
+            state.UserName = state.UserName.Trim();
+            return state;
         }
 
+        /// <summary>
+        /// Replaces the cached GitHub account snapshot under synchronization.
+        /// </summary>
         private void SetState(GitHubAccountState state)
         {
             lock (_sync)
             {
                 _state = state;
             }
-        }
-
-        private sealed class GitHubUserPayload
-        {
-            [JsonPropertyName("login")]
-            public string Login { get; set; } = string.Empty;
         }
     }
 }

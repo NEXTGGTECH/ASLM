@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>الشروط والتراخيص</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>جارٍ التحميل...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>التحديث الآن</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>تشغيل خادم المرآة المحلي مع ASLM</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>خادم API</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>الإصدار يستخدم إصدارات GitHub المستقرة فقط. ما قبل الإصدار يقبل أيضاً إصدارات المعاينة</value>
+    <value>تمكين خادم ASLM المرآة</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>قناة تحديث التطبيق</value>
+    <value>قناة تحديثات ASLM</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>ساعات بين فحوصات التحديث في الخلفية</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>فترة الفحص التلقائي</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>تطبيق تحديثات الوحدات تلقائياً وتحضير بنيات ASLM لإعادة التشغيل التالية</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>تثبيت التحديثات تلقائياً</value>
+    <value>تمكين التثبيت التلقائي للتحديثات</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>حساب Ollama</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>غير متصل</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>اتصل لرفع حد واجهة برمجة التطبيقات من 60 إلى 5000 طلب في الساعة</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>متصل</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>متصل باسم {0}</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>اتصال</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>حساب GitHub</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>سجّل الدخول برمز وصول شخصي لاستخدام حد أعلى لواجهة برمجة تطبيقات GitHub.</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>فشل الاتصال: {0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>تفضيلات تحديث التطبيق والوحدات</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>يتوفر تحديث Ollama {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>تحديث Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>الإصدار الحالي: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>فشل التحديث: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>تم تحديث Ollama إلى {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>تحديث Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>جارٍ تحديث Ollama...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama محدّث</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>التحقق من تحديثات ASLM</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>التحقق من التحديثات</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>التحقق الآن</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>السماح لـ ASLM بالاستعلام عن مستودعات GitHub المُهيّأة</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>التحقق من التحديثات</value>
+    <value>تمكين التحقق التلقائي من التحديثات</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>إغلاق الإعدادات</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>إبقاء وحدات تحكم العمليات المنتهية مرئية عند تفعيل وحدات التحكم الفردية</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>وحدات تحكم العمليات المكتملة</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>إظهار صفحة وحدات التحكم المدمجة في الشريط الجانبي</value>
+    <value>إظهار وحدات تحكم العمليات المكتملة</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>صفحة وحدات التحكم</value>
+    <value>إظهار صفحة وحدات التحكم</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>تجاهل التغييرات</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>اسم العرض</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>الاسم المعروض في ASLM والمشترك مع الوحدات</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>لا توجد إعدادات في هذه الفئة</value>
   </data>
@@ -995,41 +930,23 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>الوحدات</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>إظهار وحدات تحكم لكل عملية إلى جانب مخرجات الوحدة الموحّدة</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>وحدات تحكم فردية</value>
+    <value>إظهار وحدات تحكم منفصلة لعمليات الوحدات</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>تحميل الافتراضي</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>فحص يدوي</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>يُستخدم من قِبل الوحدات التي تتبع إصدارات GitHub</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>قناة إصدار الوحدة الافتراضية</value>
+    <value>قناة تحديث الوحدات الافتراضية</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>لا توجد إعدادات لهذه الوحدة في الحالة الحالية</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>تبدأ تفضيلات الوحدات الجديدة من هذا الوضع؛ يمكن للوحدات الفردية تجاوزه</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>وضع تحديث الوحدة الافتراضي</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>لا تتوفر إعدادات</value>
   </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>منفذ البداية لجميع الوحدات. يتم تخصيص المنافذ بالتسلسل ابتداءً من هذه القيمة</value>
-  </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
-    <value>منفذ بداية الوحدات</value>
+    <value>منفذ بدء الوحدات</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>حساب Ollama</value>
@@ -1050,19 +967,13 @@
     <value>Ollama الداخلي غير مثبت</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>غير مسجّل الدخول</value>
+    <value>اربط حساب Ollama لاستخدام النماذج السحابية</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>تسجيل الدخول</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>تسجيل الخروج</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>مسجّل الدخول</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>مسجّل الدخول باسم {0}</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>جارٍ تسجيل الدخول...</value>
@@ -1077,7 +988,7 @@
     <value>في انتظار تسجيل الدخول عبر المتصفح</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>السمة النشطة</value>
+    <value>سمة مخصصة</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>مخصص</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>اللغة</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>يحدد لغة الواجهة لـ ASLM والوحدات المدعومة</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>الوضع</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>يحدد كيفية اختيار التطبيق لمظهر الواجهة العام</value>
+    <value>السمة</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>جديد</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>لا توجد سمات مخصصة بعد. أنشئ سمة لاستخدام المظهر المخصص</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>لوحة الألوان المحفوظة التي تنتمي إليها صفوف الرموز أدناه</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>اختر السمة المخصصة النشطة</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>أنشئ لوحة ألوان أولاً؛ ستظهر هنا للاختيار</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>إعادة التسمية</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>السمات</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>إضافة أو استيراد أو مشاركة تعريفات لوحات الألوان المخزّنة كملفات</value>
+    <value>إدارة السمات المخصصة</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>المنافذ</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>تحضير تحديث ASLM</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>إعادة التشغيل الآن</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>حفظ</value>
@@ -1187,11 +1077,9 @@
     <value>الشروط</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>قبول تحديثات الشروط تلقائيًا</value>
+    <value>قبول تحديثات السياسة تلقائيًا</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>قبول الشروط الجديدة والمحدَّثة بعد المراجعة الأولى.</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>حذف</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>حذف السمة</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>محرر ألوان السمة</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>القيم الافتراضية الدلالية المدمجة للرموز التي لم تُعدّل بعد</value>
+    <value>السمة الأساسية</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>مسح</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>محرر الألوان للسمة: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>محرر السمة: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>اختيار</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>سمة جديدة</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>أدخل اسمًا جديدًا لهذه السمة</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>إعادة تسمية السمة</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>الإعدادات</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>يتوفر تحديث ASLM {0}. استخدم «تحضير تحديث ASLM» لتنزيله</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>يتوفر تحديث ASLM {0}؛ {1} مُجهَّز بالفعل لإعادة التشغيل</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>تم تحضير ASLM {0} وسيُطبَّق عند إعادة التشغيل</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>فشل التحقق من التحديث: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>جارٍ التحقق من مستودعات GitHub...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>تعذّر تحضير تحديث ASLM</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>جارٍ تنزيل بنية ASLM...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>يتوفر {0} من تحديثات المحرك</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>يتوفر {0} تحديث/تحديثات. يمكن تطبيق تحديثات الوحدات من صفحة الوحدات</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} مُجهَّز لإعادة التشغيل</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} تحديث ذاتي لـ ASLM مُجهَّز لإعادة التشغيل</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>لم يُجرَ أي فحص للتحديث في هذه الجلسة</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>تم تحضير تحديث ASLM وسيُطبَّق عند إعادة التشغيل</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>تم تحضير تحديث ASLM {0} وسيُطبَّق عند إعادة التشغيل</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>فشلت إعادة التشغيل: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>جارٍ إعادة تشغيل ASLM...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>تنزيل التحديث</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>كل شيء محدّث.</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>جارٍ التنزيل</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>استخدام قيمة مخصصة</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>التثبيت وإعادة التشغيل</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>خطأ في التحقق</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>حساب محلي. تُخزَّن بيانات الملف الشخصي على هذا الجهاز فقط.</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>تم ربط الحساب السحابي باسم {0}</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>استخدام حساب سحابي</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>إعدادات أخرى</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>الإصدار المتاح: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>الإصدار المثبّت: {0}</value>
   </data>
 </root>

@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>शर्तें और लाइसेंस</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>लोड हो रहा है...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>अभी अपडेट करें</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>ASLM के साथ स्थानीय मिरर सर्वर शुरू करें</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>API सर्वर</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>रिलीज़ केवल स्थिर GitHub रिलीज़ का उपयोग करती है। प्री-रिलीज़ पूर्वावलोकन रिलीज़ भी स्वीकार करती है</value>
+    <value>ASLM मिरर सर्वर सक्षम करें</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>एप्लिकेशन अपडेट चैनल</value>
+    <value>ASLM अपडेट चैनल</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>पृष्ठभूमि अपडेट जाँचों के बीच घंटे</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>स्वतः-जाँच अंतराल</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>मॉड्यूल अपडेट स्वतः लागू करें और अगले पुनः आरंभ के लिए ASLM बिल्ड तैयार करें</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>अपडेट स्वतः इंस्टॉल करें</value>
+    <value>स्वचालित अपडेट इंस्टॉलेशन सक्षम करें</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama खाता</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>कनेक्ट नहीं</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>API सीमा प्रति घंटे 60 से 5,000 अनुरोध तक बढ़ाने के लिए कनेक्ट करें</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>कनेक्टेड</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>{0} के रूप में कनेक्टेड</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>कनेक्ट करें</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>GitHub खाता</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>उच्च GitHub API सीमा के लिए व्यक्तिगत एक्सेस टोकन से साइन इन करें।</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>कनेक्शन विफल: {0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>एप्लिकेशन और मॉड्यूल अपडेट प्राथमिकताएँ</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Ollama अपडेट {0} उपलब्ध है</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Ollama अपडेट करें</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>वर्तमान संस्करण: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>अपडेट विफल: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama को {0} पर अपडेट किया गया</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Ollama अपडेट</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Ollama अपडेट हो रहा है...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama अप-टू-डेट है</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>ASLM अपडेट जाँचें</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>अपडेट जाँचें</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>अभी जाँचें</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>ASLM को कॉन्फ़िगर की गई GitHub रिपॉज़िटरी क्वेरी करने दें</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>अपडेट जाँचें</value>
+    <value>स्वचालित अपडेट जाँच सक्षम करें</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>सेटिंग्स बंद करें</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>व्यक्तिगत कंसोल सक्षम होने पर पूर्ण प्रक्रिया कंसोल दृश्यमान रखें</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>पूर्ण प्रक्रिया कंसोल</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>साइडबार में अंतर्निहित कंसोल पृष्ठ दिखाएँ</value>
+    <value>पूर्ण प्रक्रियाओं के कंसोल दिखाएँ</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>कंसोल पृष्ठ</value>
+    <value>कंसोल पृष्ठ दिखाएँ</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>बदलाव छोड़ें</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>प्रदर्शन नाम</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>ASLM और मॉड्यूलों के साथ साझा किया गया नाम</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>इस श्रेणी में कोई सेटिंग नहीं</value>
   </data>
@@ -995,41 +930,23 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>मॉड्यूल</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>एकीकृत मॉड्यूल आउटपुट के साथ प्रति-प्रक्रिया कंसोल दिखाएँ</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>व्यक्तिगत कंसोल</value>
+    <value>मॉड्यूल प्रक्रियाओं के लिए अलग कंसोल दिखाएँ</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>डिफ़ॉल्ट लोड करें</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>मैन्युअल जाँच</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>GitHub रिलीज़ का पालन करने वाले मॉड्यूल द्वारा उपयोग</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>डिफ़ॉल्ट मॉड्यूल रिलीज़ चैनल</value>
+    <value>डिफ़ॉल्ट मॉड्यूल अपडेट चैनल</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>वर्तमान स्थिति में इस मॉड्यूल की कोई सेटिंग नहीं</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>नई मॉड्यूल प्राथमिकताएँ इस मोड से शुरू होती हैं; व्यक्तिगत मॉड्यूल इसे ओवरराइड कर सकते हैं</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>डिफ़ॉल्ट मॉड्यूल अपडेट मोड</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>कोई सेटिंग उपलब्ध नहीं</value>
   </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>सभी मॉड्यूल के लिए प्रारंभ पोर्ट। इस मान से पोर्ट क्रमिक रूप से आवंटित किए जाते हैं</value>
-  </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
-    <value>मॉड्यूल प्रारंभ पोर्ट</value>
+    <value>मॉड्यूल आरंभ पोर्ट</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Ollama खाता</value>
@@ -1050,19 +967,13 @@
     <value>आंतरिक Ollama इंस्टॉल नहीं है</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>साइन इन नहीं</value>
+    <value>क्लाउड मॉडल इस्तेमाल करने के लिए Ollama खाता कनेक्ट करें</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>साइन इन</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>साइन आउट</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>साइन इन किया</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>{0} के रूप में साइन इन</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>साइन इन हो रहा है...</value>
@@ -1077,7 +988,7 @@
     <value>ब्राउज़र साइन-इन की प्रतीक्षा</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>सक्रिय थीम</value>
+    <value>कस्टम थीम</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>कस्टम</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>भाषा</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>ASLM और समर्थित मॉड्यूलों के लिए इंटरफ़ेस भाषा सेट करता है</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>मोड</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>ऐप अपना समग्र इंटरफ़ेस रूप कैसे चुनता है, यह सेट करता है</value>
+    <value>थीम</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>नया</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>अभी कोई कस्टम थीम नहीं। कस्टम रूप के लिए एक बनाएँ</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>नीचे की टोकन पंक्तियाँ किस सहेजी गई पैलेट से संबंधित हैं</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>कौन-सी कस्टम थीम सक्रिय है, चुनें</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>पहले एक पैलेट बनाएँ; चयन के लिए यहाँ दिखेगी</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>नाम बदलें</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>थीम</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>फ़ाइलों के रूप में संग्रहीत पैलेट परिभाषाएँ जोड़ें, लाएँ या साझा करें</value>
+    <value>कस्टम थीम प्रबंधित करें</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>पोर्ट</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>ASLM अपडेट तैयार करें</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>अभी पुनः आरंभ करें</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>सहेजें</value>
@@ -1187,11 +1077,9 @@
     <value>शर्तें</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>शर्त अपडेट स्वतः स्वीकार करें</value>
+    <value>नीति अपडेट अपने आप स्वीकार करें</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>पहली समीक्षा के बाद नई और अपडेट की गई शर्तें स्वीकार करें।</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>हटाएँ</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>थीम हटाएँ</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>थीम रंग संपादक</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>अभी तक ओवरराइड न किए टोकन के लिए अंतर्निहित सिमेंटिक डिफ़ॉल्ट</value>
+    <value>बेस थीम</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>साफ़ करें</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>थीम के लिए रंग संपादक: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>थीम संपादक: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>चुनें</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>नई थीम</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>इस थीम के लिए नया नाम दर्ज करें</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>थीम का नाम बदलें</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>सेटिंग्स</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>ASLM अपडेट {0} उपलब्ध है। डाउनलोड के लिए "ASLM अपडेट तैयार करें" का उपयोग करें</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>ASLM अपडेट {0} उपलब्ध है; {1} पुनः आरंभ के लिए पहले से तैयार है</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} तैयार है और पुनः आरंभ पर लागू होगा</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>अपडेट जाँच विफल: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>GitHub रिपॉज़िटरी जाँच रहा है...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>ASLM अपडेट तैयार नहीं हो सका</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>ASLM बिल्ड डाउनलोड हो रहा है...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>{0} इंजन अपडेट उपलब्ध</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>{0} अपडेट उपलब्ध। मॉड्यूल अपडेट मॉड्यूल पृष्ठ से लागू किए जा सकते हैं</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} पुनः आरंभ के लिए तैयार है</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} ASLM स्व-अपडेट पुनः आरंभ के लिए तैयार है</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>इस सत्र में कोई अपडेट जाँच नहीं चलाई गई</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>ASLM अपडेट तैयार है और पुनः आरंभ पर लागू होगा</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>ASLM अपडेट {0} तैयार है और पुनः आरंभ पर लागू होगा</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>पुनः आरंभ विफल: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>ASLM पुनः आरंभ हो रहा है...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>अपडेट डाउनलोड करें</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>सब कुछ अद्यतन है।</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>डाउनलोड हो रहा है</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>कस्टम मान उपयोग करें</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>इंस्टॉल करें और पुनः आरंभ करें</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>सत्यापन त्रुटि</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>स्थानीय खाता। प्रोफ़ाइल डेटा केवल इस डिवाइस पर संग्रहीत होता है।</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>क्लाउड खाता {0} के रूप में कनेक्ट है</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>क्लाउड खाते का उपयोग करें</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>अन्य सेटिंग्स</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>उपलब्ध संस्करण: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>इंस्टॉल किया गया संस्करण: {0}</value>
   </data>
 </root>

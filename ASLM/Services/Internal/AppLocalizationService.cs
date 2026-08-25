@@ -196,8 +196,6 @@ namespace ASLM.Services.Internal
         public static string GetDisplayName(string languageCode) =>
             GetCultureNativeName(AppPersonalizationConfig.NormalizeLanguage(languageCode));
 
-        private const string MachineTranslationPickerTag = "[AI]";
-
         /// <summary>
         /// Returns the bilingual label for the language picker: English name — native name,
         /// with a fixed English machine-translation tag for non-English locales.
@@ -211,11 +209,6 @@ namespace ASLM.Services.Internal
             var label = string.Equals(english, native, StringComparison.OrdinalIgnoreCase)
                 ? english
                 : $"{english} - {native}";
-
-            if (!string.Equals(normalized, "en", StringComparison.OrdinalIgnoreCase))
-            {
-                label = $"{label} {MachineTranslationPickerTag}";
-            }
 
             return label;
         }

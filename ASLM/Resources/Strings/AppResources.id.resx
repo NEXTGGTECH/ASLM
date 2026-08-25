@@ -581,7 +581,8 @@
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Ketentuan dan lisensi</value>
-  </data>  <data name="Loading_Text" xml:space="preserve">
+  </data>
+  <data name="Loading_Text" xml:space="preserve">
     <value>Memuat...</value>
   </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
@@ -803,17 +804,11 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Perbarui sekarang</value>
   </data>
-  <data name="Settings_ApiServer_Description" xml:space="preserve">
-    <value>Mulai server mirror lokal bersama ASLM</value>
-  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>Server API</value>
-  </data>
-  <data name="Settings_AppChannel_Description" xml:space="preserve">
-    <value>Rilis hanya menggunakan rilis GitHub stabil. Pra-rilis juga menerima rilis pratinjau</value>
+    <value>Aktifkan ASLM Mirror Server</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
-    <value>Saluran pembaruan aplikasi</value>
+    <value>Saluran pembaruan ASLM</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Jam antara pemeriksaan pembaruan latar belakang</value>
@@ -821,11 +816,8 @@
   <data name="Settings_AutoCheckPeriod_Title" xml:space="preserve">
     <value>Periode pemeriksaan otomatis</value>
   </data>
-  <data name="Settings_AutoInstall_Description" xml:space="preserve">
-    <value>Terapkan pembaruan modul secara otomatis dan siapkan build ASLM untuk mulai ulang berikutnya</value>
-  </data>
   <data name="Settings_AutoInstall_Title" xml:space="preserve">
-    <value>Pasang pembaruan secara otomatis</value>
+    <value>Aktifkan pemasangan pembaruan otomatis</value>
   </data>
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
@@ -854,17 +846,8 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Akun Ollama</value>
   </data>
-  <data name="Settings_GitHub_NotConnected" xml:space="preserve">
-    <value>Tidak terhubung</value>
-  </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>Hubungkan untuk menaikkan batas API dari 60 menjadi 5.000 permintaan per jam</value>
-  </data>
-  <data name="Settings_GitHub_Connected" xml:space="preserve">
-    <value>Terhubung</value>
-  </data>
-  <data name="Settings_GitHub_ConnectedAs" xml:space="preserve">
-    <value>Terhubung sebagai {0}</value>
   </data>
   <data name="Settings_GitHub_Connect" xml:space="preserve">
     <value>Hubungkan</value>
@@ -886,9 +869,6 @@
   </data>
   <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
     <value>Akun GitHub</value>
-  </data>
-  <data name="Settings_GitHub_TokenDescription" xml:space="preserve">
-    <value>Masuk dengan token akses pribadi untuk menggunakan batas API GitHub yang lebih tinggi.</value>
   </data>
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Koneksi gagal: {0}</value>
@@ -914,59 +894,17 @@
   <data name="Settings_Category_Updates_Description" xml:space="preserve">
     <value>Preferensi pembaruan aplikasi dan modul</value>
   </data>
-  <data name="Settings_OllamaUpdate_Available" xml:space="preserve">
-    <value>Pembaruan Ollama {0} tersedia</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Button" xml:space="preserve">
-    <value>Perbarui Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Description" xml:space="preserve">
-    <value>Versi saat ini: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Failed" xml:space="preserve">
-    <value>Pembaruan gagal: {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Success" xml:space="preserve">
-    <value>Ollama diperbarui ke {0}</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Title" xml:space="preserve">
-    <value>Pembaruan Ollama</value>
-  </data>
-  <data name="Settings_OllamaUpdate_Updating" xml:space="preserve">
-    <value>Memperbarui Ollama...</value>
-  </data>
-  <data name="Settings_OllamaUpdate_UpToDate" xml:space="preserve">
-    <value>Ollama sudah terbaru</value>
-  </data>
-  <data name="Settings_CheckAslmUpdates" xml:space="preserve">
-    <value>Periksa pembaruan ASLM</value>
-  </data>
-  <data name="Settings_CheckOllamaUpdates" xml:space="preserve">
-    <value>Periksa pembaruan</value>
-  </data>
-  <data name="Settings_CheckNow" xml:space="preserve">
-    <value>Periksa sekarang</value>
-  </data>
-  <data name="Settings_CheckUpdates_Description" xml:space="preserve">
-    <value>Izinkan ASLM meminta repositori GitHub yang dikonfigurasi</value>
-  </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
-    <value>Periksa pembaruan</value>
+    <value>Aktifkan pemeriksaan pembaruan otomatis</value>
   </data>
   <data name="Settings_CloseTooltip" xml:space="preserve">
     <value>Tutup Pengaturan</value>
   </data>
-  <data name="Settings_CompletedConsoles_Description" xml:space="preserve">
-    <value>Biarkan konsol proses yang selesai tetap terlihat saat konsol individual diaktifkan</value>
-  </data>
   <data name="Settings_CompletedConsoles_Title" xml:space="preserve">
-    <value>Konsol proses selesai</value>
-  </data>
-  <data name="Settings_ConsolesPage_Description" xml:space="preserve">
-    <value>Tampilkan halaman konsol bawaan di bilah sisi</value>
+    <value>Tampilkan konsol proses yang selesai</value>
   </data>
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
-    <value>Halaman konsol</value>
+    <value>Tampilkan halaman Konsol</value>
   </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Buang Perubahan</value>
@@ -980,9 +918,6 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Nama Tampilan</value>
   </data>
-  <data name="Settings_DisplayNameDescription" xml:space="preserve">
-    <value>Nama yang ditampilkan di ASLM dan dibagikan ke modul</value>
-  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>Kategori ini tidak memiliki pengaturan</value>
   </data>
@@ -995,38 +930,20 @@
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>MODUL</value>
   </data>
-  <data name="Settings_IndividualConsoles_Description" xml:space="preserve">
-    <value>Tampilkan konsol per proses di samping output modul terpadu</value>
-  </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
-    <value>Konsol individual</value>
+    <value>Tampilkan konsol terpisah untuk proses modul</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Muat default</value>
   </data>
-  <data name="Settings_ManualCheck_Title" xml:space="preserve">
-    <value>Pemeriksaan manual</value>
-  </data>
-  <data name="Settings_ModuleChannel_Description" xml:space="preserve">
-    <value>Digunakan oleh modul yang mengikuti rilis GitHub</value>
-  </data>
   <data name="Settings_ModuleChannel_Title" xml:space="preserve">
-    <value>Saluran rilis modul default</value>
+    <value>Saluran pembaruan modul default</value>
   </data>
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>Modul ini tidak memiliki pengaturan dalam keadaan saat ini</value>
   </data>
-  <data name="Settings_ModuleUpdateMode_Description" xml:space="preserve">
-    <value>Preferensi modul baru dimulai dari mode ini; modul individual dapat menggantinya</value>
-  </data>
-  <data name="Settings_ModuleUpdateMode_Title" xml:space="preserve">
-    <value>Mode pembaruan modul default</value>
-  </data>
   <data name="Settings_NoSettingsAvailable" xml:space="preserve">
     <value>Tidak ada pengaturan yang tersedia</value>
-  </data>
-  <data name="Settings_ModulePortDescription" xml:space="preserve">
-    <value>Port awal untuk semua modul. Port dialokasikan secara berurutan dari nilai ini</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>Port awal modul</value>
@@ -1050,19 +967,13 @@
     <value>Ollama internal belum terpasang</value>
   </data>
   <data name="Settings_Ollama_NotSignedIn" xml:space="preserve">
-    <value>Belum masuk</value>
+    <value>Hubungkan akun Ollama untuk menggunakan model cloud</value>
   </data>
   <data name="Settings_Ollama_SignIn" xml:space="preserve">
     <value>Masuk</value>
   </data>
   <data name="Settings_Ollama_SignOut" xml:space="preserve">
     <value>Keluar</value>
-  </data>
-  <data name="Settings_Ollama_SignedIn" xml:space="preserve">
-    <value>Sudah masuk</value>
-  </data>
-  <data name="Settings_Ollama_SignedInAs" xml:space="preserve">
-    <value>Masuk sebagai {0}</value>
   </data>
   <data name="Settings_Ollama_SigningIn" xml:space="preserve">
     <value>Sedang masuk...</value>
@@ -1077,7 +988,7 @@
     <value>Menunggu masuk melalui browser</value>
   </data>
   <data name="Settings_Personalization_ActiveTheme" xml:space="preserve">
-    <value>Tema aktif</value>
+    <value>Tema khusus</value>
   </data>
   <data name="Settings_Personalization_Appearance_Custom" xml:space="preserve">
     <value>Kustom</value>
@@ -1115,14 +1026,8 @@
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Bahasa</value>
   </data>
-  <data name="Settings_Personalization_LanguageDescription" xml:space="preserve">
-    <value>Mengatur bahasa antarmuka untuk ASLM dan modul yang didukung</value>
-  </data>
   <data name="Settings_Personalization_Mode" xml:space="preserve">
-    <value>Mode tampilan</value>
-  </data>
-  <data name="Settings_Personalization_ModeDescription" xml:space="preserve">
-    <value>Menentukan cara aplikasi memilih tampilan antarmuka keseluruhan</value>
+    <value>Tema</value>
   </data>
   <data name="Settings_Personalization_New" xml:space="preserve">
     <value>Baru</value>
@@ -1130,29 +1035,14 @@
   <data name="Settings_Personalization_NoThemes" xml:space="preserve">
     <value>Belum ada tema kustom. Buat satu untuk menggunakan tampilan Kustom</value>
   </data>
-  <data name="Settings_Personalization_SelectThemeActive" xml:space="preserve">
-    <value>Palet tersimpan mana yang baris token di bawah ini milikinya</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeDescription" xml:space="preserve">
-    <value>Pilih tema kustom mana yang aktif</value>
-  </data>
-  <data name="Settings_Personalization_SelectThemeEmpty" xml:space="preserve">
-    <value>Buat palet terlebih dahulu; palet akan muncul di sini untuk dipilih</value>
+  <data name="Settings_Personalization_Rename" xml:space="preserve">
+    <value>Ubah nama</value>
   </data>
   <data name="Settings_Personalization_Themes" xml:space="preserve">
-    <value>Tema</value>
-  </data>
-  <data name="Settings_Personalization_ThemesDescription" xml:space="preserve">
-    <value>Tambah, impor, atau bagikan definisi palet yang disimpan sebagai file</value>
+    <value>Kelola tema khusus</value>
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Port</value>
-  </data>
-  <data name="Settings_PrepareAslmUpdate" xml:space="preserve">
-    <value>Siapkan pembaruan ASLM</value>
-  </data>
-  <data name="Settings_RestartNow" xml:space="preserve">
-    <value>Mulai ulang sekarang</value>
   </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Simpan</value>
@@ -1187,11 +1077,9 @@
     <value>Ketentuan</value>
   </data>
   <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Terima pembaruan ketentuan otomatis</value>
+    <value>Terima pembaruan kebijakan secara otomatis</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Description" xml:space="preserve">
-    <value>Terima ketentuan baru dan diperbarui setelah tinjauan pertama.</value>
-  </data>  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
+  <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Hapus</value>
   </data>
   <data name="Settings_ThemeDelete_Message" xml:space="preserve">
@@ -1201,16 +1089,13 @@
     <value>Hapus tema</value>
   </data>
   <data name="Settings_ThemeEditor_Base" xml:space="preserve">
-    <value>Editor warna tema</value>
-  </data>
-  <data name="Settings_ThemeEditor_BaseDescription" xml:space="preserve">
-    <value>Default semantik bawaan untuk token yang belum Anda ganti</value>
+    <value>Tema dasar</value>
   </data>
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Bersihkan</value>
   </data>
-  <data name="Settings_ThemeEditor_ColorsFormat" xml:space="preserve">
-    <value>Editor warna untuk tema: {0}</value>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Editor tema: {0}</value>
   </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Pilih</value>
@@ -1239,62 +1124,29 @@
   <data name="Settings_ThemeNew_PromptTitle" xml:space="preserve">
     <value>Tema Baru</value>
   </data>
+  <data name="Settings_ThemeRename_PromptMessage" xml:space="preserve">
+    <value>Masukkan nama baru untuk tema ini</value>
+  </data>
+  <data name="Settings_ThemeRename_PromptTitle" xml:space="preserve">
+    <value>Ubah nama tema</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>Pengaturan</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailable" xml:space="preserve">
-    <value>Pembaruan ASLM {0} tersedia. Gunakan "Siapkan pembaruan ASLM" untuk mengunduhnya</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmAvailableStaged" xml:space="preserve">
-    <value>Pembaruan ASLM {0} tersedia; {1} sudah disiapkan untuk mulai ulang</value>
-  </data>
-  <data name="Settings_UpdateStatus_AslmTagPrepared" xml:space="preserve">
-    <value>ASLM {0} disiapkan dan akan diterapkan saat mulai ulang</value>
-  </data>
-  <data name="Settings_UpdateStatus_CheckFailed" xml:space="preserve">
-    <value>Pemeriksaan pembaruan gagal: {0}</value>
-  </data>
-  <data name="Settings_UpdateStatus_Checking" xml:space="preserve">
-    <value>Memeriksa repositori GitHub...</value>
   </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>Pembaruan ASLM tidak dapat disiapkan</value>
   </data>
-  <data name="Settings_UpdateStatus_Downloading" xml:space="preserve">
-    <value>Mengunduh build ASLM...</value>
-  </data>
-  <data name="Settings_UpdateStatus_EngineUpdatesCount" xml:space="preserve">
-    <value>{0} pembaruan mesin tersedia</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesCount" xml:space="preserve">
-    <value>{0} pembaruan tersedia. Pembaruan modul dapat diterapkan dari halaman Modul</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedAslm" xml:space="preserve">
-    <value>{0} ASLM {1} disiapkan untuk mulai ulang</value>
-  </data>
-  <data name="Settings_UpdateStatus_ModuleUpdatesStagedGeneric" xml:space="preserve">
-    <value>{0} Pembaruan mandiri ASLM disiapkan untuk mulai ulang</value>
-  </data>
-  <data name="Settings_UpdateStatus_None" xml:space="preserve">
-    <value>Tidak ada pemeriksaan pembaruan yang dijalankan dalam sesi ini</value>
-  </data>
-  <data name="Settings_UpdateStatus_Prepared" xml:space="preserve">
-    <value>Pembaruan ASLM disiapkan dan akan diterapkan saat mulai ulang</value>
-  </data>
-  <data name="Settings_UpdateStatus_PreparedWithVersion" xml:space="preserve">
-    <value>Pembaruan ASLM {0} disiapkan dan akan diterapkan saat mulai ulang</value>
-  </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Mulai ulang gagal: {0}</value>
   </data>
-  <data name="Settings_UpdateStatus_Restarting" xml:space="preserve">
-    <value>Memulai ulang ASLM...</value>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Unduh pembaruan</value>
   </data>
-  <data name="Settings_UpdateStatus_UpToDate" xml:space="preserve">
-    <value>Semuanya sudah terbaru.</value>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>Mengunduh</value>
   </data>
-  <data name="Settings_UseCustomValue" xml:space="preserve">
-    <value>Gunakan nilai kustom</value>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Instal dan mulai ulang</value>
   </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Kesalahan Validasi</value>
@@ -1401,9 +1253,6 @@
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
     <value>Akun lokal. Data profil hanya disimpan di perangkat ini.</value>
   </data>
-  <data name="Settings_AslmAccount_CloudStatus" xml:space="preserve">
-    <value>Akun cloud terhubung sebagai {0}</value>
-  </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Gunakan akun cloud</value>
   </data>
@@ -1463,5 +1312,11 @@
   </data>
   <data name="Settings_ModuleOtherSettings" xml:space="preserve">
     <value>Pengaturan lainnya</value>
+  </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Versi tersedia: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Versi terinstal: {0}</value>
   </data>
 </root>

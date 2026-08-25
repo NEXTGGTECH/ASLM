@@ -22,6 +22,11 @@
       "domainType": "NGGT_OSS"
     },
     {
+      "name": "WEB_Profile",
+      "url": "id/",
+      "domainType": "NGGT_OSS"
+    },
+    {
       "name": "WEB_PasswordRecovery",
       "url": "id/",
       "domainType": "NGGT_OSS"

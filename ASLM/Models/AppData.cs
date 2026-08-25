@@ -275,6 +275,12 @@ namespace ASLM.Models
         [JsonPropertyName("installedReleaseTag")]
         public string? InstalledReleaseTag { get; set; }
 
+        [JsonPropertyName("availableAppUpdate")]
+        public PersistedUpdateCandidate? AvailableAppUpdate { get; set; }
+
+        [JsonPropertyName("availableOllamaUpdate")]
+        public PersistedUpdateCandidate? AvailableOllamaUpdate { get; set; }
+
         [JsonPropertyName("moduleDefaultMode")]
         public string ModuleDefaultMode { get; set; } = "release";
 
@@ -290,19 +296,38 @@ namespace ASLM.Models
             LastAutoCheckUtc = string.IsNullOrWhiteSpace(LastAutoCheckUtc) ? null : LastAutoCheckUtc;
             AppChannel = NormalizeChannel(AppChannel);
             InstalledReleaseTag = string.IsNullOrWhiteSpace(InstalledReleaseTag) ? null : InstalledReleaseTag.Trim();
-            ModuleDefaultMode = NormalizeMode(ModuleDefaultMode);
+            AvailableAppUpdate = NormalizeCandidate(AvailableAppUpdate, "app", "aslm");
+            AvailableOllamaUpdate = NormalizeCandidate(AvailableOllamaUpdate, "engine", "ollama-service");
+            ModuleDefaultMode = "release";
             ModuleDefaultChannel = NormalizeChannel(ModuleDefaultChannel);
         }
 
+        /// <summary>
+        /// Keeps only complete persisted candidates that match their expected update target.
+        /// </summary>
+        private static PersistedUpdateCandidate? NormalizeCandidate(
+            PersistedUpdateCandidate? candidate,
+            string expectedKind,
+            string expectedId)
+        {
+            if (candidate == null ||
+                !candidate.Normalize() ||
+                !string.Equals(candidate.TargetKind, expectedKind, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(candidate.TargetId, expectedId, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return candidate;
+        }
+
+        /// <summary>
+        /// Normalizes a release-channel value to one of the supported persisted names.
+        /// </summary>
         private static string NormalizeChannel(string? value) =>
             string.Equals(value, "pre-release", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(value, "prerelease", StringComparison.OrdinalIgnoreCase)
                 ? "pre-release"
-                : "release";
-
-        private static string NormalizeMode(string? value) =>
-            string.Equals(value, "branch", StringComparison.OrdinalIgnoreCase)
-                ? "branch"
                 : "release";
     }
 
