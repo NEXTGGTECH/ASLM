@@ -189,6 +189,7 @@ namespace ASLM.Pages
             _localization.CultureChanged -= OnLocalizationCultureChanged;
             UnhookShellEvents();
 #if WINDOWS
+            CancelModuleBrowserRetry();
             ReleaseModuleWebViewDropTarget();
 #endif
         }
@@ -1498,6 +1499,7 @@ namespace ASLM.Pages
         private string? _pendingModuleBrowserUrl;
         private Microsoft.UI.Xaml.Controls.WebView2? _moduleWebView2;
         private bool _moduleWebViewNavigationHooked;
+        private int _moduleBrowserRetrySequence = -1;
 #endif
 
         /// <summary>
@@ -1524,6 +1526,7 @@ namespace ASLM.Pages
             _moduleBrowserExpectedUrl = null;
             _moduleBrowserUrl = null;
 #if WINDOWS
+            CancelModuleBrowserRetry();
             _pendingModuleBrowserUrl = null;
 #endif
             Browser.Source = null;
@@ -1563,6 +1566,9 @@ namespace ASLM.Pages
                 return;
             }
 
+#if WINDOWS
+            CancelModuleBrowserRetry();
+#endif
             var sequence = Interlocked.Increment(ref _moduleBrowserNavigationSequence);
             _moduleBrowserExpectedUrl = url;
             MainThread.BeginInvokeOnMainThread(() => ApplyModuleBrowserNavigation(sequence, url));
@@ -1571,7 +1577,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Applies one module-browser navigation on the UI thread.
         /// </summary>
-        private void ApplyModuleBrowserNavigation(int sequence, string url)
+        private void ApplyModuleBrowserNavigation(int sequence, string url, bool force = false)
         {
             if (sequence != _moduleBrowserNavigationSequence ||
                 !string.Equals(_moduleBrowserExpectedUrl, url, StringComparison.OrdinalIgnoreCase))
@@ -1580,26 +1586,27 @@ namespace ASLM.Pages
             }
 
             _moduleBrowserUrl = url;
-            Browser.Source = new UrlWebViewSource { Url = url };
 
 #if WINDOWS
             _pendingModuleBrowserUrl = url;
 
             if (_moduleWebView2?.CoreWebView2 is not Microsoft.Web.WebView2.Core.CoreWebView2 core)
             {
+                Browser.Source = new UrlWebViewSource { Url = url };
                 return;
             }
 
             _pendingModuleBrowserUrl = null;
             WireModuleWebViewNavigation(core);
 
-            if (ModuleBrowserUrlsMatch(core.Source, url))
+            if (!force && ModuleBrowserUrlsMatch(core.Source, url))
             {
                 return;
             }
 
-            core.Stop();
             core.Navigate(url);
+#else
+            Browser.Source = new UrlWebViewSource { Url = url };
 #endif
         }
 
@@ -1626,13 +1633,27 @@ namespace ASLM.Pages
             object? sender,
             Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
         {
-            if (!e.IsSuccess || !Browser.IsVisible)
+            if (!Browser.IsVisible)
             {
                 return;
             }
 
             var expected = _moduleBrowserExpectedUrl;
             var actual = _moduleWebView2?.CoreWebView2?.Source;
+            if (!e.IsSuccess)
+            {
+                if (!string.IsNullOrWhiteSpace(expected) &&
+                    ShouldRetryModuleBrowserNavigation(e.WebErrorStatus))
+                {
+                    ScheduleModuleBrowserRetry(
+                        _moduleBrowserNavigationSequence,
+                        expected);
+                }
+
+                return;
+            }
+
+            CancelModuleBrowserRetry();
             if (string.IsNullOrWhiteSpace(expected) || ModuleBrowserUrlsMatch(actual, expected))
             {
                 return;
@@ -1648,6 +1669,54 @@ namespace ASLM.Pages
 
                 ApplyModuleBrowserNavigation(_moduleBrowserNavigationSequence, _moduleBrowserExpectedUrl);
             });
+        }
+
+        /// <summary>
+        /// Returns whether a failed local navigation can succeed once the module listener binds.
+        /// </summary>
+        private static bool ShouldRetryModuleBrowserNavigation(
+            Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus status) =>
+            status is Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ServerUnreachable
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.Timeout
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ConnectionAborted
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ConnectionReset
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.Disconnected
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.CannotConnect;
+
+        /// <summary>
+        /// Retries one failed local navigation without overlapping requests or surviving a page switch.
+        /// </summary>
+        private void ScheduleModuleBrowserRetry(int sequence, string url)
+        {
+            if (_moduleBrowserRetrySequence == sequence)
+            {
+                return;
+            }
+
+            _moduleBrowserRetrySequence = sequence;
+            Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(200), () =>
+            {
+                if (_moduleBrowserRetrySequence != sequence)
+                {
+                    return;
+                }
+
+                _moduleBrowserRetrySequence = -1;
+                if (sequence == _moduleBrowserNavigationSequence &&
+                    string.Equals(_moduleBrowserExpectedUrl, url, StringComparison.OrdinalIgnoreCase) &&
+                    Browser.IsVisible)
+                {
+                    ApplyModuleBrowserNavigation(sequence, url, force: true);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Cancels the single pending module-browser retry, if any.
+        /// </summary>
+        private void CancelModuleBrowserRetry()
+        {
+            _moduleBrowserRetrySequence = -1;
         }
 
 #endif
@@ -1695,12 +1764,9 @@ namespace ASLM.Pages
             }
 
             WireModuleWebViewNavigation(core);
-
-            var targetUrl = _moduleBrowserExpectedUrl ?? _pendingModuleBrowserUrl ?? _moduleBrowserUrl;
-            if (!string.IsNullOrWhiteSpace(targetUrl))
-            {
-                ApplyModuleBrowserNavigation(_moduleBrowserNavigationSequence, targetUrl);
-            }
+            // Browser.Source was assigned while the core was initializing;
+            // WebView2 will complete that one navigation without a second Navigate call.
+            _pendingModuleBrowserUrl = null;
         }
 
         /// <summary>
