@@ -109,12 +109,14 @@ public sealed class SettingsServiceTests
         var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
         store.Data.User.Name = "Tester";
         store.Data.Ports.ModulesStart = 21000;
+        store.Data.Navigation.RestoreLastPage = false;
 
         var draft = SettingsService.BuildAslmDraftSnapshot(store, apiServerEnabled: true);
 
         draft.UserName.Should().Be("Tester");
         draft.PortStart.Should().Be("21000");
         draft.ApiServerEnabled.Should().BeTrue();
+        draft.RestoreLastPage.Should().BeFalse();
     }
 
     /// <summary>
@@ -128,12 +130,20 @@ public sealed class SettingsServiceTests
         var console = new ConsoleBaseline(false, true, false);
         var updates = new AppUpdateSettings { AutoCheckPeriodHours = 12 };
 
-        SettingsService.ApplyDraftsToAppData(store, "Bob", 22000, console, updates, legalAutoAcceptUpdates: true);
+        SettingsService.ApplyDraftsToAppData(
+            store,
+            "Bob",
+            22000,
+            console,
+            updates,
+            restoreLastPage: false,
+            legalAutoAcceptUpdates: true);
 
         store.Data.User.Name.Should().Be("Bob");
         store.Data.Ports.ModulesStart.Should().Be(22000);
         store.Data.Consoles.ShowCompletedProcesses.Should().BeTrue();
         store.Data.Updates.AutoCheckPeriodHours.Should().Be(1);
+        store.Data.Navigation.RestoreLastPage.Should().BeFalse();
     }
 
     /// <summary>

@@ -42,6 +42,10 @@ namespace ASLM.Models
         [JsonPropertyName("consoles")]
         public AppConsoleConfig Consoles { get; set; } = new();
 
+        // Stores shell startup and last-page navigation preferences.
+        [JsonPropertyName("navigation")]
+        public AppNavigationConfig Navigation { get; set; } = new();
+
         // Stores ASLM and module update preferences.
         [JsonPropertyName("updates")]
         public AppUpdateSettings Updates { get; set; } = new();
@@ -79,6 +83,10 @@ namespace ASLM.Models
             Consoles ??= new();
             Consoles.Normalize();
 
+            // Recreate and normalize shell navigation preferences when the section is absent.
+            Navigation ??= new();
+            Navigation.Normalize();
+
             // Recreate and normalize update preferences when the section is absent.
             Updates ??= new();
             Updates.Normalize();
@@ -94,6 +102,31 @@ namespace ASLM.Models
             // Recreate and normalize GitHub account settings when the section is absent.
             GitHub ??= new();
             GitHub.Normalize();
+        }
+    }
+
+
+    // Shell navigation settings
+
+    /// <summary>
+    /// Stores the last stable shell page and whether ASLM should restore it on startup.
+    /// </summary>
+    public class AppNavigationConfig
+    {
+        // Restores the last stable page instead of always opening the home dashboard.
+        [JsonPropertyName("restoreLastPage")]
+        public bool RestoreLastPage { get; set; } = true;
+
+        // Uses a stable shell route rather than a transient local module URL.
+        [JsonPropertyName("lastPage")]
+        public string LastPage { get; set; } = ShellNavigationRoute.Home;
+
+        /// <summary>
+        /// Replaces missing or unsupported routes with the home dashboard.
+        /// </summary>
+        public void Normalize()
+        {
+            LastPage = ShellNavigationRoute.Normalize(LastPage);
         }
     }
 

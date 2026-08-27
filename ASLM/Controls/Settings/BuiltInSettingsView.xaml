@@ -16,6 +16,16 @@
         <VerticalStackLayout x:Name="CoreContainer"
                              Spacing="12"
                              IsVisible="False">
+            <settings:SettingsSectionView x:Name="StartupCategory">
+                <settings:SettingsSectionView.SectionContent>
+                    <settings:SettingsRowView x:Name="RestoreLastPageRow">
+                        <settings:SettingsRowView.TrailingContent>
+                            <settings:SettingsToggle x:Name="RestoreLastPageToggle" />
+                        </settings:SettingsRowView.TrailingContent>
+                    </settings:SettingsRowView>
+                </settings:SettingsSectionView.SectionContent>
+            </settings:SettingsSectionView>
+
             <settings:SettingsSectionView x:Name="PortsCategory">
                 <settings:SettingsSectionView.SectionContent>
                     <VerticalStackLayout x:Name="PortsSection"

@@ -186,6 +186,16 @@ namespace ASLM.Pages
         }
 
         /// <summary>
+        /// Determines whether ASLM settings that require an application restart differ from their baselines.
+        /// </summary>
+        private bool HasUnsavedAslmRestartSettingsChanges()
+        {
+            _portStartDraft = GetCurrentPortStartDraft();
+            _updateDraft = GetCurrentUpdateDraft();
+            return _editSession.Application.HasAslmRestartChanges;
+        }
+
+        /// <summary>
         /// Reads the module start port draft from visible controls when the ports section is shown.
         /// </summary>
         private string GetCurrentPortStartDraft() =>
@@ -301,6 +311,7 @@ namespace ASLM.Pages
                     _portStartDraft = defaults.PortStart;
                     _apiServerEnabledDraft = defaults.ApiServerEnabled;
                     _consoleDraft = defaults.ConsoleDefaults;
+                    _restoreLastPageDraft = defaults.RestoreLastPage;
                     _legalAutoAcceptDraft = defaults.LegalAutoAcceptUpdates;
                     PortErrorLabel.IsVisible = false;
                     ApplyAslmDraftsToControls();
@@ -465,8 +476,9 @@ namespace ASLM.Pages
                     await SavePersonalizationAsync(applyImmediately: !restartAfterSave);
                 }
 
-                var hadAppRestartChanges = HasUnsavedAslmSettingsChanges();
-                var hadAslmChanges = HasUnsavedAccountChanges() || hadAppRestartChanges;
+                var hadAslmSettingsChanges = HasUnsavedAslmSettingsChanges();
+                var hadAppRestartChanges = HasUnsavedAslmRestartSettingsChanges();
+                var hadAslmChanges = HasUnsavedAccountChanges() || hadAslmSettingsChanges;
                 var modulesWithChanges = GetModulesWithUnsavedChanges();
 
                 SettingsService.ApplyDraftsToAppData(
@@ -475,6 +487,7 @@ namespace ASLM.Pages
                     portResult.ModulesStart,
                     _consoleDraft,
                     nextSettings,
+                    _restoreLastPageDraft,
                     _legalAutoAcceptDraft);
                 await _appData.SaveAsync();
 

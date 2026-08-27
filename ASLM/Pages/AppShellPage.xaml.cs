@@ -159,7 +159,7 @@ namespace ASLM.Pages
         // Startup
 
         /// <summary>
-        /// Loads module state once and opens the default shell view.
+        /// Loads module state once and restores the configured initial shell view.
         /// </summary>
         private async void OnPageLoaded(object? sender, EventArgs e)
         {
@@ -174,10 +174,10 @@ namespace ASLM.Pages
             LegalAcceptanceOverlay.PresentIfRequired(OverlayContainer, _legalAcceptance, _services);
             ScheduleSidebarButtonLayoutRefresh();
             await RefreshModulesAsync();
-            NavigateTo(HomeButton);
             ApplyAslmApiNavigationState();
             ApplyConsoleNavigationState();
             ScheduleEnsureModuleBrowserLeftToRight();
+            RestoreInitialPage();
             _ = StartEnabledModulesAsync();
         }
 
@@ -1060,6 +1060,97 @@ namespace ASLM.Pages
             _activeNavButton = navButton;
 
             ContentArea.Content = GetViewForButton(navButton);
+            RememberPage(GetRouteForButton(navButton));
+        }
+
+        /// <summary>
+        /// Restores the persisted stable shell page after module discovery and sidebar visibility are ready.
+        /// </summary>
+        private void RestoreInitialPage()
+        {
+            _appData.Data.Navigation.Normalize();
+            if (!_appData.Data.Navigation.RestoreLastPage)
+            {
+                NavigateTo(HomeButton);
+                return;
+            }
+
+            var route = _appData.Data.Navigation.LastPage;
+            if (string.Equals(route, ShellNavigationRoute.Consoles, StringComparison.Ordinal) &&
+                ConsolesButton.IsVisible)
+            {
+                NavigateTo(ConsolesButton);
+                return;
+            }
+
+            if (string.Equals(route, ShellNavigationRoute.Modules, StringComparison.Ordinal))
+            {
+                NavigateTo(ModulesButton);
+                return;
+            }
+
+            if (string.Equals(route, ShellNavigationRoute.AslmApi, StringComparison.Ordinal) &&
+                AslmApiButton.IsVisible)
+            {
+                NavigateTo(AslmApiButton);
+                return;
+            }
+
+            if (ShellNavigationRoute.TryGetModuleId(route, out var moduleId))
+            {
+                var module = _allModules.FirstOrDefault(candidate =>
+                    candidate.HasPage &&
+                    candidate.Status.Enabled &&
+                    string.Equals(candidate.Id, moduleId, StringComparison.OrdinalIgnoreCase));
+                if (module != null)
+                {
+                    ActivateModulePage(module);
+                    return;
+                }
+            }
+
+            NavigateTo(HomeButton);
+        }
+
+        /// <summary>
+        /// Maps one stable built-in shell button to its persisted route.
+        /// </summary>
+        private string? GetRouteForButton(Button navButton)
+        {
+            if (navButton == HomeButton)
+            {
+                return ShellNavigationRoute.Home;
+            }
+
+            if (navButton == ConsolesButton)
+            {
+                return ShellNavigationRoute.Consoles;
+            }
+
+            if (navButton == ModulesButton)
+            {
+                return ShellNavigationRoute.Modules;
+            }
+
+            return navButton == AslmApiButton ? ShellNavigationRoute.AslmApi : null;
+        }
+
+        /// <summary>
+        /// Updates the in-memory last-page state; the application flushes it during graceful shutdown.
+        /// </summary>
+        private void RememberPage(string? route)
+        {
+            if (string.IsNullOrWhiteSpace(route))
+            {
+                return;
+            }
+
+            _appData.Data.Navigation.Normalize();
+            var normalizedRoute = ShellNavigationRoute.Normalize(route);
+            if (!string.Equals(_appData.Data.Navigation.LastPage, normalizedRoute, StringComparison.Ordinal))
+            {
+                _appData.Data.Navigation.LastPage = normalizedRoute;
+            }
         }
 
         /// <summary>
@@ -1422,6 +1513,8 @@ namespace ASLM.Pages
 
                 ApplyShellNavInactiveStyle(button);
             }
+
+            RememberPage(ShellNavigationRoute.ForModule(resolved.Id));
         }
 
 

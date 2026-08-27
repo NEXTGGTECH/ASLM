@@ -3283,6 +3283,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Open the last visited page when ASLM starts.
+        /// </summary>
+        public static string Settings_RestoreLastPage_Title {
+            get {
+                return ResourceManager.GetString("Settings_RestoreLastPage_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Save.
         /// </summary>
         public static string Settings_Save {

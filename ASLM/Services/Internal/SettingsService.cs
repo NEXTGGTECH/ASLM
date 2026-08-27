@@ -42,6 +42,7 @@ namespace ASLM.Services.Internal
         string UserName,
         string PortStart,
         bool ApiServerEnabled,
+        bool RestoreLastPage,
         ConsoleBaseline ConsoleBaseline,
         UpdateBaseline UpdateBaseline);
 
@@ -203,12 +204,14 @@ namespace ASLM.Services.Internal
         public static AslmDraftSnapshot BuildAslmDraftSnapshot(AppDataStore appData, bool apiServerEnabled)
         {
             appData.Data.Consoles.Normalize();
+            appData.Data.Navigation.Normalize();
             appData.Data.Updates.Normalize();
 
             return new AslmDraftSnapshot(
                 appData.Data.User.Name ?? string.Empty,
                 appData.Data.Ports.ModulesStart.ToString(CultureInfo.InvariantCulture),
                 apiServerEnabled,
+                appData.Data.Navigation.RestoreLastPage,
                 new ConsoleBaseline(
                     appData.Data.Consoles.SidebarVisible,
                     appData.Data.Consoles.ShowCompletedProcesses,
@@ -229,6 +232,7 @@ namespace ASLM.Services.Internal
             int modulesStart,
             ConsoleBaseline consoleDraft,
             AppUpdateSettings updateSettings,
+            bool restoreLastPage,
             bool legalAutoAcceptUpdates)
         {
             appData.Data.User.Name = userName;
@@ -249,6 +253,9 @@ namespace ASLM.Services.Internal
             appData.Data.Updates.ModuleDefaultChannel = updateSettings.ModuleDefaultChannel;
             appData.Data.Updates.Normalize();
 
+            appData.Data.Navigation.RestoreLastPage = restoreLastPage;
+            appData.Data.Navigation.Normalize();
+
             appData.Data.Legal.AutoAcceptUpdates = legalAutoAcceptUpdates;
             appData.Data.Legal.Normalize();
         }
@@ -268,12 +275,13 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Builds ASLM defaults for ports, API and console sections.
+        /// Builds ASLM defaults for ports, API, console, navigation, and legal sections.
         /// </summary>
-        public static (string PortStart, bool ApiServerEnabled, ConsoleBaseline ConsoleDefaults, bool LegalAutoAcceptUpdates) BuildDefaultAslmDrafts()
+        public static (string PortStart, bool ApiServerEnabled, ConsoleBaseline ConsoleDefaults, bool RestoreLastPage, bool LegalAutoAcceptUpdates) BuildDefaultAslmDrafts()
         {
             var defaultPorts = new AppPortConfig();
             var defaultConsoles = new AppConsoleConfig();
+            var defaultNavigation = new AppNavigationConfig();
             var defaultLegal = new AppLegalConfig();
             defaultLegal.Normalize();
             return (
@@ -283,6 +291,7 @@ namespace ASLM.Services.Internal
                     defaultConsoles.SidebarVisible,
                     defaultConsoles.ShowCompletedProcesses,
                     defaultConsoles.ShowIndividualModuleConsoles),
+                defaultNavigation.RestoreLastPage,
                 defaultLegal.AutoAcceptUpdates);
         }
 

@@ -191,7 +191,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Pushes API and console draft values into the stable XAML toggle controls.
+        /// Pushes API, console, legal, and navigation drafts into the stable XAML toggle controls.
         /// </summary>
         private void ApplyAslmBuiltInDraftsToToggles()
         {
@@ -218,6 +218,11 @@ namespace ASLM.Pages
             if (_legalAutoAcceptToggle != null)
             {
                 _legalAutoAcceptToggle.SetStateWithoutToggleEvent(_legalAutoAcceptDraft);
+            }
+
+            if (_restoreLastPageToggle != null)
+            {
+                _restoreLastPageToggle.SetStateWithoutToggleEvent(_restoreLastPageDraft);
             }
         }
 
@@ -260,7 +265,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Copies API, console, and legal compact toggles into the shared drafts after user interaction.
+        /// Copies API, console, legal, and navigation toggles into the shared drafts after user interaction.
         /// </summary>
         private void RefreshAslmApiAndConsoleDraftsFromToggles()
         {
@@ -282,6 +287,11 @@ namespace ASLM.Pages
             if (_legalAutoAcceptToggle != null)
             {
                 _legalAutoAcceptDraft = _legalAutoAcceptToggle.IsToggled;
+            }
+
+            if (_restoreLastPageToggle != null)
+            {
+                _restoreLastPageDraft = _restoreLastPageToggle.IsToggled;
             }
         }
 
