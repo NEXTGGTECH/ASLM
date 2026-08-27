@@ -1044,6 +1044,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>Cổng</value>
   </data>
+  <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
+    <value>Mở trang đã truy cập gần nhất khi ASLM khởi động</value>
+  </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Lưu</value>
   </data>

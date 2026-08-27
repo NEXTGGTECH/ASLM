@@ -359,6 +359,7 @@ public static class LocalizationKeys
     public const string Settings_Personalization_Rename = "Settings_Personalization_Rename";
     public const string Settings_Personalization_Themes = "Settings_Personalization_Themes";
     public const string Settings_Ports = "Settings_Ports";
+    public const string Settings_RestoreLastPage_Title = "Settings_RestoreLastPage_Title";
     public const string Settings_InstallAndRestart = "Settings_InstallAndRestart";
     public const string Settings_Save = "Settings_Save";
     public const string Settings_SaveAndRestart = "Settings_SaveAndRestart";

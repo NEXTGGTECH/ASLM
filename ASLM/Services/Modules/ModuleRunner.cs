@@ -172,16 +172,50 @@ namespace ASLM.Services.Modules
 
             moduleLog.Report($"Starting {module.Name}...");
 
+            var processStartTasks = new List<Task<bool>>();
+
             foreach (var cmd in module.Commands.Run)
             {
                 if (ct.IsCancellationRequested) return false;
 
                 moduleLog.Report($"[Run] {cmd.Name}: {cmd.Description}");
-                // Run commands are long-running; we start them in the background and track their processes.
-                _ = RunCommandAsync(module, cmd, moduleLog, ct, trackProcess: true, sessionStage: "Run");
+                // Run commands stay in the background, but launch callers receive a
+                // handshake only after each root process is created and tracked.
+                var processStarted = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                processStartTasks.Add(processStarted.Task);
+                _ = RunCommandAsync(
+                    module,
+                    cmd,
+                    moduleLog,
+                    ct,
+                    trackProcess: true,
+                    sessionStage: "Run",
+                    processStarted: processStarted);
             }
 
-            return true;
+            bool[] startResults;
+            try
+            {
+                startResults = await Task.WhenAll(processStartTasks).WaitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                // Let every pending starter observe cancellation before cleanup,
+                // so none can register a late process after the stop pass.
+                await Task.WhenAll(processStartTasks);
+                await StopModuleAsync(module.SourcePath);
+                throw;
+            }
+
+            if (startResults.All(started => started))
+            {
+                return true;
+            }
+
+            moduleLog.Report($"One or more run commands for {module.Name} failed to start.");
+            await StopModuleAsync(module.SourcePath);
+            return false;
         }
 
         /// <summary>
@@ -715,6 +749,7 @@ namespace ASLM.Services.Modules
         /// <param name="log">Progress reporter.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <param name="trackProcess">If true, the process is tracked for lifecycle management (long-running).</param>
+        /// <param name="processStarted">Optional signal completed after the root process is tracked.</param>
         /// <returns>True if the command executed successfully (exit code 0).</returns>
         public async Task<bool> RunCommandAsync(
             ModuleConfig module, 
@@ -723,7 +758,8 @@ namespace ASLM.Services.Modules
             CancellationToken ct,
             bool trackProcess = false,
             bool injectSettings = true,
-            string sessionStage = "Command")
+            string sessionStage = "Command",
+            TaskCompletionSource<bool>? processStarted = null)
         {
             try
             {
@@ -805,6 +841,7 @@ namespace ASLM.Services.Modules
                 var process = new Process { StartInfo = psi };
 
                 // 4. Start & Wait
+                ct.ThrowIfCancellationRequested();
                 if (!process.Start())
                 {
                     log.Report("Failed to start process.");
@@ -841,7 +878,7 @@ namespace ASLM.Services.Modules
                 };
 
                 // Assign to the job object so launched processes stay grouped under ASLM.
-                _processTracker.AddProcess(process);
+                _processTracker?.AddProcess(process);
 
                 // Track the process for module stop functionality
                 if (trackProcess)
@@ -858,8 +895,12 @@ namespace ASLM.Services.Modules
 
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
+                processStarted?.TrySetResult(true);
 
-                await process.WaitForExitAsync(ct);
+                // A launch token controls setup and process creation only. Once a
+                // tracked run command starts, module stop owns its lifetime.
+                var lifetimeToken = trackProcess ? CancellationToken.None : ct;
+                await process.WaitForExitAsync(lifetimeToken);
                 _consoleStore.CompleteProcessSession(sessionHandle, process.ExitCode);
 
                 // Remove from tracking after process exits naturally
@@ -890,6 +931,12 @@ namespace ASLM.Services.Modules
                 log.Report($"Execution error: {ex.Message}");
                 _logger.LogError(ex, "Command execution failed");
                 return false;
+            }
+            finally
+            {
+                // Every failure path must release launch callers waiting for the
+                // process-start handshake. TrySet is harmless after success.
+                processStarted?.TrySetResult(false);
             }
         }
 

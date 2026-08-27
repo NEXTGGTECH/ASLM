@@ -1044,6 +1044,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>Bağlantı noktaları</value>
   </data>
+  <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
+    <value>ASLM başlatıldığında son ziyaret edilen sayfayı aç</value>
+  </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Kaydet</value>
   </data>

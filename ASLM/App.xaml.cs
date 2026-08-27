@@ -74,6 +74,20 @@ namespace ASLM
 
             try
             {
+                // Persist navigation only after the shell has finished loading; closing during LoadingPage
+                // must never overwrite existing application data with a not-yet-loaded default model.
+                if (sender is Window { Page: AppShellPage })
+                {
+                    _services.GetRequiredService<AppDataStore>().Save();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[App] Failed to save app data during shutdown: {ex}");
+            }
+
+            try
+            {
                 // Stop module processes first so the tracker can dispose after active work ends.
                 var runner = _services.GetRequiredService<ModuleRunner>();
                 runner.StopAllModulesAsync().GetAwaiter().GetResult();

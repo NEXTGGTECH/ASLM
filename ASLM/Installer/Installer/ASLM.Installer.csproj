@@ -12,8 +12,8 @@
 		<AssemblyName>ASLM-Installer</AssemblyName>
 		<ApplicationTitle>ASLM Installer</ApplicationTitle>
 		<ApplicationId>com.nextggtech.aslm.installer</ApplicationId>
-		<ApplicationDisplayVersion>0.8.2</ApplicationDisplayVersion>
-		<ApplicationVersion>3</ApplicationVersion>
+		<ApplicationDisplayVersion>0.8.3</ApplicationDisplayVersion>
+		<ApplicationVersion>5</ApplicationVersion>
 		<WindowsPackageType>None</WindowsPackageType>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>

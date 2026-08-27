@@ -22,6 +22,7 @@ public sealed class SettingsEditSessionTests
                 "Alice",
                 "20000",
                 true,
+                true,
                 new ConsoleBaseline(true, false, true),
                 new UpdateBaseline(true, false, "release", "release")),
             legalAutoAcceptUpdates: true);
@@ -52,27 +53,55 @@ public sealed class SettingsEditSessionTests
                 "Alice",
                 "20000",
                 true,
+                true,
                 new ConsoleBaseline(true, false, true),
                 new UpdateBaseline(true, false, "release", "release")),
             legalAutoAcceptUpdates: true);
 
         draft.ApiServerEnabled = false;
+        draft.RestoreLastPage = false;
         draft.Console = new ConsoleBaseline(false, true, false);
         draft.Update = new UpdateBaseline(false, true, "pre-release", "pre-release");
         draft.LegalAutoAcceptUpdates = false;
         draft.AcceptAslm();
 
         draft.ApiServerEnabled = true;
+        draft.RestoreLastPage = true;
         draft.Console = new ConsoleBaseline(true, true, true);
         draft.Update = new UpdateBaseline(true, false, "release", "release");
         draft.LegalAutoAcceptUpdates = true;
         draft.DiscardAslm();
 
         draft.ApiServerEnabled.Should().BeFalse();
+        draft.RestoreLastPage.Should().BeFalse();
         draft.Console.Should().Be(new ConsoleBaseline(false, true, false));
         draft.Update.Should().Be(new UpdateBaseline(false, true, "pre-release", "pre-release"));
         draft.LegalAutoAcceptUpdates.Should().BeFalse();
         draft.HasAslmChanges.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies that last-page restoration is dirty but does not require an ASLM restart.
+    /// </summary>
+    [Fact]
+    public void Navigation_preference_is_not_restart_relevant()
+    {
+        var draft = new ApplicationSettingsDraft();
+        draft.LoadAslm(
+            new AslmDraftSnapshot(
+                "Alice",
+                "20000",
+                true,
+                true,
+                new ConsoleBaseline(true, false, true),
+                new UpdateBaseline(true, false, "release", "release")),
+            legalAutoAcceptUpdates: true);
+
+        draft.RestoreLastPage = false;
+
+        draft.HasNavigationChanges.Should().BeTrue();
+        draft.HasAslmChanges.Should().BeTrue();
+        draft.HasAslmRestartChanges.Should().BeFalse();
     }
 
     /// <summary>

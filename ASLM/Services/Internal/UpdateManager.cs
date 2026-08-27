@@ -792,6 +792,7 @@ namespace ASLM.Services.Internal
             var module = candidate.Module ?? throw new InvalidOperationException(
                 "Module update candidate does not contain module metadata.");
             module.Normalize();
+            var wasEnabled = module.Status.Enabled;
 
             // Skip download and file replacement when the candidate already matches local state.
             if (IsModuleAlreadyAtInstallTarget(module, candidate))
@@ -863,8 +864,6 @@ namespace ASLM.Services.Internal
                     throw new PlatformNotSupportedException(
                         $"Module '{newConfig.Name}' does not support {PlatformInfo.PlatformKey}.");
                 }
-
-                var wasEnabled = module.Status.Enabled;
 
                 // Stop the module and any orphaned processes holding locks under the install directory.
                 if (wasEnabled)
@@ -1657,12 +1656,19 @@ namespace ASLM.Services.Internal
 
                 if (wasEnabled && installed.Commands.Run.Count > 0)
                 {
+                    log?.Report($"Restarting {installed.Name} after update...");
                     installed.Status.Enabled = true;
-                    await _moduleInstaller.SaveConfigAsync(installed, raiseModulesChanged: false);
-                    _ = Task.Run(() => _moduleRunner.ExecuteRunAsync(
+                    var runStarted = await _moduleRunner.ExecuteRunAsync(
                         installed,
                         log ?? NoOpProgress<string>.Instance,
-                        CancellationToken.None));
+                        ct);
+                    if (!runStarted)
+                    {
+                        installed.Status.Enabled = false;
+                        await _moduleInstaller.SaveConfigAsync(installed, raiseModulesChanged: false);
+                        log?.Report("Module update applied, but restart failed.");
+                        return false;
+                    }
                 }
 
                 installed.Status.LastUpdated = DateTime.UtcNow.ToString("o");

@@ -96,6 +96,11 @@ namespace ASLM.Services.Internal
         public bool ApiServerEnabled { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets whether ASLM restores the last stable shell page on startup.
+        /// </summary>
+        public bool RestoreLastPage { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets the editable console preferences.
         /// </summary>
         public ConsoleBaseline Console { get; set; } = new(true, true, true);
@@ -136,6 +141,11 @@ namespace ASLM.Services.Internal
         public bool LegalAutoAcceptBaseline { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets the accepted last-page restoration preference.
+        /// </summary>
+        public bool RestoreLastPageBaseline { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets the accepted personalization baseline used by dirty-state checks.
         /// </summary>
         public AppPersonalizationConfig PersonalizationBaseline { get; set; } = new();
@@ -149,12 +159,22 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets whether restart-relevant ASLM drafts differ from accepted values.
         /// </summary>
-        public bool HasAslmChanges =>
+        public bool HasAslmRestartChanges =>
             !string.Equals(PortStart, AslmBaseline.PortStart, StringComparison.Ordinal) ||
             ApiServerEnabled != AslmBaseline.ApiServerEnabled ||
             Console != ConsoleBaseline ||
             Update != UpdateBaseline ||
             LegalAutoAcceptUpdates != LegalAutoAcceptBaseline;
+
+        /// <summary>
+        /// Gets whether the non-restart shell startup preference differs from its accepted value.
+        /// </summary>
+        public bool HasNavigationChanges => RestoreLastPage != RestoreLastPageBaseline;
+
+        /// <summary>
+        /// Gets whether any setting shown in the ASLM category differs from its accepted value.
+        /// </summary>
+        public bool HasAslmChanges => HasAslmRestartChanges || HasNavigationChanges;
 
         /// <summary>
         /// Gets whether persisted personalization selection differs from its accepted value.
@@ -172,6 +192,7 @@ namespace ASLM.Services.Internal
             UserName = snapshot.UserName;
             PortStart = snapshot.PortStart;
             ApiServerEnabled = snapshot.ApiServerEnabled;
+            RestoreLastPage = snapshot.RestoreLastPage;
             Console = snapshot.ConsoleBaseline;
             Update = snapshot.UpdateBaseline;
             LegalAutoAcceptUpdates = legalAutoAcceptUpdates;
@@ -197,6 +218,7 @@ namespace ASLM.Services.Internal
             ConsoleBaseline = Console;
             UpdateBaseline = Update;
             LegalAutoAcceptBaseline = LegalAutoAcceptUpdates;
+            RestoreLastPageBaseline = RestoreLastPage;
         }
 
         /// <summary>
@@ -216,6 +238,7 @@ namespace ASLM.Services.Internal
             Console = ConsoleBaseline;
             Update = UpdateBaseline;
             LegalAutoAcceptUpdates = LegalAutoAcceptBaseline;
+            RestoreLastPage = RestoreLastPageBaseline;
         }
 
         /// <summary>

@@ -14,6 +14,7 @@ namespace ASLM.Services.Internal
     {
         private readonly string _filePath;
         private readonly ILogger<AppDataStore> _logger;
+        private readonly SemaphoreSlim _saveLock = new(1, 1);
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -100,10 +101,18 @@ namespace ASLM.Services.Internal
         /// </summary>
         public void Save()
         {
-            EnsureDirectoryExists();
+            _saveLock.Wait();
+            try
+            {
+                EnsureDirectoryExists();
 
-            var json = JsonSerializer.Serialize(Data, _jsonOptions);
-            File.WriteAllText(_filePath, json);
+                var json = JsonSerializer.Serialize(Data, _jsonOptions);
+                File.WriteAllText(_filePath, json);
+            }
+            finally
+            {
+                _saveLock.Release();
+            }
         }
 
         /// <summary>
@@ -111,10 +120,18 @@ namespace ASLM.Services.Internal
         /// </summary>
         public async Task SaveAsync()
         {
-            EnsureDirectoryExists();
+            await _saveLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                EnsureDirectoryExists();
 
-            var json = JsonSerializer.Serialize(Data, _jsonOptions);
-            await File.WriteAllTextAsync(_filePath, json);
+                var json = JsonSerializer.Serialize(Data, _jsonOptions);
+                await File.WriteAllTextAsync(_filePath, json).ConfigureAwait(false);
+            }
+            finally
+            {
+                _saveLock.Release();
+            }
         }
 
 

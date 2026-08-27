@@ -260,10 +260,16 @@ namespace ASLM.Services.Modules
             fresh.Status.Enabled = true;
             await _installer.SaveConfigAsync(fresh);
 
-            // Start run commands on a background thread so the caller can return immediately.
-            _ = Task.Run(
-                () => _runner.ExecuteRunAsync(fresh, moduleLog, CancellationToken.None),
-                CancellationToken.None);
+            // Keep the launch in Starting state through settings synchronization
+            // and until every root run process has actually been created.
+            var runStarted = await _runner.ExecuteRunAsync(fresh, moduleLog, ct);
+            if (!runStarted)
+            {
+                return new ModuleLaunchResult(
+                    ModuleLaunchStatus.Error,
+                    $"One or more run commands for '{fresh.Name}' failed to start.",
+                    fresh);
+            }
 
             return new ModuleLaunchResult(ModuleLaunchStatus.Started, null, fresh);
         }

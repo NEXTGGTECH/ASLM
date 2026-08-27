@@ -50,6 +50,7 @@ namespace ASLM.Controls.Settings
         public SettingsToggle ConsoleIndividualInput => ConsoleIndividualToggle;
         public SettingsToggle ConsoleCompletedInput => ConsoleCompletedToggle;
         public SettingsToggle LegalAutoAcceptInput => LegalAutoAcceptToggle;
+        public SettingsToggle RestoreLastPageInput => RestoreLastPageToggle;
         public Button AslmAccountAction => AslmAccountButton;
         public Label AslmAccountState => AslmAccountStatus;
         public Label AslmAccountTypeBadge => AslmAccountTypeBadgeLabel;
@@ -132,6 +133,8 @@ namespace ASLM.Controls.Settings
         public void ApplyLocalization()
         {
             // Core settings.
+            RestoreLastPageRow.Title = L.Get(LocalizationKeys.Settings_RestoreLastPage_Title);
+            RestoreLastPageRow.Description = string.Empty;
             PortsCategory.Title = L.Get(LocalizationKeys.Settings_Ports);
             ModulePortTitle.Text = L.Get(LocalizationKeys.Settings_ModulePortTitle);
             ModulePortInfoButton.Description = string.Empty;

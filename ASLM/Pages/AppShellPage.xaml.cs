@@ -159,7 +159,7 @@ namespace ASLM.Pages
         // Startup
 
         /// <summary>
-        /// Loads module state once and opens the default shell view.
+        /// Loads module state once and restores the configured initial shell view.
         /// </summary>
         private async void OnPageLoaded(object? sender, EventArgs e)
         {
@@ -174,10 +174,10 @@ namespace ASLM.Pages
             LegalAcceptanceOverlay.PresentIfRequired(OverlayContainer, _legalAcceptance, _services);
             ScheduleSidebarButtonLayoutRefresh();
             await RefreshModulesAsync();
-            NavigateTo(HomeButton);
             ApplyAslmApiNavigationState();
             ApplyConsoleNavigationState();
             ScheduleEnsureModuleBrowserLeftToRight();
+            RestoreInitialPage();
             _ = StartEnabledModulesAsync();
         }
 
@@ -189,6 +189,7 @@ namespace ASLM.Pages
             _localization.CultureChanged -= OnLocalizationCultureChanged;
             UnhookShellEvents();
 #if WINDOWS
+            CancelModuleBrowserRetry();
             ReleaseModuleWebViewDropTarget();
 #endif
         }
@@ -1059,6 +1060,97 @@ namespace ASLM.Pages
             _activeNavButton = navButton;
 
             ContentArea.Content = GetViewForButton(navButton);
+            RememberPage(GetRouteForButton(navButton));
+        }
+
+        /// <summary>
+        /// Restores the persisted stable shell page after module discovery and sidebar visibility are ready.
+        /// </summary>
+        private void RestoreInitialPage()
+        {
+            _appData.Data.Navigation.Normalize();
+            if (!_appData.Data.Navigation.RestoreLastPage)
+            {
+                NavigateTo(HomeButton);
+                return;
+            }
+
+            var route = _appData.Data.Navigation.LastPage;
+            if (string.Equals(route, ShellNavigationRoute.Consoles, StringComparison.Ordinal) &&
+                ConsolesButton.IsVisible)
+            {
+                NavigateTo(ConsolesButton);
+                return;
+            }
+
+            if (string.Equals(route, ShellNavigationRoute.Modules, StringComparison.Ordinal))
+            {
+                NavigateTo(ModulesButton);
+                return;
+            }
+
+            if (string.Equals(route, ShellNavigationRoute.AslmApi, StringComparison.Ordinal) &&
+                AslmApiButton.IsVisible)
+            {
+                NavigateTo(AslmApiButton);
+                return;
+            }
+
+            if (ShellNavigationRoute.TryGetModuleId(route, out var moduleId))
+            {
+                var module = _allModules.FirstOrDefault(candidate =>
+                    candidate.HasPage &&
+                    candidate.Status.Enabled &&
+                    string.Equals(candidate.Id, moduleId, StringComparison.OrdinalIgnoreCase));
+                if (module != null)
+                {
+                    ActivateModulePage(module);
+                    return;
+                }
+            }
+
+            NavigateTo(HomeButton);
+        }
+
+        /// <summary>
+        /// Maps one stable built-in shell button to its persisted route.
+        /// </summary>
+        private string? GetRouteForButton(Button navButton)
+        {
+            if (navButton == HomeButton)
+            {
+                return ShellNavigationRoute.Home;
+            }
+
+            if (navButton == ConsolesButton)
+            {
+                return ShellNavigationRoute.Consoles;
+            }
+
+            if (navButton == ModulesButton)
+            {
+                return ShellNavigationRoute.Modules;
+            }
+
+            return navButton == AslmApiButton ? ShellNavigationRoute.AslmApi : null;
+        }
+
+        /// <summary>
+        /// Updates the in-memory last-page state; the application flushes it during graceful shutdown.
+        /// </summary>
+        private void RememberPage(string? route)
+        {
+            if (string.IsNullOrWhiteSpace(route))
+            {
+                return;
+            }
+
+            _appData.Data.Navigation.Normalize();
+            var normalizedRoute = ShellNavigationRoute.Normalize(route);
+            if (!string.Equals(_appData.Data.Navigation.LastPage, normalizedRoute, StringComparison.Ordinal))
+            {
+                _appData.Data.Navigation.LastPage = normalizedRoute;
+            }
         }
 
         /// <summary>
@@ -1421,6 +1513,8 @@ namespace ASLM.Pages
 
                 ApplyShellNavInactiveStyle(button);
             }
+
+            RememberPage(ShellNavigationRoute.ForModule(resolved.Id));
         }
 
 
@@ -1498,6 +1592,7 @@ namespace ASLM.Pages
         private string? _pendingModuleBrowserUrl;
         private Microsoft.UI.Xaml.Controls.WebView2? _moduleWebView2;
         private bool _moduleWebViewNavigationHooked;
+        private int _moduleBrowserRetrySequence = -1;
 #endif
 
         /// <summary>
@@ -1524,6 +1619,7 @@ namespace ASLM.Pages
             _moduleBrowserExpectedUrl = null;
             _moduleBrowserUrl = null;
 #if WINDOWS
+            CancelModuleBrowserRetry();
             _pendingModuleBrowserUrl = null;
 #endif
             Browser.Source = null;
@@ -1563,6 +1659,9 @@ namespace ASLM.Pages
                 return;
             }
 
+#if WINDOWS
+            CancelModuleBrowserRetry();
+#endif
             var sequence = Interlocked.Increment(ref _moduleBrowserNavigationSequence);
             _moduleBrowserExpectedUrl = url;
             MainThread.BeginInvokeOnMainThread(() => ApplyModuleBrowserNavigation(sequence, url));
@@ -1571,7 +1670,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Applies one module-browser navigation on the UI thread.
         /// </summary>
-        private void ApplyModuleBrowserNavigation(int sequence, string url)
+        private void ApplyModuleBrowserNavigation(int sequence, string url, bool force = false)
         {
             if (sequence != _moduleBrowserNavigationSequence ||
                 !string.Equals(_moduleBrowserExpectedUrl, url, StringComparison.OrdinalIgnoreCase))
@@ -1580,26 +1679,27 @@ namespace ASLM.Pages
             }
 
             _moduleBrowserUrl = url;
-            Browser.Source = new UrlWebViewSource { Url = url };
 
 #if WINDOWS
             _pendingModuleBrowserUrl = url;
 
             if (_moduleWebView2?.CoreWebView2 is not Microsoft.Web.WebView2.Core.CoreWebView2 core)
             {
+                Browser.Source = new UrlWebViewSource { Url = url };
                 return;
             }
 
             _pendingModuleBrowserUrl = null;
             WireModuleWebViewNavigation(core);
 
-            if (ModuleBrowserUrlsMatch(core.Source, url))
+            if (!force && ModuleBrowserUrlsMatch(core.Source, url))
             {
                 return;
             }
 
-            core.Stop();
             core.Navigate(url);
+#else
+            Browser.Source = new UrlWebViewSource { Url = url };
 #endif
         }
 
@@ -1626,13 +1726,27 @@ namespace ASLM.Pages
             object? sender,
             Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
         {
-            if (!e.IsSuccess || !Browser.IsVisible)
+            if (!Browser.IsVisible)
             {
                 return;
             }
 
             var expected = _moduleBrowserExpectedUrl;
             var actual = _moduleWebView2?.CoreWebView2?.Source;
+            if (!e.IsSuccess)
+            {
+                if (!string.IsNullOrWhiteSpace(expected) &&
+                    ShouldRetryModuleBrowserNavigation(e.WebErrorStatus))
+                {
+                    ScheduleModuleBrowserRetry(
+                        _moduleBrowserNavigationSequence,
+                        expected);
+                }
+
+                return;
+            }
+
+            CancelModuleBrowserRetry();
             if (string.IsNullOrWhiteSpace(expected) || ModuleBrowserUrlsMatch(actual, expected))
             {
                 return;
@@ -1648,6 +1762,54 @@ namespace ASLM.Pages
 
                 ApplyModuleBrowserNavigation(_moduleBrowserNavigationSequence, _moduleBrowserExpectedUrl);
             });
+        }
+
+        /// <summary>
+        /// Returns whether a failed local navigation can succeed once the module listener binds.
+        /// </summary>
+        private static bool ShouldRetryModuleBrowserNavigation(
+            Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus status) =>
+            status is Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ServerUnreachable
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.Timeout
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ConnectionAborted
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ConnectionReset
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.Disconnected
+                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.CannotConnect;
+
+        /// <summary>
+        /// Retries one failed local navigation without overlapping requests or surviving a page switch.
+        /// </summary>
+        private void ScheduleModuleBrowserRetry(int sequence, string url)
+        {
+            if (_moduleBrowserRetrySequence == sequence)
+            {
+                return;
+            }
+
+            _moduleBrowserRetrySequence = sequence;
+            Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(200), () =>
+            {
+                if (_moduleBrowserRetrySequence != sequence)
+                {
+                    return;
+                }
+
+                _moduleBrowserRetrySequence = -1;
+                if (sequence == _moduleBrowserNavigationSequence &&
+                    string.Equals(_moduleBrowserExpectedUrl, url, StringComparison.OrdinalIgnoreCase) &&
+                    Browser.IsVisible)
+                {
+                    ApplyModuleBrowserNavigation(sequence, url, force: true);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Cancels the single pending module-browser retry, if any.
+        /// </summary>
+        private void CancelModuleBrowserRetry()
+        {
+            _moduleBrowserRetrySequence = -1;
         }
 
 #endif
@@ -1695,12 +1857,9 @@ namespace ASLM.Pages
             }
 
             WireModuleWebViewNavigation(core);
-
-            var targetUrl = _moduleBrowserExpectedUrl ?? _pendingModuleBrowserUrl ?? _moduleBrowserUrl;
-            if (!string.IsNullOrWhiteSpace(targetUrl))
-            {
-                ApplyModuleBrowserNavigation(_moduleBrowserNavigationSequence, targetUrl);
-            }
+            // Browser.Source was assigned while the core was initializing;
+            // WebView2 will complete that one navigation without a second Navigate call.
+            _pendingModuleBrowserUrl = null;
         }
 
         /// <summary>

@@ -105,7 +105,7 @@ public sealed class ModuleLaunchEngineReconciliationTests
             "engines": [ { "id": "launch-vendor-runtime" } ]
           },
           "commands": {
-            "run": [ { "name": "No-op run", "exec": "" } ]
+            "run": [ { "name": "No-op run", "exec": "cmd.exe /d /c ping -n 2 127.0.0.1" } ]
           },
           "engines": [
             {

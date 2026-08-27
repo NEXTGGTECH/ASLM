@@ -997,6 +997,7 @@ namespace ASLM.Pages
                 OnPropertyChanged(nameof(ShowInstallAction));
                 OnPropertyChanged(nameof(ShowUpdatingStatus));
                 OnPropertyChanged(nameof(CanShowLaunchAction));
+                OnPropertyChanged(nameof(ShowRunningActions));
                 OnPropertyChanged(nameof(ShowCardUpdateAction));
                 OnPropertyChanged(nameof(ShowHeaderBusyIndicator));
                 RefreshCommandStates();
@@ -1100,12 +1101,12 @@ namespace ASLM.Pages
         /// <summary>
         /// Gets whether the running action buttons should stay visible.
         /// </summary>
-        public bool ShowRunningActions => IsRunning && !IsRestarting && !IsStarting;
+        public bool ShowRunningActions => IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
 
         /// <summary>
         /// Gets whether the updating status pill should be visible.
         /// </summary>
-        public bool ShowUpdatingStatus => IsUpdating && IsStopped;
+        public bool ShowUpdatingStatus => IsUpdating;
 
         /// <summary>
         /// Gets whether the starting status pill should be visible.
@@ -1778,13 +1779,6 @@ namespace ASLM.Pages
             IsUpdating = true;
             SetUpdatePhase(UpdateStatusPhase.Updating);
             SetUpdateActivityStatus(UpdateStatus);
-
-            // Reflect the stopped state immediately so the card does not offer launch actions mid-update.
-            if (_config.Status.Enabled)
-            {
-                _config.Status.Enabled = false;
-                NotifyStateChanged();
-            }
 
             IProgress<string> debugLog = new Progress<string>(message =>
                 Debug.WriteLine($"[ModuleUpdate:{Name}] {message}"));

@@ -100,6 +100,7 @@ namespace ASLM.Pages
         private SettingsToggle? _consoleCompletedToggle;
         private SettingsToggle? _consoleIndividualToggle;
         private SettingsToggle? _legalAutoAcceptToggle;
+        private SettingsToggle? _restoreLastPageToggle;
         private CancellationTokenSource? _ollamaMetadataRefreshCts;
         private CancellationTokenSource? _ollamaStatusPollingCts;
         private CancellationTokenSource? _aslmAccountActionCts;
@@ -202,6 +203,13 @@ namespace ASLM.Pages
             set => _editSession.Application.LegalAutoAcceptBaseline = value;
         }
 
+        /// <summary>Gets or replaces the last-page restoration draft stored by the session.</summary>
+        private bool _restoreLastPageDraft
+        {
+            get => _editSession.Application.RestoreLastPage;
+            set => _editSession.Application.RestoreLastPage = value;
+        }
+
         /// <summary>Gets or replaces the personalization draft stored by the session.</summary>
         private AppPersonalizationConfig _personalizationDraft
         {
@@ -291,6 +299,7 @@ namespace ASLM.Pages
             _consoleIndividualToggle = BuiltInSettingsContainer.ConsoleIndividualInput;
             _consoleCompletedToggle = BuiltInSettingsContainer.ConsoleCompletedInput;
             _legalAutoAcceptToggle = BuiltInSettingsContainer.LegalAutoAcceptInput;
+            _restoreLastPageToggle = BuiltInSettingsContainer.RestoreLastPageInput;
             _aslmAccountButton = BuiltInSettingsContainer.AslmAccountAction;
             _aslmAccountStatusLabel = BuiltInSettingsContainer.AslmAccountState;
             _githubAccountButton = BuiltInSettingsContainer.GitHubAccountAction;
@@ -331,6 +340,7 @@ namespace ASLM.Pages
             _consoleIndividualToggle.Toggled += OnAslmBuiltInToggleChanged;
             _consoleCompletedToggle.Toggled += OnAslmBuiltInToggleChanged;
             _legalAutoAcceptToggle.Toggled += OnAslmBuiltInToggleChanged;
+            _restoreLastPageToggle.Toggled += OnAslmBuiltInToggleChanged;
             _checkUpdatesToggle.Toggled += OnUpdateControlChanged;
             _autoUpdatesToggle.Toggled += OnUpdateControlChanged;
             _appUpdateChannelPicker.SelectedIndexChanged += OnUpdateControlChanged;
@@ -1031,7 +1041,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool HasPendingRestartChanges() =>
             HasUnsavedPersonalizationChanges() ||
-            HasUnsavedAslmSettingsChanges() ||
+            HasUnsavedAslmRestartSettingsChanges() ||
             GetModulesWithUnsavedChanges().Any(CanRestartModule);
 
         /// <summary>

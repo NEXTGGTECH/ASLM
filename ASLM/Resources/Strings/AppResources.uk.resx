@@ -1044,6 +1044,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>Порти</value>
   </data>
+  <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
+    <value>Відкривати останню відвідану сторінку під час запуску ASLM</value>
+  </data>
   <data name="Settings_Save" xml:space="preserve">
     <value>Зберегти</value>
   </data>

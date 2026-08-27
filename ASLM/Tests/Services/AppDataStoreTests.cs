@@ -20,6 +20,8 @@ public sealed class AppDataStoreTests
         await store.LoadAsync();
 
         store.IsFirstRun.Should().BeTrue();
+        store.Data.Navigation.RestoreLastPage.Should().BeTrue();
+        store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
         File.Exists(layout.AppDataFilePath).Should().BeTrue("LoadAsync persists defaults when the file is missing");
     }
 
@@ -35,6 +37,8 @@ public sealed class AppDataStoreTests
 
         store.Data.FirstRunCompleted = true;
         store.Data.User.Name = "RoundTrip";
+        store.Data.Navigation.RestoreLastPage = false;
+        store.Data.Navigation.LastPage = ShellNavigationRoute.ForModule("aslm-chat");
         await store.SaveAsync();
 
         var reloaded = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
@@ -42,7 +46,32 @@ public sealed class AppDataStoreTests
 
         reloaded.IsFirstRun.Should().BeFalse();
         reloaded.Data.User.Name.Should().Be("RoundTrip");
+        reloaded.Data.Navigation.RestoreLastPage.Should().BeFalse();
+        reloaded.Data.Navigation.LastPage.Should().Be("module::aslm-chat");
         File.Exists(layout.AppDataFilePath).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that data written before navigation persistence existed receives safe enabled defaults.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_adds_navigation_defaults_to_legacy_data()
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson("""
+            {
+              "firstRunCompleted": true,
+              "user": {
+                "name": "Legacy"
+              }
+            }
+            """);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+
+        await store.LoadAsync();
+
+        store.Data.Navigation.RestoreLastPage.Should().BeTrue();
+        store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
     }
 
     /// <summary>
