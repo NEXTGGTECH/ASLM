@@ -151,4 +151,34 @@ public sealed class ModuleConfigV2Tests
 
         config.ValidationWarnings.Should().ContainSingle(message => message.Contains("missing"));
     }
+
+    /// <summary>
+    /// Verifies host account key settings stay outside user category and dependency validation.
+    /// </summary>
+    [Fact]
+    public void Host_key_metadata_is_ignored_by_user_setting_validation()
+    {
+        var config = ModuleManifestParser.Parse(
+            """
+            {
+              "fileVersion": 1,
+              "id": "host-keys",
+              "settings": [
+                {
+                  "key": "key-aslm",
+                  "type": "key-aslm",
+                  "category": "missing-category",
+                  "dependsOn": "missing-setting"
+                },
+                {
+                  "key": "key-gh",
+                  "type": "key-gh"
+                }
+              ]
+            }
+            """);
+
+        config.Settings.Should().OnlyContain(setting => setting.IsHostKey);
+        config.ValidationWarnings.Should().BeEmpty();
+    }
 }

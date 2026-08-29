@@ -94,6 +94,8 @@ public sealed class SettingsContractCharacterizationTests
     [InlineData("path")]
     [InlineData("data")]
     [InlineData("models")]
+    [InlineData("key-aslm")]
+    [InlineData("key-gh")]
     public void Host_managed_types_remain_ineligible_for_settings_metadata(string type)
     {
         var setting = new ModuleSetting
@@ -114,6 +116,8 @@ public sealed class SettingsContractCharacterizationTests
     [InlineData("port")]
     [InlineData("theme")]
     [InlineData("locale")]
+    [InlineData("key-aslm")]
+    [InlineData("key-gh")]
     public void Host_only_types_remain_hidden_from_settings_editor(string type)
     {
         SettingsService.ShouldDisplaySetting(new ModuleSetting { Type = type }).Should().BeFalse();

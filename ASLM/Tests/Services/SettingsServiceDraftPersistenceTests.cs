@@ -122,6 +122,9 @@ public sealed class SettingsServiceDraftPersistenceTests
             null!,
             null!,
             null!,
+            null!,
+            null!,
+            null!,
             TestLoggerFactory.Create<ModuleRunner>());
     }
 }

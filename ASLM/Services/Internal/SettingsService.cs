@@ -492,7 +492,8 @@ namespace ASLM.Services.Internal
         public static bool ShouldDisplaySetting(ModuleSetting setting) =>
             !string.Equals(setting.NormalizedType, "port", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(setting.NormalizedType, "theme", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(setting.NormalizedType, "locale", StringComparison.OrdinalIgnoreCase);
+            !string.Equals(setting.NormalizedType, "locale", StringComparison.OrdinalIgnoreCase) &&
+            !setting.IsHostKey;
 
         /// <summary>
         /// Returns whether categories and explicit dependencies may affect this user setting.
