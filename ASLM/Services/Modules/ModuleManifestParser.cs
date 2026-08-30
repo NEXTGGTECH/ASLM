@@ -271,6 +271,6 @@ namespace ASLM.Services.Modules
         /// </summary>
         private static bool IsMetadataEligible(ModuleSetting setting) =>
             !setting.IsHostKey &&
-            setting.NormalizedType is not ("engine" or "path" or "data" or "models");
+            setting.NormalizedType is not ("port" or "theme" or "locale");
     }
 }

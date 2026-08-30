@@ -153,6 +153,32 @@ public sealed class ModuleConfigV2Tests
     }
 
     /// <summary>
+    /// Verifies visible special settings receive the same metadata validation as standard settings.
+    /// </summary>
+    [Fact]
+    public void Visible_special_setting_metadata_is_validated()
+    {
+        var config = ModuleManifestParser.Parse(
+            """
+            {
+              "fileVersion": 1,
+              "id": "special-metadata",
+              "settings": [
+                {
+                  "key": "runtime-path",
+                  "type": "path",
+                  "category": "missing-category",
+                  "dependsOn": "missing-setting"
+                }
+              ]
+            }
+            """);
+
+        config.ValidationWarnings.Should().Contain(message => message.Contains("missing-category"));
+        config.ValidationWarnings.Should().Contain(message => message.Contains("missing-setting"));
+    }
+
+    /// <summary>
     /// Verifies host account key settings stay outside user category and dependency validation.
     /// </summary>
     [Fact]

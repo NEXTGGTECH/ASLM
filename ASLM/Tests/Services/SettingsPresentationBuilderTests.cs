@@ -25,7 +25,7 @@ public sealed class SettingsPresentationBuilderTests
             ];
             config.Settings =
             [
-                CreateSetting("runtime_path", "path", "ignored"),
+                CreateSetting("runtime_path", "path", "general"),
                 CreateSetting("general-value", "string", "general"),
                 CreateSetting("advanced-value", "string", "advanced"),
                 CreateSetting("unknown-value", "string", "missing"),
@@ -43,11 +43,12 @@ public sealed class SettingsPresentationBuilderTests
             ModuleSettingsSectionKind.ManifestCategory);
         sections[0].Title.Should().BeNull();
         sections[0].Settings.Select(static draft => draft.Setting.Key).Should().Equal(
-            "runtime_path",
             "unknown-value",
             "plain-value");
         sections[1].Title.Should().Be("General");
-        sections[1].Settings.Select(static draft => draft.Setting.Key).Should().Equal("general-value");
+        sections[1].Settings.Select(static draft => draft.Setting.Key).Should().Equal(
+            "runtime_path",
+            "general-value");
         sections[2].Title.Should().Be("Advanced");
         sections[2].Settings.Select(static draft => draft.Setting.Key).Should().Equal("advanced-value");
     }

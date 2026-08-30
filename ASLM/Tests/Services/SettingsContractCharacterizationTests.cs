@@ -87,16 +87,14 @@ public sealed class SettingsContractCharacterizationTests
     }
 
     /// <summary>
-    /// Verifies that host-managed types remain outside categories and dependency metadata.
+    /// Verifies that displayed special types participate in categories and dependencies.
     /// </summary>
     [Theory]
     [InlineData("engine")]
     [InlineData("path")]
     [InlineData("data")]
     [InlineData("models")]
-    [InlineData("key-aslm")]
-    [InlineData("key-gh")]
-    public void Host_managed_types_remain_ineligible_for_settings_metadata(string type)
+    public void Displayed_special_types_are_eligible_for_settings_metadata(string type)
     {
         var setting = new ModuleSetting
         {
@@ -106,7 +104,7 @@ public sealed class SettingsContractCharacterizationTests
             DependsOn = "enabled"
         };
 
-        SettingsService.IsSettingsMetadataEligible(setting).Should().BeFalse();
+        SettingsService.IsSettingsMetadataEligible(setting).Should().BeTrue();
     }
 
     /// <summary>

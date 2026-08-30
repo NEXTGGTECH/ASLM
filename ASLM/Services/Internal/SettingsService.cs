@@ -496,12 +496,10 @@ namespace ASLM.Services.Internal
             !setting.IsHostKey;
 
         /// <summary>
-        /// Returns whether categories and explicit dependencies may affect this user setting.
-        /// ASLM-managed engine/path/data/models settings remain on their legacy rendering path.
+        /// Returns whether categories and explicit dependencies may affect this visible setting.
         /// </summary>
         public static bool IsSettingsMetadataEligible(ModuleSetting setting) =>
-            ShouldDisplaySetting(setting) &&
-            setting.NormalizedType is not ("engine" or "path" or "data" or "models");
+            ShouldDisplaySetting(setting);
 
         /// <summary>
         /// Evaluates whether a setting should currently be visible based on its controlling toggle.
