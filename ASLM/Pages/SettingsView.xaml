@@ -81,39 +81,78 @@
                             Clicked="OnCloseClicked" />
                 </Grid>
 
-                <ScrollView Grid.Row="1"
-                            x:Name="SettingsScroll"
-                            Margin="0,4,0,0"
-                            Orientation="Vertical"
-                            HorizontalOptions="Fill"
-                            VerticalScrollBarVisibility="Never"
-                            HorizontalScrollBarVisibility="Never">
-                    <VerticalStackLayout x:Name="SettingsContentContainer"
-                                         Spacing="16"
-                                         Padding="0"
+                <Grid Grid.Row="1"
+                      ColumnDefinitions="*,Auto,Auto"
+                      ColumnSpacing="0"
+                      MinimumWidthRequest="0">
+                    <ScrollView x:Name="SettingsScroll"
+                                Grid.Column="0"
+                                Margin="0"
+                                Orientation="Vertical"
+                                HorizontalOptions="Fill"
+                                VerticalScrollBarVisibility="Never"
+                                HorizontalScrollBarVisibility="Never">
+                        <VerticalStackLayout x:Name="SettingsContentContainer"
+                                             Spacing="16"
+                                             Padding="0"
+                                             MinimumWidthRequest="0"
+                                             HorizontalOptions="Fill"
+                                             WidthRequest="{Binding Width, Source={x:Reference SettingsScroll}, x:DataType={x:Type ScrollView}}">
+
+                            <settings:BuiltInSettingsView x:Name="BuiltInSettingsContainer"
+                                                          IsVisible="False" />
+
+                            <ContentView x:Name="ModuleSettingsContainer"
                                          MinimumWidthRequest="0"
                                          HorizontalOptions="Fill"
-                                         WidthRequest="{Binding Width, Source={x:Reference SettingsScroll}, x:DataType={x:Type ScrollView}}">
+                                         IsVisible="False" />
 
-                        <settings:BuiltInSettingsView x:Name="BuiltInSettingsContainer"
-                                                      IsVisible="False" />
+                            <VerticalStackLayout x:Name="EmptyCategoryState"
+                                                 IsVisible="False"
+                                                 Padding="0">
+                                <Label x:Name="EmptyCategoryLabel"
+                                       Text="This category has no settings."
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelSecondary}" />
+                            </VerticalStackLayout>
 
-                        <ContentView x:Name="ModuleSettingsContainer"
-                                     MinimumWidthRequest="0"
-                                     HorizontalOptions="Fill"
-                                     IsVisible="False" />
-
-                        <VerticalStackLayout x:Name="EmptyCategoryState"
-                                             IsVisible="False"
-                                             Padding="0">
-                            <Label x:Name="EmptyCategoryLabel"
-                                   Text="This category has no settings."
-                                   FontSize="13"
-                                   TextColor="{DynamicResource LabelSecondary}" />
                         </VerticalStackLayout>
+                    </ScrollView>
 
-                    </VerticalStackLayout>
-                </ScrollView>
+                    <Grid x:Name="SettingsScrollBarTrack"
+                          Grid.Column="1"
+                          Margin="0"
+                          WidthRequest="12"
+                          MinimumWidthRequest="12"
+                          HorizontalOptions="Center"
+                          VerticalOptions="Fill"
+                          BackgroundColor="Transparent"
+                          IsVisible="False">
+                        <Grid.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnSettingsScrollBarPanUpdated" />
+                        </Grid.GestureRecognizers>
+
+                        <BoxView x:Name="SettingsScrollBarThumb"
+                                 Style="{StaticResource SettingsScrollBarThumbStyle}" />
+                    </Grid>
+
+                    <ContentView x:Name="ModuleSectionNavigationContainer"
+                                 Grid.Column="2"
+                                 Margin="0"
+                                 IsVisible="False">
+                        <ContentView.Triggers>
+                            <DataTrigger TargetType="ContentView"
+                                         Binding="{Binding IsVisible, Source={x:Reference SettingsScrollBarTrack}}"
+                                         Value="True">
+                                <Setter Property="Margin" Value="0" />
+                            </DataTrigger>
+                        </ContentView.Triggers>
+
+                        <Border Style="{StaticResource SettingsModuleSectionSidebarBorderStyle}">
+                            <settings:ModuleSettingsSectionSelectorView />
+                        </Border>
+                    </ContentView>
+                </Grid>
 
                 <Grid Grid.Row="2"
                       RowDefinitions="Auto,Auto"

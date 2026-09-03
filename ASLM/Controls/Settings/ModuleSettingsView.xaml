@@ -10,7 +10,8 @@
              x:DataType="presentation:ModuleSettingsPageViewModel"
              MinimumWidthRequest="0"
              HorizontalOptions="Fill">
-    <VerticalStackLayout Spacing="12"
+    <VerticalStackLayout x:Name="SectionsLayout"
+                         Spacing="12"
                          MinimumWidthRequest="0"
                          HorizontalOptions="Fill"
                          BindableLayout.ItemsSource="{Binding Sections}">

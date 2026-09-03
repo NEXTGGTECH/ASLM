@@ -165,6 +165,147 @@ public sealed class ModuleSettingsPageViewModelTests
     }
 
     /// <summary>
+    /// Verifies navigation uses the module name for the default group and preserves manifest order.
+    /// </summary>
+    [Fact]
+    public void Navigation_titles_default_to_module_name_and_follow_manifest_order()
+    {
+        var module = ModuleConfigBuilder.Create(configure: config =>
+        {
+            config.Name = "Demo Module";
+            config.SettingCategories =
+            [
+                new ModuleSettingCategory { Id = "general", Name = "General" },
+                new ModuleSettingCategory { Id = "advanced", Name = "Advanced" }
+            ];
+
+            var uncategorized = CreateSetting("plain", "string", "value");
+            var general = CreateSetting("general", "string", "value");
+            general.Category = "general";
+            var advanced = CreateSetting("advanced", "string", "value");
+            advanced.Category = "advanced";
+            config.Settings = [uncategorized, general, advanced];
+            config.Normalize();
+        });
+
+        var page = CreatePage(new ModuleSettingsDraft(module));
+
+        page.Sections.Select(static section => section.NavigationTitle)
+            .Should().Equal("Demo Module", "General", "Advanced");
+        page.Sections.First().Title.Should().BeNull();
+        page.Sections.First().IsActive.Should().BeTrue();
+        page.HasSectionNavigation.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies a page with one populated section does not reserve navigation space.
+    /// </summary>
+    [Fact]
+    public void Single_visible_section_hides_navigation()
+    {
+        var module = ModuleConfigBuilder.Create(configure: config =>
+        {
+            config.SettingCategories =
+            [
+                new ModuleSettingCategory { Id = "general", Name = "General" }
+            ];
+
+            var first = CreateSetting("first", "string", "one");
+            first.Category = "general";
+            var second = CreateSetting("second", "string", "two");
+            second.Category = "general";
+            config.Settings = [first, second];
+            config.Normalize();
+        });
+        var page = CreatePage(new ModuleSettingsDraft(module));
+
+        page.Sections.Should().ContainSingle();
+        page.HasSectionNavigation.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies settings without declared categories remain one unlabelled section without navigation.
+    /// </summary>
+    [Fact]
+    public void Module_without_categories_hides_navigation()
+    {
+        var page = CreatePage(new ModuleSettingsDraft(CreateModule(
+            CreateSetting("first", "string", "one"),
+            CreateSetting("second", "string", "two"))));
+
+        page.Sections.Should().ContainSingle();
+        page.Sections.Single().Title.Should().BeNull();
+        page.HasSectionNavigation.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies dependency changes update navigation without rebuilding section presenters.
+    /// </summary>
+    [Fact]
+    public void Dependency_visibility_recomputes_section_navigation()
+    {
+        var module = ModuleConfigBuilder.Create(configure: config =>
+        {
+            config.SettingCategories =
+            [
+                new ModuleSettingCategory { Id = "main", Name = "Main" },
+                new ModuleSettingCategory { Id = "details", Name = "Details" }
+            ];
+
+            var controller = CreateSetting("enabled", "bool", false);
+            controller.Category = "main";
+            var dependent = CreateSetting("value", "string", "text");
+            dependent.Category = "details";
+            dependent.DependsOn = controller.Key;
+            config.Settings = [controller, dependent];
+            config.Normalize();
+        });
+        var page = CreatePage(new ModuleSettingsDraft(module));
+        var sections = page.Sections.ToList();
+        var controllerItem = sections[0].Settings.Single();
+
+        sections[1].IsVisible.Should().BeFalse();
+        page.HasSectionNavigation.Should().BeFalse();
+
+        controllerItem.BooleanValue = true;
+
+        page.Sections.Should().Equal(sections);
+        sections[1].IsVisible.Should().BeTrue();
+        page.HasSectionNavigation.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies a navigation command selects and forwards its existing section instance.
+    /// </summary>
+    [Fact]
+    public void Navigation_command_selects_and_forwards_section()
+    {
+        var first = CreateSetting("first", "string", "one");
+        var second = CreateSetting("second", "string", "two");
+        second.Category = "second";
+        var module = ModuleConfigBuilder.Create(configure: config =>
+        {
+            config.Name = "Demo";
+            config.SettingCategories =
+            [
+                new ModuleSettingCategory { Id = "second", Name = "Second" }
+            ];
+            config.Settings = [first, second];
+            config.Normalize();
+        });
+        ModuleSettingsSectionViewModel? selected = null;
+        var page = new ModuleSettingsPageViewModel(static () => { }, section => selected = section);
+        page.Load(new ModuleSettingsDraft(module), "Installed", "Missing");
+        var expected = page.Sections[1];
+
+        expected.SelectCommand.Execute(null);
+
+        selected.Should().BeSameAs(expected);
+        expected.IsActive.Should().BeTrue();
+        page.Sections[0].IsActive.Should().BeFalse();
+    }
+
+    /// <summary>
     /// Creates a normalized module containing the requested settings.
     /// </summary>
     private static ModuleConfig CreateModule(params ModuleSetting[] settings) =>

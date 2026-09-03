@@ -401,6 +401,8 @@ namespace ASLM.Services.Internal
     /// </summary>
     public sealed class ModuleSettingsSectionViewModel : SettingsBindableObject
     {
+        private readonly Action<ModuleSettingsSectionViewModel> _select;
+        private bool _isActive;
         private bool _isVisible;
 
         /// <summary>
@@ -408,13 +410,18 @@ namespace ASLM.Services.Internal
         /// </summary>
         public ModuleSettingsSectionViewModel(
             ModuleSettingsSectionPresentation section,
-            IEnumerable<ModuleSettingItemViewModel> settings)
+            IEnumerable<ModuleSettingItemViewModel> settings,
+            string navigationTitle,
+            Action<ModuleSettingsSectionViewModel> select)
         {
             Kind = section.Kind;
             Title = section.Title;
             Description = section.Description;
+            NavigationTitle = navigationTitle;
+            _select = select;
             Settings = new ObservableCollection<ModuleSettingItemViewModel>(settings);
             _isVisible = Settings.Any(static item => item.IsVisible);
+            SelectCommand = new Command(Select, () => IsVisible);
         }
 
         /// <summary>
@@ -433,9 +440,28 @@ namespace ASLM.Services.Internal
         public string? Description { get; }
 
         /// <summary>
+        /// Gets the title displayed in the module section navigation.
+        /// </summary>
+        public string NavigationTitle { get; }
+
+        /// <summary>
         /// Gets setting rows in manifest declaration order.
         /// </summary>
         public ObservableCollection<ModuleSettingItemViewModel> Settings { get; }
+
+        /// <summary>
+        /// Gets the command that requests scrolling to this section.
+        /// </summary>
+        public Command SelectCommand { get; }
+
+        /// <summary>
+        /// Gets whether this section is selected in the module navigation.
+        /// </summary>
+        public bool IsActive
+        {
+            get => _isActive;
+            private set => SetProperty(ref _isActive, value);
+        }
 
         /// <summary>
         /// Gets whether dependency rules leave at least one row visible.
@@ -449,8 +475,31 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Refreshes the section after item visibility changes.
         /// </summary>
-        public void RefreshVisibility() =>
+        public void RefreshVisibility()
+        {
+            var wasVisible = IsVisible;
             IsVisible = Settings.Any(static item => item.IsVisible);
+            if (wasVisible != IsVisible)
+            {
+                SelectCommand.ChangeCanExecute();
+            }
+        }
+
+        /// <summary>
+        /// Updates the selection state consumed by the navigation template.
+        /// </summary>
+        public void SetActive(bool isActive) => IsActive = isActive;
+
+        /// <summary>
+        /// Forwards a valid navigation request to the owning module page.
+        /// </summary>
+        private void Select()
+        {
+            if (IsVisible)
+            {
+                _select(this);
+            }
+        }
     }
 
     /// <summary>
@@ -459,15 +508,21 @@ namespace ASLM.Services.Internal
     public sealed class ModuleSettingsPageViewModel : SettingsBindableObject
     {
         private readonly Action _valueChanged;
+        private readonly Action<ModuleSettingsSectionViewModel> _sectionSelected;
         private ModuleSettingsDraft? _moduleDraft;
+        private ModuleSettingsSectionViewModel? _activeSection;
         private bool _hasSettings;
+        private bool _hasSectionNavigation;
 
         /// <summary>
         /// Creates the module page model with a callback used to refresh save actions.
         /// </summary>
-        public ModuleSettingsPageViewModel(Action valueChanged)
+        public ModuleSettingsPageViewModel(
+            Action valueChanged,
+            Action<ModuleSettingsSectionViewModel>? sectionSelected = null)
         {
             _valueChanged = valueChanged;
+            _sectionSelected = sectionSelected ?? (static _ => { });
         }
 
         /// <summary>
@@ -482,6 +537,15 @@ namespace ASLM.Services.Internal
         {
             get => _hasSettings;
             private set => SetProperty(ref _hasSettings, value);
+        }
+
+        /// <summary>
+        /// Gets whether more than one currently visible section requires navigation.
+        /// </summary>
+        public bool HasSectionNavigation
+        {
+            get => _hasSectionNavigation;
+            private set => SetProperty(ref _hasSectionNavigation, value);
         }
 
         /// <summary>
@@ -511,7 +575,11 @@ namespace ASLM.Services.Internal
                     engineInstalledText,
                     engineNotInstalledText,
                     OnItemValueChanged));
-                Sections.Add(new ModuleSettingsSectionViewModel(section, items));
+                Sections.Add(new ModuleSettingsSectionViewModel(
+                    section,
+                    items,
+                    ResolveNavigationTitle(moduleDraft.Module, section),
+                    OnSectionSelected));
             }
 
             HasSettings = Sections.Count > 0;
@@ -553,6 +621,81 @@ namespace ASLM.Services.Internal
                 }
 
                 section.RefreshVisibility();
+            }
+
+            RefreshNavigationState();
+        }
+
+        /// <summary>
+        /// Selects the first visible section when its module page returns to the top.
+        /// </summary>
+        public void ActivateFirstVisibleSection() =>
+            SetActiveSection(Sections.FirstOrDefault(static section => section.IsVisible));
+
+        /// <summary>
+        /// Selects a visible section detected from the current scroll position without requesting another scroll.
+        /// </summary>
+        public void ActivateVisibleSection(ModuleSettingsSectionViewModel section)
+        {
+            if (section.IsVisible && Sections.Contains(section))
+            {
+                SetActiveSection(section);
+            }
+        }
+
+        /// <summary>
+        /// Uses the module name for the unlabelled default group without changing its card title.
+        /// </summary>
+        private static string ResolveNavigationTitle(
+            ModuleConfig module,
+            ModuleSettingsSectionPresentation section)
+        {
+            if (section.Kind != ModuleSettingsSectionKind.Uncategorized &&
+                !string.IsNullOrWhiteSpace(section.Title))
+            {
+                return section.Title;
+            }
+
+            return string.IsNullOrWhiteSpace(module.Name) ? module.Id : module.Name;
+        }
+
+        /// <summary>
+        /// Recomputes navigation visibility and replaces an unavailable active section.
+        /// </summary>
+        private void RefreshNavigationState()
+        {
+            var visibleSections = Sections.Where(static section => section.IsVisible).ToList();
+            HasSectionNavigation = visibleSections.Count > 1;
+
+            if (_activeSection == null || !visibleSections.Contains(_activeSection))
+            {
+                SetActiveSection(visibleSections.FirstOrDefault());
+            }
+        }
+
+        /// <summary>
+        /// Marks one section active before asking the settings page to reveal it.
+        /// </summary>
+        private void OnSectionSelected(ModuleSettingsSectionViewModel section)
+        {
+            SetActiveSection(section);
+            _sectionSelected(section);
+        }
+
+        /// <summary>
+        /// Applies one active state across the stable section collection.
+        /// </summary>
+        private void SetActiveSection(ModuleSettingsSectionViewModel? activeSection)
+        {
+            if (ReferenceEquals(_activeSection, activeSection))
+            {
+                return;
+            }
+
+            _activeSection = activeSection;
+            foreach (var section in Sections)
+            {
+                section.SetActive(ReferenceEquals(section, activeSection));
             }
         }
 

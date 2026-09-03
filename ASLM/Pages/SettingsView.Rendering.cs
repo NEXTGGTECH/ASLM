@@ -58,6 +58,8 @@ namespace ASLM.Pages
                 ModuleSettingsContainer.Content = moduleView;
             }
 
+            ShowModuleSectionNavigation(presentation);
+
             if (!presentation.HasSettings)
             {
                 ShowEmptyCategory(L.Get(LocalizationKeys.Settings_ModuleNoSettings));
@@ -77,7 +79,9 @@ namespace ASLM.Pages
             var runtimeKey = SettingsService.GetModuleRuntimeKey(module);
             if (!_moduleSettingsPresentations.TryGetValue(runtimeKey, out presentation!))
             {
-                presentation = new ModuleSettingsPageViewModel(QueueActionButtonUpdate);
+                presentation = new ModuleSettingsPageViewModel(
+                    QueueActionButtonUpdate,
+                    OnModuleSettingsSectionRequested);
                 _moduleSettingsPresentations[runtimeKey] = presentation;
                 presentation.Load(
                     _editSession.GetModule(module),
@@ -100,6 +104,221 @@ namespace ASLM.Pages
             }
 
             return moduleView;
+        }
+
+        /// <summary>
+        /// Binds the right sidebar to the active module without inheriting it on built-in pages.
+        /// </summary>
+        private void ShowModuleSectionNavigation(ModuleSettingsPageViewModel presentation)
+        {
+            ModuleSectionNavigationContainer.RemoveBinding(IsVisibleProperty);
+            ModuleSectionNavigationContainer.BindingContext = presentation;
+            ModuleSectionNavigationContainer.SetBinding(
+                IsVisibleProperty,
+                new Binding(nameof(ModuleSettingsPageViewModel.HasSectionNavigation), source: presentation));
+        }
+
+        /// <summary>
+        /// Removes the module navigation binding and collapses its reserved column.
+        /// </summary>
+        private void HideModuleSectionNavigation()
+        {
+            ModuleSectionNavigationContainer.RemoveBinding(IsVisibleProperty);
+            ModuleSectionNavigationContainer.IsVisible = false;
+            ModuleSectionNavigationContainer.BindingContext = null;
+        }
+
+        /// <summary>
+        /// Scrolls the active module page directly to its selected settings section.
+        /// </summary>
+        private async void OnModuleSettingsSectionRequested(ModuleSettingsSectionViewModel section)
+        {
+            if (ModuleSettingsContainer.Content is not ModuleSettingsView moduleView)
+            {
+                return;
+            }
+
+            try
+            {
+                await Task.Yield();
+                var sectionView = moduleView.FindSectionView(section);
+                if (sectionView != null)
+                {
+                    await SettingsScroll.ScrollToAsync(sectionView, ScrollToPosition.Start, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to scroll to module settings section: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Keeps the active module category synchronized with manual content scrolling.
+        /// </summary>
+        private void OnSettingsScrollScrolled(object? sender, ScrolledEventArgs e)
+        {
+            UpdateSettingsScrollBar();
+
+            if (_activeCategory?.Kind != SettingsCategoryKind.Module ||
+                ModuleSettingsContainer.Content is not ModuleSettingsView moduleView ||
+                moduleView.BindingContext is not ModuleSettingsPageViewModel presentation ||
+                !presentation.HasSectionNavigation)
+            {
+                return;
+            }
+
+            var sectionViews = moduleView.GetVisibleSectionViews().ToList();
+            if (sectionViews.Count < 2)
+            {
+                return;
+            }
+
+            // The final section may never reach the top, so reaching the bottom selects it explicitly.
+            var contentHeight = SettingsScroll.ContentSize.Height;
+            var reachedBottom = SettingsScroll.Height > 0 &&
+                contentHeight > SettingsScroll.Height + 1 &&
+                e.ScrollY + SettingsScroll.Height >= contentHeight - 1;
+            if (reachedBottom)
+            {
+                presentation.ActivateVisibleSection(sectionViews[^1].Section);
+                return;
+            }
+
+            var activationLine = e.ScrollY + 12;
+            var activeSection = sectionViews[0].Section;
+            foreach (var (section, sectionView) in sectionViews)
+            {
+                var sectionTop = GetVerticalOffset(sectionView, SettingsContentContainer);
+                if (double.IsNaN(sectionTop) || sectionTop > activationLine)
+                {
+                    break;
+                }
+
+                activeSection = section;
+            }
+
+            presentation.ActivateVisibleSection(activeSection);
+        }
+
+        /// <summary>
+        /// Recalculates the custom scrollbar when the viewport or its content changes size.
+        /// </summary>
+        private void OnSettingsScrollGeometryChanged(object? sender, EventArgs e)
+        {
+            UpdateSettingsScrollBar();
+        }
+
+        /// <summary>
+        /// Keeps the stable scrollbar visible only while the settings content overflows.
+        /// </summary>
+        private void UpdateSettingsScrollBar()
+        {
+            if (_isUpdatingSettingsScrollBar)
+            {
+                return;
+            }
+
+            var refreshAfterLayout = false;
+            _isUpdatingSettingsScrollBar = true;
+            try
+            {
+                var viewportHeight = SettingsScroll.Height;
+                var contentHeight = Math.Max(SettingsScroll.ContentSize.Height, SettingsContentContainer.Height);
+                var canScroll = viewportHeight > 0 && contentHeight > viewportHeight + 1;
+                if (SettingsScrollBarTrack.IsVisible != canScroll)
+                {
+                    SettingsScrollBarTrack.IsVisible = canScroll;
+                    refreshAfterLayout = canScroll;
+                }
+
+                if (!canScroll)
+                {
+                    _settingsScrollBarThumbTop = 0;
+                    SettingsScrollBarThumb.TranslationY = 0;
+                    return;
+                }
+
+                // Map the visible content ratio onto a fixed-width track without hover geometry changes.
+                var thumbHeight = Math.Max(
+                    SettingsScrollBarMinThumbHeight,
+                    viewportHeight * viewportHeight / contentHeight);
+                thumbHeight = Math.Min(viewportHeight, thumbHeight);
+                var maximumThumbTravel = Math.Max(0, viewportHeight - thumbHeight);
+                var maximumScroll = Math.Max(0, contentHeight - viewportHeight);
+                _settingsScrollBarThumbTop = maximumScroll > 0
+                    ? Math.Clamp(SettingsScroll.ScrollY / maximumScroll * maximumThumbTravel, 0, maximumThumbTravel)
+                    : 0;
+
+                SettingsScrollBarThumb.HeightRequest = thumbHeight;
+                SettingsScrollBarThumb.TranslationY = _settingsScrollBarThumbTop;
+            }
+            finally
+            {
+                _isUpdatingSettingsScrollBar = false;
+            }
+
+            if (refreshAfterLayout)
+            {
+                Dispatcher.Dispatch(UpdateSettingsScrollBar);
+            }
+        }
+
+        /// <summary>
+        /// Converts direct thumb dragging into a proportional content scroll position.
+        /// </summary>
+        private void OnSettingsScrollBarPanUpdated(object? sender, PanUpdatedEventArgs e)
+        {
+            var viewportHeight = SettingsScroll.Height;
+            var contentHeight = Math.Max(SettingsScroll.ContentSize.Height, SettingsContentContainer.Height);
+            var thumbHeight = SettingsScrollBarThumb.Height;
+            if (viewportHeight <= 0 || contentHeight <= viewportHeight || thumbHeight <= 0)
+            {
+                return;
+            }
+
+            switch (e.StatusType)
+            {
+                case GestureStatus.Started:
+                    _settingsScrollBarDragStart = _settingsScrollBarThumbTop;
+                    break;
+                case GestureStatus.Running:
+                    var maximumThumbTravel = Math.Max(0, viewportHeight - thumbHeight);
+                    var thumbTop = Math.Clamp(_settingsScrollBarDragStart + e.TotalY, 0, maximumThumbTravel);
+                    var maximumScroll = Math.Max(0, contentHeight - viewportHeight);
+                    var targetScroll = maximumThumbTravel > 0
+                        ? thumbTop / maximumThumbTravel * maximumScroll
+                        : 0;
+
+                    _settingsScrollBarThumbTop = thumbTop;
+                    SettingsScrollBarThumb.TranslationY = thumbTop;
+                    _ = SettingsScroll.ScrollToAsync(0, targetScroll, false);
+                    break;
+                case GestureStatus.Completed:
+                case GestureStatus.Canceled:
+                    UpdateSettingsScrollBar();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Resolves one descendant's vertical offset inside the scroll content tree.
+        /// </summary>
+        private static double GetVerticalOffset(VisualElement element, Element ancestor)
+        {
+            var offset = 0d;
+            Element? current = element;
+            while (current != null && !ReferenceEquals(current, ancestor))
+            {
+                if (current is VisualElement visualElement)
+                {
+                    offset += visualElement.Y;
+                }
+
+                current = current.Parent;
+            }
+
+            return ReferenceEquals(current, ancestor) ? offset : double.NaN;
         }
 
         /// <summary>
@@ -162,6 +381,7 @@ namespace ASLM.Pages
         {
             _moduleSettingsWarmupGeneration++;
             ModuleSettingsContainer.Content = null;
+            HideModuleSectionNavigation();
             _moduleSettingsViews.Clear();
             _moduleSettingsPresentations.Clear();
             _moduleSettingsPresentationsNeedingRefresh.Clear();
@@ -310,6 +530,11 @@ namespace ASLM.Pages
             }
 
             ModuleSettingsContainer.IsVisible = showModuleSettings;
+            if (!showModuleSettings)
+            {
+                HideModuleSectionNavigation();
+            }
+
             EmptyCategoryState.IsVisible = showEmptyState;
         }
     }
