@@ -53,6 +53,31 @@ public sealed class ModuleHostKeyResolutionTests
     }
 
     /// <summary>
+    /// Verifies modules from an official GitHub author receive connected subsystem keys.
+    /// </summary>
+    [Fact]
+    public async Task Official_author_module_receives_connected_host_keys()
+    {
+        using var layout = new AslmFileSystemLayout();
+        var appData = await CreateAppDataAsync();
+        appData.Data.GitHub.PersonalAccessToken = "github-personal-token";
+        var githubStore = CreateGitHubStore(appData);
+        using var sunriseService = new SunriseService(
+            NullLogger<SunriseService>.Instance,
+            appData);
+        await sunriseService.InitializeAsync();
+        using var runner = CreateRunner(appData, githubStore, sunriseService);
+        var module = ModuleConfigBuilder.Create(
+            id: "official-author-module",
+            configure: config => config.Source.Repo = "NEXTGGTECH/Official-Author-Module");
+
+        runner.GetResolvedSettingValue(
+                module,
+                new ModuleSetting { Key = "key-gh", Type = "key-gh" })
+            .Should().Be("github-personal-token");
+    }
+
+    /// <summary>
     /// Verifies missing authorization is represented by the literal None value.
     /// </summary>
     [Fact]

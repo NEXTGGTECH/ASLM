@@ -17,9 +17,10 @@ namespace ASLM.Services.Modules
         private const string TrustSourceFileName = "ASLM_ModuleTrustSource.json";
         private const string ReviewedCacheFileName = "ASLM_ReviewedModules.cache.json";
 
-        private static readonly OfficialModuleTrustEntry[] OfficialModules =
+        private static readonly OfficialModuleTrustEntry[] OfficialRules =
         [
-            new("aslm-chat", "NEXTGGTECH/ASLM-Chat"),
+            new("github", null, "NEXTGGTECH/*"),
+            // new("github", "aslm-chat", "NEXTGGTECH/ASLM-Chat"),
         ];
 
         private readonly HttpClient _httpClient;
@@ -40,7 +41,7 @@ namespace ASLM.Services.Modules
 
         private readonly object _sync = new();
         private ModuleTrustSourceConfig _sourceConfig = new();
-        private List<ReviewedModuleTrustEntry> _reviewedModules = [];
+        private List<ReviewedModuleTrustEntry> _reviewedRules = [];
         private DateTime _lastRemoteRefresh = DateTime.MinValue;
 
 
@@ -70,18 +71,18 @@ namespace ASLM.Services.Modules
             _sourceConfig = await LoadTrustSourceConfigAsync(ct) ?? new ModuleTrustSourceConfig();
             _sourceConfig.Normalize();
 
-            if (!TryLoadVerifiedCache(out var cachedModules))
+            if (!TryLoadVerifiedCache(out var cachedRules))
             {
                 lock (_sync)
                 {
-                    _reviewedModules = [];
+                    _reviewedRules = [];
                 }
             }
             else
             {
                 lock (_sync)
                 {
-                    _reviewedModules = cachedModules;
+                    _reviewedRules = cachedRules;
                 }
             }
 
@@ -156,15 +157,14 @@ namespace ASLM.Services.Modules
                     return;
                 }
 
-                var modules = payload.Modules
-                    .Where(module => !string.IsNullOrWhiteSpace(module.Id) && !string.IsNullOrWhiteSpace(module.Repo))
+                var rules = payload.Modules
                     .ToList();
 
                 await SaveVerifiedCacheAsync(payload, payload.Signature, ct);
 
                 lock (_sync)
                 {
-                    _reviewedModules = modules;
+                    _reviewedRules = rules;
                     _lastRemoteRefresh = DateTime.UtcNow;
                 }
             }
@@ -182,23 +182,27 @@ namespace ASLM.Services.Modules
         // Matching
 
         /// <summary>
-        /// Returns whether the manifest matches a built-in official module entry.
+        /// Returns whether the manifest matches a built-in official module or author entry.
         /// </summary>
         private static bool TryMatchOfficial(ModuleConfig config) =>
-            OfficialModules.Any(entry => ModuleTrustIdentity.Matches(config, entry.Id, entry.Repo));
+            OfficialRules.Any(entry => ModuleTrustIdentity.Matches(config, entry.Source, entry.Id, entry.Repo));
 
         /// <summary>
-        /// Returns whether the manifest matches a cached community-reviewed entry.
+        /// Returns whether the manifest matches a cached community-reviewed module or author entry.
         /// </summary>
         private bool TryMatchReviewed(ModuleConfig config)
         {
             List<ReviewedModuleTrustEntry> snapshot;
             lock (_sync)
             {
-                snapshot = _reviewedModules;
+                snapshot = [.. _reviewedRules];
             }
 
-            return snapshot.Any(entry => ModuleTrustIdentity.Matches(config, entry.Id, entry.Repo));
+            return snapshot.Any(entry => ModuleTrustIdentity.Matches(
+                config,
+                entry.Source,
+                entry.Id,
+                entry.Repo));
         }
 
 
@@ -231,11 +235,11 @@ namespace ASLM.Services.Modules
             Path.Combine(GetRootDirectory(), "Data", "App", ReviewedCacheFileName);
 
         /// <summary>
-        /// Restores the in-memory reviewed list from disk after signature verification.
+        /// Restores the in-memory reviewed trust rules after signature verification.
         /// </summary>
-        private bool TryLoadVerifiedCache(out List<ReviewedModuleTrustEntry> modules)
+        private bool TryLoadVerifiedCache(out List<ReviewedModuleTrustEntry> rules)
         {
-            modules = [];
+            rules = [];
 
             var path = GetReviewedCachePath();
             if (!File.Exists(path))
@@ -278,9 +282,7 @@ namespace ASLM.Services.Modules
                     return false;
                 }
 
-                modules = cache.Payload.Modules
-                    .Where(module => !string.IsNullOrWhiteSpace(module.Id) && !string.IsNullOrWhiteSpace(module.Repo))
-                    .ToList();
+                rules = cache.Payload.Modules.ToList();
 
                 return true;
             }
