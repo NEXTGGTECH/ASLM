@@ -109,6 +109,35 @@
         <Setter Property="LineBreakMode" Value="TailTruncation" />
     </Style>
 
+    <Style x:Key="SettingsModuleSectionSidebarBorderStyle" TargetType="Border">
+        <Setter Property="WidthRequest" Value="210" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource BackgroundSecondary}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 8" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+        <Setter Property="VerticalOptions" Value="Fill" />
+    </Style>
+
+    <Style x:Key="SettingsModuleSectionSelectorButtonLabelStyle"
+           TargetType="Label"
+           BasedOn="{StaticResource SettingsSelectorButtonLabelStyle}">
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="HorizontalOptions" Value="Fill" />
+    </Style>
+
+    <Style x:Key="SettingsScrollBarThumbStyle" TargetType="BoxView">
+        <Setter Property="WidthRequest" Value="4" />
+        <Setter Property="MinimumWidthRequest" Value="4" />
+        <Setter Property="MaximumWidthRequest" Value="4" />
+        <Setter Property="HeightRequest" Value="24" />
+        <Setter Property="MinimumHeightRequest" Value="24" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+        <Setter Property="VerticalOptions" Value="Start" />
+        <Setter Property="Color" Value="{DynamicResource BackgroundSecondary}" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
     <!-- Sections and cards -->
     <Style x:Key="SettingsTransparentBorderStyle" TargetType="Border">
         <Setter Property="StrokeThickness" Value="0" />

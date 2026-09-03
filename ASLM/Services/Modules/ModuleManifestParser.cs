@@ -270,6 +270,7 @@ namespace ASLM.Services.Modules
         /// Excludes ASLM-managed settings from user category and dependency metadata.
         /// </summary>
         private static bool IsMetadataEligible(ModuleSetting setting) =>
-            setting.NormalizedType is not ("engine" or "path" or "data" or "models");
+            !setting.IsHostKey &&
+            setting.NormalizedType is not ("port" or "theme" or "locale");
     }
 }

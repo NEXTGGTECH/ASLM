@@ -82,6 +82,9 @@ public sealed class ModuleLaunchEngineReconciliationTests
             null!,
             null!,
             null!,
+            null!,
+            null!,
+            null!,
             new ModuleInteropHostState(),
             new EmptyServiceProvider(),
             NullLogger<ModuleRunner>.Instance);

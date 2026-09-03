@@ -23,6 +23,9 @@ namespace ASLM.Services.Modules
         private readonly ProcessSnapshotReader _processSnapshots;
         private readonly ModuleThemePayloadBuilder _themePayloadBuilder;
         private readonly ModuleLocalePayloadBuilder _localePayloadBuilder;
+        private readonly ModuleTrustService _moduleTrustService;
+        private readonly GitHubAccountStore _githubAccountStore;
+        private readonly SunriseService _sunriseService;
         private readonly ModuleInteropHostState _interopHostState;
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<ModuleRunner> _logger;
@@ -51,6 +54,9 @@ namespace ASLM.Services.Modules
         /// <param name="processSnapshots">Service that shares cached process-table snapshots.</param>
         /// <param name="themePayloadBuilder">Builds host theme JSON for modules that declare a theme setting.</param>
         /// <param name="localePayloadBuilder">Builds host locale JSON for modules that declare a locale setting.</param>
+        /// <param name="moduleTrustService">Resolves whether a module may receive host account keys.</param>
+        /// <param name="githubAccountStore">Provides the connected GitHub personal access token.</param>
+        /// <param name="sunriseService">Provides the connected ASLM account refresh token.</param>
         /// <param name="interopHostState">Tracks the module interop listener URL for opted-in modules.</param>
         /// <param name="serviceProvider">Resolves optional services such as <see cref="ModuleDependencyService"/>.</param>
         /// <param name="logger">Logger instance.</param>
@@ -63,6 +69,9 @@ namespace ASLM.Services.Modules
             ProcessSnapshotReader processSnapshots,
             ModuleThemePayloadBuilder themePayloadBuilder,
             ModuleLocalePayloadBuilder localePayloadBuilder,
+            ModuleTrustService moduleTrustService,
+            GitHubAccountStore githubAccountStore,
+            SunriseService sunriseService,
             ModuleInteropHostState interopHostState,
             IServiceProvider serviceProvider,
             ILogger<ModuleRunner> logger)
@@ -75,6 +84,9 @@ namespace ASLM.Services.Modules
             _processSnapshots = processSnapshots;
             _themePayloadBuilder = themePayloadBuilder;
             _localePayloadBuilder = localePayloadBuilder;
+            _moduleTrustService = moduleTrustService;
+            _githubAccountStore = githubAccountStore;
+            _sunriseService = sunriseService;
             _interopHostState = interopHostState;
             _serviceProvider = serviceProvider;
             _logger = logger;
@@ -240,9 +252,24 @@ namespace ASLM.Services.Modules
                 return;
             }
 
-            var targets = settingsToSync
-                .Select(s => (Setting: s, Target: ResolveSettingValue(module, s)))
-                .ToList();
+            var targets = new List<(ModuleSetting Setting, string Target)>();
+            foreach (var setting in settingsToSync)
+            {
+                // Account keys are resolved only for modules accepted by the trust service.
+                if (setting.IsHostKey)
+                {
+                    if (!TryResolveHostKeyValue(module, setting, out var hostKeyValue))
+                    {
+                        moduleLog.Report($"[Sync] Skipping '{setting.Key}' for an unverified module.");
+                        continue;
+                    }
+
+                    targets.Add((setting, hostKeyValue));
+                    continue;
+                }
+
+                targets.Add((setting, ResolveSettingValue(module, setting)));
+            }
 
             var checkTasks = targets.Select(async t =>
             {
@@ -623,9 +650,47 @@ namespace ASLM.Services.Modules
                 case "locale":
                     return _localePayloadBuilder.BuildJson();
 
+                case "key-aslm":
+                case "key-gh":
+                    return TryResolveHostKeyValue(module, setting, out var hostKeyValue)
+                        ? hostKeyValue
+                        : "None";
+
                 default:
                     return (setting.Value ?? setting.Default)?.ToString() ?? string.Empty;
             }
+        }
+
+        /// <summary>
+        /// Resolves one host account key after verifying the requesting module.
+        /// </summary>
+        private bool TryResolveHostKeyValue(
+            ModuleConfig module,
+            ModuleSetting setting,
+            out string value)
+        {
+            value = "None";
+            if (_moduleTrustService.Resolve(module) == ModuleTrustLevel.Unreviewed)
+            {
+                return false;
+            }
+
+            if (setting.NormalizedType == "key-gh")
+            {
+                var token = _githubAccountStore.GetPersonalAccessToken();
+                value = string.IsNullOrWhiteSpace(token) ? "None" : token;
+                return true;
+            }
+
+            if (setting.NormalizedType == "key-aslm")
+            {
+                value = _sunriseService.TryGetRefreshToken(out var refreshToken)
+                    ? refreshToken
+                    : "None";
+                return true;
+            }
+
+            return false;
         }
 
         // Dependency install
@@ -1050,13 +1115,16 @@ namespace ASLM.Services.Modules
         /// </summary>
         private static bool IsHostManagedSetting(string normalizedType) =>
             string.Equals(normalizedType, "theme", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(normalizedType, "locale", StringComparison.OrdinalIgnoreCase);
+            string.Equals(normalizedType, "locale", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalizedType, "key-aslm", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalizedType, "key-gh", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Returns whether the setting value is delivered through a host-generated payload file.
         /// </summary>
         private static bool UsesHostFilePayload(string normalizedType) =>
-            IsHostManagedSetting(normalizedType);
+            string.Equals(normalizedType, "theme", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalizedType, "locale", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Returns the temp-file prefix used for one host-managed payload type.

@@ -735,7 +735,7 @@ namespace ASLM.Models
         public string Description { get; set; } = string.Empty;
 
         // Setting type that controls validation and rendering behavior (string, port, bool, theme, locale, …).
-        // The "theme" and "locale" types are host-managed: ASLM resolves JSON and applies through setExec without UI or env injection.
+        // Host-managed types are resolved by ASLM and applied through setExec without UI or environment injection.
         [JsonPropertyName("type")]
         public string Type { get; set; } = "string";
 
@@ -786,6 +786,12 @@ namespace ASLM.Models
         /// </summary>
         [JsonIgnore]
         public bool IsAutomaticallyManaged => NormalizedType is "path" or "data" or "models";
+
+        /// <summary>
+        /// Gets whether ASLM supplies an authenticated subsystem key for this setting.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsHostKey => NormalizedType is "key-aslm" or "key-gh";
 
         /// <summary>
         /// Restores string fields and normalizes persisted scalar values after JSON deserialization.

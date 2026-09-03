@@ -31,26 +31,32 @@ namespace ASLM.Models
     // Official catalog entry
 
     /// <summary>
-    /// One official module identity bound to an expected source repository.
+    /// One official exact-module or source-author trust rule.
     /// </summary>
     public sealed class OfficialModuleTrustEntry
     {
         /// <summary>
-        /// Creates an official module trust entry.
+        /// Creates and normalizes one official trust rule.
         /// </summary>
-        public OfficialModuleTrustEntry(string id, string repo)
+        public OfficialModuleTrustEntry(string source, string? id, string repo)
         {
-            Id = ModuleTrustIdentity.NormalizeId(id);
+            Source = ModuleTrustIdentity.NormalizeSource(source);
+            Id = ModuleTrustIdentity.NormalizeOptionalId(id);
             Repo = ModuleTrustIdentity.NormalizeRepo(repo);
         }
 
         /// <summary>
-        /// Gets the stable module identifier.
+        /// Gets the expected source provider.
         /// </summary>
-        public string Id { get; }
+        public string Source { get; }
 
         /// <summary>
-        /// Gets the expected GitHub repository path.
+        /// Gets the exact module id, or null for an author rule.
+        /// </summary>
+        public string? Id { get; }
+
+        /// <summary>
+        /// Gets an exact repository or an <c>Author/*</c> pattern.
         /// </summary>
         public string Repo { get; }
     }
@@ -59,12 +65,16 @@ namespace ASLM.Models
     // Reviewed list entry
 
     /// <summary>
-    /// One community-reviewed module identity from the signed remote list.
+    /// One community-reviewed exact-module or source-author trust rule.
     /// </summary>
     public sealed class ReviewedModuleTrustEntry
     {
+        [JsonPropertyName("source")]
+        public string Source { get; set; } = string.Empty;
+
         [JsonPropertyName("id")]
-        public string Id { get; set; } = string.Empty;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Id { get; set; }
 
         [JsonPropertyName("repo")]
         public string Repo { get; set; } = string.Empty;
@@ -74,7 +84,8 @@ namespace ASLM.Models
         /// </summary>
         public void Normalize()
         {
-            Id = ModuleTrustIdentity.NormalizeId(Id);
+            Source = ModuleTrustIdentity.NormalizeSource(Source);
+            Id = ModuleTrustIdentity.NormalizeOptionalId(Id);
             Repo = ModuleTrustIdentity.NormalizeRepo(Repo);
         }
     }
@@ -140,7 +151,7 @@ namespace ASLM.Models
         public string Signature { get; set; } = string.Empty;
 
         /// <summary>
-        /// Normalizes payload fields after JSON deserialization.
+        /// Normalizes and removes invalid trust rules after JSON deserialization.
         /// </summary>
         public void Normalize()
         {
@@ -159,7 +170,10 @@ namespace ASLM.Models
             }
 
             Modules = Modules
-                .Where(module => module != null && !string.IsNullOrWhiteSpace(module.Id) && !string.IsNullOrWhiteSpace(module.Repo))
+                .Where(module => module != null && ModuleTrustIdentity.IsValidRule(
+                    module.Source,
+                    module.Id,
+                    module.Repo))
                 .ToList();
         }
 
@@ -175,9 +189,8 @@ namespace ASLM.Models
             };
     }
 
-
     /// <summary>
-    /// Canonical unsigned reviewed-modules payload used for Ed25519 verification.
+    /// Canonical unsigned reviewed-modules payload used for RSA verification.
     /// </summary>
     public sealed class ReviewedModulesPayloadBody
     {
@@ -213,10 +226,18 @@ namespace ASLM.Models
     // Identity normalization
 
     /// <summary>
-    /// Normalizes module trust identity fields for comparisons.
+    /// Normalizes and compares module trust identities.
     /// </summary>
     public static class ModuleTrustIdentity
     {
+        public const string GitHubSource = "github";
+
+        /// <summary>
+        /// Normalizes a source provider for trust comparisons.
+        /// </summary>
+        public static string NormalizeSource(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+
         /// <summary>
         /// Normalizes a module id for trust comparisons.
         /// </summary>
@@ -224,26 +245,87 @@ namespace ASLM.Models
             string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
 
         /// <summary>
-        /// Normalizes a repository path for trust comparisons.
+        /// Normalizes an optional module id while preserving author-only rules.
         /// </summary>
-        public static string NormalizeRepo(string? value)
+        public static string? NormalizeOptionalId(string? value)
         {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return string.Empty;
-            }
-
-            return value.Trim().Trim('/').ToLowerInvariant();
+            var normalized = NormalizeId(value);
+            return string.IsNullOrEmpty(normalized) ? null : normalized;
         }
 
         /// <summary>
-        /// Returns whether a module config matches the provided id and repo.
+        /// Normalizes a repository path without repairing malformed identities.
         /// </summary>
-        public static bool Matches(ModuleConfig config, string id, string repo)
+        public static string NormalizeRepo(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
+
+        /// <summary>
+        /// Returns whether a rule contains a complete exact identity or GitHub author pattern.
+        /// </summary>
+        public static bool IsValidRule(string? source, string? id, string? repo)
         {
+            var normalizedSource = NormalizeSource(source);
+            var normalizedId = NormalizeOptionalId(id);
+            var normalizedRepo = NormalizeRepo(repo);
+            if (string.IsNullOrEmpty(normalizedSource) || string.IsNullOrEmpty(normalizedRepo))
+            {
+                return false;
+            }
+
+            var isAuthorRule = TrySplitGitHubRepo(normalizedRepo, out _, out var repository) && repository == "*";
+            return isAuthorRule
+                ? normalizedSource == GitHubSource && normalizedId == null
+                : normalizedId != null && !normalizedRepo.Contains('*');
+        }
+
+        /// <summary>
+        /// Returns whether a module config matches one exact-module or source-author rule.
+        /// </summary>
+        public static bool Matches(ModuleConfig config, string source, string? id, string repo)
+        {
+            ArgumentNullException.ThrowIfNull(config);
             config.Normalize();
-            return string.Equals(NormalizeId(config.Id), id, StringComparison.Ordinal) &&
-                   string.Equals(NormalizeRepo(config.Source.Repo), repo, StringComparison.Ordinal);
+
+            var expectedSource = NormalizeSource(source);
+            var actualSource = NormalizeSource(config.Source.Type);
+            if (!string.Equals(actualSource, expectedSource, StringComparison.Ordinal) ||
+                !IsValidRule(expectedSource, id, repo))
+            {
+                return false;
+            }
+
+            // Author patterns trust every GitHub repository owned by that account.
+            if (TrySplitGitHubRepo(repo, out var expectedOwner, out var expectedRepository) &&
+                expectedRepository == "*")
+            {
+                return actualSource == GitHubSource &&
+                       TrySplitGitHubRepo(config.Source.Repo, out var actualOwner, out var actualRepository) &&
+                       actualRepository != "*" &&
+                       string.Equals(actualOwner, expectedOwner, StringComparison.Ordinal);
+            }
+
+            return string.Equals(NormalizeId(config.Id), NormalizeId(id), StringComparison.Ordinal) &&
+                   string.Equals(NormalizeRepo(config.Source.Repo), NormalizeRepo(repo), StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Splits an <c>Author/Repository</c> value used by GitHub author rules.
+        /// </summary>
+        private static bool TrySplitGitHubRepo(string? value, out string owner, out string repository)
+        {
+            owner = string.Empty;
+            repository = string.Empty;
+
+            var normalized = NormalizeRepo(value);
+            var parts = normalized.Split('/');
+            if (parts.Length != 2 || string.IsNullOrEmpty(parts[0]) || string.IsNullOrEmpty(parts[1]))
+            {
+                return false;
+            }
+
+            owner = parts[0];
+            repository = parts[1];
+            return true;
         }
     }
 }

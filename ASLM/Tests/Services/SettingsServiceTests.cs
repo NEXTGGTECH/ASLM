@@ -193,6 +193,27 @@ public sealed class SettingsServiceTests
     }
 
     /// <summary>
+    /// Verifies explicit boolean dependencies control every displayed special setting type.
+    /// </summary>
+    [Theory]
+    [InlineData("engine")]
+    [InlineData("path")]
+    [InlineData("data")]
+    [InlineData("models")]
+    public void Explicit_dependency_controls_displayed_special_types(string type)
+    {
+        var controller = new ModuleSetting { Key = "enabled", Type = "bool" };
+        var child = new ModuleSetting { Key = $"runtime-{type}", Type = type, DependsOn = "enabled" };
+        var settings = new[] { controller, child };
+
+        SettingsService.ShouldRenderSetting(
+                child,
+                settings,
+                new Dictionary<string, object?> { ["enabled"] = false })
+            .Should().BeFalse();
+    }
+
+    /// <summary>
     /// Verifies dependent visibility includes the complete parent chain.
     /// </summary>
     [Fact]
@@ -228,16 +249,21 @@ public sealed class SettingsServiceTests
     }
 
     /// <summary>
-    /// Verifies category and dependency metadata applies only to user settings.
+    /// Verifies category and dependency metadata applies to every visible setting type.
     /// </summary>
     [Theory]
-    [InlineData("engine", false)]
-    [InlineData("path", false)]
-    [InlineData("data", false)]
-    [InlineData("models", false)]
+    [InlineData("engine", true)]
+    [InlineData("path", true)]
+    [InlineData("data", true)]
+    [InlineData("models", true)]
     [InlineData("bool", true)]
     [InlineData("string", true)]
-    public void Settings_metadata_does_not_affect_automatic_types(string type, bool expected)
+    [InlineData("port", false)]
+    [InlineData("theme", false)]
+    [InlineData("locale", false)]
+    [InlineData("key-aslm", false)]
+    [InlineData("key-gh", false)]
+    public void Settings_metadata_applies_to_visible_types(string type, bool expected)
     {
         SettingsService.IsSettingsMetadataEligible(new ModuleSetting { Type = type })
             .Should().Be(expected);

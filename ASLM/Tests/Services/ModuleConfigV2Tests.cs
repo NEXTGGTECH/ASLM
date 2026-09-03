@@ -151,4 +151,60 @@ public sealed class ModuleConfigV2Tests
 
         config.ValidationWarnings.Should().ContainSingle(message => message.Contains("missing"));
     }
+
+    /// <summary>
+    /// Verifies visible special settings receive the same metadata validation as standard settings.
+    /// </summary>
+    [Fact]
+    public void Visible_special_setting_metadata_is_validated()
+    {
+        var config = ModuleManifestParser.Parse(
+            """
+            {
+              "fileVersion": 1,
+              "id": "special-metadata",
+              "settings": [
+                {
+                  "key": "runtime-path",
+                  "type": "path",
+                  "category": "missing-category",
+                  "dependsOn": "missing-setting"
+                }
+              ]
+            }
+            """);
+
+        config.ValidationWarnings.Should().Contain(message => message.Contains("missing-category"));
+        config.ValidationWarnings.Should().Contain(message => message.Contains("missing-setting"));
+    }
+
+    /// <summary>
+    /// Verifies host account key settings stay outside user category and dependency validation.
+    /// </summary>
+    [Fact]
+    public void Host_key_metadata_is_ignored_by_user_setting_validation()
+    {
+        var config = ModuleManifestParser.Parse(
+            """
+            {
+              "fileVersion": 1,
+              "id": "host-keys",
+              "settings": [
+                {
+                  "key": "key-aslm",
+                  "type": "key-aslm",
+                  "category": "missing-category",
+                  "dependsOn": "missing-setting"
+                },
+                {
+                  "key": "key-gh",
+                  "type": "key-gh"
+                }
+              ]
+            }
+            """);
+
+        config.Settings.Should().OnlyContain(setting => setting.IsHostKey);
+        config.ValidationWarnings.Should().BeEmpty();
+    }
 }
