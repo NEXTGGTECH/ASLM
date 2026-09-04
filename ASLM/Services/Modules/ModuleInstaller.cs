@@ -68,10 +68,10 @@ namespace ASLM.Services.Modules
             // Only root manifests (Modules/{folder}/ASLM_Module.json) are installed modules.
             var jsonFiles = await Task.Run(() => ModuleManifestDiscovery
                 .EnumerateInstalledManifests(modulesRoot)
-                .ToList());
+                .ToList()).ConfigureAwait(false);
 
             var tasks = jsonFiles.Select(LoadModuleConfig);
-            var results = await Task.WhenAll(tasks);
+            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
             foreach (var result in results)
             {
@@ -108,7 +108,7 @@ namespace ASLM.Services.Modules
 
             try
             {
-                var json = await File.ReadAllTextAsync(jsonFile);
+                var json = await File.ReadAllTextAsync(jsonFile).ConfigureAwait(false);
                 return ModuleManifestParser.Parse(json, jsonFile);
             }
             catch (Exception ex)

@@ -487,11 +487,15 @@ namespace ASLM.Pages
             {
                 settingsView.CloseRequested -= OnSettingsCloseRequested;
                 settingsView.CloseRequested += OnSettingsCloseRequested;
-                _ = settingsView.RefreshAsync();
             }
 
             OverlayContainer.Content = _settingsView;
             OverlayContainer.IsVisible = true;
+
+            if (_settingsView is SettingsView visibleSettingsView)
+            {
+                _ = visibleSettingsView.RefreshAsync();
+            }
         }
 
         /// <summary>

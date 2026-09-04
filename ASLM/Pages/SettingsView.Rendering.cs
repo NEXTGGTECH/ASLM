@@ -59,18 +59,12 @@ namespace ASLM.Pages
             }
 
             ShowModuleSectionNavigation(presentation);
-
-            if (!presentation.HasSettings)
-            {
-                ShowEmptyCategory(L.Get(LocalizationKeys.Settings_ModuleNoSettings));
-                return;
-            }
-
             EmptyCategoryState.IsVisible = false;
+            _ = PopulateModuleSettingsSurfaceAsync(module, presentation);
         }
 
         /// <summary>
-        /// Returns a stable module view and refreshes its presentation from the current draft.
+        /// Returns a stable module view without synchronously materializing or refreshing its editor rows.
         /// </summary>
         private ModuleSettingsView GetOrCreateModuleSettingsSurface(
             ModuleConfig module,
@@ -83,15 +77,7 @@ namespace ASLM.Pages
                     QueueActionButtonUpdate,
                     OnModuleSettingsSectionRequested);
                 _moduleSettingsPresentations[runtimeKey] = presentation;
-                presentation.Load(
-                    _editSession.GetModule(module),
-                    L.Get(LocalizationKeys.Settings_Engine_Installed),
-                    L.Get(LocalizationKeys.Settings_Engine_NotInstalled));
                 _moduleSettingsPresentationsNeedingRefresh.Remove(runtimeKey);
-            }
-            else if (_moduleSettingsPresentationsNeedingRefresh.Remove(runtimeKey))
-            {
-                presentation.RefreshFromDraft();
             }
 
             if (!_moduleSettingsViews.TryGetValue(runtimeKey, out var moduleView))
@@ -104,6 +90,68 @@ namespace ASLM.Pages
             }
 
             return moduleView;
+        }
+
+        /// <summary>
+        /// Populates a visible module page between UI frames and ignores work canceled by navigation or closing.
+        /// </summary>
+        private async Task PopulateModuleSettingsSurfaceAsync(
+            ModuleConfig module,
+            ModuleSettingsPageViewModel presentation)
+        {
+            var cancellationToken = _moduleSurfaceBuildCancellation.Token;
+            try
+            {
+                // Let the empty module surface and close button paint before the first editor row is created.
+                await Task.Yield();
+                await presentation.LoadIncrementallyAsync(
+                    _editSession.GetModule(module),
+                    L.Get(LocalizationKeys.Settings_Engine_Installed),
+                    L.Get(LocalizationKeys.Settings_Engine_NotInstalled),
+                    cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var runtimeKey = SettingsService.GetModuleRuntimeKey(module);
+                if (_moduleSettingsPresentationsNeedingRefresh.Remove(runtimeKey))
+                {
+                    await presentation.RefreshFromDraftIncrementallyAsync(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+
+                var stillActive =
+                    _activeCategory?.Kind == SettingsCategoryKind.Module &&
+                    _activeCategory.Module != null &&
+                    string.Equals(
+                        _activeCategory.Module.SourcePath,
+                        module.SourcePath,
+                        StringComparison.OrdinalIgnoreCase);
+                if (!stillActive ||
+                    !_moduleSettingsPresentations.TryGetValue(
+                        runtimeKey,
+                        out var currentPresentation) ||
+                    !ReferenceEquals(currentPresentation, presentation))
+                {
+                    return;
+                }
+
+                ShowModuleSectionNavigation(presentation);
+                if (!presentation.HasSettings)
+                {
+                    ShowEmptyCategory(L.Get(LocalizationKeys.Settings_ModuleNoSettings));
+                    return;
+                }
+
+                EmptyCategoryState.IsVisible = false;
+                UpdateSettingsScrollBar();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Navigation and closing intentionally discard incomplete visual trees.
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to build settings controls for module '{module.Name}': {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -342,44 +390,11 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Builds detached module views between UI frames so first navigation does not create their full XAML trees.
-        /// </summary>
-        private async Task WarmModuleSettingsSurfacesAsync()
-        {
-            var generation = ++_moduleSettingsWarmupGeneration;
-
-            try
-            {
-                // Let the active category render before allocating the remaining module editor trees.
-                await Task.Yield();
-                foreach (var module in _loadedModules)
-                {
-                    if (generation != _moduleSettingsWarmupGeneration)
-                    {
-                        return;
-                    }
-
-                    var runtimeKey = SettingsService.GetModuleRuntimeKey(module);
-                    if (!_moduleSettingsViews.ContainsKey(runtimeKey))
-                    {
-                        GetOrCreateModuleSettingsSurface(module, out _);
-                    }
-
-                    await Task.Yield();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to prepare module settings views: {ex.Message}");
-            }
-        }
-
-        /// <summary>
         /// Detaches and clears cached module trees when discovery or localization changes their source data.
         /// </summary>
         private void ClearModuleSettingsSurfaceCache()
         {
-            _moduleSettingsWarmupGeneration++;
+            RestartModuleSurfaceBuilds();
             ModuleSettingsContainer.Content = null;
             HideModuleSectionNavigation();
             _moduleSettingsViews.Clear();

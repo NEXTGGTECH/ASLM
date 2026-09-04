@@ -513,6 +513,9 @@ namespace ASLM.Services.Internal
         private ModuleSettingsSectionViewModel? _activeSection;
         private bool _hasSettings;
         private bool _hasSectionNavigation;
+        private bool _isLoading;
+        private bool _isFullyLoaded;
+        private Task _incrementalLoadTask = Task.CompletedTask;
 
         /// <summary>
         /// Creates the module page model with a callback used to refresh save actions.
@@ -546,6 +549,24 @@ namespace ASLM.Services.Internal
         {
             get => _hasSectionNavigation;
             private set => SetProperty(ref _hasSectionNavigation, value);
+        }
+
+        /// <summary>
+        /// Gets whether editor rows are currently being materialized between UI frames.
+        /// </summary>
+        public bool IsLoading
+        {
+            get => _isLoading;
+            private set => SetProperty(ref _isLoading, value);
+        }
+
+        /// <summary>
+        /// Gets whether every editor row for the current draft has been materialized.
+        /// </summary>
+        public bool IsFullyLoaded
+        {
+            get => _isFullyLoaded;
+            private set => SetProperty(ref _isFullyLoaded, value);
         }
 
         /// <summary>
@@ -584,6 +605,95 @@ namespace ASLM.Services.Internal
 
             HasSettings = Sections.Count > 0;
             RefreshVisibility();
+            IsLoading = false;
+            IsFullyLoaded = true;
+        }
+
+        /// <summary>
+        /// Materializes one module page incrementally so large manifests never monopolize the UI thread.
+        /// </summary>
+        public Task LoadIncrementallyAsync(
+            ModuleSettingsDraft moduleDraft,
+            string engineInstalledText,
+            string engineNotInstalledText,
+            CancellationToken cancellationToken)
+        {
+            if (ReferenceEquals(_moduleDraft, moduleDraft) && IsFullyLoaded)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (ReferenceEquals(_moduleDraft, moduleDraft) && IsLoading)
+            {
+                return _incrementalLoadTask;
+            }
+
+            _incrementalLoadTask = LoadIncrementallyCoreAsync(
+                moduleDraft,
+                engineInstalledText,
+                engineNotInstalledText,
+                cancellationToken);
+            return _incrementalLoadTask;
+        }
+
+        /// <summary>
+        /// Adds sections and rows in manifest order while yielding after every rendered setting.
+        /// </summary>
+        private async Task LoadIncrementallyCoreAsync(
+            ModuleSettingsDraft moduleDraft,
+            string engineInstalledText,
+            string engineNotInstalledText,
+            CancellationToken cancellationToken)
+        {
+            _moduleDraft = moduleDraft;
+            Sections.Clear();
+            IsFullyLoaded = false;
+            IsLoading = true;
+
+            try
+            {
+                var sections = SettingsPresentationBuilder.BuildModuleSections(
+                    moduleDraft,
+                    includeDependencyHiddenSettings: true);
+                HasSettings = sections.Count > 0;
+
+                foreach (var section in sections)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var sectionViewModel = new ModuleSettingsSectionViewModel(
+                        section,
+                        [],
+                        ResolveNavigationTitle(moduleDraft.Module, section),
+                        OnSectionSelected);
+                    Sections.Add(sectionViewModel);
+
+                    foreach (var draft in section.Settings)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var wasVisible = sectionViewModel.IsVisible;
+                        sectionViewModel.Settings.Add(new ModuleSettingItemViewModel(
+                            draft,
+                            engineInstalledText,
+                            engineNotInstalledText,
+                            OnItemValueChanged));
+                        sectionViewModel.RefreshVisibility();
+                        if (wasVisible != sectionViewModel.IsVisible)
+                        {
+                            RefreshNavigationState();
+                        }
+
+                        // A short asynchronous boundary lets input, painting, and close events run between heavy XAML rows.
+                        await Task.Delay(1, cancellationToken);
+                    }
+                }
+
+                RefreshVisibility();
+                IsFullyLoaded = true;
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
 
         /// <summary>
@@ -600,6 +710,43 @@ namespace ASLM.Services.Internal
             }
 
             RefreshVisibility();
+        }
+
+        /// <summary>
+        /// Refreshes bound editor rows between UI frames so a large runtime snapshot cannot freeze input.
+        /// </summary>
+        public async Task RefreshFromDraftIncrementallyAsync(CancellationToken cancellationToken)
+        {
+            foreach (var section in Sections)
+            {
+                foreach (var item in section.Settings)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    item.RefreshFromDraft();
+                    await Task.Delay(1, cancellationToken);
+                }
+            }
+
+            RefreshVisibility();
+        }
+
+        /// <summary>
+        /// Refreshes one completed runtime getter without waiting for or rebuilding the remaining editor rows.
+        /// </summary>
+        public void RefreshSettingFromDraft(string settingKey, bool refreshDependencies)
+        {
+            var item = Sections
+                .SelectMany(static section => section.Settings)
+                .FirstOrDefault(candidate => string.Equals(
+                    candidate.Draft.Setting.Key,
+                    settingKey,
+                    StringComparison.OrdinalIgnoreCase));
+            item?.RefreshFromDraft();
+
+            if (refreshDependencies)
+            {
+                RefreshVisibility();
+            }
         }
 
         /// <summary>

@@ -231,8 +231,7 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Resolves declared module settings with <c>setExec</c>, optionally compares <c>getExec</c> output,
-        /// and applies updates through the module's console commands (same path as the settings UI save flow).
+        /// Reconciles only host-controlled module settings before module commands start.
         /// </summary>
         private async Task SynchronizeDeclaredModuleSettingsAsync(ModuleConfig module, IProgress<string> moduleLog, CancellationToken ct)
         {
@@ -241,16 +240,18 @@ namespace ASLM.Services.Modules
                 return;
             }
 
-            moduleLog.Report("Synchronizing module settings...");
-
             var settingsToSync = module.Settings
-                .Where(s => !string.IsNullOrEmpty(s.SetExec))
+                .Where(static setting =>
+                    setting.IsSynchronizedOnLaunch &&
+                    !string.IsNullOrWhiteSpace(setting.SetExec))
                 .ToList();
 
             if (settingsToSync.Count == 0)
             {
                 return;
             }
+
+            moduleLog.Report("Synchronizing host-controlled module settings...");
 
             var targets = new List<(ModuleSetting Setting, string Target)>();
             foreach (var setting in settingsToSync)
@@ -903,7 +904,7 @@ namespace ASLM.Services.Modules
                 var execMessage = $"Exec: {Path.GetFileName(fileName)} {arguments}";
                 log.Report(execMessage);
 
-                var process = new Process { StartInfo = psi };
+                using var process = new Process { StartInfo = psi };
 
                 // 4. Start & Wait
                 ct.ThrowIfCancellationRequested();
@@ -965,6 +966,9 @@ namespace ASLM.Services.Modules
                 // A launch token controls setup and process creation only. Once a
                 // tracked run command starts, module stop owns its lifetime.
                 var lifetimeToken = trackProcess ? CancellationToken.None : ct;
+                using var cancellationRegistration = lifetimeToken.Register(
+                    static state => TerminateCanceledProcess((Process)state!),
+                    process);
                 await process.WaitForExitAsync(lifetimeToken);
                 _consoleStore.CompleteProcessSession(sessionHandle, process.ExitCode);
 
@@ -1070,6 +1074,7 @@ namespace ASLM.Services.Modules
                     trackProcess: false,
                     injectSettings: isSet,
                     sessionStage: "Settings");
+                ct.ThrowIfCancellationRequested();
                 if (!success)
                 {
                     _logger.LogWarning(
@@ -1104,6 +1109,24 @@ namespace ASLM.Services.Modules
                 }
 
                 _settingCommandThrottle.Release();
+            }
+        }
+
+        /// <summary>
+        /// Terminates a short-lived command when its caller cancels the operation.
+        /// </summary>
+        private static void TerminateCanceledProcess(Process process)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch
+            {
+                // Cancellation is best-effort because the process may exit between the state check and kill call.
             }
         }
 
