@@ -1,9 +1,9 @@
 {
-    "fileVersion": 1,
+    "fileVersion": 2,
     "id": "aslm-chat",
     "name": "ASLM Chat",
     "description": "ASLM Chat Module",
-    "version": "0.8.2.11",
+    "version": "0.8.4.5",
     "author": "NEXTGGTECH",
     "type": "ui",
     "category": [
@@ -16,6 +16,28 @@
         "type": "github",
         "repo": "NEXTGGTECH/ASLM-Chat"
     },
+    "supportedPlatforms": [
+        {
+            "os": "windows",
+            "arch": "amd64",
+            "key": "windows-amd64"
+        },
+        {
+            "os": "windows",
+            "arch": "arm64",
+            "key": "windows-arm64"
+        },
+        {
+            "os": "macos",
+            "arch": "amd64",
+            "key": "macos-amd64"
+        },
+        {
+            "os": "macos",
+            "arch": "arm64",
+            "key": "macos-arm64"
+        }
+    ],
     "update": {
         "mode": "release",
         "channel": "release",
@@ -48,7 +70,6 @@
         "firstRun": [
             {
                 "name": "First Run Setup",
-                "description": "Generates settings.json and applies database migrations",
                 "engine": "python-runtime",
                 "exec": "main.py first_run"
             }
@@ -56,23 +77,57 @@
         "run": [
             {
                 "name": "UI Server",
-                "description": "Launches the Django development server",
                 "engine": "python-runtime",
                 "exec": "main.py runserver"
             },
             {
                 "name": "Ollama Runtime",
-                "description": "Launches the managed Ollama service in a dedicated console session",
                 "engine": "python-runtime",
                 "exec": "main.py ollama_runtime --log"
             }
         ]
     },
+    "settingCategories": [
+        {
+            "id": "engines",
+            "name": "Engines"
+        },
+        {
+            "id": "browser-agent",
+            "name": "Browser Agent"
+        },
+        {
+            "id": "sandbox",
+            "name": "Sandbox"
+        },
+        {
+            "id": "web-search",
+            "name": "WebSearch"
+        },
+        {
+            "id": "web-search-engines",
+            "name": "WebSearch Engines"
+        },
+        {
+            "id": "web-search-api",
+            "name": "WebSearch API"
+        },
+        {
+            "id": "web-search-search",
+            "name": "WebSearch Search"
+        },
+        {
+            "id": "web-search-extraction",
+            "name": "WebSearch Extraction"
+        },
+        {
+            "id": "web-search-cache",
+            "name": "WebSearch Cache"
+        }
+    ],
     "settings": [
         {
             "key": "ui-port",
-            "name": "UI Server Port",
-            "description": "Port the UI server listens on",
             "type": "port",
             "default": 20000,
             "engine": "python-runtime",
@@ -80,35 +135,57 @@
             "setExec": "main.py set_setting --key ui-port --value {value}"
         },
         {
-            "key": "api-port",
-            "name": "API Server Port",
-            "description": "Port the UI server listens on",
-            "type": "port",
-            "default": 20001,
-            "engine": "python-runtime",
-            "getExec": "main.py get_setting --key api-port",
-            "setExec": "main.py set_setting --key api-port --value {value}"
-        },
-        {
             "key": "aslm-host-theme",
-            "name": "ASLM host theme",
-            "description": "Theme snapshot from the host ASLM app; applied on each module start. Managed only by ASLM.",
             "type": "theme",
             "engine": "python-runtime",
             "setExec": "main.py apply_aslm_host_theme --file {value}"
         },
         {
             "key": "aslm-host-locale",
-            "name": "ASLM host locale",
-            "description": "Language snapshot from the host ASLM app; applied on each module start. Managed only by ASLM.",
             "type": "locale",
             "engine": "python-runtime",
             "setExec": "main.py apply_aslm_locale --file {value}"
         },
         {
+            "key": "key-aslm",
+            "type": "key-aslm",
+            "engine": "python-runtime",
+            "setExec": "main.py set_setting --key key-aslm --value {value}"
+        },
+        {
+            "key": "key-gh",
+            "type": "key-gh",
+            "engine": "python-runtime",
+            "setExec": "main.py set_setting --key key-gh --value {value}"
+        },
+        {
+            "key": "ollama-service_port",
+            "type": "port",
+            "default": 20003,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key ollama-service_port",
+            "setExec": "main.py set_setting --key ollama-service_port --value {value}"
+        },
+        {
+            "key": "browser-daemon-port",
+            "type": "port",
+            "default": 20010,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key browser-daemon-port",
+            "setExec": "main.py set_setting --key browser-daemon-port --value {value}"
+        },
+        {
+            "key": "generate-chat-titles",
+            "name": "Generate Chat Titles",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key generate-chat-titles",
+            "setExec": "main.py set_setting --key generate-chat-titles --value {value}"
+        },
+        {
             "key": "console_log_level",
             "name": "Console Log Level",
-            "description": "How much runtime detail ASLM-Chat prints into the ASLM console.",
             "type": "select",
             "default": "debug",
             "allowedValues": [
@@ -123,7 +200,6 @@
         {
             "key": "llm-engine",
             "name": "Active LLM Engine",
-            "description": "Engine used for chat generation in the UI",
             "type": "select",
             "default": "ollama-service",
             "allowedValues": [
@@ -135,149 +211,817 @@
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key llm-engine",
             "setExec": "main.py set_setting --key llm-engine --value {value}",
-            "value": "ollama-service"
+            "value": "ollama-service",
+            "category": "engines"
         },
         {
             "key": "ollama-service",
             "name": "Ollama",
-            "description": "Whether the Ollama inference service is installed",
             "type": "engine",
             "default": true,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key ollama-service",
-            "setExec": "main.py set_setting --key ollama-service --value {value}"
+            "setExec": "main.py set_setting --key ollama-service --value {value}",
+            "category": "engines"
         },
         {
             "key": "ollama-service_path",
-            "name": "Ollama Path",
-            "description": "Path to the Ollama executable",
+            "name": "Use custom Ollama path",
             "type": "path",
             "default": null,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key ollama-service_path",
-            "setExec": "main.py set_setting --key ollama-service_path --value {value}"
+            "setExec": "main.py set_setting --key ollama-service_path --value {value}",
+            "category": "engines"
         },
         {
             "key": "ollama-service_data",
-            "name": "Ollama Data",
-            "description": "Path to the Ollama data directory",
+            "name": "Use custom Ollama data path",
             "type": "data",
             "default": null,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key ollama-service_data",
-            "setExec": "main.py set_setting --key ollama-service_data --value {value}"
+            "setExec": "main.py set_setting --key ollama-service_data --value {value}",
+            "category": "engines"
         },
         {
             "key": "ollama-service_models",
-            "name": "Ollama Models",
-            "description": "Path to the Ollama models directory",
+            "name": "Use custom Ollama models path",
             "type": "models",
             "default": null,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key ollama-service_models",
-            "setExec": "main.py set_setting --key ollama-service_models --value {value}"
-        },
-        {
-            "key": "ollama-service_port",
-            "name": "Ollama Port",
-            "description": "Port that the local Ollama service listens on",
-            "type": "port",
-            "default": 20003,
-            "engine": "python-runtime",
-            "getExec": "main.py get_setting --key ollama-service_port",
-            "setExec": "main.py set_setting --key ollama-service_port --value {value}"
-        },
-        {
-            "key": "browser-daemon-port",
-            "name": "Browser Daemon Port",
-            "description": "Port for the web-search warm browser daemon (127.0.0.1)",
-            "type": "port",
-            "default": 20010,
-            "engine": "python-runtime",
-            "getExec": "main.py get_setting --key browser-daemon-port",
-            "setExec": "main.py set_setting --key browser-daemon-port --value {value}"
+            "setExec": "main.py set_setting --key ollama-service_models --value {value}",
+            "category": "engines"
         },
         {
             "key": "lms",
             "name": "LM Studio",
-            "description": "Whether LM Studio integration is available",
-            "type": "engine",
+            "type": "bool",
             "default": true,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key lms",
-            "setExec": "main.py set_setting --key lms --value {value}"
+            "setExec": "main.py set_setting --key lms --value {value}",
+            "category": "engines"
         },
         {
             "key": "lms_url",
-            "name": "LM Studio Address",
-            "description": "Base address of the LM Studio Server API",
+            "name": "LM Studio Server URL",
             "type": "string",
             "default": "127.0.0.1:1234",
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key lms_url",
             "setExec": "main.py set_setting --key lms_url --value {value}",
-            "value": "127.0.0.1:1234"
+            "value": "127.0.0.1:1234",
+            "category": "engines",
+            "dependsOn": "lms"
         },
         {
             "key": "openai",
             "name": "OpenAI-Compatible API",
-            "description": "Whether an OpenAI-compatible API endpoint is available",
-            "type": "engine",
+            "type": "bool",
             "default": true,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key openai",
-            "setExec": "main.py set_setting --key openai --value {value}"
+            "setExec": "main.py set_setting --key openai --value {value}",
+            "category": "engines"
         },
         {
             "key": "openai_url",
-            "name": "OpenAI-Compatible Address",
-            "description": "Base URL of the OpenAI-compatible API endpoint",
+            "name": "OpenAI-Compatible URL",
             "type": "string",
             "default": "127.0.0.1:1234/v1",
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key openai_url",
             "setExec": "main.py set_setting --key openai_url --value {value}",
-            "value": "127.0.0.1:1234/v1"
+            "value": "127.0.0.1:1234/v1",
+            "category": "engines",
+            "dependsOn": "openai"
         },
         {
             "key": "openai_api_key",
-            "name": "OpenAI-Compatible API Key",
-            "description": "Optional API key for secured OpenAI-compatible endpoints",
+            "name": "OpenAI-Compatible API Key (optional)",
             "type": "password",
             "default": "",
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key openai_api_key",
-            "setExec": "main.py set_setting --key openai_api_key --value {value}"
+            "setExec": "main.py set_setting --key openai_api_key --value {value}",
+            "category": "engines",
+            "dependsOn": "openai"
         },
         {
             "key": "google-genai",
-            "name": "Google GenAI",
-            "description": "Whether Google GenAI integration is available",
-            "type": "engine",
+            "name": "Google GenAI API",
+            "type": "bool",
             "default": true,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key google-genai",
-            "setExec": "main.py set_setting --key google-genai --value {value}"
+            "setExec": "main.py set_setting --key google-genai --value {value}",
+            "category": "engines"
         },
         {
             "key": "google_genai_url",
-            "name": "Google GenAI Address",
-            "description": "Base URL of the Google GenAI Gemini API endpoint",
+            "name": "Google GenAI API URL",
             "type": "string",
             "default": "generativelanguage.googleapis.com",
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key google_genai_url",
-            "setExec": "main.py set_setting --key google_genai_url --value {value}"
+            "setExec": "main.py set_setting --key google_genai_url --value {value}",
+            "category": "engines",
+            "dependsOn": "google-genai"
         },
         {
             "key": "google_genai_api_key",
             "name": "Google GenAI API Key",
-            "description": "API key for Google GenAI Gemini API requests",
             "type": "password",
             "default": "",
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key google_genai_api_key",
-            "setExec": "main.py set_setting --key google_genai_api_key --value {value}"
+            "setExec": "main.py set_setting --key google_genai_api_key --value {value}",
+            "category": "engines",
+            "dependsOn": "google-genai"
+        },
+        {
+            "key": "web-search-tavily-api-key",
+            "name": "Tavily API Key (optional)",
+            "type": "password",
+            "default": "",
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-tavily-api-key",
+            "setExec": "main.py set_setting --key web-search-tavily-api-key --value {value}",
+            "category": "web-search-api"
+        },
+        {
+            "key": "web-search-firecrawl-api-key",
+            "name": "Firecrawl API Key (optional)",
+            "type": "password",
+            "default": "",
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-firecrawl-api-key",
+            "setExec": "main.py set_setting --key web-search-firecrawl-api-key --value {value}",
+            "category": "web-search-api"
+        },
+        {
+            "key": "web-search-brave-api-key",
+            "name": "Brave Search API Key (optional)",
+            "type": "password",
+            "default": "",
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-brave-api-key",
+            "setExec": "main.py set_setting --key web-search-brave-api-key --value {value}",
+            "category": "web-search-api"
+        },
+        {
+            "key": "web-search-serpapi-api-key",
+            "name": "SerpApi API Key (optional)",
+            "type": "password",
+            "default": "",
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-serpapi-api-key",
+            "setExec": "main.py set_setting --key web-search-serpapi-api-key --value {value}",
+            "category": "web-search-api"
+        },
+        {
+            "key": "web-search-max-results",
+            "name": "Maximum search results",
+            "type": "int",
+            "default": 10,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-max-results",
+            "setExec": "main.py set_setting --key web-search-max-results --value {value}",
+            "category": "web-search-search"
+        },
+        {
+            "key": "web-search-total-context-budget",
+            "name": "Total search context budget",
+            "type": "int",
+            "default": 40000,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-total-context-budget",
+            "setExec": "main.py set_setting --key web-search-total-context-budget --value {value}",
+            "category": "web-search-search"
+        },
+        {
+            "key": "web-search-prefetch-timeout",
+            "name": "Prefetch timeout",
+            "type": "number",
+            "default": 8,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-prefetch-timeout",
+            "setExec": "main.py set_setting --key web-search-prefetch-timeout --value {value}",
+            "category": "web-search-search"
+        },
+        {
+            "key": "web-search-preview-max-chars",
+            "name": "Maximum preview length",
+            "type": "int",
+            "default": 4000,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-preview-max-chars",
+            "setExec": "main.py set_setting --key web-search-preview-max-chars --value {value}",
+            "category": "web-search-search"
+        },
+        {
+            "key": "web-search-extraction-timeout",
+            "name": "Extraction timeout",
+            "type": "number",
+            "default": 25,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-extraction-timeout",
+            "setExec": "main.py set_setting --key web-search-extraction-timeout --value {value}",
+            "category": "web-search-extraction"
+        },
+        {
+            "key": "web-search-max-page-chars",
+            "name": "Maximum page length",
+            "type": "int",
+            "default": 20000,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-max-page-chars",
+            "setExec": "main.py set_setting --key web-search-max-page-chars --value {value}",
+            "category": "web-search-extraction"
+        },
+        {
+            "key": "web-search-min-content-length",
+            "name": "Minimum content length",
+            "type": "int",
+            "default": 800,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-min-content-length",
+            "setExec": "main.py set_setting --key web-search-min-content-length --value {value}",
+            "category": "web-search-extraction"
+        },
+        {
+            "key": "web-search-compress-read-pages",
+            "name": "Compress long pages",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-compress-read-pages",
+            "setExec": "main.py set_setting --key web-search-compress-read-pages --value {value}",
+            "category": "web-search-extraction"
+        },
+        {
+            "key": "web-search-compress-threshold",
+            "name": "Compression threshold",
+            "type": "int",
+            "default": 10000,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-compress-threshold",
+            "setExec": "main.py set_setting --key web-search-compress-threshold --value {value}",
+            "category": "web-search-extraction"
+        },
+        {
+            "key": "web-search-compress-target",
+            "name": "Compression target",
+            "type": "int",
+            "default": 10000,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-compress-target",
+            "setExec": "main.py set_setting --key web-search-compress-target --value {value}",
+            "category": "web-search-extraction"
+        },
+        {
+            "key": "web-search-cache-ttl",
+            "name": "Search result cache lifetime",
+            "type": "int",
+            "default": 21600,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-cache-ttl",
+            "setExec": "main.py set_setting --key web-search-cache-ttl --value {value}",
+            "category": "web-search-cache"
+        },
+        {
+            "key": "web-search-negative-cache-ttl",
+            "name": "Search negative cache lifetime",
+            "type": "int",
+            "default": 300,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-negative-cache-ttl",
+            "setExec": "main.py set_setting --key web-search-negative-cache-ttl --value {value}",
+            "category": "web-search-cache"
+        },
+        {
+            "key": "web-search-page-cache-ttl",
+            "name": "Page cache lifetime",
+            "type": "int",
+            "default": 86400,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-page-cache-ttl",
+            "setExec": "main.py set_setting --key web-search-page-cache-ttl --value {value}",
+            "category": "web-search-cache"
+        },
+        {
+            "key": "web-search-repeat-block-window",
+            "name": "Repeat block window",
+            "description": "Time in seconds that blocks an identical repeated query",
+            "type": "int",
+            "default": 30,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-repeat-block-window",
+            "setExec": "main.py set_setting --key web-search-repeat-block-window --value {value}",
+            "category": "web-search-cache"
+        },
+        {
+            "key": "web-search-seen-source-window",
+            "name": "Seen source window",
+            "description": "Time in seconds that suppresses recently returned sources",
+            "type": "int",
+            "default": 30,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-seen-source-window",
+            "setExec": "main.py set_setting --key web-search-seen-source-window --value {value}",
+            "category": "web-search-cache"
+        },
+        {
+            "key": "web-search-prefetch-max-urls",
+            "name": "Maximum URL prefetch results",
+            "description": "Maximum result URLs prefetched per search. Zero disables prefetching",
+            "type": "int",
+            "default": 4,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-prefetch-max-urls",
+            "setExec": "main.py set_setting --key web-search-prefetch-max-urls --value {value}",
+            "category": "web-search-cache"
+        },
+        {
+            "key": "web-search-tor-enabled",
+            "name": "Enable Tor Search",
+            "description": "Supported only on Windows and requires running Tor",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-tor-enabled",
+            "setExec": "main.py set_setting --key web-search-tor-enabled --value {value}",
+            "category": "web-search"
+        },
+        {
+            "key": "web-search-engine-google",
+            "name": "Google",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-engine-google",
+            "setExec": "main.py set_setting --key web-search-engine-google --value {value}",
+            "category": "web-search-engines"
+        },
+        {
+            "key": "web-search-engine-duckduckgo",
+            "name": "DuckDuckGo",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-engine-duckduckgo",
+            "setExec": "main.py set_setting --key web-search-engine-duckduckgo --value {value}",
+            "category": "web-search-engines"
+        },
+        {
+            "key": "web-search-engine-startpage",
+            "name": "Startpage",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-engine-startpage",
+            "setExec": "main.py set_setting --key web-search-engine-startpage --value {value}",
+            "category": "web-search-engines"
+        },
+        {
+            "key": "web-search-engine-qwant",
+            "name": "Qwant",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-engine-qwant",
+            "setExec": "main.py set_setting --key web-search-engine-qwant --value {value}",
+            "category": "web-search-engines"
+        },
+        {
+            "key": "web-search-engine-brave",
+            "name": "Brave Search",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-engine-brave",
+            "setExec": "main.py set_setting --key web-search-engine-brave --value {value}",
+            "category": "web-search-engines"
+        },
+        {
+            "key": "web-search-engine-yandex",
+            "name": "Yandex",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-engine-yandex",
+            "setExec": "main.py set_setting --key web-search-engine-yandex --value {value}",
+            "category": "web-search-engines"
+        },
+        {
+            "key": "web-search-engine-yep",
+            "name": "Yep",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-engine-yep",
+            "setExec": "main.py set_setting --key web-search-engine-yep --value {value}",
+            "category": "web-search-engines"
+        },
+        {
+            "key": "web-search-profile-import-enabled",
+            "name": "Enable browser profile import",
+            "description": "Import cookies from Chrome/Edge/Brave/Firefox",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-profile-import-enabled",
+            "setExec": "main.py set_setting --key web-search-profile-import-enabled --value {value}",
+            "category": "web-search"
+        },
+        {
+            "key": "web-search-profile-import-all-profiles",
+            "name": "Import all profiles",
+            "description": "Import every profile from browsers",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-profile-import-all-profiles",
+            "setExec": "main.py set_setting --key web-search-profile-import-all-profiles --value {value}",
+            "category": "web-search"
+        },
+        {
+            "key": "web-search-profile-import-refresh-hours",
+            "name": "Profile refresh time",
+            "type": "number",
+            "default": 12,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-profile-import-refresh-hours",
+            "setExec": "main.py set_setting --key web-search-profile-import-refresh-hours --value {value}",
+            "category": "web-search"
+        },
+        {
+            "key": "web-search-profile-import-purge-on-disable",
+            "name": "Purge imported profiles",
+            "description": "Remove imported cookies when browser profile import is disabled",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-profile-import-purge-on-disable",
+            "setExec": "main.py set_setting --key web-search-profile-import-purge-on-disable --value {value}",
+            "category": "web-search"
+        },
+        {
+            "key": "browser-agent-width",
+            "name": "Browser window width",
+            "type": "int",
+            "default": 1280,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key browser-agent-width",
+            "setExec": "main.py set_setting --key browser-agent-width --value {value}",
+            "category": "browser-agent"
+        },
+        {
+            "key": "browser-agent-height",
+            "name": "Browser window height",
+            "type": "int",
+            "default": 800,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key browser-agent-height",
+            "setExec": "main.py set_setting --key browser-agent-height --value {value}",
+            "category": "browser-agent"
+        },
+        {
+            "key": "browser-agent-headless",
+            "name": "Headless Mode",
+            "description": "Run the browser agent without a visible browser window",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key browser-agent-headless",
+            "setExec": "main.py set_setting --key browser-agent-headless --value {value}",
+            "category": "browser-agent"
+        },
+        {
+            "key": "browser-agent-max-a11y-depth",
+            "name": "Accessibility depth",
+            "description": "Maximum accessibility tree traversal depth",
+            "type": "int",
+            "default": 15,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key browser-agent-max-a11y-depth",
+            "setExec": "main.py set_setting --key browser-agent-max-a11y-depth --value {value}",
+            "category": "browser-agent"
+        },
+        {
+            "key": "browser-agent-max-elements",
+            "name": "Element limit",
+            "description": "Maximum number of elements collected from one page",
+            "type": "int",
+            "default": 200,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key browser-agent-max-elements",
+            "setExec": "main.py set_setting --key browser-agent-max-elements --value {value}",
+            "category": "browser-agent"
+        },
+        {
+            "key": "browser-agent-max-main-interactive",
+            "name": "Interactive element limit",
+            "description": "Maximum number of interactive elements included in a compact snapshot",
+            "type": "int",
+            "default": 60,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key browser-agent-max-main-interactive",
+            "setExec": "main.py set_setting --key browser-agent-max-main-interactive --value {value}",
+            "category": "browser-agent"
+        },
+        {
+            "key": "browser-agent-auto-text-preview-length",
+            "name": "Text preview length",
+            "description": "Maximum text length used by the automatic page preview",
+            "type": "int",
+            "default": 1500,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key browser-agent-auto-text-preview-length",
+            "setExec": "main.py set_setting --key browser-agent-auto-text-preview-length --value {value}",
+            "category": "browser-agent"
+        },
+        {
+            "key": "sandbox-container-name",
+            "name": "Sandbox Container name",
+            "type": "string",
+            "default": "aslm-chat-sandbox",
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-container-name",
+            "setExec": "main.py set_setting --key sandbox-container-name --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-image",
+            "name": "Sandbox Image",
+            "description": "Docker Hub image used by the sandbox",
+            "type": "string",
+            "default": "nggtlightkeeper/aslm-chat-sandbox:latest",
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-image",
+            "setExec": "main.py set_setting --key sandbox-image --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-cpu-limit",
+            "name": "CPU threads limit",
+            "type": "number",
+            "default": 4,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-cpu-limit",
+            "setExec": "main.py set_setting --key sandbox-cpu-limit --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-memory-limit",
+            "name": "Memory limit (GB)",
+            "type": "int",
+            "default": 3,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-memory-limit",
+            "setExec": "main.py set_setting --key sandbox-memory-limit --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-memory-swap-limit",
+            "name": "Memory and Swap limit (GB)",
+            "description": "Combined memory and swap limit",
+            "type": "int",
+            "default": 4,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-memory-swap-limit",
+            "setExec": "main.py set_setting --key sandbox-memory-swap-limit --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-pids-limit",
+            "name": "Process limit",
+            "type": "int",
+            "default": 256,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-pids-limit",
+            "setExec": "main.py set_setting --key sandbox-pids-limit --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-storage-limit",
+            "name": "Storage limit (GB)",
+            "type": "int",
+            "default": 12,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-storage-limit",
+            "setExec": "main.py set_setting --key sandbox-storage-limit --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-network-limit-mbit",
+            "name": "Network limit (Mbit/s)",
+            "type": "int",
+            "default": 0,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-network-limit-mbit",
+            "setExec": "main.py set_setting --key sandbox-network-limit-mbit --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-default-timeout",
+            "name": "Default command timeout",
+            "type": "int",
+            "default": 60,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-default-timeout",
+            "setExec": "main.py set_setting --key sandbox-default-timeout --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-output-bytes",
+            "name": "Output limit",
+            "type": "int",
+            "default": 60000,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-output-bytes",
+            "setExec": "main.py set_setting --key sandbox-max-output-bytes --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-output-head-ratio",
+            "name": "Output head ratio",
+            "description": "Fraction of truncated output retained from the beginning",
+            "type": "number",
+            "default": 0.5,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-output-head-ratio",
+            "setExec": "main.py set_setting --key sandbox-output-head-ratio --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-read-bytes",
+            "name": "Read limit",
+            "type": "int",
+            "default": 200000,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-read-bytes",
+            "setExec": "main.py set_setting --key sandbox-max-read-bytes --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-cat-file-bytes",
+            "name": "Cat file limit",
+            "type": "int",
+            "default": 30720,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-cat-file-bytes",
+            "setExec": "main.py set_setting --key sandbox-max-cat-file-bytes --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-cat-line-threshold",
+            "name": "Cat line threshold",
+            "type": "int",
+            "default": 300,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-cat-line-threshold",
+            "setExec": "main.py set_setting --key sandbox-max-cat-line-threshold --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-image-preview-bytes",
+            "name": "Image preview limit",
+            "description": "Maximum image size in bytes returned as a preview",
+            "type": "int",
+            "default": 2000000,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-image-preview-bytes",
+            "setExec": "main.py set_setting --key sandbox-max-image-preview-bytes --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-ls-entries",
+            "name": "Directory entry limit",
+            "type": "int",
+            "default": 500,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-ls-entries",
+            "setExec": "main.py set_setting --key sandbox-max-ls-entries --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-find-results",
+            "name": "Find result limit",
+            "type": "int",
+            "default": 200,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-find-results",
+            "setExec": "main.py set_setting --key sandbox-max-find-results --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-grep-results",
+            "name": "Grep result limit",
+            "type": "int",
+            "default": 200,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-grep-results",
+            "setExec": "main.py set_setting --key sandbox-max-grep-results --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-background-timeout-threshold",
+            "name": "Background timeout threshold",
+            "description": "Timeout threshold in seconds used to select background execution",
+            "type": "int",
+            "default": 10,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-background-timeout-threshold",
+            "setExec": "main.py set_setting --key sandbox-background-timeout-threshold --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-thread-limit",
+            "name": "Thread limit",
+            "description": "Maximum worker and numerical-library thread count",
+            "type": "int",
+            "default": 4,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-thread-limit",
+            "setExec": "main.py set_setting --key sandbox-thread-limit --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-default-task-dir",
+            "name": "Workspace directory",
+            "type": "string",
+            "default": "_sandbox",
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-default-task-dir",
+            "setExec": "main.py set_setting --key sandbox-default-task-dir --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-workspace-cleanup-enabled",
+            "name": "Workspace Cleanup",
+            "description": "Automatically recycle inactive sandbox workspaces",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-workspace-cleanup-enabled",
+            "setExec": "main.py set_setting --key sandbox-workspace-cleanup-enabled --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-workspace-cleanup-idle-seconds",
+            "name": "Workspace cleanup idle time",
+            "description": "Idle time in seconds before workspace cleanup",
+            "type": "int",
+            "default": 5400,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-workspace-cleanup-idle-seconds",
+            "setExec": "main.py set_setting --key sandbox-workspace-cleanup-idle-seconds --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-workspace-cleanup-recycle-seconds",
+            "name": "Workspace recycle time",
+            "description": "Maximum workspace lifetime in seconds before recycling",
+            "type": "int",
+            "default": 10800,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-workspace-cleanup-recycle-seconds",
+            "setExec": "main.py set_setting --key sandbox-workspace-cleanup-recycle-seconds --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-workspace-cleanup-interval-seconds",
+            "name": "Workspace cleanup interval",
+            "type": "int",
+            "default": 5,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-workspace-cleanup-interval-seconds",
+            "setExec": "main.py set_setting --key sandbox-workspace-cleanup-interval-seconds --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-max-file-map-symbols",
+            "name": "File map symbol limit",
+            "description": "Maximum symbols included per file in generated maps",
+            "type": "int",
+            "default": 50,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-max-file-map-symbols",
+            "setExec": "main.py set_setting --key sandbox-max-file-map-symbols --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-docker-start-timeout-seconds",
+            "name": "Docker start timeout",
+            "type": "int",
+            "default": 60,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-docker-start-timeout-seconds",
+            "setExec": "main.py set_setting --key sandbox-docker-start-timeout-seconds --value {value}",
+            "category": "sandbox"
         }
     ],
     "downloadsBridge": {
@@ -295,7 +1039,7 @@
             {
                 "id": "ollama-library",
                 "title": "Ollama Models",
-                "description": "Models published in the official Ollama library.",
+                "description": "Models published in the official Ollama library",
                 "groupKey": "ollama-models",
                 "targetRef": "ollama_models",
                 "sortOrder": 10
@@ -305,7 +1049,7 @@
             "ollama_models": {
                 "root": "Models",
                 "relative": "ollama-service",
-                "description": "Managed Ollama model storage inside ASLM."
+                "description": "Managed Ollama model storage inside ASLM"
             }
         }
     },
