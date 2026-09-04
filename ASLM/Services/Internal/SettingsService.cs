@@ -69,6 +69,7 @@ namespace ASLM.Services.Internal
         private readonly EngineInstaller _engineInstaller;
         private readonly ModuleInstaller _moduleInstaller;
         private readonly ModuleRunner _moduleRunner;
+        private long _moduleCatalogRevision;
 
         // Constructor
 
@@ -81,15 +82,24 @@ namespace ASLM.Services.Internal
             ModuleRunner moduleRunner)
         {
             _engineInstaller = engineInstaller;
-            _moduleInstaller = moduleInstaller;
+            _moduleInstaller = moduleInstaller!;
             _moduleRunner = moduleRunner;
+            if (moduleInstaller != null)
+            {
+                moduleInstaller.ModulesChanged += OnModulesChanged;
+            }
         }
 
 
         /// <summary>
-        /// Stable key used to remember whether live runtime values were already loaded for a module.
+        /// Stable key used to coordinate runtime work for one installed module instance.
         /// </summary>
         public static string GetModuleRuntimeKey(ModuleConfig module) => module.SourcePath;
+
+        /// <summary>
+        /// Gets the in-process revision used to avoid reparsing unchanged module manifests.
+        /// </summary>
+        public long ModuleCatalogRevision => Interlocked.Read(ref _moduleCatalogRevision);
 
         /// <summary>
         /// Returns whether one module should appear in the settings sidebar.
@@ -105,6 +115,12 @@ namespace ASLM.Services.Internal
         /// Discovers installed modules and returns their configuration snapshots for the settings page.
         /// </summary>
         public Task<List<ModuleConfig>> DiscoverModulesAsync() => _moduleInstaller.DiscoverModulesAsync();
+
+        /// <summary>
+        /// Invalidates settings manifest snapshots after an installer-level module change.
+        /// </summary>
+        private void OnModulesChanged(object? sender, EventArgs e) =>
+            Interlocked.Increment(ref _moduleCatalogRevision);
 
 
         // Port validation
@@ -671,14 +687,28 @@ namespace ASLM.Services.Internal
                 return;
             }
 
-            // Runtime getters execute only for explicitly requested refreshes; other passes use manifest fallbacks.
-            var loaded = reloadRuntimeValues
-                ? await Task.WhenAll(editableDrafts.Select(draft => LoadSettingValueAsync(moduleDraft.Module, draft.Setting)))
-                : editableDrafts
+            IReadOnlyList<LoadedSetting> loaded;
+            if (reloadRuntimeValues)
+            {
+                var runtimeValues = new List<LoadedSetting>(editableDrafts.Count);
+                foreach (var draft in editableDrafts)
+                {
+                    // Keep one module ordered while moving each potentially expensive getter off the caller thread.
+                    var runtimeValue = await Task.Run(
+                        () => LoadSettingValueAsync(moduleDraft.Module, draft.Setting));
+                    runtimeValues.Add(runtimeValue);
+                }
+
+                loaded = runtimeValues;
+            }
+            else
+            {
+                loaded = editableDrafts
                     .Select(draft => new LoadedSetting(
                         draft.Setting,
                         GetFallbackValue(moduleDraft.Module, draft.Setting)))
                     .ToArray();
+            }
 
             ApplyLoadedSettingsToDraft(moduleDraft, loaded);
         }
@@ -764,14 +794,20 @@ namespace ASLM.Services.Internal
             }
 
             await Task.Run(() => _moduleInstaller.SaveConfigAsync(moduleDraft.Module));
+            moduleDraft.AcceptChanges();
             return new ModuleSaveResult(touchedModules, deferredSettings);
         }
 
         /// <summary>
         /// Loads one setting value from runtime get-exec or manifest fallback.
         /// </summary>
-        public async Task<LoadedSetting> LoadSettingValueAsync(ModuleConfig module, ModuleSetting setting)
+        public async Task<LoadedSetting> LoadSettingValueAsync(
+            ModuleConfig module,
+            ModuleSetting setting,
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (IsAutoDetectedAslmEngine(setting))
             {
                 return new LoadedSetting(setting, IsAslmEngineInstalled(setting.Key));
@@ -790,10 +826,19 @@ namespace ASLM.Services.Internal
 
             try
             {
-                var rawValue = await Task.Run(() => _moduleRunner.ExecuteSettingCommandAsync(module, setting, false, null, CancellationToken.None));
+                var rawValue = await _moduleRunner.ExecuteSettingCommandAsync(
+                    module,
+                    setting,
+                    false,
+                    null,
+                    cancellationToken).ConfigureAwait(false);
                 return rawValue == null
                     ? new LoadedSetting(setting, fallbackValue)
                     : new LoadedSetting(setting, setting.ParseSerializedValue(rawValue));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

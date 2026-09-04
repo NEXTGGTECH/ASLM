@@ -378,7 +378,7 @@ namespace ASLM.Pages
                 return;
             }
 
-            ActivateCategory(targetCategory);
+            ActivateCategory(targetCategory, loadModuleRuntimeValues: false);
         }
 
         /// <summary>
@@ -513,9 +513,9 @@ namespace ASLM.Pages
                     deferredSettings.AddRange(moduleSaveResult.DeferredSettings);
                 }
 
-                foreach (var module in touchedModules)
+                if (touchedModules.Count > 0)
                 {
-                    await ReloadModuleRuntimeValuesAsync(module);
+                    _loadedModuleCatalogRevision = _settingsService.ModuleCatalogRevision;
                 }
 
                 var activeCategoryId = _activeCategory.Id;
@@ -524,7 +524,7 @@ namespace ASLM.Pages
                 var resolvedCategory = ResolveCategory(activeCategoryId);
                 if (resolvedCategory != null)
                 {
-                    ActivateCategory(resolvedCategory);
+                    ActivateCategory(resolvedCategory, loadModuleRuntimeValues: false);
                 }
 
                 var hadAnyPersistedSettingsChanges = hadAslmChanges || hadPersonalizationChanges;

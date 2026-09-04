@@ -306,6 +306,78 @@ public sealed class ModuleSettingsPageViewModelTests
     }
 
     /// <summary>
+    /// Verifies incremental materialization completes with every displayable row in manifest order.
+    /// </summary>
+    [Fact]
+    public async Task Incremental_load_materializes_all_rows_and_completes()
+    {
+        var draft = new ModuleSettingsDraft(CreateModule(
+            CreateSetting("first", "string", "one"),
+            CreateSetting("second", "bool", true),
+            CreateSetting("third", "path", "C:/runtime")));
+        var page = new ModuleSettingsPageViewModel(static () => { });
+
+        await page.LoadIncrementallyAsync(draft, "Installed", "Missing", CancellationToken.None);
+
+        page.IsLoading.Should().BeFalse();
+        page.IsFullyLoaded.Should().BeTrue();
+        page.Sections.SelectMany(static section => section.Settings)
+            .Select(static item => item.Draft.Setting.Key)
+            .Should().Equal("first", "second", "third");
+    }
+
+    /// <summary>
+    /// Verifies closing during materialization leaves a page restartable instead of caching a partial tree.
+    /// </summary>
+    [Fact]
+    public async Task Canceled_incremental_load_can_restart_cleanly()
+    {
+        var draft = new ModuleSettingsDraft(CreateModule(
+            CreateSetting("first", "string", "one"),
+            CreateSetting("second", "string", "two")));
+        var page = new ModuleSettingsPageViewModel(static () => { });
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Func<Task> canceledLoad = () => page.LoadIncrementallyAsync(
+            draft,
+            "Installed",
+            "Missing",
+            cancellation.Token);
+
+        await canceledLoad.Should().ThrowAsync<OperationCanceledException>();
+        page.IsLoading.Should().BeFalse();
+        page.IsFullyLoaded.Should().BeFalse();
+
+        await page.LoadIncrementallyAsync(draft, "Installed", "Missing", CancellationToken.None);
+
+        page.IsFullyLoaded.Should().BeTrue();
+        page.Sections.SelectMany(static section => section.Settings)
+            .Select(static item => item.Draft.Setting.Key)
+            .Should().Equal("first", "second");
+    }
+
+    /// <summary>
+    /// Verifies one completed getter updates only its existing editor while later getters remain pending.
+    /// </summary>
+    [Fact]
+    public void Runtime_setting_refresh_does_not_wait_for_or_refresh_other_rows()
+    {
+        var draft = new ModuleSettingsDraft(CreateModule(
+            CreateSetting("first", "string", "one"),
+            CreateSetting("second", "string", "two")));
+        var page = CreatePage(draft);
+        var items = page.Sections.SelectMany(static section => section.Settings).ToList();
+        draft.GetSetting("first").Value = "loaded-one";
+        draft.GetSetting("second").Value = "loaded-two";
+
+        page.RefreshSettingFromDraft("first", refreshDependencies: false);
+
+        items[0].TextValue.Should().Be("loaded-one");
+        items[1].TextValue.Should().Be("two");
+    }
+
+    /// <summary>
     /// Creates a normalized module containing the requested settings.
     /// </summary>
     private static ModuleConfig CreateModule(params ModuleSetting[] settings) =>

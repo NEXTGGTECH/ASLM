@@ -98,10 +98,15 @@ public sealed class SettingsServiceDraftPersistenceTests
 
         result.TouchedModules.Should().ContainSingle().Which.Should().BeSameAs(module);
         result.DeferredSettings.Should().ContainSingle().Which.Should().Contain("Runtime");
+        moduleDraft.HasChanges.Should().BeFalse();
         var persisted = await installer.LoadModuleConfig(manifestPath);
         persisted.Should().NotBeNull();
         persisted!.Settings.Single(setting => setting.Key == "plain").Value.Should().Be("plain-edited");
         persisted.Settings.Single(setting => setting.Key == "runtime").Value.Should().Be("runtime-edited");
+
+        var unchangedResult = await service.SaveActiveModuleAsync(moduleDraft);
+        unchangedResult.TouchedModules.Should().BeEmpty();
+        unchangedResult.DeferredSettings.Should().BeEmpty();
     }
 
     /// <summary>

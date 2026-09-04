@@ -170,6 +170,46 @@ public sealed class SettingsServiceTests
     }
 
     /// <summary>
+    /// Verifies launch reconciliation includes only values owned by ASLM or its managed runtimes.
+    /// </summary>
+    [Theory]
+    [InlineData("port", true)]
+    [InlineData("theme", true)]
+    [InlineData("locale", true)]
+    [InlineData("key-aslm", true)]
+    [InlineData("key-gh", true)]
+    [InlineData("engine", true)]
+    [InlineData("path", true)]
+    [InlineData("data", true)]
+    [InlineData("models", true)]
+    [InlineData("bool", false)]
+    [InlineData("string", false)]
+    [InlineData("select", false)]
+    [InlineData("password", false)]
+    public void Launch_synchronization_includes_only_host_controlled_types(string type, bool expected)
+    {
+        new ModuleSetting { Type = type }.IsSynchronizedOnLaunch.Should().Be(expected);
+    }
+
+    /// <summary>
+    /// Verifies a closed settings page can stop a pending runtime-value load before any module work starts.
+    /// </summary>
+    [Fact]
+    public async Task LoadSettingValueAsync_honors_cancellation()
+    {
+        var service = new SettingsService(null!, null!, null!);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Func<Task> action = () => service.LoadSettingValueAsync(
+            ModuleConfigBuilder.Create(),
+            new ModuleSetting { Key = "value", Type = "string" },
+            cancellation.Token);
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    /// <summary>
     /// Verifies explicit dependencies accept only user-editable boolean controllers.
     /// </summary>
     [Fact]

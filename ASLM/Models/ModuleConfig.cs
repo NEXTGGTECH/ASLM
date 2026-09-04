@@ -788,6 +788,21 @@ namespace ASLM.Models
         public bool IsAutomaticallyManaged => NormalizedType is "path" or "data" or "models";
 
         /// <summary>
+        /// Gets whether ASLM must reconcile this host-controlled value before a module process starts.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsSynchronizedOnLaunch => NormalizedType is
+            "port" or
+            "theme" or
+            "locale" or
+            "key-aslm" or
+            "key-gh" or
+            "engine" or
+            "path" or
+            "data" or
+            "models";
+
+        /// <summary>
         /// Gets whether ASLM supplies an authenticated subsystem key for this setting.
         /// </summary>
         [JsonIgnore]
