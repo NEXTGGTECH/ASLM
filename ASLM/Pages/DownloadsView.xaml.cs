@@ -2,12 +2,14 @@
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
+using ASLM.Controls.Downloads;
 using ASLM.Localization;
 using ASLM.Models;
 
@@ -25,18 +27,6 @@ namespace ASLM.Pages
         private const double MaxDialogWidth = 1520;
         private const double MaxDialogHeight = 920;
 
-        // Theme palette
-
-        // Download item colors read from the active theme palette so they update with theme changes.
-        private static Color ActiveSurfaceColor => GetColorResource("BackgroundTertiary", Color.FromArgb("#202733"));
-        private static Color ActiveBorderColor => GetColorResource("ActionBlue", Color.FromArgb("#2C7CF6"));
-        private static Color PassiveSurfaceColor => GetColorResource("BackgroundSecondary", Color.FromArgb("#1F1F22"));
-        private static Color PassiveListSurfaceColor => GetColorResource("BackgroundPrimary", Color.FromArgb("#1B1B1E"));
-        private static Color PassiveBorderColor => GetColorResource("Separator", Color.FromArgb("#343438"));
-        private static Color ActiveTextColor => GetColorResource("LabelPrimary", Colors.White);
-        private static Color InactiveTextColor => GetColorResource("LabelPrimary", Color.FromArgb("#E6E6EA"));
-        private static Color SecondaryTextColor => GetColorResource("LabelSecondary", Color.FromArgb("#99EBEBF5"));
-        private static Color ActiveSubtitleColor => GetColorResource("LinkColor", Color.FromArgb("#E7F1FF"));
         private readonly DownloadCatalog _catalog;
         private readonly DownloadInstaller _installer;
         private readonly AppLocalizationService _localization;
@@ -45,30 +35,38 @@ namespace ASLM.Pages
         private CancellationTokenSource? _searchDebounceCts;
 
         private bool _hasLoaded;
+        private bool _isInternalModulesSelected = true;
         private bool _isBusy;
         private bool _isInstalling;
-        private string _statusText = string.Empty;
-        private string _itemListEmptyMessage = string.Empty;
-        private string _detailEmptyMessage = string.Empty;
         private string _searchText = string.Empty;
-        private readonly HashSet<string> _selectedFilterKeys = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, DownloadCategoryState> _categoryStates = new(StringComparer.OrdinalIgnoreCase);
+        private DownloadCategoryState _activeCategoryState = new();
+        private bool _restoringCategory;
+        private HashSet<string> SelectedFilterKeys => _activeCategoryState.FilterKeys;
         private string _lastCatalogSignature = string.Empty;
         private string _lastDetailSignature = string.Empty;
-        private int _configuredProviderCount;
-        private int _successfulProviderCount;
         private List<DownloadCatalogItem> _categoryItems = [];
         private DownloadCategoryViewModel? _activeCategory;
         private DownloadListItemViewModel? _selectedItem;
         private DownloadCatalogItemDetail? _selectedItemDetail;
         private DownloadVariantViewModel? _selectedVariant;
+        private bool _isVariantSelectorOpen;
         private DownloadInfoBlockViewModel? _selectedInfoBlock;
         private WebViewSource? _selectedInfoBlockSource;
-        private double _selectedInfoBlockWebHeight = 720;
+        private double _selectedInfoBlockWebHeight = 1;
+        private bool _isDownloadsOpen;
+        private bool _themeHandlersAttached;
 #if WINDOWS
-        private Microsoft.UI.Xaml.Controls.WebView2? _nativeInfoBlockWebView;
-        private Microsoft.UI.Xaml.Controls.ScrollViewer? _nativeDetailScrollViewer;
-        private double _detailScrollTargetY;
+        private DownloadInfoPreviewHost? _infoBlockPreview;
 #endif
+
+        private Entry SearchEntry => BridgeContent.SearchInput;
+        private Label ItemListEmptyTitleLabel => BridgeContent.ItemListEmptyTitle;
+        private Label DetailEmptyTitleLabel => BridgeContent.DetailEmptyTitle;
+        private Label VariantSectionLabel => BridgeContent.VariantTitle;
+        private Button InstallButton => BridgeContent.InstallAction;
+        private ImageButton OpenButton => BridgeContent.OpenAction;
+        private Button RemoveButton => BridgeContent.RemoveAction;
 
 
         // Initialization
@@ -83,18 +81,26 @@ namespace ASLM.Pages
             _localization = localization;
 
             InitializeComponent();
-            BindingContext = this;
-
-            RefreshCommand = new Command(async () => await ManualRefreshAsync());
             InstallCommand = new Command(async () => await InstallSelectedVariantAsync());
             OpenVariantCommand = new Command(async () => await OpenSelectedVariantAsync());
+            BindingContext = this;
+
+            BridgeContent.SearchTextChanged += OnSearchTextChanged;
+            BridgeContent.InfoBlockWebViewHandlerChanged += OnInfoBlockWebViewHandlerChanged;
+            BridgeContent.InfoBlockWebViewNavigating += OnInfoBlockWebViewNavigating;
+            BridgeContent.InfoBlockWebViewNavigated += OnInfoBlockWebViewNavigated;
+            BridgeContent.InfoBlockBrowser.Loaded += OnInfoBlockWebViewLoaded;
+            BridgeContent.InfoBlockBrowser.Unloaded += OnInfoBlockWebViewUnloaded;
+            BridgeContent.InstallRequested += OnInstallClicked;
+            BridgeContent.OpenRequested += OnOpenClicked;
+            BridgeContent.RemoveRequested += OnDeleteClicked;
+            BridgeContent.VariantSelectorToggleRequested += OnVariantSelectorToggleRequested;
 
             LocalizableAttach.Hook(this, _localization, this);
 
-            DetailScrollView.HandlerChanged += OnDetailScrollViewHandlerChanged;
             Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
             SizeChanged += (_, _) => UpdateDialogSize();
-            _statusText = L.Get(LocalizationKeys.Downloads_Status_Ready);
         }
 
 
@@ -107,16 +113,18 @@ namespace ASLM.Pages
         public void ApplyLocalization()
         {
             DownloadsTitleLabel.Text = L.Get(LocalizationKeys.Downloads_Title);
+            InternalModulesLabel.Text = L.Get(LocalizationKeys.AppShell_Nav_Modules);
+            ModulesSectionLabel.Text = L.Get(LocalizationKeys.Settings_Header_Modules);
             SearchEntry.Placeholder = L.Get(LocalizationKeys.Downloads_SearchPlaceholder);
             ItemListEmptyTitleLabel.Text = L.Get(LocalizationKeys.Downloads_NoItems);
             OnPropertyChanged(nameof(ActiveCategoryTitle));
-            OnPropertyChanged(nameof(ActiveCategoryItemCountLabel));
             DetailEmptyTitleLabel.Text = L.Get(LocalizationKeys.Downloads_SelectItem);
-            RefreshButton.Text = L.Get(LocalizationKeys.Common_Refresh);
-            InstallButton.Text = L.Get(LocalizationKeys.Common_Install);
-            OpenButton.Text = L.Get(LocalizationKeys.Common_Open);
+            InstallButton.Text = L.Get(LocalizationKeys.Common_Download);
             RemoveButton.Text = L.Get(LocalizationKeys.Common_Remove);
-            VariantSectionLabel.Text = L.Get(LocalizationKeys.Common_Variant);
+            VariantSectionLabel.Text = L.Get(LocalizationKeys.Downloads_SelectVariant);
+            BridgeContent.ItemDetailsTitle.Text = L.Get(LocalizationKeys.Downloads_DetailsLabel);
+            BridgeContent.ItemFeaturesTitle.Text = L.Get(LocalizationKeys.Downloads_FeaturesLabel);
+            SemanticProperties.SetDescription(OpenButton, L.Get(LocalizationKeys.Downloads_OpenLink));
 
             RefreshLocalizedBindableText();
         }
@@ -130,9 +138,24 @@ namespace ASLM.Pages
         public ObservableCollection<DownloadVariantViewModel> Variants { get; } = new();
         public ObservableCollection<DownloadInfoBlockViewModel> InfoBlocks { get; } = new();
 
-        public ICommand RefreshCommand { get; }
         public ICommand InstallCommand { get; }
         public ICommand OpenVariantCommand { get; }
+
+        public bool IsInternalModulesSelected
+        {
+            get => _isInternalModulesSelected;
+            private set
+            {
+                if (_isInternalModulesSelected == value) return;
+                _isInternalModulesSelected = value;
+                UpdateInfoBlockPreviewSource();
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsModuleCategorySelected));
+            }
+        }
+
+        public bool IsModuleCategorySelected => !IsInternalModulesSelected && _activeCategory != null;
+        public bool HasModuleCategories => Categories.Count > 0;
 
         public bool IsBusy
         {
@@ -155,35 +178,12 @@ namespace ASLM.Pages
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ShowInstallButton));
                 OnPropertyChanged(nameof(ShowDeleteButton));
-                OnPropertyChanged(nameof(ShowSelectedVariantInstalledBadge));
             }
         }
 
-        public string StatusText
-        {
-            get => _statusText;
-            private set
-            {
-                if (string.Equals(_statusText, value, StringComparison.Ordinal)) return;
-                _statusText = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public string CategoryCountLabel => Categories.Count switch
-        {
-            0 => L.Get(LocalizationKeys.Downloads_CategoryCount_None),
-            1 => L.Get(LocalizationKeys.Downloads_CategoryCount_One),
-            _ => L.Get(LocalizationKeys.Downloads_CategoryCount_Many, Categories.Count)
-        };
         public string ActiveCategoryTitle => _activeCategory?.Title ?? L.Get(LocalizationKeys.Downloads_CatalogColumnTitle);
         public string ActiveCategoryDescription => _activeCategory?.Description ?? string.Empty;
         public bool HasActiveCategoryDescription => !string.IsNullOrWhiteSpace(ActiveCategoryDescription);
-        public string ActiveCategoryItemCountLabel => _activeCategory == null
-            ? L.Get(LocalizationKeys.Downloads_NoItems)
-            : CurrentItems.Count == 1
-                ? L.Get(LocalizationKeys.Downloads_OneFamily)
-                : L.Get(LocalizationKeys.Downloads_FamilyCountFormat, CurrentItems.Count);
         public bool HasFilters => Filters.Count > 0;
         public bool HasCurrentItems => CurrentItems.Count > 0;
         public bool IsItemListEmptyVisible => Categories.Count > 0 && !HasCurrentItems && !IsBusy;
@@ -199,57 +199,47 @@ namespace ASLM.Pages
                 }
 
                 _searchText = value ?? string.Empty;
+                if (!_restoringCategory)
+                {
+                    _activeCategoryState.SearchText = _searchText;
+                    _activeCategoryState.NeedsRefresh = true;
+                }
                 OnPropertyChanged();
             }
         }
 
-        public string ItemListEmptyMessage
-        {
-            get => _itemListEmptyMessage;
-            private set
-            {
-                if (string.Equals(_itemListEmptyMessage, value, StringComparison.Ordinal)) return;
-                _itemListEmptyMessage = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public string DetailHeaderTitle => L.Get(LocalizationKeys.Downloads_CatalogTitle);
-        public string DetailHeaderSubtitle => L.Get(LocalizationKeys.Downloads_ChooseVariantHint);
+        public string DetailHeaderTitle => HasSelectedItem
+            ? SelectedItemTitle
+            : L.Get(LocalizationKeys.Downloads_SelectItem);
         public bool HasSelectedItem => _selectedItem != null;
         public bool IsDetailEmptyVisible => !HasSelectedItem && !IsBusy;
 
-        public string DetailEmptyMessage
+        public string SelectedItemTitle => _selectedItemDetail?.Title ?? _selectedItem?.Title ?? string.Empty;
+        public IReadOnlyList<DownloadFieldViewModel> SelectedItemDetails { get; private set; } = [];
+        public bool HasSelectedItemDetails => SelectedItemDetails.Count > 0;
+        public string SelectedItemSummary => _selectedItemDetail?.Summary ?? _selectedItem?.Summary ?? string.Empty;
+        public bool HasSelectedItemSummary => !string.IsNullOrWhiteSpace(SelectedItemSummary);
+        public IReadOnlyList<DownloadFieldViewModel> SelectedItemTags { get; private set; } = [];
+        public bool HasSelectedItemTags => SelectedItemTags.Count > 0;
+        public bool HasVariants => Variants.Count > 0;
+        public bool HasSelectedVariant => _selectedVariant != null;
+        public IReadOnlyList<DownloadVariantViewModel> SelectedVariantCard =>
+            _selectedVariant == null ? [] : [_selectedVariant];
+        public bool IsVariantSelectorOpen
         {
-            get => _detailEmptyMessage;
+            get => _isVariantSelectorOpen;
             private set
             {
-                if (string.Equals(_detailEmptyMessage, value, StringComparison.Ordinal)) return;
-                _detailEmptyMessage = value;
+                if (_isVariantSelectorOpen == value) return;
+                _isVariantSelectorOpen = value;
                 OnPropertyChanged();
             }
         }
-
-        public string SelectedItemTitle => _selectedItemDetail?.Title ?? _selectedItem?.Title ?? string.Empty;
-        public string SelectedItemSummary => _selectedItemDetail?.Summary ?? _selectedItem?.Summary ?? string.Empty;
-        public bool HasSelectedItemSummary => !string.IsNullOrWhiteSpace(SelectedItemSummary);
-        public string SelectedItemMetadataLine => BuildItemMetadataLine();
-        public bool HasSelectedItemMetadata => !string.IsNullOrWhiteSpace(SelectedItemMetadataLine);
-        public string SelectedItemTagsLine => BuildItemTagsLine();
-        public bool HasSelectedItemTags => !string.IsNullOrWhiteSpace(SelectedItemTagsLine);
-        public bool HasVariants => Variants.Count > 0;
-        public bool HasSelectedVariant => _selectedVariant != null;
         public string SelectedVariantTitle => _selectedVariant?.Title ?? string.Empty;
         public string SelectedVariantSummary => _selectedVariant?.Summary ?? string.Empty;
         public bool HasSelectedVariantSummary => !string.IsNullOrWhiteSpace(SelectedVariantSummary);
-        public string SelectedVariantMetadataLine => _selectedVariant?.MetadataLine ?? string.Empty;
-        public bool HasSelectedVariantMetadata => !string.IsNullOrWhiteSpace(SelectedVariantMetadataLine);
-        public string SelectedVariantTagsLine => _selectedVariant?.TagsLine ?? string.Empty;
-        public bool HasSelectedVariantTags => !string.IsNullOrWhiteSpace(SelectedVariantTagsLine);
         public bool ShowInstallButton => _selectedVariant != null && !_selectedVariant.Variant.Installed && !IsInstalling;
         public bool ShowDeleteButton => _selectedVariant?.Variant.Installed == true && !IsInstalling;
-        public bool ShowSelectedVariantInstalledBadge => _selectedVariant?.Variant.Installed == true && !IsInstalling;
-        public string SelectedVariantInstalledLabel => _selectedVariant?.InstalledLabel ?? L.Get(LocalizationKeys.Downloads_Installed);
         public bool ShowOpenVariantButton => !string.IsNullOrWhiteSpace(GetSelectedVariantHomepageUrl());
         public bool HasInfoBlocks => InfoBlocks.Count > 0;
         public bool HasMultipleInfoBlocks => InfoBlocks.Count > 1;
@@ -274,7 +264,8 @@ namespace ASLM.Pages
             get => _selectedInfoBlockWebHeight;
             private set
             {
-                var clamped = Math.Max(520, value);
+                if (!DownloadInfoPreview.IsValidHeight(value)) return;
+                var clamped = Math.Ceiling(value);
                 if (Math.Abs(_selectedInfoBlockWebHeight - clamped) < 0.5)
                 {
                     return;
@@ -284,16 +275,6 @@ namespace ASLM.Pages
                 OnPropertyChanged();
             }
         }
-
-        public double VariantSelectorHeight
-        {
-            get
-            {
-                var visibleRows = Math.Clamp(Variants.Count, 1, 5);
-                return 12 + (visibleRows * 52);
-            }
-        }
-
 
         // Property notifications
 
@@ -309,39 +290,92 @@ namespace ASLM.Pages
         // Overlay opening
 
         /// <summary>
-        /// Opens the dialog with cached data first, then refreshes in the background.
+        /// Opens the dialog and refreshes the available downloads automatically.
         /// </summary>
-        public async Task OpenAsync()
+        public Task OpenAsync()
         {
+            _isDownloadsOpen = true;
+            RefreshThemeIcons();
+            UpdateInfoBlockPreviewSource();
             UpdateDialogSize();
-            await LoadCatalogAsync(preferCached: true, forceRefresh: false, preserveSelection: true, showBusyIndicator: true, silentRefresh: false);
-            _ = LoadCatalogAsync(preferCached: true, forceRefresh: true, preserveSelection: true, showBusyIndicator: false, silentRefresh: true);
+            return LoadCatalogAsync(
+                preferCached: true,
+                forceRefresh: true,
+                preserveSelection: true,
+                showBusyIndicator: true,
+                silentRefresh: false);
         }
 
 
         // Initial layout setup
 
         /// <summary>
-        /// Initializes size and native scroll bindings once.
+        /// Initializes the dialog size once.
         /// </summary>
         private void OnLoaded(object? sender, EventArgs e)
         {
+            AttachThemeHandlers();
             if (_hasLoaded) return;
             _hasLoaded = true;
             UpdateDialogSize();
-            OnDetailScrollViewHandlerChanged(DetailScrollView, EventArgs.Empty);
+        }
+
+        private void OnUnloaded(object? sender, EventArgs e)
+        {
+            DetachThemeHandlers();
+        }
+
+        private void AttachThemeHandlers()
+        {
+            if (_themeHandlersAttached)
+            {
+                RefreshThemeIcons();
+                return;
+            }
+
+            _themeHandlersAttached = true;
+            ThemeService.PaletteApplied += OnPaletteApplied;
+            if (Application.Current is { } app)
+            {
+                app.RequestedThemeChanged += OnRequestedThemeChanged;
+            }
+
+            RefreshThemeIcons();
+        }
+
+        private void DetachThemeHandlers()
+        {
+            if (!_themeHandlersAttached) return;
+
+            _themeHandlersAttached = false;
+            ThemeService.PaletteApplied -= OnPaletteApplied;
+            if (Application.Current is { } app)
+            {
+                app.RequestedThemeChanged -= OnRequestedThemeChanged;
+            }
+        }
+
+        private void OnPaletteApplied()
+        {
+            MainThread.BeginInvokeOnMainThread(RefreshThemeIcons);
+        }
+
+        private void OnRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
+        {
+            MainThread.BeginInvokeOnMainThread(RefreshThemeIcons);
+        }
+
+        private void RefreshThemeIcons()
+        {
+            var iconTint = IconTintHelper.ResolvePaletteColor("LabelPrimary");
+            OpenButton.Source = PackagedIconTintCache.Get("icon_link.png", iconTint);
+            foreach (var field in SelectedItemDetails.Concat(SelectedItemTags)
+                .Concat(CurrentItems.SelectMany(item => item.CatalogTags)))
+                field.RefreshIcon();
         }
 
 
         // Catalog refresh
-
-        /// <summary>
-        /// Runs a user-triggered catalog refresh.
-        /// </summary>
-        private async Task ManualRefreshAsync()
-        {
-            await LoadCatalogAsync(preferCached: true, forceRefresh: true, preserveSelection: true, showBusyIndicator: true, silentRefresh: false);
-        }
 
         /// <summary>
         /// Refreshes the current catalog query and preserves selection when possible.
@@ -351,7 +385,8 @@ namespace ASLM.Pages
             bool forceRefresh,
             bool preserveSelection,
             bool showBusyIndicator,
-            bool silentRefresh)
+            bool silentRefresh,
+            string? categoryGroupKey = null)
         {
             // Replace the previous refresh token so stale requests stop updating the UI
             var catalogCts = ReplaceCancellationTokenSource(ref _catalogRefreshCts);
@@ -366,55 +401,45 @@ namespace ASLM.Pages
                 IsBusy = true;
             }
 
-            if (!silentRefresh)
-            {
-                StatusText = forceRefresh
-                    ? L.Get(LocalizationKeys.Downloads_RefreshingCatalog)
-                    : L.Get(LocalizationKeys.Downloads_LoadingCatalog);
-            }
-
             try
             {
-                // Query the aggregated catalog with the current search and filter state
-                var queryText = SearchText;
-                var selectedFilters = GetSelectedFilterKeys();
+                // Copy each category's state before background work; no query is shared across pages.
+                var queries = _categoryStates.ToDictionary(
+                    pair => pair.Key,
+                    pair => new DownloadCatalogQuery(pair.Value.SearchText, pair.Value.FilterKeys.ToArray()),
+                    StringComparer.OrdinalIgnoreCase);
                 var snapshot = await Task.Run(
                     () => _catalog.LoadCatalogAsync(
-                        queryText: queryText,
-                        filters: selectedFilters,
+                        categoryQueries: queries,
+                        categoryGroupKey: categoryGroupKey,
                         preferCached: preferCached,
                         forceRefresh: forceRefresh,
                         ct: ct),
                     ct);
                 if (ct.IsCancellationRequested) return;
 
-                var snapshotSignature = ComputeCatalogSignature(snapshot);
+                foreach (var category in snapshot.Categories)
+                    GetCategoryState(category).NeedsRefresh = false;
+
+                var snapshotSignature = categoryGroupKey + "\n" + ComputeCatalogSignature(snapshot);
                 if (silentRefresh && string.Equals(_lastCatalogSignature, snapshotSignature, StringComparison.Ordinal))
                 {
                     return;
                 }
 
                 // Silent refreshes only update the UI when the snapshot actually changed
-                ApplySnapshot(snapshot, previousCategoryKey, previousItemKey);
+                previousItemKey = preserveSelection ? _selectedItem?.Item.ResourceKey : null;
+                previousVariantKey = preserveSelection ? _selectedVariant?.Variant.ResourceKey : null;
+                ApplySnapshot(snapshot, previousCategoryKey, previousItemKey, categoryGroupKey);
                 _lastCatalogSignature = snapshotSignature;
 
-                ItemListEmptyMessage = snapshot.Warnings.Count > 0
-                    ? string.Join(" ", snapshot.Warnings)
-                    : BuildEmptyItemListMessage();
-                DetailEmptyMessage = BuildDetailEmptyMessage();
-
-                if (_selectedItem != null)
+                if (_selectedItem != null && !IsInternalModulesSelected)
                 {
-                    await LoadSelectedItemDetailAsync(preferCached, forceRefresh, previousVariantKey, silentRefresh);
+                    _ = LoadSelectedItemDetailAsync(preferCached, forceRefresh, previousVariantKey, silentRefresh);
                 }
                 else
                 {
                     ClearDetail();
-                }
-
-                if (!silentRefresh)
-                {
-                    StatusText = BuildCatalogStatus(snapshot, forceRefresh);
                 }
             }
             catch (OperationCanceledException)
@@ -422,21 +447,18 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
-                if (!silentRefresh)
+                if (!ct.IsCancellationRequested &&
+                    ReferenceEquals(_catalogRefreshCts, catalogCts) &&
+                    !silentRefresh)
                 {
-                    StatusText = L.Get(LocalizationKeys.Downloads_CatalogRefreshFailedFormat, ex.Message);
-                    ItemListEmptyMessage = L.Get(LocalizationKeys.Downloads_CatalogBridgeLoadFailed);
+                    Debug.WriteLine($"Failed to refresh download catalog: {ex}");
                 }
             }
             finally
             {
-                if (!ct.IsCancellationRequested)
+                if (ReferenceEquals(_catalogRefreshCts, catalogCts))
                 {
-                    if (showBusyIndicator)
-                    {
-                        IsBusy = false;
-                    }
-
+                    IsBusy = false;
                     RaiseLayoutProperties();
                 }
             }
@@ -448,12 +470,20 @@ namespace ASLM.Pages
         /// <summary>
         /// Rebuilds categories and reactivates the closest previous selection.
         /// </summary>
-        private void ApplySnapshot(DownloadCatalogSnapshot snapshot, string? selectedCategoryKey, string? selectedItemKey)
+        private void ApplySnapshot(DownloadCatalogSnapshot snapshot, string? selectedCategoryKey, string? selectedItemKey, string? refreshedCategoryKey)
         {
-            _configuredProviderCount = snapshot.ConfiguredProviderCount;
-            _successfulProviderCount = snapshot.SuccessfulProviderCount;
+            SaveCategorySelection();
+            var categories = refreshedCategoryKey == null
+                ? snapshot.Categories
+                : Categories.Select(viewModel => viewModel.Category)
+                    .Where(category => !string.Equals(category.GroupKey, refreshedCategoryKey, StringComparison.OrdinalIgnoreCase) &&
+                        !snapshot.Categories.Any(updated => string.Equals(updated.GroupKey, category.GroupKey, StringComparison.OrdinalIgnoreCase)))
+                    .Concat(snapshot.Categories)
+                    .OrderBy(category => category.SortOrder)
+                    .ThenBy(category => category.Title, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
             Categories.Clear();
-            foreach (var category in snapshot.Categories)
+            foreach (var category in categories)
             {
                 Categories.Add(new DownloadCategoryViewModel(category, SelectCategoryAsync));
             }
@@ -462,6 +492,8 @@ namespace ASLM.Pages
                 ?? Categories.FirstOrDefault();
 
             ActivateCategory(targetCategory, selectedItemKey);
+            OnPropertyChanged(nameof(HasModuleCategories));
+            OnPropertyChanged(nameof(IsModuleCategorySelected));
             RaiseLayoutProperties();
         }
 
@@ -470,20 +502,47 @@ namespace ASLM.Pages
         /// </summary>
         private void ActivateCategory(DownloadCategoryViewModel? category, string? selectedItemKey)
         {
+            if (!string.Equals(_activeCategory?.Category.GroupKey, category?.Category.GroupKey, StringComparison.OrdinalIgnoreCase))
+                ClearDetail();
             _activeCategory = category;
+            _activeCategoryState = category == null ? new() : GetCategoryState(category.Category);
+            _restoringCategory = true;
+            try { SearchText = _activeCategoryState.SearchText; }
+            finally { _restoringCategory = false; }
             foreach (var viewModel in Categories)
             {
-                viewModel.IsSelected = ReferenceEquals(viewModel, category);
+                viewModel.IsSelected = !IsInternalModulesSelected && ReferenceEquals(viewModel, category);
             }
 
             _categoryItems = category?.Category.Items.ToList() ?? [];
             BuildAvailableFilters();
-            ApplyCurrentItemFilters(selectedItemKey);
-            if (_selectedItem == null)
+            ApplyCurrentItemFilters(selectedItemKey ?? _activeCategoryState.SelectedItemKey);
+            if (_activeCategoryState.Detail is { } detail &&
+                !ReferenceEquals(_selectedItemDetail, detail) &&
+                string.Equals(detail.ResourceKey, _selectedItem?.Item.ResourceKey, StringComparison.OrdinalIgnoreCase))
             {
-                DetailEmptyMessage = BuildDetailEmptyMessage();
+                ApplyDetail(detail, _activeCategoryState.SelectedVariantKey);
+                _lastDetailSignature = ComputeDetailSignature(detail);
             }
             RaiseCategoryProperties();
+        }
+
+        private DownloadCategoryState GetCategoryState(DownloadCatalogCategory category)
+        {
+            if (!_categoryStates.TryGetValue(category.GroupKey, out var state))
+            {
+                state = new DownloadCategoryState();
+                state.FilterKeys.UnionWith(category.Filters.Where(filter => filter.Selected).Select(filter => filter.Key));
+                _categoryStates.Add(category.GroupKey, state);
+            }
+            return state;
+        }
+
+        private void SaveCategorySelection()
+        {
+            _activeCategoryState.SelectedItemKey = _selectedItem?.Item.ResourceKey;
+            _activeCategoryState.SelectedVariantKey = _selectedVariant?.Variant.ResourceKey;
+            _activeCategoryState.Detail = _selectedItemDetail;
         }
 
         /// <summary>
@@ -502,22 +561,14 @@ namespace ASLM.Pages
                 .Select(filter => filter.Key)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            _selectedFilterKeys.RemoveWhere(key => !availableKeys.Contains(key));
-
-            if (_selectedFilterKeys.Count == 0)
-            {
-                foreach (var filter in availableFilters.Where(filter => filter.Selected))
-                {
-                    _selectedFilterKeys.Add(filter.Key);
-                }
-            }
+            SelectedFilterKeys.RemoveWhere(key => !availableKeys.Contains(key));
 
             Filters.Clear();
             foreach (var filter in availableFilters)
             {
                 Filters.Add(new DownloadFilterViewModel(filter.Key, filter.Title, filter.Kind, ToggleFilter)
                 {
-                    IsSelected = _selectedFilterKeys.Contains(filter.Key)
+                    IsSelected = SelectedFilterKeys.Contains(filter.Key)
                 });
             }
 
@@ -557,23 +608,25 @@ namespace ASLM.Pages
         {
             if (string.Equals(filter.Kind, "sort", StringComparison.OrdinalIgnoreCase))
             {
-                _selectedFilterKeys.RemoveWhere(key =>
+                SelectedFilterKeys.RemoveWhere(key =>
                     Filters.Any(viewModel =>
                         string.Equals(viewModel.Kind, "sort", StringComparison.OrdinalIgnoreCase) &&
                         string.Equals(viewModel.Key, key, StringComparison.OrdinalIgnoreCase)));
 
-                _selectedFilterKeys.Add(filter.Key);
+                SelectedFilterKeys.Add(filter.Key);
             }
-            else if (_selectedFilterKeys.Contains(filter.Key))
+            else if (SelectedFilterKeys.Contains(filter.Key))
             {
-                _selectedFilterKeys.Remove(filter.Key);
+                SelectedFilterKeys.Remove(filter.Key);
             }
             else
             {
-                _selectedFilterKeys.Add(filter.Key);
+                SelectedFilterKeys.Add(filter.Key);
             }
 
             UpdateFilterSelectionStates();
+            _searchDebounceCts?.Cancel();
+            _activeCategoryState.NeedsRefresh = true;
             await RefreshCurrentQueryAsync();
         }
 
@@ -584,121 +637,33 @@ namespace ASLM.Pages
         {
             foreach (var viewModel in Filters)
             {
-                viewModel.IsSelected = _selectedFilterKeys.Contains(viewModel.Key);
+                viewModel.IsSelected = SelectedFilterKeys.Contains(viewModel.Key);
             }
         }
-
-        /// <summary>
-        /// Returns a stable list of selected filter keys.
-        /// </summary>
-        private IReadOnlyCollection<string> GetSelectedFilterKeys()
-        {
-            return _selectedFilterKeys
-                .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        }
-
-        /// <summary>
-        /// Returns the most useful empty-state message for the current query.
-        /// </summary>
-        private string BuildEmptyItemListMessage()
-        {
-            if (!string.IsNullOrWhiteSpace(SearchText))
-            {
-                return L.Get(LocalizationKeys.Downloads_EmptySearch, SearchText.Trim());
-            }
-
-            if (HasExplicitProviderFilterSelection())
-            {
-                return L.Get(LocalizationKeys.Downloads_EmptyFiltered);
-            }
-
-            return L.Get(LocalizationKeys.Downloads_EmptyCategory);
-        }
-
-        /// <summary>
-        /// Distinguishes an absent bridge from providers that failed or returned no downloads.
-        /// </summary>
-        private string BuildDetailEmptyMessage()
-        {
-            if (_configuredProviderCount > 0 && _successfulProviderCount == 0)
-            {
-                return L.Get(LocalizationKeys.Downloads_CatalogBridgeLoadFailed);
-            }
-
-            if (Categories.Count > 0)
-            {
-                return L.Get(LocalizationKeys.Downloads_EmptyCategory);
-            }
-
-            if (_configuredProviderCount == 0)
-            {
-                return L.Get(LocalizationKeys.Downloads_DetailEmpty_NoBridge);
-            }
-
-            return L.Get(LocalizationKeys.Downloads_NoSharedDownloads);
-        }
-
-        /// <summary>
-        /// Builds the status shown after one catalog snapshot has completed.
-        /// </summary>
-        private static string BuildCatalogStatus(DownloadCatalogSnapshot snapshot, bool forceRefresh)
-        {
-            if (snapshot.ConfiguredProviderCount > 0 && snapshot.SuccessfulProviderCount == 0)
-            {
-                return L.Get(LocalizationKeys.Downloads_CatalogBridgeLoadFailed);
-            }
-
-            if (snapshot.Categories.Count == 0)
-            {
-                return L.Get(LocalizationKeys.Downloads_NoSharedDownloads);
-            }
-
-            if (forceRefresh)
-            {
-                return snapshot.Categories.Count == 1
-                    ? L.Get(LocalizationKeys.Downloads_CatalogUpdatedOneCategory)
-                    : L.Get(LocalizationKeys.Downloads_CatalogUpdatedManyFormat, snapshot.Categories.Count);
-            }
-
-            return snapshot.Categories.Count == 1
-                ? L.Get(LocalizationKeys.Downloads_LoadedOneCategory)
-                : L.Get(LocalizationKeys.Downloads_LoadedManyFormat, snapshot.Categories.Count);
-        }
-
 
         // Localization
 
         /// <summary>
-        /// Reapplies localized values for bindable empty-state text.
+        /// Reapplies ASLM-owned labels without translating module-supplied content.
         /// </summary>
         private void RefreshLocalizedBindableText()
         {
             OnPropertyChanged(nameof(DetailHeaderTitle));
-            OnPropertyChanged(nameof(DetailHeaderSubtitle));
-            OnPropertyChanged(nameof(SelectedVariantInstalledLabel));
-            OnPropertyChanged(nameof(SelectedInfoBlockTitle));
-            OnPropertyChanged(nameof(CategoryCountLabel));
             OnPropertyChanged(nameof(ActiveCategoryTitle));
-            OnPropertyChanged(nameof(ActiveCategoryItemCountLabel));
 
-            if (!HasSelectedItem)
+            foreach (var variant in Variants)
             {
-                DetailEmptyMessage = BuildDetailEmptyMessage();
+                variant.RefreshLocalizedText();
             }
 
-            if (IsItemListEmptyVisible)
+            foreach (var infoBlock in InfoBlocks)
             {
-                ItemListEmptyMessage = BuildEmptyItemListMessage();
+                infoBlock.RefreshLocalizedText();
             }
-        }
 
-        /// <summary>
-        /// Ignores the default sort-only state when building empty-state text.
-        /// </summary>
-        private bool HasExplicitProviderFilterSelection()
-        {
-            return _selectedFilterKeys.Any(key => !string.Equals(key, "sort:popular", StringComparison.OrdinalIgnoreCase));
+            OnPropertyChanged(nameof(SelectedInfoBlockTitle));
+            OnPropertyChanged(nameof(SelectedInfoBlockText));
+            OnPropertyChanged(nameof(HasSelectedInfoBlockText));
         }
 
 
@@ -709,12 +674,14 @@ namespace ASLM.Pages
         /// </summary>
         private async Task RefreshCurrentQueryAsync()
         {
+            if (_activeCategory == null || IsInternalModulesSelected || !_isDownloadsOpen) return;
             await LoadCatalogAsync(
                 preferCached: false,
                 forceRefresh: true,
                 preserveSelection: true,
                 showBusyIndicator: false,
-                silentRefresh: true);
+                silentRefresh: true,
+                categoryGroupKey: _activeCategory.Category.GroupKey);
         }
 
         /// <summary>
@@ -756,14 +723,28 @@ namespace ASLM.Pages
         /// </summary>
         private async Task SelectCategoryAsync(DownloadCategoryViewModel category)
         {
-            if (ReferenceEquals(_activeCategory, category)) return;
+            if (ReferenceEquals(_activeCategory, category) && !IsInternalModulesSelected) return;
 
+            _searchDebounceCts?.Cancel();
+            _catalogRefreshCts?.Cancel();
+            _detailRefreshCts?.Cancel();
+            SaveCategorySelection();
+            IsInternalModulesSelected = false;
             ActivateCategory(category, selectedItemKey: null);
+
+            if (_activeCategoryState.NeedsRefresh)
+            {
+                await RefreshCurrentQueryAsync();
+                return;
+            }
+            if (_selectedItemDetail != null) return;
 
             if (_selectedItem != null)
             {
+                var item = _selectedItem;
                 await LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: false, selectedVariantKey: null, silentRefresh: false);
-                _ = LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: true, selectedVariantKey: _selectedVariant?.Variant.ResourceKey, silentRefresh: true);
+                if (_isDownloadsOpen && !IsInternalModulesSelected && ReferenceEquals(_activeCategory, category) && ReferenceEquals(_selectedItem, item))
+                    _ = LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: true, selectedVariantKey: _selectedVariant?.Variant.ResourceKey, silentRefresh: true);
             }
             else
             {
@@ -780,7 +761,8 @@ namespace ASLM.Pages
 
             SetSelectedItem(item);
             await LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: false, selectedVariantKey: null, silentRefresh: false);
-            _ = LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: true, selectedVariantKey: _selectedVariant?.Variant.ResourceKey, silentRefresh: true);
+            if (_isDownloadsOpen && !IsInternalModulesSelected && ReferenceEquals(_selectedItem, item))
+                _ = LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: true, selectedVariantKey: _selectedVariant?.Variant.ResourceKey, silentRefresh: true);
         }
 
         /// <summary>
@@ -798,11 +780,6 @@ namespace ASLM.Pages
             var itemResourceKey = item.ResourceKey;
             var detailCts = ReplaceCancellationTokenSource(ref _detailRefreshCts);
             var ct = detailCts.Token;
-
-            if (forceRefresh && !silentRefresh)
-            {
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_RefreshingDetailsFormat, item.Title);
-            }
 
             try
             {
@@ -828,7 +805,7 @@ namespace ASLM.Pages
             {
                 if (!ct.IsCancellationRequested && !silentRefresh)
                 {
-                    StatusText = L.Get(LocalizationKeys.Downloads_Status_DetailsLoadFailedFormat, item.Title, ex.Message);
+                    Debug.WriteLine($"Failed to load download details for '{item.Title}': {ex}");
                 }
             }
         }
@@ -925,10 +902,22 @@ namespace ASLM.Pages
         }
 
         /// <summary>
+        /// Opens or closes the custom variant menu.
+        /// </summary>
+        private void ToggleVariantSelector()
+        {
+            if (Variants.Count > 0)
+                IsVariantSelectorOpen = !IsVariantSelectorOpen;
+        }
+
+        private void OnVariantSelectorToggleRequested(object? sender, EventArgs e) => ToggleVariantSelector();
+
+        /// <summary>
         /// Updates variant selection and dependent property state.
         /// </summary>
         private void SetSelectedVariant(DownloadVariantViewModel? variant)
         {
+            IsVariantSelectorOpen = false;
             _selectedVariant = variant;
             foreach (var viewModel in Variants)
             {
@@ -961,11 +950,9 @@ namespace ASLM.Pages
                 viewModel.IsSelected = ReferenceEquals(viewModel, block);
             }
 
-            SelectedInfoBlockWebHeight = 720;
+            SelectedInfoBlockWebHeight = 1;
             SelectedInfoBlockSource = BuildInfoBlockSource(block);
-#if WINDOWS
-            _detailScrollTargetY = DetailScrollView?.ScrollY ?? 0;
-#endif
+            UpdateInfoBlockPreviewSource();
             RaiseInfoBlockProperties();
         }
 
@@ -980,16 +967,12 @@ namespace ASLM.Pages
             if (_selectedItem == null || _selectedVariant == null || IsInstalling) return;
 
             IsInstalling = true;
-            StatusText = L.Get(LocalizationKeys.Downloads_Status_InstallingFormat, _selectedVariant.Title);
-
-            var progress = new Progress<string>(message => MainThread.BeginInvokeOnMainThread(() => StatusText = message));
 
             try
             {
                 var item = _selectedItem.Item;
                 var variant = _selectedVariant.Variant;
-                var result = await Task.Run(() => _installer.InstallAsync(item, variant, progress));
-                StatusText = result.Message;
+                var result = await Task.Run(() => _installer.InstallAsync(item, variant));
                 if (result.Success)
                 {
                     await LoadCatalogAsync(preferCached: true, forceRefresh: false, preserveSelection: true, showBusyIndicator: false, silentRefresh: false);
@@ -997,11 +980,10 @@ namespace ASLM.Pages
             }
             catch (OperationCanceledException)
             {
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_InstallCanceledFormat, _selectedVariant.Title);
             }
             catch (Exception ex)
             {
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_InstallFailedFormat, _selectedVariant.Title, ex.Message);
+                Debug.WriteLine($"Failed to install download: {ex}");
             }
             finally
             {
@@ -1017,16 +999,12 @@ namespace ASLM.Pages
             if (_selectedItem == null || _selectedVariant == null || IsInstalling) return;
 
             IsInstalling = true;
-            StatusText = L.Get(LocalizationKeys.Downloads_Status_RemovingFormat, _selectedVariant.Title);
-
-            var progress = new Progress<string>(message => MainThread.BeginInvokeOnMainThread(() => StatusText = message));
 
             try
             {
                 var item = _selectedItem.Item;
                 var variant = _selectedVariant.Variant;
-                var result = await Task.Run(() => _installer.UninstallAsync(item, variant, progress));
-                StatusText = result.Message;
+                var result = await Task.Run(() => _installer.UninstallAsync(item, variant));
                 if (result.Success)
                 {
                     await LoadCatalogAsync(preferCached: true, forceRefresh: false, preserveSelection: true, showBusyIndicator: false, silentRefresh: false);
@@ -1034,11 +1012,10 @@ namespace ASLM.Pages
             }
             catch (OperationCanceledException)
             {
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_RemoveCanceledFormat, _selectedVariant.Title);
             }
             catch (Exception ex)
             {
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_RemoveFailedFormat, _selectedVariant.Title, ex.Message);
+                Debug.WriteLine($"Failed to remove download: {ex}");
             }
             finally
             {
@@ -1054,24 +1031,21 @@ namespace ASLM.Pages
             var homepageUrl = GetSelectedVariantHomepageUrl();
             if (string.IsNullOrWhiteSpace(homepageUrl))
             {
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_NoPageToOpen);
                 return;
             }
 
             if (!Uri.TryCreate(homepageUrl, UriKind.Absolute, out var homepageUri))
             {
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_InvalidUrlFormat, homepageUrl);
                 return;
             }
 
             try
             {
                 await Launcher.Default.OpenAsync(homepageUri);
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_OpenedFormat, homepageUri.Host, homepageUri.AbsolutePath);
             }
             catch (Exception ex)
             {
-                StatusText = L.Get(LocalizationKeys.Downloads_Status_OpenFailedFormat, ex.Message);
+                Debug.WriteLine($"Failed to open download link: {ex}");
             }
         }
 
@@ -1083,10 +1057,13 @@ namespace ASLM.Pages
         /// </summary>
         private string GetSelectedVariantHomepageUrl()
         {
-            return _selectedVariant?.Variant.HomepageUrl
-                ?? _selectedItemDetail?.HomepageUrl
-                ?? _selectedItem?.Item.HomepageUrl
-                ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(_selectedVariant?.Variant.HomepageUrl))
+                return _selectedVariant.Variant.HomepageUrl;
+
+            if (!string.IsNullOrWhiteSpace(_selectedItemDetail?.HomepageUrl))
+                return _selectedItemDetail.HomepageUrl;
+
+            return _selectedItem?.Item.HomepageUrl ?? string.Empty;
         }
 
         /// <summary>
@@ -1119,33 +1096,6 @@ namespace ASLM.Pages
             return null;
         }
 
-        /// <summary>
-        /// Composes the compact provider and version line for the detail header.
-        /// </summary>
-        private string BuildItemMetadataLine()
-        {
-            var segments = new List<string>();
-            var provider = _selectedItemDetail?.Provider ?? _selectedItem?.Item.Provider;
-            var version = _selectedItemDetail?.Version ?? _selectedItem?.Item.Version;
-            var detail = _selectedItemDetail?.Detail ?? _selectedItem?.Item.Detail;
-
-            if (!string.IsNullOrWhiteSpace(provider)) segments.Add(provider);
-            if (!string.IsNullOrWhiteSpace(version)) segments.Add(version);
-            if (!string.IsNullOrWhiteSpace(detail)) segments.Add(detail);
-
-            return string.Join(" | ", segments);
-        }
-
-        /// <summary>
-        /// Joins item tags into a compact display string.
-        /// </summary>
-        private string BuildItemTagsLine()
-        {
-            var tags = _selectedItemDetail?.Tags ?? _selectedItem?.Item.Tags ?? [];
-            return tags.Count == 0 ? string.Empty : string.Join(" | ", tags);
-        }
-
-
         // Overlay tap handling
 
         /// <summary>
@@ -1166,28 +1116,6 @@ namespace ASLM.Pages
 
 
         // Dialog event handlers
-
-        /// <summary>
-        /// Matches the Windows textbox chrome to the dialog design.
-        /// </summary>
-        private void OnSearchEntryHandlerChanged(object? sender, EventArgs e)
-        {
-#if WINDOWS
-            if (sender is Entry entry && entry.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.TextBox nativeTextBox)
-            {
-                nativeTextBox.BorderThickness = new Microsoft.UI.Xaml.Thickness(0);
-                nativeTextBox.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
-            }
-#endif
-        }
-
-        /// <summary>
-        /// Forwards the click into the async refresh flow.
-        /// </summary>
-        private async void OnRefreshClicked(object? sender, EventArgs e)
-        {
-            await ManualRefreshAsync();
-        }
 
         /// <summary>
         /// Forwards the click into the async install flow.
@@ -1218,184 +1146,113 @@ namespace ASLM.Pages
         /// </summary>
         private void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
         {
+            if (_restoringCategory) return;
             SearchText = e.NewTextValue ?? string.Empty;
+            _catalogRefreshCts?.Cancel();
             ScheduleRemoteSearchRefresh();
         }
 
-
-        // Native scroll binding
-
         /// <summary>
-        /// Caches the platform scroll viewer used by the detail panel.
+        /// Shows the built-in ASLM modules download page.
         /// </summary>
-        private void OnDetailScrollViewHandlerChanged(object? sender, EventArgs e)
+        private void OnModulesTapped(object? sender, TappedEventArgs e)
         {
-#if WINDOWS
-            if (sender is ScrollView scrollView && scrollView.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.ScrollViewer nativeScrollViewer)
+            SaveCategorySelection();
+            _searchDebounceCts?.Cancel();
+            _catalogRefreshCts?.Cancel();
+            IsInternalModulesSelected = true;
+            _detailRefreshCts?.Cancel();
+            foreach (var category in Categories)
             {
-                _nativeDetailScrollViewer = nativeScrollViewer;
-            }
-#endif
-        }
-
-
-        // WebView preview
-
-        /// <summary>
-        /// Hooks native wheel handling whenever the preview WebView is recreated.
-        /// </summary>
-        private void OnInfoBlockWebViewHandlerChanged(object? sender, EventArgs e)
-        {
-#if WINDOWS
-            if (_nativeInfoBlockWebView != null)
-            {
-                _nativeInfoBlockWebView.PointerWheelChanged -= OnInfoBlockWebViewPointerWheelChanged;
-                _nativeInfoBlockWebView = null;
-            }
-
-            if (sender is WebView webView && webView.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.WebView2 nativeWebView)
-            {
-                _nativeInfoBlockWebView = nativeWebView;
-                _nativeInfoBlockWebView.PointerWheelChanged += OnInfoBlockWebViewPointerWheelChanged;
-            }
-#endif
-        }
-
-        /// <summary>
-        /// Keeps external links out of the embedded preview.
-        /// </summary>
-        private async void OnInfoBlockWebViewNavigating(object? sender, WebNavigatingEventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(e.Url))
-            {
-                return;
-            }
-
-            if (!Uri.TryCreate(e.Url, UriKind.Absolute, out var uri))
-            {
-                return;
-            }
-
-            if (string.Equals(uri.Scheme, "file", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(uri.Scheme, "about", StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            if (string.Equals(uri.Scheme, "http", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase))
-            {
-                e.Cancel = true;
-
-                try
-                {
-                    await Launcher.Default.OpenAsync(uri);
-                }
-                catch
-                {
-                }
-            }
-        }
-
-#if WINDOWS
-
-        /// <summary>
-        /// Redirects wheel scrolling from WebView2 into the outer detail surface.
-        /// </summary>
-        private void OnInfoBlockWebViewPointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            if (sender is not Microsoft.UI.Xaml.Controls.WebView2 nativeWebView)
-            {
-                return;
-            }
-
-            var wheelDelta = e.GetCurrentPoint(nativeWebView).Properties.MouseWheelDelta;
-            if (wheelDelta == 0)
-            {
-                return;
-            }
-
-            e.Handled = true;
-
-            var currentOffset = GetCurrentDetailScrollY();
-            var currentBase = Math.Abs(_detailScrollTargetY - currentOffset) > 1
-                ? _detailScrollTargetY
-                : currentOffset;
-            _detailScrollTargetY = Math.Max(0, currentBase - wheelDelta);
-
-            ScrollDetailSurfaceTo(_detailScrollTargetY);
-        }
-
-        /// <summary>
-        /// Prefers the native scroll viewer offset when it is available.
-        /// </summary>
-        private double GetCurrentDetailScrollY()
-        {
-            return _nativeDetailScrollViewer?.VerticalOffset ?? DetailScrollView.ScrollY;
-        }
-
-        /// <summary>
-        /// Uses the native viewer when available and falls back to the MAUI scroll view.
-        /// </summary>
-        private void ScrollDetailSurfaceTo(double targetY)
-        {
-            if (_nativeDetailScrollViewer != null)
-            {
-                var clampedTarget = Math.Max(0, Math.Min(targetY, _nativeDetailScrollViewer.ScrollableHeight));
-                _detailScrollTargetY = clampedTarget;
-                _nativeDetailScrollViewer.ChangeView(null, clampedTarget, null, false);
-                return;
-            }
-
-            MainThread.BeginInvokeOnMainThread(async () =>
-            {
-                await DetailScrollView.ScrollToAsync(0, targetY, true);
-            });
-        }
-#endif
-
-        /// <summary>
-        /// Resizes the preview to the document height after navigation completes.
-        /// </summary>
-        private async void OnInfoBlockWebViewNavigated(object? sender, WebNavigatedEventArgs e)
-        {
-            if (e.Result != WebNavigationResult.Success || sender is not WebView webView)
-            {
-                return;
-            }
-
-            try
-            {
-                var result = await webView.EvaluateJavaScriptAsync("Math.max(document.body.scrollHeight, document.documentElement.scrollHeight).toString()");
-                if (string.IsNullOrWhiteSpace(result))
-                {
-                    return;
-                }
-
-                var normalized = result.Trim().Trim('"');
-                if (double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var contentHeight))
-                {
-                    SelectedInfoBlockWebHeight = contentHeight + 24;
-                }
-            }
-            catch
-            {
+                category.IsSelected = false;
             }
         }
 
         /// <summary>
-        /// Requests dialog close from the top-right close button.
+        /// Closes the downloads overlay from its shared close button.
         /// </summary>
         private void OnCloseClicked(object? sender, EventArgs e)
         {
             RequestClose();
         }
 
+
+        // WebView preview
+
+        private void OnInfoBlockWebViewHandlerChanged(object? sender, EventArgs e)
+        {
+#if WINDOWS
+            var native = (sender as WebView)?.Handler?.PlatformView as Microsoft.UI.Xaml.Controls.WebView2;
+            if (ReferenceEquals(native, _infoBlockPreview?.PlatformView)) return;
+            _infoBlockPreview?.Dispose();
+            _infoBlockPreview = native == null ? null : new DownloadInfoPreviewHost(
+                native, Dispatcher, height => SelectedInfoBlockWebHeight = height);
+            UpdateInfoBlockPreviewSource();
+#endif
+        }
+
+        private void UpdateInfoBlockPreviewSource()
+        {
+#if WINDOWS
+            _infoBlockPreview?.SetSource(_isDownloadsOpen && !IsInternalModulesSelected
+                ? (SelectedInfoBlockSource as UrlWebViewSource)?.Url : null);
+#endif
+        }
+
+        private void OnInfoBlockWebViewLoaded(object? sender, EventArgs e)
+        {
+            OnInfoBlockWebViewHandlerChanged(sender, e);
+            UpdateInfoBlockPreviewSource();
+        }
+
+        private void OnInfoBlockWebViewUnloaded(object? sender, EventArgs e)
+        {
+#if WINDOWS
+            _infoBlockPreview?.Dispose();
+            _infoBlockPreview = null;
+#endif
+        }
+
+        /// <summary>Keeps external links out of the embedded preview.</summary>
+        private async void OnInfoBlockWebViewNavigating(object? sender, WebNavigatingEventArgs e)
+        {
+            if (!Uri.TryCreate(e.Url, UriKind.Absolute, out var uri) || IsSelectedInfoBlockUrl(e.Url))
+                return;
+
+            if (uri.Scheme == "http" || uri.Scheme == "https")
+            {
+                e.Cancel = true;
+                try { await Launcher.Default.OpenAsync(uri); }
+                catch { }
+            }
+        }
+
+        private void OnInfoBlockWebViewNavigated(object? sender, WebNavigatedEventArgs e)
+        {
+            if (e.Result != WebNavigationResult.Success || !IsSelectedInfoBlockUrl(e.Url)) return;
+            OnInfoBlockWebViewHandlerChanged(sender, EventArgs.Empty);
+#if MACCATALYST
+            // Preserve the existing one-shot fallback using WebKit's native content size.
+            if (sender is WebView view && view.Handler?.PlatformView is WebKit.WKWebView native)
+                SelectedInfoBlockWebHeight = native.ScrollView.ContentSize.Height;
+#endif
+        }
+
+        private bool IsSelectedInfoBlockUrl(string? url) =>
+            SelectedInfoBlockSource is UrlWebViewSource selected &&
+            Uri.TryCreate(selected.Url, UriKind.Absolute, out var expected) &&
+            Uri.TryCreate(url, UriKind.Absolute, out var actual) && expected.Equals(actual);
+
         /// <summary>
         /// Cancels all active refresh work before closing the dialog.
         /// </summary>
         private void RequestClose()
         {
+            SaveCategorySelection();
+            _isDownloadsOpen = false;
+#if WINDOWS
+            _infoBlockPreview?.Pause();
+#endif
             _catalogRefreshCts?.Cancel();
             _detailRefreshCts?.Cancel();
             _searchDebounceCts?.Cancel();
@@ -1438,6 +1295,8 @@ namespace ASLM.Pages
                 foreach (var item in category.Items)
                 {
                     AppendSignatureSegment(builder, item.ResourceKey);
+                    AppendMetadataSignature(builder, item.Details);
+                    AppendMetadataSignature(builder, item.Tags);
                     builder.Append(item.Installed ? '1' : '0').Append(';');
                     AppendSignatureSegment(builder, item.InstalledVersion);
                     builder.Append(item.VariantCount).Append(';');
@@ -1455,15 +1314,21 @@ namespace ASLM.Pages
         {
             var builder = new StringBuilder();
             AppendSignatureSegment(builder, detail.ResourceKey);
+            AppendMetadataSignature(builder, detail.Details);
+            AppendMetadataSignature(builder, detail.Tags);
             AppendSignatureSegment(builder, detail.DefaultVariantResourceKey);
             builder.Append(detail.Variants.Count).Append(';');
 
             foreach (var variant in detail.Variants)
             {
                 AppendSignatureSegment(builder, variant.ResourceKey);
+                AppendSignatureSegment(builder, variant.Title);
+                AppendSignatureSegment(builder, variant.Summary);
+                AppendSignatureSegment(builder, variant.HomepageUrl);
+                builder.Append(variant.Size).Append(';');
+                builder.Append(variant.HasSize ? '1' : '0').Append(';');
+                builder.Append(variant.SortOrder).Append(';');
                 builder.Append(variant.Installed ? '1' : '0').Append(';');
-                AppendSignatureSegment(builder, variant.InstalledVersion);
-                AppendSignatureSegment(builder, variant.Detail);
             }
 
             builder.Append(detail.Blocks.Count).Append(';');
@@ -1480,8 +1345,22 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Appends one segment to a snapshot signature builder.
+        /// Includes every rendered metadata property in refresh change detection.
         /// </summary>
+        private static void AppendMetadataSignature(StringBuilder builder, IReadOnlyList<ModuleDownloadField> values)
+        {
+            builder.Append(values.Count).Append(';');
+            foreach (var value in values)
+            {
+                AppendSignatureSegment(builder, value.Text);
+                AppendSignatureSegment(builder, value.BackgroundColor);
+                AppendSignatureSegment(builder, value.TextColor);
+                AppendSignatureSegment(builder, value.Image?.Key);
+                builder.Append(value.ShowInCatalog ? '1' : '0').Append(';');
+            }
+        }
+
+        /// <summary>Appends an unambiguous length-prefixed signature segment.</summary>
         private static void AppendSignatureSegment(StringBuilder builder, string? value)
         {
             if (value == null)
@@ -1491,6 +1370,23 @@ namespace ASLM.Pages
             }
 
             builder.Append(value.Length).Append(':').Append(value).Append(';');
+        }
+
+        /// <summary>
+        /// Formats download sizes in decimal byte units, matching the provider's MB/GB labels.
+        /// </summary>
+        private static string FormatDownloadSize(long bytes)
+        {
+            string[] units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
+            decimal value = bytes;
+            var unit = 0;
+            while (decimal.Round(value, 2) >= 1000 && unit < units.Length - 1)
+            {
+                value /= 1000;
+                unit++;
+            }
+
+            return $"{value.ToString("0.##", CultureInfo.CurrentCulture)} {units[unit]}";
         }
 
 
@@ -1534,7 +1430,6 @@ namespace ASLM.Pages
         /// </summary>
         private void RaiseLayoutProperties()
         {
-            OnPropertyChanged(nameof(CategoryCountLabel));
             OnPropertyChanged(nameof(HasCurrentItems));
             OnPropertyChanged(nameof(IsItemListEmptyVisible));
             OnPropertyChanged(nameof(HasSelectedItem));
@@ -1549,7 +1444,7 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(ActiveCategoryTitle));
             OnPropertyChanged(nameof(ActiveCategoryDescription));
             OnPropertyChanged(nameof(HasActiveCategoryDescription));
-            OnPropertyChanged(nameof(ActiveCategoryItemCountLabel));
+            OnPropertyChanged(nameof(IsModuleCategorySelected));
             RaiseLayoutProperties();
         }
 
@@ -1558,18 +1453,20 @@ namespace ASLM.Pages
         /// </summary>
         private void RaiseDetailProperties()
         {
+            SelectedItemDetails = CreateFields(_selectedItemDetail?.Details ?? _selectedItem?.Item.Details ?? []);
+            SelectedItemTags = CreateFields(_selectedItemDetail?.Tags ?? _selectedItem?.Item.Tags ?? []);
+            OnPropertyChanged(nameof(DetailHeaderTitle));
             OnPropertyChanged(nameof(HasSelectedItem));
             OnPropertyChanged(nameof(IsDetailEmptyVisible));
             OnPropertyChanged(nameof(SelectedItemTitle));
+            OnPropertyChanged(nameof(SelectedItemDetails));
+            OnPropertyChanged(nameof(HasSelectedItemDetails));
             OnPropertyChanged(nameof(SelectedItemSummary));
             OnPropertyChanged(nameof(HasSelectedItemSummary));
-            OnPropertyChanged(nameof(SelectedItemMetadataLine));
-            OnPropertyChanged(nameof(HasSelectedItemMetadata));
-            OnPropertyChanged(nameof(SelectedItemTagsLine));
+            OnPropertyChanged(nameof(SelectedItemTags));
             OnPropertyChanged(nameof(HasSelectedItemTags));
             OnPropertyChanged(nameof(HasVariants));
             OnPropertyChanged(nameof(HasInfoBlocks));
-            OnPropertyChanged(nameof(VariantSelectorHeight));
             RaiseInfoBlockProperties();
             RaiseVariantProperties();
         }
@@ -1580,17 +1477,12 @@ namespace ASLM.Pages
         private void RaiseVariantProperties()
         {
             OnPropertyChanged(nameof(HasSelectedVariant));
+            OnPropertyChanged(nameof(SelectedVariantCard));
             OnPropertyChanged(nameof(SelectedVariantTitle));
             OnPropertyChanged(nameof(SelectedVariantSummary));
             OnPropertyChanged(nameof(HasSelectedVariantSummary));
-            OnPropertyChanged(nameof(SelectedVariantMetadataLine));
-            OnPropertyChanged(nameof(HasSelectedVariantMetadata));
-            OnPropertyChanged(nameof(SelectedVariantTagsLine));
-            OnPropertyChanged(nameof(HasSelectedVariantTags));
             OnPropertyChanged(nameof(ShowInstallButton));
             OnPropertyChanged(nameof(ShowDeleteButton));
-            OnPropertyChanged(nameof(ShowSelectedVariantInstalledBadge));
-            OnPropertyChanged(nameof(SelectedVariantInstalledLabel));
             OnPropertyChanged(nameof(ShowOpenVariantButton));
         }
 
@@ -1609,6 +1501,19 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(SelectedInfoBlockWebHeight));
         }
 
+
+        /// <summary>
+        /// Keeps a category's query and last selection for the lifetime of the overlay, without disk storage.
+        /// </summary>
+        private sealed class DownloadCategoryState
+        {
+            public string SearchText { get; set; } = string.Empty;
+            public HashSet<string> FilterKeys { get; } = new(StringComparer.OrdinalIgnoreCase);
+            public bool NeedsRefresh { get; set; } = true;
+            public string? SelectedItemKey { get; set; }
+            public string? SelectedVariantKey { get; set; }
+            public DownloadCatalogItemDetail? Detail { get; set; }
+        }
 
         /// <summary>
         /// Represents one selectable category in the sidebar.
@@ -1637,7 +1542,6 @@ namespace ASLM.Pages
             public string Title => Category.Title;
             public string Description => Category.Description;
             public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
-            public string ItemCountLabel => Category.Items.Count == 0 ? "0" : Category.Items.Count.ToString();
             public ICommand SelectCommand { get; }
 
             public bool IsSelected
@@ -1648,17 +1552,9 @@ namespace ASLM.Pages
                     if (_isSelected == value) return;
                     _isSelected = value;
                     OnPropertyChanged();
-                    OnPropertyChanged(nameof(BackgroundColor));
-                    OnPropertyChanged(nameof(StrokeColor));
-                    OnPropertyChanged(nameof(TitleColor));
-                    OnPropertyChanged(nameof(SubtitleColor));
                 }
             }
 
-            public Color BackgroundColor => IsSelected ? ActiveSurfaceColor : PassiveSurfaceColor;
-            public Color StrokeColor => IsSelected ? ActiveBorderColor : PassiveBorderColor;
-            public Color TitleColor => IsSelected ? ActiveTextColor : InactiveTextColor;
-            public Color SubtitleColor => IsSelected ? ActiveSubtitleColor : SecondaryTextColor;
 
 
             // Property notifications
@@ -1711,15 +1607,9 @@ namespace ASLM.Pages
                     if (_isSelected == value) return;
                     _isSelected = value;
                     OnPropertyChanged();
-                    OnPropertyChanged(nameof(BackgroundColor));
-                    OnPropertyChanged(nameof(StrokeColor));
-                    OnPropertyChanged(nameof(TitleColor));
                 }
             }
 
-            public Color BackgroundColor => IsSelected ? ActiveSurfaceColor : PassiveListSurfaceColor;
-            public Color StrokeColor => IsSelected ? ActiveBorderColor : PassiveBorderColor;
-            public Color TitleColor => IsSelected ? ActiveTextColor : InactiveTextColor;
 
 
 
@@ -1751,6 +1641,7 @@ namespace ASLM.Pages
             {
                 Item = item;
                 _selectAction = selectAction;
+                CatalogTags = CreateFields(item.Tags.Where(tag => tag.ShowInCatalog && tag.Image != null));
                 SelectCommand = new Command(async () => await _selectAction(this));
             }
 
@@ -1760,6 +1651,8 @@ namespace ASLM.Pages
             public string Title => Item.Title;
             public string Summary => Item.Summary;
             public bool HasSummary => !string.IsNullOrWhiteSpace(Summary);
+            public IReadOnlyList<DownloadFieldViewModel> CatalogTags { get; }
+            public bool HasCatalogTags => CatalogTags.Count > 0;
             public ICommand SelectCommand { get; }
 
             public bool IsSelected
@@ -1770,10 +1663,6 @@ namespace ASLM.Pages
                     if (_isSelected == value) return;
                     _isSelected = value;
                     OnPropertyChanged();
-                    OnPropertyChanged(nameof(BackgroundColor));
-                    OnPropertyChanged(nameof(StrokeColor));
-                    OnPropertyChanged(nameof(TitleColor));
-                    OnPropertyChanged(nameof(SubtitleColor));
                 }
             }
 
@@ -1783,19 +1672,15 @@ namespace ASLM.Pages
                 {
                     var segments = new List<string>();
                     if (!string.IsNullOrWhiteSpace(Item.Provider)) segments.Add(Item.Provider);
-                    if (!string.IsNullOrWhiteSpace(Item.Detail)) segments.Add(Item.Detail);
-                    else if (!string.IsNullOrWhiteSpace(Item.Version)) segments.Add(Item.Version);
+                    if (!string.IsNullOrWhiteSpace(Item.Version)) segments.Add(Item.Version);
+                    segments.AddRange(Item.Details
+                        .Where(value => value.ShowInCatalog && !string.IsNullOrWhiteSpace(value.Text))
+                        .Select(value => value.Text));
                     return string.Join(" | ", segments);
                 }
             }
 
             public bool HasMetadata => !string.IsNullOrWhiteSpace(MetadataLine);
-            public string VariantCountLabel => Item.VariantCount <= 1 ? "Single variant" : $"{Item.VariantCount} variants";
-            public bool HasVariantCount => !string.IsNullOrWhiteSpace(VariantCountLabel);
-            public Color BackgroundColor => IsSelected ? ActiveSurfaceColor : PassiveListSurfaceColor;
-            public Color StrokeColor => IsSelected ? ActiveBorderColor : PassiveBorderColor;
-            public Color TitleColor => IsSelected ? ActiveTextColor : InactiveTextColor;
-            public Color SubtitleColor => IsSelected ? ActiveSubtitleColor : SecondaryTextColor;
 
 
 
@@ -1836,6 +1721,9 @@ namespace ASLM.Pages
             public string Title => Variant.Title;
             public string Summary => Variant.Summary;
             public bool HasSummary => !string.IsNullOrWhiteSpace(Summary);
+            public string SizeLabel => Variant.HasSize ? FormatDownloadSize(Variant.Size) : "-";
+            public bool IsDownloaded => Variant.Installed;
+            public string DownloadedLabel => L.Get(LocalizationKeys.Downloads_Downloaded);
             public ICommand SelectCommand { get; }
 
             public bool IsSelected
@@ -1846,98 +1734,14 @@ namespace ASLM.Pages
                     if (_isSelected == value) return;
                     _isSelected = value;
                     OnPropertyChanged();
-                    OnPropertyChanged(nameof(BackgroundColor));
-                    OnPropertyChanged(nameof(StrokeColor));
-                    OnPropertyChanged(nameof(TitleColor));
                 }
             }
 
-            public string MetadataLine
+            public void RefreshLocalizedText()
             {
-                get
-                {
-                    var segments = new List<string>();
-                    if (!string.IsNullOrWhiteSpace(Variant.Version)) segments.Add(Variant.Version);
-                    if (!string.IsNullOrWhiteSpace(Variant.Detail)) segments.Add(Variant.Detail);
-                    return string.Join(" | ", segments);
-                }
+                OnPropertyChanged(nameof(DownloadedLabel));
+                OnPropertyChanged(nameof(SizeLabel));
             }
-
-            public bool HasMetadata => !string.IsNullOrWhiteSpace(MetadataLine);
-            public string TagsLine => Variant.Tags.Count == 0 ? string.Empty : string.Join(" | ", Variant.Tags);
-            public bool HasTags => Variant.Tags.Count > 0;
-            public bool ShowInstalledBadge => Variant.Installed;
-            public string InstalledLabel => string.IsNullOrWhiteSpace(Variant.InstalledVersion)
-                ? L.Get(LocalizationKeys.Downloads_Installed)
-                : L.Get(LocalizationKeys.Downloads_InstalledVersionFormat, Variant.InstalledVersion);
-            public string SelectorDetailLine => BuildSelectorDetailLine();
-            public bool HasSelectorDetailLine => !string.IsNullOrWhiteSpace(SelectorDetailLine);
-            public string SizeLabel => ResolveSizeLabel();
-            public bool HasSizeLabel => !string.IsNullOrWhiteSpace(SizeLabel);
-            public Color BackgroundColor => IsSelected ? ActiveSurfaceColor : Colors.Transparent;
-            public Color StrokeColor => IsSelected ? ActiveBorderColor : PassiveBorderColor;
-            public Color TitleColor => IsSelected ? ActiveTextColor : InactiveTextColor;
-
-
-            // Selector presentation
-
-            /// <summary>
-            /// Builds the short secondary line shown in the compact selector row.
-            /// </summary>
-            private string BuildSelectorDetailLine()
-            {
-                var segments = new List<string>();
-
-                // Prefer the explicit summary, then fall back to the raw detail line.
-                if (!string.IsNullOrWhiteSpace(Summary))
-                {
-                    segments.Add(Summary);
-                }
-                else if (!string.IsNullOrWhiteSpace(Variant.Detail))
-                {
-                    segments.Add(Variant.Detail);
-                }
-
-                foreach (var tag in Variant.Tags.Where(tag => !string.Equals(tag, SizeLabel, StringComparison.OrdinalIgnoreCase)))
-                {
-                    if (segments.Count >= 2)
-                    {
-                        break;
-                    }
-
-                    segments.Add(tag);
-                }
-
-                if (segments.Count == 0 && !string.IsNullOrWhiteSpace(Variant.Version))
-                {
-                    segments.Add(Variant.Version);
-                }
-
-                return string.Join(" | ", segments);
-            }
-
-            /// <summary>
-            /// Prefers an explicit size tag and then falls back to the first detail segment.
-            /// </summary>
-            private string ResolveSizeLabel()
-            {
-                foreach (var tag in Variant.Tags)
-                {
-                    if (tag.Contains("GB", StringComparison.OrdinalIgnoreCase) ||
-                        tag.Contains("MB", StringComparison.OrdinalIgnoreCase) ||
-                        tag.Contains("KB", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return tag;
-                    }
-                }
-
-                var detailHead = Variant.Detail
-                    .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .FirstOrDefault();
-
-                return detailHead ?? string.Empty;
-            }
-
 
             // Property notifications
 
@@ -1950,6 +1754,41 @@ namespace ASLM.Pages
             }
         }
 
+        private static IReadOnlyList<DownloadFieldViewModel> CreateFields(IEnumerable<ModuleDownloadField> fields) =>
+            fields.Select(field => new DownloadFieldViewModel(field)).ToArray();
+
+        public sealed class DownloadFieldViewModel : INotifyPropertyChanged
+        {
+            private readonly DownloadCatalogIcon? _image;
+
+            public DownloadFieldViewModel(ModuleDownloadField value)
+            {
+                Text = value.Text;
+                // These are module-supplied values resolved by the bridge, not ASLM style defaults.
+                if (value.BackgroundColor != null) Background = new SolidColorBrush(Color.FromArgb(value.BackgroundColor));
+                if (value.TextColor != null) TextColor = Color.FromArgb(value.TextColor);
+                _image = value.Image;
+            }
+
+            public event PropertyChangedEventHandler? PropertyChanged;
+
+            public string Text { get; }
+            public bool HasText => Text.Length > 0;
+            public Brush? Background { get; }
+            public Color? TextColor { get; }
+            public ImageSource? Icon => _image == null ? null : PackagedIconTintCache.Get(
+                _image.Data, TextColor ?? IconTintHelper.ResolvePaletteColor("LabelPrimary"));
+            public bool HasBackground => Background != null;
+            public bool HasTextColor => TextColor != null;
+            public bool HasIcon => _image != null;
+
+            public void RefreshIcon()
+            {
+                if (HasIcon && !HasTextColor)
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Icon)));
+            }
+        }
+
 
         /// <summary>
         /// Represents one details tab in the right panel.
@@ -1957,6 +1796,7 @@ namespace ASLM.Pages
         public sealed class DownloadInfoBlockViewModel : INotifyPropertyChanged
         {
             private readonly Func<DownloadInfoBlockViewModel, Task> _selectAction;
+            private readonly string? _baseUrl;
             private bool _isSelected;
 
 
@@ -1969,6 +1809,7 @@ namespace ASLM.Pages
             {
                 Block = block;
                 _selectAction = selectAction;
+                _baseUrl = baseUrl;
                 RenderedContent = ResolveRenderedContent(block, baseUrl);
                 SelectCommand = new Command(async () => await _selectAction(this));
             }
@@ -1976,8 +1817,8 @@ namespace ASLM.Pages
             public event PropertyChangedEventHandler? PropertyChanged;
 
             public DownloadCatalogInfoBlock Block { get; }
-            public string Title => string.IsNullOrWhiteSpace(Block.Title) ? "Details" : Block.Title;
-            public string RenderedContent { get; }
+            public string Title => string.IsNullOrWhiteSpace(Block.Title) ? L.Get(LocalizationKeys.Downloads_Details) : Block.Title;
+            public string RenderedContent { get; private set; }
             public string ContentUrl => Block.ContentUrl;
             public string SourceUrl => Block.SourceUrl;
             public bool HasTextContent => !string.IsNullOrWhiteSpace(RenderedContent);
@@ -1992,16 +1833,18 @@ namespace ASLM.Pages
                     if (_isSelected == value) return;
                     _isSelected = value;
                     OnPropertyChanged();
-                    OnPropertyChanged(nameof(BackgroundColor));
-                    OnPropertyChanged(nameof(StrokeColor));
-                    OnPropertyChanged(nameof(TitleColor));
                 }
             }
 
-            public Color BackgroundColor => IsSelected ? ActiveSurfaceColor : PassiveListSurfaceColor;
-            public Color StrokeColor => IsSelected ? ActiveBorderColor : PassiveBorderColor;
-            public Color TitleColor => IsSelected ? ActiveTextColor : InactiveTextColor;
 
+
+            public void RefreshLocalizedText()
+            {
+                RenderedContent = ResolveRenderedContent(Block, _baseUrl);
+                OnPropertyChanged(nameof(Title));
+                OnPropertyChanged(nameof(RenderedContent));
+                OnPropertyChanged(nameof(HasTextContent));
+            }
 
             // Content resolution
 
@@ -2237,11 +2080,14 @@ namespace ASLM.Pages
                 sanitized = Regex.Replace(sanitized, "(?i)</pre\\s*>", "\n");
                 sanitized = Regex.Replace(sanitized, "(?i)<code\\b[^>]*>", "`");
                 sanitized = Regex.Replace(sanitized, "(?i)</code\\s*>", "`");
-                sanitized = Regex.Replace(sanitized, "(?i)<img\\b[^>]*alt\\s*=\\s*['\"]([^'\"]*)['\"][^>]*>", "[Image: $1]");
+                sanitized = Regex.Replace(sanitized, "(?i)<img\\b[^>]*alt\\s*=\\s*['\"]([^'\"]*)['\"][^>]*>",
+                    match => L.Get(LocalizationKeys.Downloads_ImagePlaceholderFormat, match.Groups[1].Value));
                 sanitized = Regex.Replace(sanitized, "(?i)<img\\b[^>]*src\\s*=\\s*['\"]([^'\"]*)['\"][^>]*>", match =>
                 {
                     var url = AbsolutizeUrl(match.Groups[1].Value, baseUrl);
-                    return string.IsNullOrWhiteSpace(url) ? "[Image]" : $"[Image: {url}]";
+                    return string.IsNullOrWhiteSpace(url)
+                        ? L.Get(LocalizationKeys.Downloads_ImagePlaceholder)
+                        : L.Get(LocalizationKeys.Downloads_ImagePlaceholderFormat, url);
                 });
 
                 sanitized = Regex.Replace(sanitized, "(?i)<a\\b[^>]*href\\s*=\\s*['\"]([^'\"]*)['\"][^>]*>(.*?)</a>", match =>
@@ -2341,9 +2187,8 @@ namespace ASLM.Pages
                     {
                         var alt = match.Groups[1].Value.Trim();
                         var url = AbsolutizeUrl(match.Groups[2].Value.Trim(), baseUrl);
-                        return string.IsNullOrWhiteSpace(url)
-                            ? $"[Image: {alt}]"
-                            : $"[Image: {alt}] {url}";
+                        var imageLabel = L.Get(LocalizationKeys.Downloads_ImagePlaceholderFormat, alt);
+                        return string.IsNullOrWhiteSpace(url) ? imageLabel : $"{imageLabel} {url}";
                     });
 
                 text = Regex.Replace(
@@ -2391,16 +2236,5 @@ namespace ASLM.Pages
                 return candidate ?? string.Empty;
             }
         }
-
-
-        // Theme palette
-
-        /// <summary>
-        /// Finds a named color resource with a defensive fallback when the key is absent.
-        /// </summary>
-        private static Color GetColorResource(string key, Color fallback) =>
-            Application.Current?.Resources.TryGetValue(key, out var value) == true && value is Color c
-                ? c
-                : fallback;
     }
 }

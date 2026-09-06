@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:downloads="clr-namespace:ASLM.Controls.Downloads"
+             x:Class="ASLM.Controls.Downloads.BridgeDownloadsView"
+             BackgroundColor="{DynamicResource BackgroundPrimary}">
+    <ContentView.Resources>
+        <DataTemplate x:Key="DownloadVariantCardTemplate">
+            <Grid>
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding SelectCommand}" />
+                </Grid.GestureRecognizers>
+
+                <!-- 50% Primary + 50% Tertiary; the content stays fully opaque. -->
+                <Border Background="{DynamicResource BackgroundPrimary}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 6"
+                        InputTransparent="True" />
+
+                <Border Background="{DynamicResource BackgroundTertiary}"
+                        Opacity="0.5"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 6"
+                        InputTransparent="True" />
+
+                <Grid ColumnDefinitions="*,Auto,Auto"
+                      ColumnSpacing="12"
+                      Padding="8">
+                    <VerticalStackLayout Spacing="2"
+                                         VerticalOptions="Center">
+                        <Label Text="{Binding Title}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource LabelPrimary}"
+                               MaxLines="1"
+                               LineBreakMode="TailTruncation" />
+
+                        <Label Text="{Binding Summary}"
+                               IsVisible="{Binding HasSummary}"
+                               FontSize="13"
+                               TextColor="{DynamicResource LabelSecondary}"
+                               MaxLines="1"
+                               LineBreakMode="TailTruncation" />
+                    </VerticalStackLayout>
+
+                    <Label Grid.Column="1"
+                           Text="{Binding DownloadedLabel}"
+                           IsVisible="{Binding IsDownloaded}"
+                           FontSize="14"
+                           TextColor="{DynamicResource ActionGreen}"
+                           HorizontalTextAlignment="End"
+                           VerticalOptions="Center" />
+
+                    <Label Grid.Column="2"
+                           Text="{Binding SizeLabel}"
+                           FontSize="14"
+                           TextColor="{DynamicResource LabelPrimary}"
+                           MinimumWidthRequest="48"
+                           HorizontalTextAlignment="End"
+                           VerticalOptions="Center" />
+                </Grid>
+            </Grid>
+        </DataTemplate>
+    </ContentView.Resources>
+
+    <Grid ColumnDefinitions="332,*"
+          ColumnSpacing="0"
+          Padding="0">
+        <Border Grid.Column="0"
+                Style="{StaticResource DownloadsColumnBorderStyle}">
+            <Grid RowDefinitions="Auto,Auto,Auto,*"
+                  RowSpacing="8">
+                <Label Text="{Binding ActiveCategoryTitle}"
+                       Style="{StaticResource DownloadsColumnTitleLabelStyle}" />
+
+                <Border Grid.Row="1"
+                        Background="{DynamicResource BackgroundSecondary}"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 6"
+                        Padding="8,0"
+                        Margin="0,4,0,0">
+                    <Entry x:Name="SearchEntry"
+                           Style="{StaticResource SettingsTextEntryStyle}"
+                           settings:SettingsControlChrome.FlatEntry="True"
+                           Text="{Binding SearchText}"
+                           Placeholder="Search the provider catalog"
+                           ClearButtonVisibility="WhileEditing"
+                           HeightRequest="34"
+                           MinimumHeightRequest="34"
+                           FontSize="13"
+                           TextChanged="OnSearchTextChanged"
+                           BackgroundColor="Transparent"
+                           TextColor="{DynamicResource LabelPrimary}"
+                           PlaceholderColor="{DynamicResource LabelSecondary}" />
+                </Border>
+
+                <ScrollView Grid.Row="2"
+                            Orientation="Vertical"
+                            VerticalScrollBarVisibility="Never"
+                            IsVisible="{Binding HasFilters}"
+                            MaximumHeightRequest="108">
+                    <downloads:DownloadFilterLayout BindableLayout.ItemsSource="{Binding Filters}"
+                                                    ColumnSpacing="4"
+                                                    RowSpacing="4"
+                                                    Padding="2,0">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource DownloadsChipBorderStyle}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding ToggleCommand}" />
+                                    </Border.GestureRecognizers>
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border"
+                                                     Binding="{Binding IsSelected}"
+                                                     Value="True">
+                                            <Setter Property="Stroke"
+                                                    Value="{DynamicResource ActionBlue}" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+
+                                    <Label Text="{Binding Title}"
+                                           FontSize="12"
+                                           TextColor="{DynamicResource LabelPrimary}"
+                                           HorizontalTextAlignment="Center"
+                                           MaxLines="1"
+                                           LineBreakMode="TailTruncation" />
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </downloads:DownloadFilterLayout>
+                </ScrollView>
+
+                <Grid Grid.Row="3">
+                    <CollectionView IsVisible="{Binding HasCurrentItems}"
+                                    HandlerChanged="OnDownloadListReady"
+                                    Loaded="OnDownloadListReady"
+                                    SelectionMode="None"
+                                    VerticalScrollBarVisibility="Never"
+                                    ItemsSource="{Binding CurrentItems}">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Vertical"
+                                               ItemSpacing="4" />
+                        </CollectionView.ItemsLayout>
+
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource BackgroundSecondary}"
+                                        Stroke="Transparent"
+                                        StrokeThickness="1"
+                                        StrokeShape="RoundRectangle 6"
+                                        Padding="8">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding SelectCommand}" />
+                                    </Border.GestureRecognizers>
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border"
+                                                     Binding="{Binding IsSelected}"
+                                                     Value="True">
+                                            <Setter Property="Stroke"
+                                                    Value="{DynamicResource ActionBlue}" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+
+                                    <VerticalStackLayout Spacing="6">
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              ColumnSpacing="6">
+                                            <Label Text="{Binding Title}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   VerticalOptions="Start"
+                                                   MaxLines="1"
+                                                   LineBreakMode="TailTruncation" />
+                                            <HorizontalStackLayout Grid.Column="1"
+                                                                   IsVisible="{Binding HasCatalogTags}"
+                                                                   BindableLayout.ItemsSource="{Binding CatalogTags}"
+                                                                   BindableLayout.ItemTemplate="{StaticResource DownloadsCatalogTagTemplate}"
+                                                                   VerticalOptions="Start"
+                                                                   Spacing="4" />
+                                        </Grid>
+
+                                        <Label Text="{Binding MetadataLine}"
+                                               IsVisible="{Binding HasMetadata}"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource LabelSecondary}"
+                                               MaxLines="1"
+                                               LineBreakMode="TailTruncation" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <VerticalStackLayout IsVisible="{Binding IsItemListEmptyVisible}"
+                                         VerticalOptions="Center"
+                                         HorizontalOptions="Center"
+                                         Spacing="6"
+                                         Margin="16">
+                        <Label x:Name="ItemListEmptyTitleLabel"
+                               Text=""
+                               FontSize="17"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource LabelPrimary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <BoxView Grid.Column="0"
+                 HorizontalOptions="End"
+                 WidthRequest="1"
+                 Color="{DynamicResource Separator}"
+                 Opacity="0.45" />
+
+        <Border Grid.Column="1"
+                Style="{StaticResource DownloadsColumnBorderStyle}">
+            <Grid RowDefinitions="Auto,*"
+                  RowSpacing="12">
+
+                <Grid Grid.Row="0"
+                      ColumnDefinitions="*,24"
+                      ColumnSpacing="8"
+                      MinimumHeightRequest="24">
+                    <FlexLayout Direction="Row"
+                                Wrap="NoWrap"
+                                AlignItems="Center"
+                                JustifyContent="Start">
+                        <Label Text="{Binding DetailHeaderTitle}"
+                               Style="{StaticResource DownloadsColumnTitleLabelStyle}"
+                               FlexLayout.Grow="0"
+                               FlexLayout.Shrink="1" />
+                        <ImageButton x:Name="OpenButton"
+                                     IsVisible="{Binding ShowOpenVariantButton}"
+                                     Style="{StaticResource SettingsAccountLinkButtonStyle}"
+                                     FlexLayout.Grow="0"
+                                     FlexLayout.Shrink="0"
+                                     Margin="2,0,0,0"
+                                     SemanticProperties.Description="Open link"
+                                     Clicked="OnOpenClicked" />
+                    </FlexLayout>
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    <Grid IsVisible="{Binding HasSelectedItem}">
+                        <ScrollView x:Name="DetailScrollView"
+                                    VerticalScrollBarVisibility="Never">
+                            <VerticalStackLayout Spacing="8"
+                                                 Padding="0">
+                                <Border IsVisible="{Binding HasSelectedItem}"
+                                        Background="{DynamicResource BackgroundSecondary}"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 6"
+                                        Padding="12">
+                                    <VerticalStackLayout Spacing="12">
+                                        <Label Text="{Binding SelectedItemSummary}"
+                                               IsVisible="{Binding HasSelectedItemSummary}"
+                                               FontSize="16"
+                                               TextColor="{DynamicResource LabelPrimary}"
+                                               LineBreakMode="WordWrap" />
+
+                                        <Grid IsVisible="{Binding HasSelectedItemDetails}"
+                                              ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="8">
+                                            <Label x:Name="ItemDetailsLabel"
+                                                   Text="Details:"
+                                                   FontSize="16"
+                                                   LineHeight="1"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   VerticalOptions="Center" />
+                                            <downloads:DownloadFilterLayout Style="{StaticResource DownloadsFieldsLayoutStyle}"
+                                                                            Grid.Column="1"
+                                                                            BindableLayout.ItemsSource="{Binding SelectedItemDetails}" />
+                                        </Grid>
+
+                                        <Grid IsVisible="{Binding HasSelectedItemTags}"
+                                              ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="8">
+                                            <Label x:Name="ItemFeaturesLabel"
+                                                   Text="Features:"
+                                                   FontSize="16"
+                                                   LineHeight="1"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   VerticalOptions="Center" />
+                                            <downloads:DownloadFilterLayout Style="{StaticResource DownloadsFieldsLayoutStyle}"
+                                                                            Grid.Column="1"
+                                                                            BindableLayout.ItemsSource="{Binding SelectedItemTags}" />
+                                        </Grid>
+
+                                        <Grid IsVisible="{Binding HasVariants}"
+                                              RowDefinitions="Auto,Auto"
+                                              RowSpacing="6">
+                                            <Grid ColumnDefinitions="*,Auto"
+                                                  ColumnSpacing="8">
+                                                <Label x:Name="VariantSectionLabel"
+                                                       Text="Select download variant:"
+                                                       FontSize="16"
+                                                       TextColor="{DynamicResource LabelPrimary}"
+                                                       VerticalOptions="Center" />
+
+                                                <HorizontalStackLayout Grid.Column="1"
+                                                                       Spacing="8"
+                                                                       HorizontalOptions="End"
+                                                                       VerticalOptions="Center">
+                                                    <Button x:Name="InstallButton"
+                                                            Text="Download"
+                                                            IsVisible="{Binding ShowInstallButton}"
+                                                            HeightRequest="32"
+                                                            MinimumHeightRequest="32"
+                                                            CornerRadius="6"
+                                                            Padding="8,0"
+                                                            BackgroundColor="{DynamicResource ActionBlue}"
+                                                            TextColor="{DynamicResource White}"
+                                                            FontSize="14"
+                                                            Clicked="OnInstallClicked" />
+
+                                                    <Button x:Name="RemoveButton"
+                                                            Text="Remove"
+                                                            IsVisible="{Binding ShowDeleteButton}"
+                                                            HeightRequest="32"
+                                                            MinimumHeightRequest="32"
+                                                            CornerRadius="6"
+                                                            Padding="8,0"
+                                                            BackgroundColor="{DynamicResource ActionRed}"
+                                                            TextColor="{DynamicResource White}"
+                                                            FontSize="14"
+                                                            Clicked="OnDeleteClicked" />
+                                                </HorizontalStackLayout>
+                                            </Grid>
+
+                                            <Grid x:Name="VariantSelectorAnchor"
+                                                  Grid.Row="1"
+                                                  SizeChanged="OnVariantSelectorAnchorSizeChanged">
+                                                <VerticalStackLayout BindableLayout.ItemsSource="{Binding SelectedVariantCard}"
+                                                                     BindableLayout.ItemTemplate="{StaticResource DownloadVariantCardTemplate}" />
+
+                                                <BoxView Color="Transparent"
+                                                         ZIndex="1">
+                                                    <BoxView.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnVariantSelectorTapped" />
+                                                    </BoxView.GestureRecognizers>
+                                                </BoxView>
+                                            </Grid>
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <VerticalStackLayout Spacing="8"
+                                                     IsVisible="{Binding HasInfoBlocks}">
+                                    <Label Text="{Binding SelectedInfoBlockTitle}"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="{DynamicResource LabelPrimary}"
+                                           VerticalOptions="Center" />
+
+                                    <ScrollView Orientation="Vertical"
+                                                VerticalScrollBarVisibility="Never"
+                                                MaximumHeightRequest="76"
+                                                IsVisible="{Binding HasMultipleInfoBlocks}">
+                                        <FlexLayout BindableLayout.ItemsSource="{Binding InfoBlocks}"
+                                                    Direction="Row"
+                                                    Wrap="Wrap"
+                                                    AlignItems="Start"
+                                                    JustifyContent="Start">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource BackgroundSecondary}"
+                                                            StrokeThickness="0"
+                                                            StrokeShape="RoundRectangle 12"
+                                                            Padding="8"
+                                                            Margin="0,0,4,4">
+                                                        <Border.GestureRecognizers>
+                                                            <TapGestureRecognizer Command="{Binding SelectCommand}" />
+                                                        </Border.GestureRecognizers>
+
+                                                        <Label Text="{Binding Title}"
+                                                               FontSize="12"
+                                                               TextColor="{DynamicResource LabelPrimary}"
+                                                               MaxLines="1"
+                                                               LineBreakMode="TailTruncation" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </FlexLayout>
+                                    </ScrollView>
+
+                                    <Border IsVisible="{Binding HasSelectedInfoBlockText}"
+                                            Background="{DynamicResource BackgroundSecondary}"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8"
+                                            Padding="14">
+                                        <Label Text="{Binding SelectedInfoBlockText}"
+                                               FontSize="12"
+                                               TextColor="{DynamicResource LabelPrimary}"
+                                               LineBreakMode="WordWrap" />
+                                    </Border>
+
+                                    <Border IsVisible="{Binding HasSelectedInfoBlockWebContent}"
+                                            Background="{DynamicResource BackgroundSecondary}"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 6"
+                                            Padding="0">
+                                        <WebView x:Name="InfoBlockWebView"
+                                                 Source="{Binding SelectedInfoBlockSource}"
+                                                 HandlerChanged="OnInfoBlockWebViewHandlerChanged"
+                                                 Navigating="OnInfoBlockWebViewNavigating"
+                                                 Navigated="OnInfoBlockWebViewNavigated"
+                                                 HeightRequest="{Binding SelectedInfoBlockWebHeight}"
+                                                 HorizontalOptions="Fill"
+                                                 VerticalOptions="Start" />
+                                    </Border>
+
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </ScrollView>
+                    </Grid>
+
+                    <VerticalStackLayout IsVisible="{Binding IsDetailEmptyVisible}"
+                                         VerticalOptions="Center"
+                                         HorizontalOptions="Center"
+                                         Spacing="8"
+                                         Margin="24">
+                        <Label x:Name="DetailEmptyTitleLabel"
+                               Text="Select an item"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource LabelPrimary}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <AbsoluteLayout x:Name="VariantOverlayLayer"
+                        Grid.Column="1"
+                        ZIndex="100"
+                        IsVisible="{Binding IsVariantSelectorOpen}"
+                        SizeChanged="OnVariantOverlayLayerSizeChanged">
+            <Grid BackgroundColor="Transparent"
+                  AbsoluteLayout.LayoutBounds="0,0,1,1"
+                  AbsoluteLayout.LayoutFlags="All">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnVariantSelectorBackdropTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <Border x:Name="VariantMenuPopup"
+                    Background="{DynamicResource BackgroundSecondary}"
+                    Stroke="{DynamicResource Separator}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="8"
+                    MaximumHeightRequest="280"
+                    AbsoluteLayout.LayoutBounds="0,0,0,0">
+                <ScrollView VerticalScrollBarVisibility="Default">
+                    <VerticalStackLayout Spacing="8"
+                                         BindableLayout.ItemsSource="{Binding Variants}"
+                                         BindableLayout.ItemTemplate="{StaticResource DownloadVariantCardTemplate}" />
+                </ScrollView>
+            </Border>
+        </AbsoluteLayout>
+
+    </Grid>
+</ContentView>

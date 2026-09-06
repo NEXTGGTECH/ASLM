@@ -19,7 +19,7 @@
     <value>Konsol</value>
   </data>
   <data name="AppShell_Nav_Download" xml:space="preserve">
-    <value>Unduh</value>
+    <value>Unduhan</value>
   </data>
   <data name="AppShell_Nav_Home" xml:space="preserve">
     <value>Beranda</value>
@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>Selesai</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>Pasang</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>Unduh</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>Pasang</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>Tetap</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>Varian</value>
   </data>
   <data name="Consoles_ActiveModulesFormat" xml:space="preserve">
     <value>{0} modul aktif</value>
@@ -246,131 +243,44 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} baris terlihat</value>
   </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>Katalog bersama tidak dapat dimuat dari bridge modul yang diinstal.</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Katalog</value>
-  </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>Pembaruan katalog unduhan gagal: {0}</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>Katalog Unduhan</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>Katalog diperbarui. {0} kategori dimuat.</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>Katalog diperbarui. 1 kategori dimuat.</value>
-  </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>{0} kategori</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>Tidak ada kategori</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>1 kategori</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>Pilih keluarga, lalu varian yang tepat yang Anda inginkan.</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>Pilih keluarga sumber daya untuk memeriksa varian dan detailnya</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>Tidak ada modul terpasang yang saat ini mengekspos jembatan unduhan</value>
   </data>
   <data name="Downloads_Details" xml:space="preserve">
     <value>Detail</value>
   </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>Tidak ada unduhan terkelompok yang tersedia untuk kategori ini</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>Detail:</value>
   </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>Tidak ada unduhan terkelompok yang cocok dengan filter penyedia saat ini</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>Sudah diunduh</value>
   </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>Tidak ada hasil yang cocok dengan "{0}" di sisi penyedia</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>Fitur:</value>
   </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0} keluarga</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[Gambar]</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>Terinstal</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[Gambar: {0}]</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>Terinstal | {0}</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>Buka tautan</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>{0} kategori dimuat.</value>
-  </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>1 kategori dimuat.</value>
-  </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>Memuat katalog unduhan bersama...</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Pilih varian unduhan:</value>
   </data>
   <data name="Downloads_NoItems" xml:space="preserve">
     <value>Tidak ada item</value>
   </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>Tidak ada unduhan bersama yang diterbitkan oleh modul saat ini.</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>1 keluarga</value>
-  </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>Menyegarkan katalog unduhan bersama...</value>
-  </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
-    <value>Cari katalog penyedia</value>
+    <value>Cari di katalog penyedia</value>
   </data>
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Pilih item</value>
   </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>Detail tidak dapat dimuat untuk {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>Instalasi dibatalkan untuk {0}.</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>Instalasi gagal untuk {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>Menginstal {0}...</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>Buka gagal: URL tidak valid '{0}'.</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>Varian yang dipilih tidak menyediakan halaman untuk dibuka.</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>Tidak dapat membuka halaman yang dipilih: {0}</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>{0}{1} dibuka.</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>Siap.</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>Menyegarkan detail untuk {0}...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>Penghapusan dibatalkan untuk {0}.</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>Penghapusan gagal untuk {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>Menghapus {0}...</value>
-  </data>
   <data name="Downloads_Title" xml:space="preserve">
-    <value>Unduh</value>
+    <value>Unduhan</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>Disk {0}</value>

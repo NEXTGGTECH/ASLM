@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>完成</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>安装</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>下载</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>安装</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>留在此页</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>变体</value>
   </data>
   <data name="Consoles_ActiveModulesFormat" xml:space="preserve">
     <value>{0} 个活动模块</value>
@@ -246,128 +243,41 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} 行可见</value>
   </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>无法从已安装的模块桥接器加载共享目录。</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>目录</value>
-  </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>下载目录刷新失败：{0}</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>下载目录</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>目录已更新。已加载 {0} 个类别。</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>目录已更新。已加载 1 个类别。</value>
-  </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>{0} 个分类</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>无分类</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>1 个分类</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>选择一个系列，然后选择您想要的确切变体。</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>选择资源系列以查看其变体与详细信息</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>当前没有已安装模块提供下载桥接</value>
   </data>
   <data name="Downloads_Details" xml:space="preserve">
     <value>详细信息</value>
   </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>此分类下没有可用的分组下载</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>详细信息：</value>
   </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>没有分组下载符合当前提供方筛选条件</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>已下载</value>
   </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>提供方侧没有与“{0}”匹配的结果</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>功能：</value>
   </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0} 个系列</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[图片]</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>已安装</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[图片：{0}]</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>已安装 | {0}</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>打开链接</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>已加载 {0} 个类别。</value>
-  </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>已加载 1 个类别。</value>
-  </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>正在加载共享下载目录...</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>选择要下载的变体：</value>
   </data>
   <data name="Downloads_NoItems" xml:space="preserve">
-    <value>无项目</value>
-  </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>当前模块没有发布共享下载。</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>1 个系列</value>
-  </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>正在刷新共享下载目录...</value>
+    <value>没有项目</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
-    <value>搜索提供方目录</value>
+    <value>搜索提供方的目录</value>
   </data>
   <data name="Downloads_SelectItem" xml:space="preserve">
-    <value>选择项目</value>
-  </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>无法加载 {0} 的详细信息：{1}</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>已取消 {0} 的安装。</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>{0} 的安装失败：{1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>正在安装 {0}...</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>打开失败：无效 URL '{0}'。</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>所选变体没有可打开的页面。</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>无法打开所选页面：{0}</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>已打开 {0}{1}。</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>就绪。</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>正在刷新 {0} 的详细信息...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>已取消 {0} 的删除。</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>{0} 的删除失败：{1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>正在删除 {0}...</value>
+    <value>选择一个项目</value>
   </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>下载</value>

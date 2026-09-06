@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>Xong</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>Cài đặt</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>Tải xuống</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>Cài đặt</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>Ở lại</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>Biến thể</value>
   </data>
   <data name="Consoles_ActiveModulesFormat" xml:space="preserve">
     <value>{0} mô-đun đang hoạt động</value>
@@ -246,128 +243,41 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} dòng hiển thị</value>
   </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>Không thể tải danh mục dùng chung từ các cầu nối mô-đun đã cài đặt.</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Danh mục</value>
-  </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>Làm mới danh mục tải xuống thất bại: {0}</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>Danh mục tải xuống</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>Danh mục đã được cập nhật. Đã tải {0} danh mục.</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>Danh mục đã được cập nhật. Đã tải 1 danh mục.</value>
-  </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>{0} danh mục</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>Không có danh mục</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>1 danh mục</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>Chọn một họ, sau đó chọn biến thể chính xác bạn muốn.</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>Chọn một họ tài nguyên để xem biến thể và chi tiết</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>Không có mô-đun đã cài đặt nào hiện cung cấp cầu nối tải xuống</value>
   </data>
   <data name="Downloads_Details" xml:space="preserve">
     <value>Chi tiết</value>
   </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>Không có tải xuống nhóm nào cho danh mục này</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>Chi tiết:</value>
   </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>Không có tải xuống nhóm nào khớp bộ lọc nhà cung cấp hiện tại</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>Đã tải xuống</value>
   </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>Không có kết quả khớp "{0}" ở phía nhà cung cấp</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>Tính năng:</value>
   </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0} họ</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[Hình ảnh]</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>Đã cài đặt</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[Hình ảnh: {0}]</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>Đã cài đặt | {0}</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>Mở liên kết</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>Đã tải {0} danh mục.</value>
-  </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>Đã tải 1 danh mục.</value>
-  </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>Đang tải danh mục tải xuống dùng chung...</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Chọn biến thể để tải xuống:</value>
   </data>
   <data name="Downloads_NoItems" xml:space="preserve">
-    <value>Không có mục</value>
-  </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>Không có tải xuống dùng chung nào được các mô-đun hiện tại công bố.</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>1 họ</value>
-  </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>Đang làm mới danh mục tải xuống dùng chung...</value>
+    <value>Không có mục nào</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
-    <value>Tìm trong danh mục nhà cung cấp</value>
+    <value>Tìm trong danh mục của nhà cung cấp</value>
   </data>
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Chọn một mục</value>
-  </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>Không thể tải chi tiết cho {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>Đã hủy cài đặt cho {0}.</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>Cài đặt thất bại cho {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>Đang cài đặt {0}...</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>Mở thất bại: URL không hợp lệ '{0}'.</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>Biến thể đã chọn không cung cấp trang để mở.</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>Không thể mở trang đã chọn: {0}</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>Đã mở {0}{1}.</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>Sẵn sàng.</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>Đang làm mới chi tiết cho {0}...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>Đã hủy xóa cho {0}.</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>Xóa thất bại cho {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>Đang xóa {0}...</value>
   </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>Tải xuống</value>

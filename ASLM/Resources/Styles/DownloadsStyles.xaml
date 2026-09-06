@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:downloads="clr-namespace:ASLM.Controls.Downloads"
+    xmlns:pages="clr-namespace:ASLM.Pages">
+
+    <Style x:Key="DownloadsColumnBorderStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource BackgroundPrimary}" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style x:Key="DownloadsColumnTitleLabelStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
+        <Setter Property="MaxLines" Value="1" />
+        <Setter Property="LineBreakMode" Value="TailTruncation" />
+    </Style>
+
+    <Style x:Key="DownloadsChipBorderStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource BackgroundSecondary}" />
+        <Setter Property="Stroke" Value="{DynamicResource Separator}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Padding" Value="8,4" />
+    </Style>
+
+    <Style x:Key="DownloadsFieldBorderStyle"
+           TargetType="Border"
+           BasedOn="{StaticResource DownloadsChipBorderStyle}">
+        <Setter Property="Background" Value="{DynamicResource BackgroundTertiary}" />
+        <Setter Property="StrokeThickness" Value="0" />
+    </Style>
+
+    <DataTemplate x:Key="DownloadsFieldTemplate"
+                  x:DataType="pages:DownloadsView+DownloadFieldViewModel">
+        <Border Style="{StaticResource DownloadsFieldBorderStyle}">
+            <Border.Triggers>
+                <DataTrigger TargetType="Border"
+                             Binding="{Binding HasBackground}"
+                             Value="True">
+                    <Setter Property="Background" Value="{Binding Background}" />
+                </DataTrigger>
+            </Border.Triggers>
+            <Grid ColumnDefinitions="Auto,*"
+                  ColumnSpacing="0">
+                <Image Source="{Binding Icon}"
+                       IsVisible="{Binding HasIcon}"
+                       WidthRequest="20"
+                       HeightRequest="20"
+                       Aspect="AspectFit"
+                       VerticalOptions="Center" />
+                <Label Grid.Column="1"
+                       Text="{Binding Text}"
+                       FontSize="14"
+                       LineHeight="1"
+                       TextColor="{DynamicResource LabelPrimary}"
+                       LineBreakMode="WordWrap"
+                       IsVisible="{Binding HasText}"
+                       VerticalOptions="Center">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label"
+                                     Binding="{Binding HasTextColor}"
+                                     Value="True">
+                            <Setter Property="TextColor" Value="{Binding TextColor}" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Label"
+                                     Binding="{Binding HasIcon}"
+                                     Value="True">
+                            <Setter Property="Margin" Value="4,0,0,0" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+            </Grid>
+        </Border>
+    </DataTemplate>
+
+    <Style x:Key="DownloadsFieldsLayoutStyle" TargetType="downloads:DownloadFilterLayout">
+        <Setter Property="StretchItems" Value="False" />
+        <Setter Property="ColumnSpacing" Value="4" />
+        <Setter Property="RowSpacing" Value="4" />
+        <Setter Property="BindableLayout.ItemTemplate" Value="{StaticResource DownloadsFieldTemplate}" />
+    </Style>
+
+    <DataTemplate x:Key="DownloadsCatalogTagTemplate"
+                  x:DataType="pages:DownloadsView+DownloadFieldViewModel">
+        <Border Style="{StaticResource DownloadsFieldBorderStyle}"
+                StrokeShape="RoundRectangle 10"
+                WidthRequest="20"
+                HeightRequest="20"
+                Padding="2"
+                ToolTipProperties.Text="{Binding Text}"
+                SemanticProperties.Description="{Binding Text}">
+            <Border.Triggers>
+                <DataTrigger TargetType="Border"
+                             Binding="{Binding HasBackground}"
+                             Value="True">
+                    <Setter Property="Background"
+                            Value="{Binding Background}" />
+                </DataTrigger>
+            </Border.Triggers>
+            <Image Source="{Binding Icon}"
+                   WidthRequest="16"
+                   HeightRequest="16"
+                   Aspect="AspectFit" />
+        </Border>
+    </DataTemplate>
+
+</ResourceDictionary>

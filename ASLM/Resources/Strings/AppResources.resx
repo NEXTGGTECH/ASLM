@@ -19,7 +19,7 @@
     <value>Consoles</value>
   </data>
   <data name="AppShell_Nav_Download" xml:space="preserve">
-    <value>Download</value>
+    <value>Downloads</value>
   </data>
   <data name="AppShell_Nav_Home" xml:space="preserve">
     <value>Home</value>
@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>Done</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>Install</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>Download</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>Install</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>Stay</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>Variant</value>
   </data>
   <data name="Consoles_ModulesHeader" xml:space="preserve">
     <value>Modules</value>
@@ -246,30 +243,6 @@
   <data name="Consoles_Selected_SessionCompleted" xml:space="preserve">
     <value>{0} session completed</value>
   </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>{0} categories</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>No categories</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>1 category</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>Choose a resource family to inspect its variants and details</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>No installed module currently exposes a downloads bridge</value>
-  </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>No grouped downloads are available for this category</value>
-  </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>No grouped downloads matched the current provider filters</value>
-  </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>No results matched "{0}" on the provider side</value>
-  </data>
   <data name="Downloads_NoItems" xml:space="preserve">
     <value>No items</value>
   </data>
@@ -279,98 +252,35 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Select an item</value>
   </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>Download catalog refresh failed: {0}</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Catalog</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>Download Catalog</value>
-  </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>The shared catalog could not be loaded from the installed module bridges.</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>1 family</value>
-  </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0} families</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>Refreshing details for {0}...</value>
-  </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>Details could not be loaded for {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>Installing {0}...</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>Installation canceled for {0}.</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>Installation failed for {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>Removing {0}...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>Removal canceled for {0}.</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>Removal failed for {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>The selected variant does not expose a page to open.</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>Open failed: invalid URL '{0}'.</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>Opened {0}{1}.</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>Could not open the selected page: {0}</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>Catalog updated. {0} categories loaded.</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>Catalog updated. 1 category loaded.</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>Choose a family, then the exact variant you want.</value>
   </data>
   <data name="Downloads_Details" xml:space="preserve">
     <value>Details</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>Installed</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>Details:</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>Installed | {0}</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>Features:</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>Loaded {0} categories.</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[Image]</value>
   </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>Loaded 1 category.</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[Image: {0}]</value>
   </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>Loading shared download catalog...</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>Open link</value>
   </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>No shared downloads were published by the current modules.</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>Downloaded</value>
   </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>Refreshing shared download catalog...</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>Ready.</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Select download variant:</value>
   </data>
   <data name="Downloads_Title" xml:space="preserve">
-    <value>Download</value>
+    <value>Downloads</value>
   </data>
   <data name="Home_Card_Modules_LastActivity" xml:space="preserve">
     <value>Last module activity {0}</value>
