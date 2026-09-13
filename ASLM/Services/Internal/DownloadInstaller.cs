@@ -82,9 +82,6 @@ namespace ASLM.Services.Internal
             var selectedTitle = !string.IsNullOrWhiteSpace(selectedVariant?.Title)
                 ? selectedVariant!.Title
                 : item.Title;
-            var selectedVersion = !string.IsNullOrWhiteSpace(selectedVariant?.Version)
-                ? selectedVariant!.Version
-                : item.Version;
             var operationKey = NotificationCenter.BuildOperationKey("download-install", selectedResourceKey);
             var catalogLabel = item.Title;
             var notificationMessage = string.Equals(selectedTitle, catalogLabel, StringComparison.OrdinalIgnoreCase)
@@ -144,7 +141,7 @@ namespace ASLM.Services.Internal
 
                     var version = !string.IsNullOrWhiteSpace(manifest.Version)
                         ? manifest.Version
-                        : selectedVersion;
+                        : item.Version;
 
                     await _stateStore.MarkInstalledAsync(selectedResourceKey, version, module.Id);
 

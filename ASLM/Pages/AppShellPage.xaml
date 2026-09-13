@@ -73,7 +73,7 @@
 
                 <Button x:Name="DownloadsButton"
                         Style="{StaticResource SidebarButton}"
-                        Text="Download"
+                        Text="Downloads"
                         HeightRequest="36"
                         HorizontalOptions="Fill"
                         Clicked="OnNavClicked" />

@@ -75,6 +75,42 @@ public sealed class ModuleConfigV2Tests
         config.IsSupportedOnCurrentPlatform.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Verifies downloads bridge declarations survive version-aware manifest parsing.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Downloads_bridge_is_preserved_for_supported_manifest_versions(int fileVersion)
+    {
+        var supportedPlatforms = fileVersion == 2
+            ? "\"supportedPlatforms\":[{\"os\":\"windows\",\"arch\":\"amd64\"}],"
+            : string.Empty;
+        var json = $$"""
+            {
+              "fileVersion": {{fileVersion}},
+              "id": "bridge-module",
+              {{supportedPlatforms}}
+              "downloadsBridge": {
+                "protocolVersion": 1,
+                "engine": "python-runtime",
+                "entryPoint": "main.py downloads_bridge",
+                "operations": ["list_categories"],
+                "categories": [
+                  { "id": "models", "title": "Models", "groupKey": "models" }
+                ]
+              }
+            }
+            """;
+
+        var config = ModuleManifestParser.Parse(json);
+
+        config.DownloadsBridge.Should().NotBeNull();
+        config.DownloadsBridge!.IsConfigured.Should().BeTrue();
+        config.DownloadsBridge.Operations.Should().ContainSingle().Which.Should().Be("list_categories");
+        config.DownloadsBridge.Categories.Should().ContainSingle().Which.Id.Should().Be("models");
+    }
+
     [Fact]
     public void V2_manifest_resolves_platform_categories_dependencies_and_engines()
     {

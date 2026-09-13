@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>Concluído</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>Instalar</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>Transferir</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>Instalar</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>Ficar</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>Variante</value>
   </data>
   <data name="Consoles_ActiveModulesFormat" xml:space="preserve">
     <value>{0} módulos ativos</value>
@@ -246,128 +243,41 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} linhas visíveis</value>
   </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>Não foi possível carregar o catálogo partilhado das pontes de módulos instaladas.</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Catálogo</value>
-  </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>Falha na atualização do catálogo de transferências: {0}</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>Catálogo de transferências</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>Catálogo atualizado. {0} categorias carregadas.</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>Catálogo atualizado. 1 categoria carregada.</value>
-  </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>{0} categorias</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>Sem categorias</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>1 categoria</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>Escolha uma família e, em seguida, a variante exata que pretende.</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>Escolha uma família de recursos para inspecionar as respetivas variantes e detalhes</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>Nenhum módulo instalado expõe atualmente uma ponte de transferências</value>
   </data>
   <data name="Downloads_Details" xml:space="preserve">
     <value>Detalhes</value>
   </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>Não existem transferências agrupadas disponíveis para esta categoria</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>Detalhes:</value>
   </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>Nenhuma transferência agrupada correspondeu aos filtros atuais do fornecedor</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>Transferido</value>
   </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>Nenhum resultado correspondeu a "{0}" no lado do fornecedor</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>Funcionalidades:</value>
   </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0} famílias</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[Imagem]</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>Instalado</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[Imagem: {0}]</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>Instalado | {0}</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>Abrir ligação</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>{0} categorias carregadas.</value>
-  </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>1 categoria carregada.</value>
-  </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>A carregar catálogo de transferências partilhadas...</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Selecionar uma variante para transferir:</value>
   </data>
   <data name="Downloads_NoItems" xml:space="preserve">
     <value>Sem itens</value>
-  </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>Os módulos atuais não publicaram transferências partilhadas.</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>1 família</value>
-  </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>A atualizar catálogo de transferências partilhadas...</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>Pesquisar no catálogo do fornecedor</value>
   </data>
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Selecionar um item</value>
-  </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>Não foi possível carregar os detalhes de {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>Instalação cancelada para {0}.</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>Falha na instalação para {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>A instalar {0}...</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>Falha ao abrir: URL inválido '{0}'.</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>A variante selecionada não expõe uma página para abrir.</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>Não foi possível abrir a página selecionada: {0}</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>{0}{1} aberto.</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>Pronto.</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>A atualizar detalhes de {0}...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>Remoção cancelada para {0}.</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>Falha na remoção para {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>A remover {0}...</value>
   </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>Transferências</value>

@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>完了</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>インストール</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>ダウンロード</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>インストール</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>留まる</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>バリアント</value>
   </data>
   <data name="Consoles_ActiveModulesFormat" xml:space="preserve">
     <value>アクティブなモジュール {0} 個</value>
@@ -246,128 +243,41 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>表示中の {0} 行</value>
   </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>インストールされたモジュールブリッジから共有カタログを読み込めませんでした。</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>カタログ</value>
-  </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>ダウンロードカタログの更新に失敗しました: {0}</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>ダウンロードカタログ</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>カタログを更新しました。{0} カテゴリを読み込みました。</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>カタログを更新しました。1 カテゴリを読み込みました。</value>
-  </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>{0} 件のカテゴリ</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>カテゴリがありません</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>カテゴリ 1 件</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>ファミリーを選択してから、希望する正確なバリアントを選択してください。</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>リソースファミリを選択して、バリアントと詳細を確認してください</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>インストール済みのモジュールでダウンロードブリッジを公開しているものはありません</value>
   </data>
   <data name="Downloads_Details" xml:space="preserve">
     <value>詳細</value>
   </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>このカテゴリで利用できるグループ化ダウンロードはありません</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>詳細：</value>
   </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>現在のプロバイダーフィルターに一致するグループ化ダウンロードはありません</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>ダウンロード済み</value>
   </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>プロバイダー側で「{0}」に一致する結果はありませんでした</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>機能：</value>
   </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0} ファミリー</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[画像]</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>インストール済み</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[画像：{0}]</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>インストール済み | {0}</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>リンクを開く</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>{0} カテゴリを読み込みました。</value>
-  </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>1 カテゴリを読み込みました。</value>
-  </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>共有ダウンロードカタログを読み込んでいます...</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>ダウンロードするバリアントを選択：</value>
   </data>
   <data name="Downloads_NoItems" xml:space="preserve">
     <value>項目がありません</value>
   </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>現在のモジュールによって共有ダウンロードは公開されていません。</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>1 ファミリー</value>
-  </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>共有ダウンロードカタログを更新しています...</value>
-  </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
-    <value>プロバイダーカタログを検索</value>
+    <value>提供元のカタログを検索</value>
   </data>
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>項目を選択</value>
-  </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>{0} の詳細を読み込めませんでした: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>{0} のインストールがキャンセルされました。</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>{0} のインストールに失敗しました: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>{0} をインストールしています...</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>開けませんでした: 無効な URL '{0}'。</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>選択したバリアントには開くページがありません。</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>選択したページを開けませんでした: {0}</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>{0}{1} を開きました。</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>準備完了。</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>{0} の詳細を更新しています...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>{0} の削除がキャンセルされました。</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>{0} の削除に失敗しました: {1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>{0} を削除しています...</value>
   </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>ダウンロード</value>

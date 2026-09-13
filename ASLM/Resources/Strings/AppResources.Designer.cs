@@ -79,7 +79,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Download.
+        ///   Ищет локализованную строку, похожую на Downloads.
         /// </summary>
         public static string AppShell_Nav_Download {
             get {
@@ -250,11 +250,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Install.
+        ///   Ищет локализованную строку, похожую на Download.
         /// </summary>
-        public static string Common_Install {
+        public static string Common_Download {
             get {
-                return ResourceManager.GetString("Common_Install", resourceCulture);
+                return ResourceManager.GetString("Common_Download", resourceCulture);
             }
         }
         
@@ -336,15 +336,6 @@ namespace ASLM.Resources.Strings {
         public static string Common_Stay {
             get {
                 return ResourceManager.GetString("Common_Stay", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Variant.
-        /// </summary>
-        public static string Common_Variant {
-            get {
-                return ResourceManager.GetString("Common_Variant", resourceCulture);
             }
         }
         
@@ -763,110 +754,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на The shared catalog could not be loaded from the installed module bridges..
-        /// </summary>
-        public static string Downloads_CatalogBridgeLoadFailed {
-            get {
-                return ResourceManager.GetString("Downloads_CatalogBridgeLoadFailed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Catalog.
         /// </summary>
         public static string Downloads_CatalogColumnTitle {
             get {
                 return ResourceManager.GetString("Downloads_CatalogColumnTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Download catalog refresh failed: {0}.
-        /// </summary>
-        public static string Downloads_CatalogRefreshFailedFormat {
-            get {
-                return ResourceManager.GetString("Downloads_CatalogRefreshFailedFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Download Catalog.
-        /// </summary>
-        public static string Downloads_CatalogTitle {
-            get {
-                return ResourceManager.GetString("Downloads_CatalogTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Catalog updated. {0} categories loaded..
-        /// </summary>
-        public static string Downloads_CatalogUpdatedManyFormat {
-            get {
-                return ResourceManager.GetString("Downloads_CatalogUpdatedManyFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Catalog updated. 1 category loaded..
-        /// </summary>
-        public static string Downloads_CatalogUpdatedOneCategory {
-            get {
-                return ResourceManager.GetString("Downloads_CatalogUpdatedOneCategory", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} categories.
-        /// </summary>
-        public static string Downloads_CategoryCount_Many {
-            get {
-                return ResourceManager.GetString("Downloads_CategoryCount_Many", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на No categories.
-        /// </summary>
-        public static string Downloads_CategoryCount_None {
-            get {
-                return ResourceManager.GetString("Downloads_CategoryCount_None", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на 1 category.
-        /// </summary>
-        public static string Downloads_CategoryCount_One {
-            get {
-                return ResourceManager.GetString("Downloads_CategoryCount_One", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Choose a family, then the exact variant you want..
-        /// </summary>
-        public static string Downloads_ChooseVariantHint {
-            get {
-                return ResourceManager.GetString("Downloads_ChooseVariantHint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Choose a resource family to inspect its variants and details.
-        /// </summary>
-        public static string Downloads_DetailEmpty_Hint {
-            get {
-                return ResourceManager.GetString("Downloads_DetailEmpty_Hint", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на No installed module currently exposes a downloads bridge.
-        /// </summary>
-        public static string Downloads_DetailEmpty_NoBridge {
-            get {
-                return ResourceManager.GetString("Downloads_DetailEmpty_NoBridge", resourceCulture);
             }
         }
         
@@ -880,83 +772,47 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на No grouped downloads are available for this category.
+        ///   Ищет локализованную строку, похожую на Details:.
         /// </summary>
-        public static string Downloads_EmptyCategory {
+        public static string Downloads_DetailsLabel {
             get {
-                return ResourceManager.GetString("Downloads_EmptyCategory", resourceCulture);
+                return ResourceManager.GetString("Downloads_DetailsLabel", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на No grouped downloads matched the current provider filters.
+        ///   Ищет локализованную строку, похожую на Downloaded.
         /// </summary>
-        public static string Downloads_EmptyFiltered {
+        public static string Downloads_Downloaded {
             get {
-                return ResourceManager.GetString("Downloads_EmptyFiltered", resourceCulture);
+                return ResourceManager.GetString("Downloads_Downloaded", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на No results matched &quot;{0}&quot; on the provider side.
+        ///   Ищет локализованную строку, похожую на Features:.
         /// </summary>
-        public static string Downloads_EmptySearch {
+        public static string Downloads_FeaturesLabel {
             get {
-                return ResourceManager.GetString("Downloads_EmptySearch", resourceCulture);
+                return ResourceManager.GetString("Downloads_FeaturesLabel", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} families.
+        ///   Ищет локализованную строку, похожую на [Image].
         /// </summary>
-        public static string Downloads_FamilyCountFormat {
+        public static string Downloads_ImagePlaceholder {
             get {
-                return ResourceManager.GetString("Downloads_FamilyCountFormat", resourceCulture);
+                return ResourceManager.GetString("Downloads_ImagePlaceholder", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Installed.
+        ///   Ищет локализованную строку, похожую на [Image: {0}].
         /// </summary>
-        public static string Downloads_Installed {
+        public static string Downloads_ImagePlaceholderFormat {
             get {
-                return ResourceManager.GetString("Downloads_Installed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Installed | {0}.
-        /// </summary>
-        public static string Downloads_InstalledVersionFormat {
-            get {
-                return ResourceManager.GetString("Downloads_InstalledVersionFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Loaded {0} categories..
-        /// </summary>
-        public static string Downloads_LoadedManyFormat {
-            get {
-                return ResourceManager.GetString("Downloads_LoadedManyFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Loaded 1 category..
-        /// </summary>
-        public static string Downloads_LoadedOneCategory {
-            get {
-                return ResourceManager.GetString("Downloads_LoadedOneCategory", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Loading shared download catalog....
-        /// </summary>
-        public static string Downloads_LoadingCatalog {
-            get {
-                return ResourceManager.GetString("Downloads_LoadingCatalog", resourceCulture);
+                return ResourceManager.GetString("Downloads_ImagePlaceholderFormat", resourceCulture);
             }
         }
         
@@ -970,29 +826,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на No shared downloads were published by the current modules..
+        ///   Ищет локализованную строку, похожую на Open link.
         /// </summary>
-        public static string Downloads_NoSharedDownloads {
+        public static string Downloads_OpenLink {
             get {
-                return ResourceManager.GetString("Downloads_NoSharedDownloads", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на 1 family.
-        /// </summary>
-        public static string Downloads_OneFamily {
-            get {
-                return ResourceManager.GetString("Downloads_OneFamily", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Refreshing shared download catalog....
-        /// </summary>
-        public static string Downloads_RefreshingCatalog {
-            get {
-                return ResourceManager.GetString("Downloads_RefreshingCatalog", resourceCulture);
+                return ResourceManager.GetString("Downloads_OpenLink", resourceCulture);
             }
         }
         
@@ -1015,124 +853,16 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Details could not be loaded for {0}: {1}.
+        ///   Ищет локализованную строку, похожую на Select download variant:.
         /// </summary>
-        public static string Downloads_Status_DetailsLoadFailedFormat {
+        public static string Downloads_SelectVariant {
             get {
-                return ResourceManager.GetString("Downloads_Status_DetailsLoadFailedFormat", resourceCulture);
+                return ResourceManager.GetString("Downloads_SelectVariant", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Installation canceled for {0}..
-        /// </summary>
-        public static string Downloads_Status_InstallCanceledFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_InstallCanceledFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Installation failed for {0}: {1}.
-        /// </summary>
-        public static string Downloads_Status_InstallFailedFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_InstallFailedFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Installing {0}....
-        /// </summary>
-        public static string Downloads_Status_InstallingFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_InstallingFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Open failed: invalid URL &apos;{0}&apos;..
-        /// </summary>
-        public static string Downloads_Status_InvalidUrlFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_InvalidUrlFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на The selected variant does not expose a page to open..
-        /// </summary>
-        public static string Downloads_Status_NoPageToOpen {
-            get {
-                return ResourceManager.GetString("Downloads_Status_NoPageToOpen", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Opened {0}{1}..
-        /// </summary>
-        public static string Downloads_Status_OpenedFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_OpenedFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Could not open the selected page: {0}.
-        /// </summary>
-        public static string Downloads_Status_OpenFailedFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_OpenFailedFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Ready..
-        /// </summary>
-        public static string Downloads_Status_Ready {
-            get {
-                return ResourceManager.GetString("Downloads_Status_Ready", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Refreshing details for {0}....
-        /// </summary>
-        public static string Downloads_Status_RefreshingDetailsFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_RefreshingDetailsFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Removal canceled for {0}..
-        /// </summary>
-        public static string Downloads_Status_RemoveCanceledFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_RemoveCanceledFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Removal failed for {0}: {1}.
-        /// </summary>
-        public static string Downloads_Status_RemoveFailedFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_RemoveFailedFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Removing {0}....
-        /// </summary>
-        public static string Downloads_Status_RemovingFormat {
-            get {
-                return ResourceManager.GetString("Downloads_Status_RemovingFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Download.
+        ///   Ищет локализованную строку, похожую на Downloads.
         /// </summary>
         public static string Downloads_Title {
             get {

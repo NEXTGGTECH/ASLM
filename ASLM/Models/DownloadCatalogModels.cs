@@ -86,6 +86,10 @@ namespace ASLM.Models
         [JsonPropertyName("warnings")]
         public List<string> Warnings { get; set; } = [];
 
+        // Resources are local to this response; metadata refers to them by name.
+        [JsonPropertyName("resources")]
+        public ModuleDownloadResources? Resources { get; set; }
+
         // Optional category payload returned by list_categories.
         [JsonPropertyName("categories")]
         public List<ModuleDownloadCategoryPayload> Categories { get; set; } = [];
@@ -193,6 +197,56 @@ namespace ASLM.Models
     }
 
 
+    // Item fields and response-local resources
+
+    /// <summary>One optional, independently styled detail or feature supplied by a module.</summary>
+    public sealed class ModuleDownloadField
+    {
+        [JsonPropertyName("text")]
+        public string Text { get; set; } = string.Empty;
+
+        [JsonPropertyName("backgroundColor")]
+        public string? BackgroundColor { get; set; }
+
+        [JsonPropertyName("textColor")]
+        public string? TextColor { get; set; }
+
+        [JsonPropertyName("showInCatalog")]
+        public bool ShowInCatalog { get; set; }
+
+        [JsonPropertyName("icon")]
+        public string? Icon { get; set; }
+
+        // Resolved before merging providers. Never read from or written to the wire.
+        [JsonIgnore]
+        public DownloadCatalogIcon? Image { get; set; }
+    }
+
+    public sealed class ModuleDownloadResources
+    {
+        [JsonPropertyName("colors")]
+        public Dictionary<string, string?>? Colors { get; set; }
+
+        [JsonPropertyName("icons")]
+        public Dictionary<string, ModuleDownloadIconPayload?>? Icons { get; set; }
+    }
+
+    public sealed class ModuleDownloadIconPayload
+    {
+        [JsonPropertyName("path")]
+        public string? Path { get; set; }
+
+        [JsonPropertyName("mimeType")]
+        public string? MimeType { get; set; }
+
+        [JsonPropertyName("base64")]
+        public string? Base64 { get; set; }
+    }
+
+    /// <summary>Validated PNG data identified by its content, independent of module-local names.</summary>
+    public sealed record DownloadCatalogIcon(string Key, byte[] Data);
+
+
     // Item payloads
 
     /// <summary>
@@ -232,13 +286,11 @@ namespace ASLM.Models
         [JsonPropertyName("homepageUrl")]
         public string HomepageUrl { get; set; } = string.Empty;
 
-        // Optional secondary label shown next to the provider.
-        [JsonPropertyName("detail")]
-        public string Detail { get; set; } = string.Empty;
+        [JsonPropertyName("details")]
+        public List<ModuleDownloadField>? Details { get; set; }
 
-        // Optional tags, capabilities, or size labels shown in compact form.
         [JsonPropertyName("tags")]
-        public List<string> Tags { get; set; } = [];
+        public List<ModuleDownloadField>? Tags { get; set; }
 
         // Optional number of variants available for this grouped item.
         [JsonPropertyName("variantCount")]
@@ -265,15 +317,7 @@ namespace ASLM.Models
             Provider ??= string.Empty;
             Version ??= string.Empty;
             HomepageUrl ??= string.Empty;
-            Detail ??= string.Empty;
             DefaultVariantResourceKey ??= string.Empty;
-
-            Tags ??= [];
-            Tags = Tags
-                .Where(static tag => !string.IsNullOrWhiteSpace(tag))
-                .Select(static tag => tag.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
         }
     }
 
@@ -334,11 +378,11 @@ namespace ASLM.Models
         [JsonPropertyName("homepageUrl")]
         public string HomepageUrl { get; set; } = string.Empty;
 
-        [JsonPropertyName("detail")]
-        public string Detail { get; set; } = string.Empty;
+        [JsonPropertyName("details")]
+        public List<ModuleDownloadField>? Details { get; set; }
 
         [JsonPropertyName("tags")]
-        public List<string> Tags { get; set; } = [];
+        public List<ModuleDownloadField>? Tags { get; set; }
 
         [JsonPropertyName("defaultVariantResourceKey")]
         public string DefaultVariantResourceKey { get; set; } = string.Empty;
@@ -362,15 +406,7 @@ namespace ASLM.Models
             Provider ??= string.Empty;
             Version ??= string.Empty;
             HomepageUrl ??= string.Empty;
-            Detail ??= string.Empty;
             DefaultVariantResourceKey ??= string.Empty;
-
-            Tags ??= [];
-            Tags = Tags
-                .Where(static tag => !string.IsNullOrWhiteSpace(tag))
-                .Select(static tag => tag.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
 
             Variants ??= [];
             foreach (var variant in Variants)
@@ -400,17 +436,15 @@ namespace ASLM.Models
         [JsonPropertyName("summary")]
         public string Summary { get; set; } = string.Empty;
 
-        [JsonPropertyName("version")]
-        public string Version { get; set; } = string.Empty;
+        // Whole bytes. HasSize distinguishes a known empty download from an unknown size.
+        [JsonPropertyName("size")]
+        public long Size { get; set; }
 
-        [JsonPropertyName("detail")]
-        public string Detail { get; set; } = string.Empty;
+        [JsonPropertyName("hasSize")]
+        public bool HasSize { get; set; }
 
         [JsonPropertyName("homepageUrl")]
         public string HomepageUrl { get; set; } = string.Empty;
-
-        [JsonPropertyName("tags")]
-        public List<string> Tags { get; set; } = [];
 
         [JsonPropertyName("sortOrder")]
         public int SortOrder { get; set; }
@@ -423,16 +457,9 @@ namespace ASLM.Models
             ResourceKey ??= string.Empty;
             Title ??= string.Empty;
             Summary ??= string.Empty;
-            Version ??= string.Empty;
-            Detail ??= string.Empty;
             HomepageUrl ??= string.Empty;
-
-            Tags ??= [];
-            Tags = Tags
-                .Where(static tag => !string.IsNullOrWhiteSpace(tag))
-                .Select(static tag => tag.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            if (Size < 0) HasSize = false;
+            if (!HasSize) Size = 0;
         }
     }
 
@@ -605,10 +632,21 @@ namespace ASLM.Models
     // Aggregated catalog
 
     /// <summary>
+    /// Captures one category's query for an in-flight catalog request.
+    /// </summary>
+    public sealed record DownloadCatalogQuery(string QueryText, IReadOnlyCollection<string> Filters);
+
+    /// <summary>
     /// Represents the merged shared download catalog built from all installed modules.
     /// </summary>
     public class DownloadCatalogSnapshot
     {
+        // Number of installed modules that declare a configured downloads bridge.
+        public int ConfiguredProviderCount { get; set; }
+
+        // Number of configured providers whose category request completed successfully.
+        public int SuccessfulProviderCount { get; set; }
+
         // Categories shown in the shared download page.
         public List<DownloadCatalogCategory> Categories { get; set; } = [];
 
@@ -654,8 +692,8 @@ namespace ASLM.Models
         public string Provider { get; set; } = string.Empty;
         public string Version { get; set; } = string.Empty;
         public string HomepageUrl { get; set; } = string.Empty;
-        public string Detail { get; set; } = string.Empty;
-        public List<string> Tags { get; set; } = [];
+        public List<ModuleDownloadField> Details { get; set; } = [];
+        public List<ModuleDownloadField> Tags { get; set; } = [];
         public int VariantCount { get; set; }
         public string DefaultVariantResourceKey { get; set; } = string.Empty;
         public int SortOrder { get; set; }
@@ -677,8 +715,8 @@ namespace ASLM.Models
         public string Provider { get; set; } = string.Empty;
         public string Version { get; set; } = string.Empty;
         public string HomepageUrl { get; set; } = string.Empty;
-        public string Detail { get; set; } = string.Empty;
-        public List<string> Tags { get; set; } = [];
+        public List<ModuleDownloadField> Details { get; set; } = [];
+        public List<ModuleDownloadField> Tags { get; set; } = [];
         public string DefaultVariantResourceKey { get; set; } = string.Empty;
         public List<DownloadCatalogVariant> Variants { get; set; } = [];
         public List<DownloadCatalogInfoBlock> Blocks { get; set; } = [];
@@ -692,13 +730,11 @@ namespace ASLM.Models
         public string ResourceKey { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Summary { get; set; } = string.Empty;
-        public string Version { get; set; } = string.Empty;
-        public string Detail { get; set; } = string.Empty;
+        public long Size { get; set; }
+        public bool HasSize { get; set; }
         public string HomepageUrl { get; set; } = string.Empty;
-        public List<string> Tags { get; set; } = [];
         public int SortOrder { get; set; }
         public bool Installed { get; set; }
-        public string InstalledVersion { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -720,6 +756,8 @@ namespace ASLM.Models
     /// </summary>
     public class DownloadCatalogItemSource
     {
+        public List<ModuleDownloadField> Details { get; set; } = [];
+        public List<ModuleDownloadField> Tags { get; set; } = [];
         public string ModuleId { get; set; } = string.Empty;
         public string ModuleName { get; set; } = string.Empty;
         public string ModuleSourcePath { get; set; } = string.Empty;

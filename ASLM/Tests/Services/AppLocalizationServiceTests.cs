@@ -26,4 +26,14 @@ public sealed class AppLocalizationServiceTests
     {
         AppLocalizationService.GetPickerDisplayName("en").Should().Contain("English");
     }
+
+    [Theory]
+    [InlineData(ASLM.Localization.LocalizationKeys.AppShell_Nav_Download)]
+    [InlineData(ASLM.Localization.LocalizationKeys.Downloads_Title)]
+    public void Downloads_page_and_navigation_use_plural_english_title(string key)
+    {
+        ASLM.Resources.Strings.AppResources.ResourceManager
+            .GetString(key, System.Globalization.CultureInfo.GetCultureInfo("en"))
+            .Should().Be("Downloads");
+    }
 }

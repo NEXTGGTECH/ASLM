@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>Готово</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>Встановити</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>Завантажити</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>Встановити</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>Залишитися</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>Варіант</value>
   </data>
   <data name="Consoles_ActiveModulesFormat" xml:space="preserve">
     <value>{0} активних модулів</value>
@@ -246,128 +243,41 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} видимих рядків</value>
   </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>Не вдалося завантажити спільний каталог із встановлених мостів модулів.</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Каталог</value>
   </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>Помилка оновлення каталогу завантажень: {0}</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>Каталог завантажень</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>Каталог оновлено. Завантажено {0} категорій.</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>Каталог оновлено. Завантажено 1 категорію.</value>
-  </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>{0} категорій</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>Немає категорій</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>1 категорія</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>Виберіть родину, а потім потрібний варіант.</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>Оберіть сімейство ресурсів, щоб переглянути варіанти та деталі</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>Жоден встановлений модуль наразі не надає міст завантажень</value>
-  </data>
   <data name="Downloads_Details" xml:space="preserve">
-    <value>Подробиці</value>
+    <value>Відомості</value>
   </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>Для цієї категорії немає доступних згрупованих завантажень</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>Відомості:</value>
   </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>Жодне згруповане завантаження не відповідає поточним фільтрам постачальника</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>Завантажено</value>
   </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>На стороні постачальника немає результатів для «{0}»</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>Можливості:</value>
   </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0} родин</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[Зображення]</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>Встановлено</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[Зображення: {0}]</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>Встановлено | {0}</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>Відкрити посилання</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>Завантажено {0} категорій.</value>
-  </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>Завантажено 1 категорію.</value>
-  </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>Завантаження спільного каталогу завантажень...</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Виберіть варіант завантаження:</value>
   </data>
   <data name="Downloads_NoItems" xml:space="preserve">
     <value>Немає елементів</value>
-  </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>Поточні модулі не опублікували спільних завантажень.</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>1 родина</value>
-  </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>Оновлення спільного каталогу завантажень...</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>Пошук у каталозі постачальника</value>
   </data>
   <data name="Downloads_SelectItem" xml:space="preserve">
-    <value>Оберіть елемент</value>
-  </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>Не вдалося завантажити відомості для {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>Встановлення скасовано для {0}.</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>Помилка встановлення для {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>Встановлення {0}...</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>Не вдалося відкрити: неправильна URL-адреса «{0}».</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>Вибраний варіант не надає сторінку для відкриття.</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>Не вдалося відкрити вибрану сторінку: {0}</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>Відкрито {0}{1}.</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>Готово.</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>Оновлення відомостей для {0}...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>Видалення скасовано для {0}.</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>Помилка видалення для {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>Видалення {0}...</value>
+    <value>Виберіть елемент</value>
   </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>Завантаження</value>

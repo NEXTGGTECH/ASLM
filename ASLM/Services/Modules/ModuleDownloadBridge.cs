@@ -1,10 +1,12 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ASLM.Models;
 using Microsoft.Extensions.Logging;
+using SkiaSharp;
 
 namespace ASLM.Services.Modules
 {
@@ -14,11 +16,18 @@ namespace ASLM.Services.Modules
     public class ModuleDownloadBridge
     {
         private const int MaxBridgeOutputCharacters = 2_000_000;
+        private static readonly TimeSpan BridgeRequestTimeout = TimeSpan.FromSeconds(30);
 
         private readonly EngineInstaller _engineInstaller;
         private readonly ModuleEnvironmentResolver _environmentResolver;
         private readonly ModuleRunner _moduleRunner;
         private readonly ILogger<ModuleDownloadBridge> _logger;
+        private const int MaxIconBytes = 256 * 1024;
+        private const int MaxIconDimension = 512;
+        private const int MaxCachedIcons = 64;
+        private readonly Dictionary<string, DownloadCatalogIcon> _images = new(StringComparer.Ordinal);
+        private readonly Queue<string> _imageKeys = new();
+        private readonly object _cacheLock = new();
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -252,37 +261,46 @@ namespace ASLM.Services.Modules
                 return CreateErrorResponse("Module directory could not be resolved.");
             }
 
+            using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            requestCts.CancelAfter(BridgeRequestTimeout);
+            var requestToken = requestCts.Token;
+            Process? process = null;
+            Task<string>? stdoutTask = null;
+            Task<string>? stderrTask = null;
+
             try
             {
                 if (!string.IsNullOrWhiteSpace(bridge.Engine))
                 {
                     var engineConfig = _engineInstaller.GetEngineConfig(bridge.Engine)
                         ?? throw new InvalidOperationException($"Engine '{bridge.Engine}' is not installed.");
-                    await _environmentResolver.EnsureEnvironmentAsync(module, engineConfig, null, ct);
+                    await _environmentResolver.EnsureEnvironmentAsync(module, engineConfig, null, requestToken)
+                        .ConfigureAwait(false);
                 }
 
                 // Start the bridge process with the same module context used by regular commands.
                 var psi = CreateProcessStartInfo(module, bridge, moduleDir);
-                using var process = new Process { StartInfo = psi };
+                process = new Process { StartInfo = psi };
 
                 if (!process.Start())
                 {
                     return CreateErrorResponse("Downloads bridge process could not be started.");
                 }
 
-                // Write the JSON request first, then read both output streams to avoid blocking.
+                // Drain both streams immediately so a verbose bridge cannot block while stdin is written.
+                stdoutTask = ReadBoundedToEndAsync(process.StandardOutput, requestToken);
+                stderrTask = ReadBoundedToEndAsync(process.StandardError, requestToken);
+
+                // StandardInputEncoding is explicitly BOM-less so every JSON parser sees '{' as the first byte.
                 var requestJson = JsonSerializer.Serialize(request, _jsonOptions);
-                await process.StandardInput.WriteAsync(requestJson.AsMemory(), ct);
-                await process.StandardInput.FlushAsync();
+                await process.StandardInput.WriteAsync(requestJson.AsMemory(), requestToken).ConfigureAwait(false);
+                await process.StandardInput.FlushAsync().ConfigureAwait(false);
                 process.StandardInput.Close();
 
-                var stdoutTask = ReadBoundedToEndAsync(process.StandardOutput, ct);
-                var stderrTask = ReadBoundedToEndAsync(process.StandardError, ct);
+                await process.WaitForExitAsync(requestToken).ConfigureAwait(false);
 
-                await process.WaitForExitAsync(ct);
-
-                var stdout = await stdoutTask;
-                var stderr = await stderrTask;
+                var stdout = await stdoutTask.ConfigureAwait(false);
+                var stderr = await stderrTask.ConfigureAwait(false);
 
                 if (process.ExitCode != 0)
                 {
@@ -313,17 +331,249 @@ namespace ASLM.Services.Modules
                 }
 
                 response.Normalize();
+                if (response.Items.Count > 0 || response.ItemDetail != null)
+                    await Task.Run(() => ResolveResourcesAsync(response, moduleDir, requestToken), requestToken)
+                        .ConfigureAwait(false);
+                foreach (var warning in response.Warnings)
+                    _logger.LogWarning("Downloads bridge warning for {ModuleId}: {Warning}", module.Id, warning);
                 return response;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                await TerminateProcessTreeAsync(process, stdoutTask, stderrTask).ConfigureAwait(false);
                 throw;
+            }
+            catch (OperationCanceledException) when (requestCts.IsCancellationRequested)
+            {
+                await TerminateProcessTreeAsync(process, stdoutTask, stderrTask).ConfigureAwait(false);
+                _logger.LogWarning(
+                    "Downloads bridge request for module {ModuleId} timed out after {TimeoutSeconds} seconds.",
+                    module.Id,
+                    BridgeRequestTimeout.TotalSeconds);
+                return CreateErrorResponse(
+                    $"Downloads bridge request timed out after {BridgeRequestTimeout.TotalSeconds:0} seconds.");
             }
             catch (Exception ex)
             {
+                await TerminateProcessTreeAsync(process, stdoutTask, stderrTask).ConfigureAwait(false);
                 _logger.LogError(ex, "Downloads bridge invocation failed for module {ModuleId}.", module.Id);
                 return CreateErrorResponse(ex.Message);
             }
+            finally
+            {
+                process?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Stops a failed or canceled bridge process and observes its redirected output tasks.
+        /// </summary>
+        private static async Task TerminateProcessTreeAsync(
+            Process? process,
+            Task<string>? stdoutTask,
+            Task<string>? stderrTask)
+        {
+            if (process != null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                    // The process may have exited between the state check and termination request.
+                }
+
+                try
+                {
+                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Cleanup remains best-effort when the operating system no longer exposes the process handle.
+                }
+            }
+
+            await ObserveOutputTaskAsync(stdoutTask).ConfigureAwait(false);
+            await ObserveOutputTaskAsync(stderrTask).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Observes one redirected output task without allowing cleanup failures to replace the primary error.
+        /// </summary>
+        private static async Task ObserveOutputTaskAsync(Task<string>? outputTask)
+        {
+            if (outputTask == null)
+            {
+                return;
+            }
+
+            try
+            {
+                await outputTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Output may be interrupted while a canceled process tree is being terminated.
+            }
+        }
+
+
+        // Response-local colors and icons
+
+        private async Task ResolveResourcesAsync(ModuleDownloadBridgeResponse response, string moduleDirectory, CancellationToken ct)
+        {
+            var icons = new Dictionary<string, DownloadCatalogIcon?>(StringComparer.Ordinal);
+            var colors = new Dictionary<string, string?>(StringComparer.Ordinal);
+            var warnings = new HashSet<string>(StringComparer.Ordinal);
+
+            async Task<List<ModuleDownloadField>?> ResolveList(List<ModuleDownloadField>? values)
+            {
+                // Preserve absent vs explicitly empty arrays for describe_item overrides.
+                if (values == null) return null;
+                var result = new List<ModuleDownloadField>();
+                foreach (var value in values)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (value == null) continue;
+                    var iconName = value.Icon?.Trim();
+                    DownloadCatalogIcon? icon = null;
+                    if (!string.IsNullOrEmpty(iconName))
+                    {
+                        if (!icons.TryGetValue(iconName, out icon))
+                        {
+                            if (icons.Count < MaxCachedIcons &&
+                                response.Resources?.Icons?.TryGetValue(iconName, out var definition) == true &&
+                                definition != null)
+                            {
+                                icon = await LoadIconAsync(definition, moduleDirectory, ct).ConfigureAwait(false);
+                            }
+                            icons[iconName] = icon;
+                            if (icon == null) warnings.Add($"Downloads metadata icon '{iconName}' is missing or invalid.");
+                        }
+                    }
+
+                    var text = value.Text?.Trim() ?? string.Empty;
+                    if (text.Length == 0 && icon == null) continue;
+                    result.Add(new ModuleDownloadField
+                    {
+                        Text = text,
+                        BackgroundColor = ResolveColor(value.BackgroundColor),
+                        TextColor = ResolveColor(value.TextColor),
+                        ShowInCatalog = value.ShowInCatalog,
+                        Icon = iconName,
+                        Image = icon
+                    });
+                }
+                return result;
+            }
+
+            string? ResolveColor(string? nameOrHex)
+            {
+                if (string.IsNullOrWhiteSpace(nameOrHex)) return null;
+                var key = nameOrHex.Trim();
+                if (colors.TryGetValue(key, out var cached)) return cached;
+                var value = key;
+                if (!value.StartsWith('#'))
+                    value = response.Resources?.Colors?.GetValueOrDefault(value) ?? string.Empty;
+                var color = NormalizeHex(value);
+                colors[key] = color;
+                if (color == null) warnings.Add($"Downloads metadata color '{nameOrHex}' is missing or invalid.");
+                return color;
+            }
+
+            foreach (var item in response.Items)
+            {
+                item.Details = await ResolveList(item.Details).ConfigureAwait(false);
+                item.Tags = await ResolveList(item.Tags).ConfigureAwait(false);
+            }
+            if (response.ItemDetail is { } detail)
+            {
+                detail.Details = await ResolveList(detail.Details).ConfigureAwait(false);
+                detail.Tags = await ResolveList(detail.Tags).ConfigureAwait(false);
+            }
+            response.Warnings.AddRange(warnings);
+        }
+
+        private static string? NormalizeHex(string? value)
+        {
+            var hex = value?.Trim();
+            if (hex == null || (hex.Length != 7 && hex.Length != 9) || hex[0] != '#' ||
+                hex.AsSpan(1).ContainsAnyExcept("0123456789abcdefABCDEF")) return null;
+            return hex.Length == 7 ? "#FF" + hex[1..].ToUpperInvariant() : hex.ToUpperInvariant();
+        }
+
+        private async Task<DownloadCatalogIcon?> LoadIconAsync(
+            ModuleDownloadIconPayload definition, string moduleDirectory, CancellationToken ct)
+        {
+            try
+            {
+                byte[] bytes;
+                if (!string.IsNullOrWhiteSpace(definition.Path))
+                {
+                    if (!string.IsNullOrWhiteSpace(definition.Base64)) return null;
+                    var path = ResolveIconPath(moduleDirectory, definition.Path);
+                    if (path == null) return null;
+                    await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+                        4096, FileOptions.Asynchronous);
+                    if (stream.Length is <= 0 or > MaxIconBytes) return null;
+                    bytes = new byte[(int)stream.Length];
+                    await stream.ReadExactlyAsync(bytes, ct).ConfigureAwait(false);
+                    if (stream.ReadByte() != -1) return null;
+                }
+                else
+                {
+                    if (!string.Equals(definition.MimeType, "image/png", StringComparison.OrdinalIgnoreCase) ||
+                        string.IsNullOrWhiteSpace(definition.Base64) ||
+                        definition.Base64.Length > ((MaxIconBytes + 2) / 3) * 4) return null;
+                    bytes = Convert.FromBase64String(definition.Base64);
+                }
+                ct.ThrowIfCancellationRequested();
+                if (bytes.Length is <= 0 or > MaxIconBytes) return null;
+                var key = Convert.ToHexString(SHA256.HashData(bytes));
+                lock (_cacheLock)
+                    if (_images.TryGetValue(key, out var cached)) return cached;
+
+                using var data = SKData.CreateCopy(bytes);
+                using var codec = SKCodec.Create(data);
+                if (codec == null || codec.EncodedFormat != SKEncodedImageFormat.Png ||
+                    codec.Info.Width is <= 0 or > MaxIconDimension ||
+                    codec.Info.Height is <= 0 or > MaxIconDimension) return null;
+                using var bitmap = SKBitmap.Decode(bytes);
+                if (bitmap == null) return null;
+                var image = new DownloadCatalogIcon(key, bytes);
+                lock (_cacheLock)
+                {
+                    if (_images.TryGetValue(key, out var cached)) return cached;
+                    while (_images.Count >= MaxCachedIcons) _images.Remove(_imageKeys.Dequeue());
+                    _images.Add(key, image);
+                    _imageKeys.Enqueue(key);
+                }
+                return image;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
+                                       FormatException or ArgumentException or NotSupportedException)
+            {
+                return null;
+            }
+        }
+
+        private static string? ResolveIconPath(string moduleDirectory, string relativePath)
+        {
+            if (Path.IsPathRooted(relativePath)) return null;
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(moduleDirectory));
+            var path = Path.GetFullPath(relativePath, root);
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (!path.StartsWith(root + Path.DirectorySeparatorChar, comparison)) return null;
+            // Do not follow file links or directory junctions out of the module.
+            for (var current = path; !string.Equals(current, root, comparison); current = Path.GetDirectoryName(current)!)
+            {
+                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return null;
+            }
+            return path;
         }
 
 
@@ -379,7 +629,7 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Creates the process startup info for one bridge invocation.
         /// </summary>
-        private ProcessStartInfo CreateProcessStartInfo(
+        internal ProcessStartInfo CreateProcessStartInfo(
             ModuleConfig module,
             ModuleDownloadsBridge bridge,
             string moduleDir)
@@ -422,6 +672,7 @@ namespace ASLM.Services.Modules
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                StandardInputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8
             };

@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>완료</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>설치</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>다운로드</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>설치</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>머물기</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>변형</value>
   </data>
   <data name="Consoles_ActiveModulesFormat" xml:space="preserve">
     <value>활성 모듈 {0}개</value>
@@ -246,128 +243,41 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>표시되는 {0}줄</value>
   </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>설치된 모듈 브리지에서 공유 카탈로그를 로드할 수 없습니다.</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>카탈로그</value>
-  </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>다운로드 카탈로그 새로 고침에 실패했습니다: {0}</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>다운로드 카탈로그</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>카탈로그가 업데이트되었습니다. {0}개의 카테고리가 로드되었습니다.</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>카탈로그가 업데이트되었습니다. 1개의 카테고리가 로드되었습니다.</value>
-  </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>카테고리 {0}개</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>카테고리 없음</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>카테고리 1개</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>패밀리를 선택한 다음 원하는 정확한 변형을 선택하세요.</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>리소스 패밀리를 선택하여 변형 및 세부 정보를 확인하세요</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>설치된 모듈 중 다운로드 브리지를 제공하는 모듈이 없습니다</value>
   </data>
   <data name="Downloads_Details" xml:space="preserve">
     <value>세부 정보</value>
   </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>이 카테고리에는 그룹화된 다운로드가 없습니다</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>세부 정보:</value>
   </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>현재 공급자 필터와 일치하는 그룹화된 다운로드가 없습니다</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>다운로드됨</value>
   </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>공급자 측에서 "{0}"과(와) 일치하는 결과가 없습니다</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>기능:</value>
   </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0}개의 패밀리</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[이미지]</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>설치됨</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[이미지: {0}]</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>설치됨 | {0}</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>링크 열기</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>{0}개의 카테고리가 로드되었습니다.</value>
-  </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>1개의 카테고리가 로드되었습니다.</value>
-  </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>공유 다운로드 카탈로그 로드 중...</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>다운로드 옵션 선택:</value>
   </data>
   <data name="Downloads_NoItems" xml:space="preserve">
     <value>항목 없음</value>
   </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>현재 모듈에서 공유 다운로드가 게시되지 않았습니다.</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>패밀리 1개</value>
-  </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>공유 다운로드 카탈로그 새로 고침 중...</value>
-  </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
-    <value>공급자 카탈로그 검색</value>
+    <value>제공업체 카탈로그 검색</value>
   </data>
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>항목 선택</value>
-  </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>{0}에 대한 세부 정보를 로드할 수 없습니다: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>{0}에 대한 설치가 취소되었습니다.</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>{0}에 대한 설치에 실패했습니다: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>{0} 설치 중...</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>열기 실패: 잘못된 URL '{0}'.</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>선택한 변형에는 열 페이지가 없습니다.</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>선택한 페이지를 열 수 없습니다: {0}</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>{0}{1}을(를) 열었습니다.</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>준비 완료.</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>{0}에 대한 세부 정보 새로 고침 중...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>{0}에 대한 제거가 취소되었습니다.</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>{0}에 대한 제거에 실패했습니다: {1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>{0} 제거 중...</value>
   </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>다운로드</value>

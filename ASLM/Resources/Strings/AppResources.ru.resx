@@ -75,8 +75,8 @@
   <data name="Common_Done" xml:space="preserve">
     <value>Готово</value>
   </data>
-  <data name="Common_Install" xml:space="preserve">
-    <value>Установить</value>
+  <data name="Common_Download" xml:space="preserve">
+    <value>Скачать</value>
   </data>
   <data name="Common_Install_Action" xml:space="preserve">
     <value>Установить</value>
@@ -104,9 +104,6 @@
   </data>
   <data name="Common_Stay" xml:space="preserve">
     <value>Остаться</value>
-  </data>
-  <data name="Common_Variant" xml:space="preserve">
-    <value>Вариант</value>
   </data>
   <data name="Consoles_ActiveModulesFormat" xml:space="preserve">
     <value>{0} активных модулей</value>
@@ -246,128 +243,41 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} видимых строк</value>
   </data>
-  <data name="Downloads_CatalogBridgeLoadFailed" xml:space="preserve">
-    <value>Не удалось загрузить общий каталог из установленных мостов модулей.</value>
-  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Каталог</value>
   </data>
-  <data name="Downloads_CatalogRefreshFailedFormat" xml:space="preserve">
-    <value>Ошибка обновления каталога загрузок: {0}</value>
-  </data>
-  <data name="Downloads_CatalogTitle" xml:space="preserve">
-    <value>Каталог загрузок</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedManyFormat" xml:space="preserve">
-    <value>Каталог обновлён. Загружено {0} категорий.</value>
-  </data>
-  <data name="Downloads_CatalogUpdatedOneCategory" xml:space="preserve">
-    <value>Каталог обновлён. Загружена 1 категория.</value>
-  </data>
-  <data name="Downloads_CategoryCount_Many" xml:space="preserve">
-    <value>{0} категорий</value>
-  </data>
-  <data name="Downloads_CategoryCount_None" xml:space="preserve">
-    <value>Нет категорий</value>
-  </data>
-  <data name="Downloads_CategoryCount_One" xml:space="preserve">
-    <value>1 категория</value>
-  </data>
-  <data name="Downloads_ChooseVariantHint" xml:space="preserve">
-    <value>Выберите семейство, затем нужный вариант.</value>
-  </data>
-  <data name="Downloads_DetailEmpty_Hint" xml:space="preserve">
-    <value>Выберите семейство ресурсов, чтобы просмотреть варианты и сведения</value>
-  </data>
-  <data name="Downloads_DetailEmpty_NoBridge" xml:space="preserve">
-    <value>Ни один установленный модуль не предоставляет интерфейс загрузок</value>
-  </data>
   <data name="Downloads_Details" xml:space="preserve">
-    <value>Подробности</value>
+    <value>Сведения</value>
   </data>
-  <data name="Downloads_EmptyCategory" xml:space="preserve">
-    <value>Для этой категории нет сгруппированных загрузок</value>
+  <data name="Downloads_DetailsLabel" xml:space="preserve">
+    <value>Сведения:</value>
   </data>
-  <data name="Downloads_EmptyFiltered" xml:space="preserve">
-    <value>Ни одна сгруппированная загрузка не соответствует текущим фильтрам поставщика</value>
+  <data name="Downloads_FeaturesLabel" xml:space="preserve">
+    <value>Возможности:</value>
   </data>
-  <data name="Downloads_EmptySearch" xml:space="preserve">
-    <value>На стороне поставщика нет результатов по запросу "{0}"</value>
+  <data name="Downloads_ImagePlaceholder" xml:space="preserve">
+    <value>[Изображение]</value>
   </data>
-  <data name="Downloads_FamilyCountFormat" xml:space="preserve">
-    <value>{0} семейств</value>
+  <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
+    <value>[Изображение: {0}]</value>
   </data>
-  <data name="Downloads_Installed" xml:space="preserve">
-    <value>Установлено</value>
+  <data name="Downloads_OpenLink" xml:space="preserve">
+    <value>Открыть ссылку</value>
   </data>
-  <data name="Downloads_InstalledVersionFormat" xml:space="preserve">
-    <value>Установлено | {0}</value>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>Скачано</value>
   </data>
-  <data name="Downloads_LoadedManyFormat" xml:space="preserve">
-    <value>Загружено {0} категорий.</value>
-  </data>
-  <data name="Downloads_LoadedOneCategory" xml:space="preserve">
-    <value>Загружена 1 категория.</value>
-  </data>
-  <data name="Downloads_LoadingCatalog" xml:space="preserve">
-    <value>Загрузка общего каталога загрузок...</value>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Выберите вариант загрузки:</value>
   </data>
   <data name="Downloads_NoItems" xml:space="preserve">
     <value>Нет элементов</value>
-  </data>
-  <data name="Downloads_NoSharedDownloads" xml:space="preserve">
-    <value>Текущие модули не опубликовали общих загрузок.</value>
-  </data>
-  <data name="Downloads_OneFamily" xml:space="preserve">
-    <value>1 семейство</value>
-  </data>
-  <data name="Downloads_RefreshingCatalog" xml:space="preserve">
-    <value>Обновление общего каталога загрузок...</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>Поиск в каталоге поставщика</value>
   </data>
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Выберите элемент</value>
-  </data>
-  <data name="Downloads_Status_DetailsLoadFailedFormat" xml:space="preserve">
-    <value>Не удалось загрузить сведения для {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallCanceledFormat" xml:space="preserve">
-    <value>Установка отменена для {0}.</value>
-  </data>
-  <data name="Downloads_Status_InstallFailedFormat" xml:space="preserve">
-    <value>Ошибка установки для {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_InstallingFormat" xml:space="preserve">
-    <value>Установка {0}...</value>
-  </data>
-  <data name="Downloads_Status_InvalidUrlFormat" xml:space="preserve">
-    <value>Не удалось открыть: неверный URL «{0}».</value>
-  </data>
-  <data name="Downloads_Status_NoPageToOpen" xml:space="preserve">
-    <value>Выбранный вариант не предоставляет страницу для открытия.</value>
-  </data>
-  <data name="Downloads_Status_OpenFailedFormat" xml:space="preserve">
-    <value>Не удалось открыть выбранную страницу: {0}</value>
-  </data>
-  <data name="Downloads_Status_OpenedFormat" xml:space="preserve">
-    <value>Открыто {0}{1}.</value>
-  </data>
-  <data name="Downloads_Status_Ready" xml:space="preserve">
-    <value>Готово.</value>
-  </data>
-  <data name="Downloads_Status_RefreshingDetailsFormat" xml:space="preserve">
-    <value>Обновление сведений для {0}...</value>
-  </data>
-  <data name="Downloads_Status_RemoveCanceledFormat" xml:space="preserve">
-    <value>Удаление отменено для {0}.</value>
-  </data>
-  <data name="Downloads_Status_RemoveFailedFormat" xml:space="preserve">
-    <value>Ошибка удаления для {0}: {1}</value>
-  </data>
-  <data name="Downloads_Status_RemovingFormat" xml:space="preserve">
-    <value>Удаление {0}...</value>
   </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>Загрузки</value>

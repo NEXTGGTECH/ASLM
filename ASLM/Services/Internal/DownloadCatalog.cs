@@ -39,8 +39,8 @@ namespace ASLM.Services.Internal
         /// Queries all installed module bridges and returns one merged download catalog snapshot.
         /// </summary>
         public async Task<DownloadCatalogSnapshot> LoadCatalogAsync(
-            string? queryText = null,
-            IReadOnlyCollection<string>? filters = null,
+            IReadOnlyDictionary<string, DownloadCatalogQuery>? categoryQueries = null,
+            string? categoryGroupKey = null,
             bool preferCached = false,
             bool forceRefresh = false,
             CancellationToken ct = default)
@@ -61,10 +61,10 @@ namespace ASLM.Services.Internal
                 await bridgeThrottle.WaitAsync(ct);
                 try
                 {
-                    await LoadModuleCatalogAsync(
+                    return await LoadModuleCatalogAsync(
                         module,
-                        queryText,
-                        filters,
+                        categoryQueries,
+                        categoryGroupKey,
                         preferCached,
                         forceRefresh,
                         warnings,
@@ -78,12 +78,17 @@ namespace ASLM.Services.Internal
                 }
             });
 
-            await Task.WhenAll(loadTasks);
+            var providerResults = await Task.WhenAll(loadTasks);
 
             // Convert builders only after every module has contributed its portion of the catalog.
             return new DownloadCatalogSnapshot
             {
-                Warnings = warnings,
+                ConfiguredProviderCount = bridgeModules.Count,
+                SuccessfulProviderCount = providerResults.Count(static succeeded => succeeded),
+                Warnings = warnings
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(static warning => warning, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
                 Categories = categoryBuilders.Values
                     .Select(builder => builder.ToCategory(_stateStore))
                     .OrderBy(category => category.SortOrder)
@@ -95,10 +100,10 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Loads and merges the bridge catalog exposed by one module.
         /// </summary>
-        private async Task LoadModuleCatalogAsync(
+        private async Task<bool> LoadModuleCatalogAsync(
             ModuleConfig module,
-            string? queryText,
-            IReadOnlyCollection<string>? filters,
+            IReadOnlyDictionary<string, DownloadCatalogQuery>? categoryQueries,
+            string? categoryGroupKey,
             bool preferCached,
             bool forceRefresh,
             List<string> warnings,
@@ -119,7 +124,13 @@ namespace ASLM.Services.Internal
             {
                 _logger.LogWarning(ex, "Failed to load download categories for module {ModuleId}.", module.Id);
                 AddWarning(warnings, mergeLock, $"{module.Name}: download categories could not be loaded.");
-                return;
+                MergeDeclaredCategories(module, categoryBuilders, mergeLock, categoryGroupKey);
+                return false;
+            }
+
+            if (categories.Count == 0)
+            {
+                categories = CreateDeclaredCategoryPayloads(module);
             }
 
             foreach (var category in categories)
@@ -136,10 +147,20 @@ namespace ASLM.Services.Internal
                     ? category.GroupKey
                     : $"{module.Id}:{category.Id}";
 
+                if (categoryGroupKey != null && !string.Equals(groupKey, categoryGroupKey, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                CategoryBuilder categoryBuilder;
+                lock (mergeLock)
+                {
+                    categoryBuilder = GetOrCreateCategoryBuilder(categoryBuilders, groupKey, category);
+                }
+
                 ModuleDownloadBridgeResponse itemResponse;
                 try
                 {
-                    itemResponse = await _bridge.GetItemsAsync(module, category.Id, queryText, filters, preferCached, forceRefresh, ct);
+                    var query = categoryQueries?.GetValueOrDefault(groupKey);
+                    itemResponse = await _bridge.GetItemsAsync(module, category.Id, query?.QueryText, query?.Filters, preferCached, forceRefresh, ct);
                 }
                 catch (OperationCanceledException)
                 {
@@ -152,10 +173,13 @@ namespace ASLM.Services.Internal
                     continue;
                 }
 
+                foreach (var warning in itemResponse.Warnings)
+                {
+                    AddWarning(warnings, mergeLock, $"{module.Name}: {warning}");
+                }
+
                 lock (mergeLock)
                 {
-                    var categoryBuilder = GetOrCreateCategoryBuilder(categoryBuilders, groupKey, category);
-
                     foreach (var filterPayload in itemResponse.Filters)
                     {
                         ct.ThrowIfCancellationRequested();
@@ -191,6 +215,8 @@ namespace ASLM.Services.Internal
                     }
                 }
             }
+
+            return true;
         }
 
         /// <summary>
@@ -201,6 +227,48 @@ namespace ASLM.Services.Internal
             lock (mergeLock)
             {
                 warnings.Add(warning);
+            }
+        }
+
+        /// <summary>
+        /// Materializes the categories declared directly in one module manifest.
+        /// </summary>
+        private static List<ModuleDownloadCategoryPayload> CreateDeclaredCategoryPayloads(ModuleConfig module)
+        {
+            return module.DownloadsBridge?.Categories
+                .Where(static category => category != null && !string.IsNullOrWhiteSpace(category.Id))
+                .Select(static category => new ModuleDownloadCategoryPayload
+                {
+                    Id = category.Id,
+                    Title = category.Title,
+                    Description = category.Description,
+                    GroupKey = category.GroupKey,
+                    TargetRef = category.TargetRef,
+                    SortOrder = category.SortOrder
+                })
+                .ToList() ?? [];
+        }
+
+        /// <summary>
+        /// Adds manifest-declared categories when a provider process cannot be queried.
+        /// </summary>
+        private static void MergeDeclaredCategories(
+            ModuleConfig module,
+            IDictionary<string, CategoryBuilder> categoryBuilders,
+            object mergeLock,
+            string? categoryGroupKey)
+        {
+            lock (mergeLock)
+            {
+                foreach (var category in CreateDeclaredCategoryPayloads(module))
+                {
+                    var groupKey = !string.IsNullOrWhiteSpace(category.GroupKey)
+                        ? category.GroupKey
+                        : $"{module.Id}:{category.Id}";
+                    if (categoryGroupKey != null && !string.Equals(groupKey, categoryGroupKey, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    GetOrCreateCategoryBuilder(categoryBuilders, groupKey, category);
+                }
             }
         }
 
@@ -221,7 +289,8 @@ namespace ASLM.Services.Internal
             var builder = new ItemDetailBuilder(item);
             var hadAnyDetail = false;
 
-            foreach (var source in item.Sources)
+            foreach (var source in item.Sources.OrderBy(source => source.ModuleSourcePath, StringComparer.Ordinal)
+                .ThenBy(source => source.CategoryId, StringComparer.Ordinal))
             {
                 ct.ThrowIfCancellationRequested();
 
@@ -247,7 +316,7 @@ namespace ASLM.Services.Internal
                     }
 
                     detail.Normalize();
-                    builder.Merge(detail);
+                    builder.Merge(detail, source);
                     hadAnyDetail = true;
                 }
                 catch (OperationCanceledException)
@@ -311,7 +380,9 @@ namespace ASLM.Services.Internal
                 ModuleId = module.Id,
                 ModuleName = module.Name,
                 ModuleSourcePath = module.SourcePath,
-                CategoryId = string.IsNullOrWhiteSpace(item.CategoryId) ? category.Id : item.CategoryId
+                CategoryId = string.IsNullOrWhiteSpace(item.CategoryId) ? category.Id : item.CategoryId,
+                Details = item.Details ?? [],
+                Tags = item.Tags ?? []
             });
         }
 
@@ -336,7 +407,7 @@ namespace ASLM.Services.Internal
                 Provider = item.Provider,
                 Version = item.Version,
                 HomepageUrl = item.HomepageUrl,
-                Detail = item.Detail,
+                Details = [.. item.Details],
                 Tags = [.. item.Tags],
                 DefaultVariantResourceKey = variantKey,
                 Variants =
@@ -346,13 +417,9 @@ namespace ASLM.Services.Internal
                         ResourceKey = variantKey,
                         Title = item.Title,
                         Summary = item.Summary,
-                        Version = item.Version,
-                        Detail = item.Detail,
                         HomepageUrl = item.HomepageUrl,
-                        Tags = [.. item.Tags],
                         SortOrder = 0,
-                        Installed = persistedState?.Installed == true,
-                        InstalledVersion = persistedState?.InstalledVersion ?? string.Empty
+                        Installed = persistedState?.Installed == true
                     }
                 ]
             };
@@ -373,6 +440,11 @@ namespace ASLM.Services.Internal
 
 
         // Merge builders
+
+        // Keep module order and collapse only identical fields after their resources are resolved.
+        private static List<ModuleDownloadField> MergeFields(IEnumerable<ModuleDownloadField> fields) =>
+            fields.DistinctBy(field => (field.Text, field.BackgroundColor, field.TextColor,
+                field.ShowInCatalog, field.Image?.Key)).ToList();
 
 
         /// <summary>
@@ -558,11 +630,9 @@ namespace ASLM.Services.Internal
                 Provider = item.Provider;
                 Version = item.Version;
                 HomepageUrl = item.HomepageUrl;
-                Detail = item.Detail;
                 VariantCount = item.VariantCount;
                 DefaultVariantResourceKey = item.DefaultVariantResourceKey;
                 SortOrder = item.SortOrder;
-                Tags = item.Tags.ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
 
             public string ResourceKey { get; }
@@ -573,11 +643,9 @@ namespace ASLM.Services.Internal
             public string Provider { get; private set; }
             public string Version { get; private set; }
             public string HomepageUrl { get; private set; }
-            public string Detail { get; private set; }
             public int VariantCount { get; private set; }
             public string DefaultVariantResourceKey { get; private set; }
             public int SortOrder { get; private set; }
-            public HashSet<string> Tags { get; }
             public List<DownloadCatalogItemSource> Sources { get; } = [];
 
 
@@ -613,11 +681,6 @@ namespace ASLM.Services.Internal
                     HomepageUrl = item.HomepageUrl;
                 }
 
-                if (string.IsNullOrWhiteSpace(Detail) && !string.IsNullOrWhiteSpace(item.Detail))
-                {
-                    Detail = item.Detail;
-                }
-
                 if (VariantCount == 0 && item.VariantCount > 0)
                 {
                     VariantCount = item.VariantCount;
@@ -632,11 +695,6 @@ namespace ASLM.Services.Internal
                 {
                     SortOrder = item.SortOrder;
                 }
-
-                foreach (var tag in item.Tags)
-                {
-                    Tags.Add(tag);
-                }
             }
 
 
@@ -646,6 +704,8 @@ namespace ASLM.Services.Internal
             public DownloadCatalogItem ToItem(DownloadStateStore stateStore)
             {
                 var persistedState = stateStore.GetResourceState(GetPrimaryStateKey(this));
+                var sources = Sources.OrderBy(source => source.ModuleSourcePath, StringComparer.Ordinal)
+                    .ThenBy(source => source.CategoryId, StringComparer.Ordinal).ToList();
 
                 return new DownloadCatalogItem
                 {
@@ -657,15 +717,15 @@ namespace ASLM.Services.Internal
                     Provider = Provider,
                     Version = Version,
                     HomepageUrl = HomepageUrl,
-                    Detail = Detail,
-                    Tags = Tags.OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase).ToList(),
+                    Details = MergeFields(sources.SelectMany(source => source.Details)),
+                    Tags = MergeFields(sources.SelectMany(source => source.Tags)),
                     VariantCount = VariantCount,
                     DefaultVariantResourceKey = DefaultVariantResourceKey,
                     SortOrder = SortOrder,
                     Installed = persistedState?.Installed == true,
                     InstalledVersion = persistedState?.InstalledVersion ?? string.Empty,
                     // Collapse equivalent sources so the same module-category pair is listed once.
-                    Sources = Sources
+                    Sources = sources
                         .GroupBy(source => $"{source.ModuleSourcePath}|{source.CategoryId}", StringComparer.OrdinalIgnoreCase)
                         .Select(group => group.First())
                         .ToList()
@@ -694,8 +754,7 @@ namespace ASLM.Services.Internal
                 Provider = item.Provider;
                 Version = item.Version;
                 HomepageUrl = item.HomepageUrl;
-                Detail = item.Detail;
-                Tags = item.Tags.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                _sources = item.Sources;
                 DefaultVariantResourceKey = item.DefaultVariantResourceKey;
             }
 
@@ -707,8 +766,8 @@ namespace ASLM.Services.Internal
             public string Provider { get; private set; }
             public string Version { get; private set; }
             public string HomepageUrl { get; private set; }
-            public string Detail { get; private set; }
-            public HashSet<string> Tags { get; }
+            private readonly List<DownloadCatalogItemSource> _sources;
+            private readonly Dictionary<DownloadCatalogItemSource, ModuleDownloadItemDetailPayload> _sourceDetails = new();
             public string DefaultVariantResourceKey { get; private set; }
             public Dictionary<string, VariantBuilder> Variants { get; } = new(StringComparer.OrdinalIgnoreCase);
             public Dictionary<string, BlockBuilder> Blocks { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -719,7 +778,7 @@ namespace ASLM.Services.Internal
             /// <summary>
             /// Merges detail payloads from every contributing module source.
             /// </summary>
-            public void Merge(ModuleDownloadItemDetailPayload detail)
+            public void Merge(ModuleDownloadItemDetailPayload detail, DownloadCatalogItemSource source)
             {
                 if (string.IsNullOrWhiteSpace(CategoryId) && !string.IsNullOrWhiteSpace(detail.CategoryId))
                 {
@@ -756,20 +815,12 @@ namespace ASLM.Services.Internal
                     HomepageUrl = detail.HomepageUrl;
                 }
 
-                if (string.IsNullOrWhiteSpace(Detail) && !string.IsNullOrWhiteSpace(detail.Detail))
-                {
-                    Detail = detail.Detail;
-                }
-
                 if (string.IsNullOrWhiteSpace(DefaultVariantResourceKey) && !string.IsNullOrWhiteSpace(detail.DefaultVariantResourceKey))
                 {
                     DefaultVariantResourceKey = detail.DefaultVariantResourceKey;
                 }
 
-                foreach (var tag in detail.Tags)
-                {
-                    Tags.Add(tag);
-                }
+                _sourceDetails[source] = detail;
 
                 // Variants merge by resource key so multiple modules can enrich the same option.
                 foreach (var variant in detail.Variants)
@@ -817,6 +868,9 @@ namespace ASLM.Services.Internal
             /// </summary>
             public DownloadCatalogItemDetail ToDetail(DownloadStateStore stateStore)
             {
+                // Missing fields inherit this source's list data; an explicit [] clears it.
+                var details = MergeFields(_sources.SelectMany(source => _sourceDetails.GetValueOrDefault(source)?.Details ?? source.Details));
+                var tags = MergeFields(_sources.SelectMany(source => _sourceDetails.GetValueOrDefault(source)?.Tags ?? source.Tags));
                 var variants = Variants.Values
                     .Select(variant => variant.ToVariant(stateStore))
                     .OrderBy(variant => variant.SortOrder)
@@ -832,13 +886,9 @@ namespace ASLM.Services.Internal
                         ResourceKey = !string.IsNullOrWhiteSpace(DefaultVariantResourceKey) ? DefaultVariantResourceKey : ResourceKey,
                         Title = Title,
                         Summary = Summary,
-                        Version = Version,
-                        Detail = Detail,
                         HomepageUrl = HomepageUrl,
-                        Tags = Tags.OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase).ToList(),
                         SortOrder = 0,
-                        Installed = fallbackState?.Installed == true,
-                        InstalledVersion = fallbackState?.InstalledVersion ?? string.Empty
+                        Installed = fallbackState?.Installed == true
                     });
                 }
 
@@ -857,8 +907,8 @@ namespace ASLM.Services.Internal
                     Provider = Provider,
                     Version = Version,
                     HomepageUrl = HomepageUrl,
-                    Detail = Detail,
-                    Tags = Tags.OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase).ToList(),
+                    Details = details,
+                    Tags = tags,
                     DefaultVariantResourceKey = DefaultVariantResourceKey,
                     Variants = variants,
                     Blocks = Blocks.Values
@@ -886,21 +936,19 @@ namespace ASLM.Services.Internal
                 ResourceKey = variant.ResourceKey;
                 Title = variant.Title;
                 Summary = variant.Summary;
-                Version = variant.Version;
-                Detail = variant.Detail;
+                HasSize = variant.HasSize && variant.Size >= 0;
+                Size = HasSize ? variant.Size : 0;
                 HomepageUrl = variant.HomepageUrl;
                 SortOrder = variant.SortOrder;
-                Tags = variant.Tags.ToHashSet(StringComparer.OrdinalIgnoreCase);
             }
 
             public string ResourceKey { get; }
             public string Title { get; private set; }
             public string Summary { get; private set; }
-            public string Version { get; private set; }
-            public string Detail { get; private set; }
+            public long Size { get; private set; }
+            public bool HasSize { get; private set; }
             public string HomepageUrl { get; private set; }
             public int SortOrder { get; private set; }
-            public HashSet<string> Tags { get; }
 
 
             // Variant builder merging
@@ -920,14 +968,10 @@ namespace ASLM.Services.Internal
                     Summary = variant.Summary;
                 }
 
-                if (string.IsNullOrWhiteSpace(Version) && !string.IsNullOrWhiteSpace(variant.Version))
+                if (!HasSize && variant.HasSize && variant.Size >= 0)
                 {
-                    Version = variant.Version;
-                }
-
-                if (string.IsNullOrWhiteSpace(Detail) && !string.IsNullOrWhiteSpace(variant.Detail))
-                {
-                    Detail = variant.Detail;
+                    Size = variant.Size;
+                    HasSize = true;
                 }
 
                 if (string.IsNullOrWhiteSpace(HomepageUrl) && !string.IsNullOrWhiteSpace(variant.HomepageUrl))
@@ -938,11 +982,6 @@ namespace ASLM.Services.Internal
                 if (SortOrder == 0 && variant.SortOrder != 0)
                 {
                     SortOrder = variant.SortOrder;
-                }
-
-                foreach (var tag in variant.Tags)
-                {
-                    Tags.Add(tag);
                 }
             }
 
@@ -958,13 +997,11 @@ namespace ASLM.Services.Internal
                     ResourceKey = ResourceKey,
                     Title = Title,
                     Summary = Summary,
-                    Version = Version,
-                    Detail = Detail,
+                    Size = Size,
+                    HasSize = HasSize,
                     HomepageUrl = HomepageUrl,
-                    Tags = Tags.OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase).ToList(),
                     SortOrder = SortOrder,
-                    Installed = persistedState?.Installed == true,
-                    InstalledVersion = persistedState?.InstalledVersion ?? string.Empty
+                    Installed = persistedState?.Installed == true
                 };
             }
         }
