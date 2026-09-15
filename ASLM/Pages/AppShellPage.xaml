@@ -43,16 +43,16 @@
                         HorizontalOptions="Fill"
                         Clicked="OnNavClicked" />
 
-                <Button x:Name="ConsolesButton"
+                <Button x:Name="ModulesButton"
                         Style="{StaticResource SidebarButton}"
-                        Text="Consoles"
+                        Text="Modules"
                         HeightRequest="36"
                         HorizontalOptions="Fill"
                         Clicked="OnNavClicked" />
 
-                <Button x:Name="ModulesButton"
+                <Button x:Name="ConsolesButton"
                         Style="{StaticResource SidebarButton}"
-                        Text="Modules"
+                        Text="Consoles"
                         HeightRequest="36"
                         HorizontalOptions="Fill"
                         Clicked="OnNavClicked" />
