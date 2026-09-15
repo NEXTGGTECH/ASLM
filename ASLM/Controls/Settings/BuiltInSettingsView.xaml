@@ -18,11 +18,18 @@
                              IsVisible="False">
             <settings:SettingsSectionView x:Name="StartupCategory">
                 <settings:SettingsSectionView.SectionContent>
-                    <settings:SettingsRowView x:Name="RestoreLastPageRow">
-                        <settings:SettingsRowView.TrailingContent>
-                            <settings:SettingsToggle x:Name="RestoreLastPageToggle" />
-                        </settings:SettingsRowView.TrailingContent>
-                    </settings:SettingsRowView>
+                    <VerticalStackLayout Spacing="8">
+                        <settings:SettingsRowView x:Name="RestoreLastPageRow">
+                            <settings:SettingsRowView.TrailingContent>
+                                <settings:SettingsToggle x:Name="RestoreLastPageToggle" />
+                            </settings:SettingsRowView.TrailingContent>
+                        </settings:SettingsRowView>
+                        <settings:SettingsRowView x:Name="DisableHomePageRow">
+                            <settings:SettingsRowView.TrailingContent>
+                                <settings:SettingsToggle x:Name="DisableHomePageToggle" />
+                            </settings:SettingsRowView.TrailingContent>
+                        </settings:SettingsRowView>
+                    </VerticalStackLayout>
                 </settings:SettingsSectionView.SectionContent>
             </settings:SettingsSectionView>
 

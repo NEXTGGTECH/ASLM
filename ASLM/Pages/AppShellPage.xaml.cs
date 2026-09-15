@@ -137,6 +137,7 @@ namespace ASLM.Pages
 
             ApplyAslmApiNavigationState();
             ApplyConsoleNavigationState();
+            ApplyHomeNavigationState();
 
             _localization.CultureChanged += OnLocalizationCultureChanged;
         }
@@ -176,6 +177,7 @@ namespace ASLM.Pages
             await RefreshModulesAsync();
             ApplyAslmApiNavigationState();
             ApplyConsoleNavigationState();
+            ApplyHomeNavigationState();
             ScheduleEnsureModuleBrowserLeftToRight();
             RestoreInitialPage();
             _ = StartEnabledModulesAsync();
@@ -424,6 +426,18 @@ namespace ASLM.Pages
         }
 
         /// <summary>
+        /// Hides the unfinished home page and leaves it when the setting is saved.
+        /// </summary>
+        private void ApplyHomeNavigationState()
+        {
+            HomeButton.IsVisible = !_appData.Data.Navigation.DisableHomePage;
+            if (!HomeButton.IsVisible && _activeNavButton == HomeButton)
+                NavigateTo(ModulesButton);
+        }
+
+        private void OnNavigationSettingsSaved(object? sender, EventArgs e) => ApplyHomeNavigationState();
+
+        /// <summary>
         /// Expands or collapses the sidebar and updates every visible button.
         /// </summary>
         private void OnCollapseClicked(object? sender, EventArgs e)
@@ -487,6 +501,8 @@ namespace ASLM.Pages
             {
                 settingsView.CloseRequested -= OnSettingsCloseRequested;
                 settingsView.CloseRequested += OnSettingsCloseRequested;
+                settingsView.NavigationSettingsSaved -= OnNavigationSettingsSaved;
+                settingsView.NavigationSettingsSaved += OnNavigationSettingsSaved;
             }
 
             OverlayContainer.Content = _settingsView;
@@ -1042,6 +1058,9 @@ namespace ASLM.Pages
         /// </summary>
         private void NavigateTo(Button navButton)
         {
+            if (navButton == HomeButton && _appData.Data.Navigation.DisableHomePage)
+                navButton = ModulesButton;
+
             _activeModule = null;
             ClearModuleBrowserNavigationTarget();
             Browser.IsVisible = false;
@@ -1073,13 +1092,7 @@ namespace ASLM.Pages
         private void RestoreInitialPage()
         {
             _appData.Data.Navigation.Normalize();
-            if (!_appData.Data.Navigation.RestoreLastPage)
-            {
-                NavigateTo(HomeButton);
-                return;
-            }
-
-            var route = _appData.Data.Navigation.LastPage;
+            var route = _appData.Data.Navigation.GetInitialPage();
             if (string.Equals(route, ShellNavigationRoute.Consoles, StringComparison.Ordinal) &&
                 ConsolesButton.IsVisible)
             {
@@ -1244,28 +1257,10 @@ namespace ASLM.Pages
                 return _modulesView;
             }
 
-            if (button == DownloadsButton)
+            if (button == DownloadsButton || button == NotificationsButton)
             {
-                if (_homeView == null)
-                {
-                    var homeView = _services.GetRequiredService<HomeView>();
-                    homeView.Initialize(this);
-                    _homeView = homeView;
-                }
-
-                return ContentArea.Content ?? _homeView;
-            }
-
-            if (button == NotificationsButton)
-            {
-                if (_homeView == null)
-                {
-                    var homeView = _services.GetRequiredService<HomeView>();
-                    homeView.Initialize(this);
-                    _homeView = homeView;
-                }
-
-                return ContentArea.Content ?? _homeView;
+                return ContentArea.Content ?? GetViewForButton(
+                    _appData.Data.Navigation.DisableHomePage ? ModulesButton : HomeButton);
             }
 
             if (button == AslmApiButton)

@@ -2473,6 +2473,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Disable Home page (WIP).
+        /// </summary>
+        public static string Settings_DisableHomePage_Title {
+            get {
+                return ResourceManager.GetString("Settings_DisableHomePage_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Discard Changes.
         /// </summary>
         public static string Settings_DiscardChanges {

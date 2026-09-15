@@ -10,6 +10,33 @@ namespace ASLM.Tests.Services;
 public sealed class ShellNavigationRouteTests
 {
     [Theory]
+    [InlineData(true, true, "home", "modules")]
+    [InlineData(false, true, "home", "home")]
+    [InlineData(true, true, null, "modules")]
+    [InlineData(false, true, null, "home")]
+    [InlineData(true, true, "unknown", "modules")]
+    [InlineData(false, true, "unknown", "home")]
+    [InlineData(true, true, "consoles", "consoles")]
+    [InlineData(false, true, "modules", "modules")]
+    [InlineData(true, true, "aslm-api", "aslm-api")]
+    [InlineData(true, true, "module::aslm-chat", "module::aslm-chat")]
+    [InlineData(false, true, "module::aslm-chat", "module::aslm-chat")]
+    [InlineData(true, false, "consoles", "modules")]
+    [InlineData(false, false, "modules", "home")]
+    public void Initial_page_respects_home_visibility_and_last_page_preference(
+        bool disableHome, bool restoreLastPage, string? lastPage, string expected)
+    {
+        var navigation = new AppNavigationConfig
+        {
+            DisableHomePage = disableHome,
+            RestoreLastPage = restoreLastPage,
+            LastPage = lastPage!
+        };
+
+        navigation.GetInitialPage().Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData(null, ShellNavigationRoute.Home)]
     [InlineData("", ShellNavigationRoute.Home)]
     [InlineData("unknown", ShellNavigationRoute.Home)]

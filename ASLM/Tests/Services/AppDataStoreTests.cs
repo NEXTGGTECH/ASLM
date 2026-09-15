@@ -20,6 +20,7 @@ public sealed class AppDataStoreTests
         await store.LoadAsync();
 
         store.IsFirstRun.Should().BeTrue();
+        store.Data.Navigation.DisableHomePage.Should().BeTrue();
         store.Data.Navigation.RestoreLastPage.Should().BeTrue();
         store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
         File.Exists(layout.AppDataFilePath).Should().BeTrue("LoadAsync persists defaults when the file is missing");
@@ -37,6 +38,7 @@ public sealed class AppDataStoreTests
 
         store.Data.FirstRunCompleted = true;
         store.Data.User.Name = "RoundTrip";
+        store.Data.Navigation.DisableHomePage = false;
         store.Data.Navigation.RestoreLastPage = false;
         store.Data.Navigation.LastPage = ShellNavigationRoute.ForModule("aslm-chat");
         await store.SaveAsync();
@@ -45,6 +47,7 @@ public sealed class AppDataStoreTests
         await reloaded.LoadAsync();
 
         reloaded.IsFirstRun.Should().BeFalse();
+        reloaded.Data.Navigation.DisableHomePage.Should().BeFalse();
         reloaded.Data.User.Name.Should().Be("RoundTrip");
         reloaded.Data.Navigation.RestoreLastPage.Should().BeFalse();
         reloaded.Data.Navigation.LastPage.Should().Be("module::aslm-chat");
@@ -70,8 +73,27 @@ public sealed class AppDataStoreTests
 
         await store.LoadAsync();
 
+        store.Data.Navigation.DisableHomePage.Should().BeTrue();
         store.Data.Navigation.RestoreLastPage.Should().BeTrue();
         store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
+    }
+
+    /// <summary>
+    /// Verifies an older navigation object receives the new default without losing its saved page.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_adds_home_visibility_default_to_existing_navigation()
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson("""
+            { "navigation": { "restoreLastPage": true, "lastPage": "module::aslm-chat" } }
+            """);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+
+        await store.LoadAsync();
+
+        store.Data.Navigation.DisableHomePage.Should().BeTrue();
+        store.Data.Navigation.GetInitialPage().Should().Be("module::aslm-chat");
     }
 
     /// <summary>

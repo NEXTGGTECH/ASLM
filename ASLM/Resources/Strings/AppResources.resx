@@ -981,6 +981,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>Ports</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Disable Home page (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>Open the last visited page when ASLM starts</value>
   </data>

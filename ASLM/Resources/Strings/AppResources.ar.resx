@@ -954,6 +954,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>المنافذ</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>تعطيل الصفحة الرئيسية (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>فتح آخر صفحة تمت زيارتها عند بدء ASLM</value>
   </data>

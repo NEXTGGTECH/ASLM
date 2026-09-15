@@ -312,6 +312,7 @@ namespace ASLM.Pages
                     _apiServerEnabledDraft = defaults.ApiServerEnabled;
                     _consoleDraft = defaults.ConsoleDefaults;
                     _restoreLastPageDraft = defaults.RestoreLastPage;
+                    _disableHomePageDraft = defaults.DisableHomePage;
                     _legalAutoAcceptDraft = defaults.LegalAutoAcceptUpdates;
                     PortErrorLabel.IsVisible = false;
                     ApplyAslmDraftsToControls();
@@ -478,6 +479,7 @@ namespace ASLM.Pages
 
                 var hadAslmSettingsChanges = HasUnsavedAslmSettingsChanges();
                 var hadAppRestartChanges = HasUnsavedAslmRestartSettingsChanges();
+                var hadNavigationChanges = _editSession.Application.HasNavigationChanges;
                 var hadAslmChanges = HasUnsavedAccountChanges() || hadAslmSettingsChanges;
                 var modulesWithChanges = GetModulesWithUnsavedChanges();
 
@@ -488,6 +490,7 @@ namespace ASLM.Pages
                     _consoleDraft,
                     nextSettings,
                     _restoreLastPageDraft,
+                    _disableHomePageDraft,
                     _legalAutoAcceptDraft);
                 await _appData.SaveAsync();
 
@@ -501,6 +504,8 @@ namespace ASLM.Pages
                     _appData,
                     _mirrorServer.IsEnabled).UpdateBaseline;
                 _editSession.Application.AcceptAslm();
+                if (hadNavigationChanges)
+                    NavigationSettingsSaved?.Invoke(this, EventArgs.Empty);
                 PortErrorLabel.IsVisible = false;
 
                 var touchedModules = new HashSet<ModuleConfig>();

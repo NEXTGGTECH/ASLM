@@ -117,9 +117,22 @@ namespace ASLM.Models
         [JsonPropertyName("restoreLastPage")]
         public bool RestoreLastPage { get; set; } = true;
 
+        // Hides the unfinished home dashboard and uses Modules as the default page.
+        [JsonPropertyName("disableHomePage")]
+        public bool DisableHomePage { get; set; } = true;
+
         // Uses a stable shell route rather than a transient local module URL.
         [JsonPropertyName("lastPage")]
         public string LastPage { get; set; } = ShellNavigationRoute.Home;
+
+        /// <summary>
+        /// Resolves the startup route without restoring a disabled home page.
+        /// </summary>
+        public string GetInitialPage()
+        {
+            var route = RestoreLastPage ? ShellNavigationRoute.Normalize(LastPage) : ShellNavigationRoute.Home;
+            return DisableHomePage && route == ShellNavigationRoute.Home ? ShellNavigationRoute.Modules : route;
+        }
 
         /// <summary>
         /// Replaces missing or unsupported routes with the home dashboard.

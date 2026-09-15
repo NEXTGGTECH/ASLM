@@ -459,6 +459,11 @@ namespace ASLM.Pages
             {
                 _restoreLastPageToggle.SetStateWithoutToggleEvent(_restoreLastPageDraft);
             }
+
+            if (_disableHomePageToggle != null)
+            {
+                _disableHomePageToggle.SetStateWithoutToggleEvent(_disableHomePageDraft);
+            }
         }
 
         /// <summary>
@@ -527,6 +532,11 @@ namespace ASLM.Pages
             if (_restoreLastPageToggle != null)
             {
                 _restoreLastPageDraft = _restoreLastPageToggle.IsToggled;
+            }
+
+            if (_disableHomePageToggle != null)
+            {
+                _disableHomePageDraft = _disableHomePageToggle.IsToggled;
             }
         }
 

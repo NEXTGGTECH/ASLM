@@ -5,6 +5,25 @@ namespace ASLM.Tests.Services;
 
 public sealed class AppLocalizationServiceTests
 {
+    public static IEnumerable<object[]> SupportedCultures =>
+        AppLocalizationService.SupportedLanguages.Select(language => new object[] { language.Id });
+
+    [Theory]
+    [MemberData(nameof(SupportedCultures))]
+    public void Disable_home_page_label_is_translated_in_every_locale_including_wip(string cultureName)
+    {
+        var culture = System.Globalization.CultureInfo.GetCultureInfo(cultureName == "en" ? "" : cultureName);
+        var resources = ASLM.Resources.Strings.AppResources.ResourceManager.GetResourceSet(culture, true, false);
+        resources.Should().NotBeNull();
+        var title = resources!.GetString(ASLM.Localization.LocalizationKeys.Settings_DisableHomePage_Title);
+
+        title.Should().NotBeNullOrWhiteSpace().And.EndWith(" (WIP)");
+        if (cultureName == "en")
+            title.Should().Be("Disable Home page (WIP)");
+        else
+            title.Should().NotBe("Disable Home page (WIP)");
+    }
+
     [Theory]
     [InlineData("en", "English")]
     [InlineData("ru", "русский")]

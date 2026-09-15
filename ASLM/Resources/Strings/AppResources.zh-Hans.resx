@@ -954,6 +954,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>端口</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>禁用主页 (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>ASLM 启动时打开上次访问的页面</value>
   </data>
