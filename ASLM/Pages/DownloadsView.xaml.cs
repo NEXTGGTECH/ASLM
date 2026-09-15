@@ -1196,6 +1196,8 @@ namespace ASLM.Pages
 #if WINDOWS
             _infoBlockPreview?.SetSource(_isDownloadsOpen && !IsInternalModulesSelected
                 ? (SelectedInfoBlockSource as UrlWebViewSource)?.Url : null);
+#else
+            BridgeContent.InfoBlockBrowser.Source = SelectedInfoBlockSource;
 #endif
         }
 

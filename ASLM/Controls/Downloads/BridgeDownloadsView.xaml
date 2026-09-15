@@ -405,7 +405,6 @@
                                             StrokeShape="RoundRectangle 6"
                                             Padding="0">
                                         <WebView x:Name="InfoBlockWebView"
-                                                 Source="{Binding SelectedInfoBlockSource}"
                                                  HandlerChanged="OnInfoBlockWebViewHandlerChanged"
                                                  Navigating="OnInfoBlockWebViewNavigating"
                                                  Navigated="OnInfoBlockWebViewNavigated"
