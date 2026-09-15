@@ -11,6 +11,8 @@
 		<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
 
 		<ASLMTestLayoutRoot>$(MSBuildProjectDirectory)\_layout_root\</ASLMTestLayoutRoot>
+		<!-- Generated test layouts are not project inputs; stale DLLs there must not override HintPath references. -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);$(ASLMTestLayoutRoot)**</DefaultItemExcludes>
 		<OutputPath>$(ASLMTestLayoutRoot)App\</OutputPath>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 

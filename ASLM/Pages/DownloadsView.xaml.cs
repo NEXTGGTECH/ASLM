@@ -30,6 +30,7 @@ namespace ASLM.Pages
         private readonly DownloadCatalog _catalog;
         private readonly DownloadInstaller _installer;
         private readonly AppLocalizationService _localization;
+        private CancellationTokenSource? _catalogLoadCts;
         private CancellationTokenSource? _catalogRefreshCts;
         private CancellationTokenSource? _detailRefreshCts;
         private CancellationTokenSource? _searchDebounceCts;
@@ -43,7 +44,6 @@ namespace ASLM.Pages
         private DownloadCategoryState _activeCategoryState = new();
         private bool _restoringCategory;
         private HashSet<string> SelectedFilterKeys => _activeCategoryState.FilterKeys;
-        private string _lastCatalogSignature = string.Empty;
         private string _lastDetailSignature = string.Empty;
         private List<DownloadCatalogItem> _categoryItems = [];
         private DownloadCategoryViewModel? _activeCategory;
@@ -203,6 +203,7 @@ namespace ASLM.Pages
                 {
                     _activeCategoryState.SearchText = _searchText;
                     _activeCategoryState.NeedsRefresh = true;
+                    _activeCategoryState.QueryVersion++;
                 }
                 OnPropertyChanged();
             }
@@ -388,13 +389,16 @@ namespace ASLM.Pages
             bool silentRefresh,
             string? categoryGroupKey = null)
         {
-            // Replace the previous refresh token so stale requests stop updating the UI
-            var catalogCts = ReplaceCancellationTokenSource(ref _catalogRefreshCts);
+            // A category query must not cancel discovery of the other modules.
+            var isCatalogLoad = categoryGroupKey == null;
+            if (isCatalogLoad)
+                _catalogRefreshCts?.Cancel();
+            else
+                _activeCategoryState.QueryVersion++;
+            var catalogCts = isCatalogLoad
+                ? ReplaceCancellationTokenSource(ref _catalogLoadCts)
+                : ReplaceCancellationTokenSource(ref _catalogRefreshCts);
             var ct = catalogCts.Token;
-
-            var previousCategoryKey = preserveSelection ? _activeCategory?.Category.GroupKey : null;
-            var previousItemKey = preserveSelection ? _selectedItem?.Item.ResourceKey : null;
-            var previousVariantKey = preserveSelection ? _selectedVariant?.Variant.ResourceKey : null;
 
             if (showBusyIndicator)
             {
@@ -408,39 +412,58 @@ namespace ASLM.Pages
                     pair => pair.Key,
                     pair => new DownloadCatalogQuery(pair.Value.SearchText, pair.Value.FilterKeys.ToArray()),
                     StringComparer.OrdinalIgnoreCase);
+                var queryVersions = _categoryStates.ToDictionary(
+                    pair => pair.Key, pair => pair.Value.QueryVersion, StringComparer.OrdinalIgnoreCase);
+                var appliedCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                bool IsCurrentQuery(string key) => !_categoryStates.TryGetValue(key, out var state) ||
+                    state.QueryVersion == queryVersions.GetValueOrDefault(key);
+
+                void ApplyResult(IReadOnlyList<DownloadCatalogCategory> categories, HashSet<string>? retainedKeys = null)
+                {
+                    if (ct.IsCancellationRequested || !_isDownloadsOpen) return;
+                    var currentCategories = categories.Where(category => IsCurrentQuery(category.GroupKey)).ToList();
+                    foreach (var category in currentCategories)
+                    {
+                        var state = GetCategoryState(category);
+                        state.NeedsRefresh = false;
+                        // A shared category's other providers may still contribute filters.
+                        if (retainedKeys != null)
+                            state.FilterKeys.RemoveWhere(key => !category.Filters.Any(filter =>
+                                string.Equals(filter.Key, key, StringComparison.OrdinalIgnoreCase)));
+                    }
+
+                    var firstActiveUpdate = currentCategories.Any(category =>
+                        string.Equals(category.GroupKey, _activeCategory?.Category.GroupKey, StringComparison.OrdinalIgnoreCase) &&
+                        !appliedCategories.Contains(category.GroupKey));
+                    var previousVariantKey = preserveSelection ? _selectedVariant?.Variant.ResourceKey : null;
+                    var activeChanged = ApplyCategories(currentCategories, retainedKeys, preserveSelection);
+                    appliedCategories.UnionWith(currentCategories.Select(category => category.GroupKey));
+
+                    if ((activeChanged || firstActiveUpdate) && _selectedItem != null && !IsInternalModulesSelected)
+                        _ = LoadSelectedItemDetailAsync(preferCached, forceRefresh, previousVariantKey, silentRefresh);
+                }
+
                 var snapshot = await Task.Run(
                     () => _catalog.LoadCatalogAsync(
                         categoryQueries: queries,
                         categoryGroupKey: categoryGroupKey,
                         preferCached: preferCached,
                         forceRefresh: forceRefresh,
-                        ct: ct),
+                        ct: ct,
+                        categoryLoaded: isCatalogLoad
+                            ? category => MainThread.InvokeOnMainThreadAsync(() => ApplyResult([category]))
+                            : null),
                     ct);
                 if (ct.IsCancellationRequested) return;
 
-                foreach (var category in snapshot.Categories)
-                    GetCategoryState(category).NeedsRefresh = false;
-
-                var snapshotSignature = categoryGroupKey + "\n" + ComputeCatalogSignature(snapshot);
-                if (silentRefresh && string.Equals(_lastCatalogSignature, snapshotSignature, StringComparison.Ordinal))
-                {
-                    return;
-                }
-
-                // Silent refreshes only update the UI when the snapshot actually changed
-                previousItemKey = preserveSelection ? _selectedItem?.Item.ResourceKey : null;
-                previousVariantKey = preserveSelection ? _selectedVariant?.Variant.ResourceKey : null;
-                ApplySnapshot(snapshot, previousCategoryKey, previousItemKey, categoryGroupKey);
-                _lastCatalogSignature = snapshotSignature;
-
-                if (_selectedItem != null && !IsInternalModulesSelected)
-                {
-                    _ = LoadSelectedItemDetailAsync(preferCached, forceRefresh, previousVariantKey, silentRefresh);
-                }
-                else
-                {
-                    ClearDetail();
-                }
+                // Remove vanished categories only after discovery finishes, preserving newer user queries.
+                var retainedKeys = snapshot.Categories.Select(category => category.GroupKey)
+                    .Concat(Categories.Where(category => !IsCurrentQuery(category.Category.GroupKey) ||
+                        (!isCatalogLoad && !string.Equals(category.Category.GroupKey, categoryGroupKey, StringComparison.OrdinalIgnoreCase)))
+                        .Select(category => category.Category.GroupKey))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                ApplyResult(snapshot.Categories, retainedKeys);
             }
             catch (OperationCanceledException)
             {
@@ -448,7 +471,6 @@ namespace ASLM.Pages
             catch (Exception ex)
             {
                 if (!ct.IsCancellationRequested &&
-                    ReferenceEquals(_catalogRefreshCts, catalogCts) &&
                     !silentRefresh)
                 {
                     Debug.WriteLine($"Failed to refresh download catalog: {ex}");
@@ -456,7 +478,7 @@ namespace ASLM.Pages
             }
             finally
             {
-                if (ReferenceEquals(_catalogRefreshCts, catalogCts))
+                if (isCatalogLoad && ReferenceEquals(_catalogLoadCts, catalogCts))
                 {
                     IsBusy = false;
                     RaiseLayoutProperties();
@@ -468,33 +490,43 @@ namespace ASLM.Pages
         // Catalog snapshot
 
         /// <summary>
-        /// Rebuilds categories and reactivates the closest previous selection.
+        /// Updates only changed categories, keeping sidebar instances and the current page intact.
         /// </summary>
-        private void ApplySnapshot(DownloadCatalogSnapshot snapshot, string? selectedCategoryKey, string? selectedItemKey, string? refreshedCategoryKey)
+        private bool ApplyCategories(IReadOnlyList<DownloadCatalogCategory> categories, HashSet<string>? retainedKeys, bool preserveSelection)
         {
             SaveCategorySelection();
-            var categories = refreshedCategoryKey == null
-                ? snapshot.Categories
-                : Categories.Select(viewModel => viewModel.Category)
-                    .Where(category => !string.Equals(category.GroupKey, refreshedCategoryKey, StringComparison.OrdinalIgnoreCase) &&
-                        !snapshot.Categories.Any(updated => string.Equals(updated.GroupKey, category.GroupKey, StringComparison.OrdinalIgnoreCase)))
-                    .Concat(snapshot.Categories)
-                    .OrderBy(category => category.SortOrder)
-                    .ThenBy(category => category.Title, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            Categories.Clear();
+            var activeChanged = false;
             foreach (var category in categories)
             {
-                Categories.Add(new DownloadCategoryViewModel(category, SelectCategoryAsync));
+                var existing = Categories.FirstOrDefault(viewModel =>
+                    string.Equals(viewModel.Category.GroupKey, category.GroupKey, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
+                    Categories.Add(new DownloadCategoryViewModel(category, SelectCategoryAsync));
+                else if (existing.Update(category) && ReferenceEquals(existing, _activeCategory))
+                    activeChanged = true;
             }
 
-            var targetCategory = Categories.FirstOrDefault(category => string.Equals(category.Category.GroupKey, selectedCategoryKey, StringComparison.OrdinalIgnoreCase))
-                ?? Categories.FirstOrDefault();
+            if (retainedKeys != null)
+                for (var index = Categories.Count - 1; index >= 0; index--)
+                    if (!retainedKeys.Contains(Categories[index].Category.GroupKey))
+                        Categories.RemoveAt(index);
 
-            ActivateCategory(targetCategory, selectedItemKey);
+            var ordered = Categories.OrderBy(category => category.Category.SortOrder)
+                .ThenBy(category => category.Title, StringComparer.OrdinalIgnoreCase).ToList();
+            for (var index = 0; index < ordered.Count; index++)
+                if (!ReferenceEquals(Categories[index], ordered[index]))
+                    Categories.Move(Categories.IndexOf(ordered[index]), index);
+
+            var targetCategory = _activeCategory != null && Categories.Contains(_activeCategory)
+                ? _activeCategory : Categories.FirstOrDefault();
+            activeChanged |= !ReferenceEquals(targetCategory, _activeCategory);
+            if (activeChanged)
+                ActivateCategory(targetCategory, preserveSelection ? _selectedItem?.Item.ResourceKey : null);
+
             OnPropertyChanged(nameof(HasModuleCategories));
             OnPropertyChanged(nameof(IsModuleCategorySelected));
             RaiseLayoutProperties();
+            return activeChanged;
         }
 
         /// <summary>
@@ -532,9 +564,10 @@ namespace ASLM.Pages
             if (!_categoryStates.TryGetValue(category.GroupKey, out var state))
             {
                 state = new DownloadCategoryState();
-                state.FilterKeys.UnionWith(category.Filters.Where(filter => filter.Selected).Select(filter => filter.Key));
                 _categoryStates.Add(category.GroupKey, state);
             }
+            if (state.QueryVersion == 0)
+                state.FilterKeys.UnionWith(category.Filters.Where(filter => filter.Selected).Select(filter => filter.Key));
             return state;
         }
 
@@ -556,12 +589,6 @@ namespace ASLM.Pages
                 .ThenBy(filter => filter.Title, StringComparer.OrdinalIgnoreCase)
                 .ToList()
                 ?? [];
-
-            var availableKeys = availableFilters
-                .Select(filter => filter.Key)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            SelectedFilterKeys.RemoveWhere(key => !availableKeys.Contains(key));
 
             Filters.Clear();
             foreach (var filter in availableFilters)
@@ -627,6 +654,7 @@ namespace ASLM.Pages
             UpdateFilterSelectionStates();
             _searchDebounceCts?.Cancel();
             _activeCategoryState.NeedsRefresh = true;
+            _activeCategoryState.QueryVersion++;
             await RefreshCurrentQueryAsync();
         }
 
@@ -1255,6 +1283,7 @@ namespace ASLM.Pages
 #if WINDOWS
             _infoBlockPreview?.Pause();
 #endif
+            _catalogLoadCts?.Cancel();
             _catalogRefreshCts?.Cancel();
             _detailRefreshCts?.Cancel();
             _searchDebounceCts?.Cancel();
@@ -1265,44 +1294,50 @@ namespace ASLM.Pages
         // Snapshot signatures
 
         /// <summary>
-        /// Computes a compact signature for catalog-level change detection.
+        /// Detects category changes without rebuilding unrelated pages as providers finish.
         /// </summary>
-        private static string ComputeCatalogSignature(DownloadCatalogSnapshot snapshot)
+        private static string ComputeCategorySignature(DownloadCatalogCategory category)
         {
             var builder = new StringBuilder();
-            builder.Append(snapshot.ConfiguredProviderCount).Append(';');
-            builder.Append(snapshot.SuccessfulProviderCount).Append(';');
-            builder.Append(snapshot.Categories.Count).Append(';');
+            AppendSignatureSegment(builder, category.GroupKey);
+            AppendSignatureSegment(builder, category.Title);
+            AppendSignatureSegment(builder, category.Description);
+            builder.Append(category.SortOrder).Append(';');
+            builder.Append(category.Filters.Count).Append(';');
 
-            foreach (var warning in snapshot.Warnings)
+            foreach (var filter in category.Filters)
             {
-                AppendSignatureSegment(builder, warning);
+                AppendSignatureSegment(builder, filter.Key);
+                AppendSignatureSegment(builder, filter.Title);
+                AppendSignatureSegment(builder, filter.Kind);
+                builder.Append(filter.Selected ? '1' : '0').Append(';');
+                builder.Append(filter.SortOrder).Append(';');
             }
 
-            foreach (var category in snapshot.Categories)
+            builder.Append(category.Items.Count).Append(';');
+            foreach (var item in category.Items)
             {
-                AppendSignatureSegment(builder, category.GroupKey);
-                AppendSignatureSegment(builder, category.Title);
-                builder.Append(category.Filters.Count).Append(';');
-
-                foreach (var filter in category.Filters)
+                AppendSignatureSegment(builder, item.ResourceKey);
+                AppendSignatureSegment(builder, item.CategoryId);
+                AppendSignatureSegment(builder, item.Title);
+                AppendSignatureSegment(builder, item.Summary);
+                AppendSignatureSegment(builder, item.Provider);
+                AppendSignatureSegment(builder, item.Version);
+                AppendSignatureSegment(builder, item.HomepageUrl);
+                AppendSignatureSegment(builder, item.DefaultVariantResourceKey);
+                AppendMetadataSignature(builder, item.Details);
+                AppendMetadataSignature(builder, item.Tags);
+                builder.Append(item.Installed ? '1' : '0').Append(';');
+                AppendSignatureSegment(builder, item.InstalledVersion);
+                builder.Append(item.VariantCount).Append(';');
+                builder.Append(item.SortOrder).Append(';');
+                builder.Append(item.Sources.Count).Append(';');
+                foreach (var source in item.Sources)
                 {
-                    AppendSignatureSegment(builder, filter.Key);
-                    AppendSignatureSegment(builder, filter.Kind);
-                    builder.Append(filter.Selected ? '1' : '0').Append(';');
-                    builder.Append(filter.SortOrder).Append(';');
-                }
-
-                builder.Append(category.Items.Count).Append(';');
-                foreach (var item in category.Items)
-                {
-                    AppendSignatureSegment(builder, item.ResourceKey);
-                    AppendMetadataSignature(builder, item.Details);
-                    AppendMetadataSignature(builder, item.Tags);
-                    builder.Append(item.Installed ? '1' : '0').Append(';');
-                    AppendSignatureSegment(builder, item.InstalledVersion);
-                    builder.Append(item.VariantCount).Append(';');
-                    builder.Append(item.SortOrder).Append(';');
+                    AppendSignatureSegment(builder, source.ModuleId);
+                    AppendSignatureSegment(builder, source.ModuleName);
+                    AppendSignatureSegment(builder, source.ModuleSourcePath);
+                    AppendSignatureSegment(builder, source.CategoryId);
                 }
             }
 
@@ -1512,6 +1547,7 @@ namespace ASLM.Pages
             public string SearchText { get; set; } = string.Empty;
             public HashSet<string> FilterKeys { get; } = new(StringComparer.OrdinalIgnoreCase);
             public bool NeedsRefresh { get; set; } = true;
+            public int QueryVersion { get; set; }
             public string? SelectedItemKey { get; set; }
             public string? SelectedVariantKey { get; set; }
             public DownloadCatalogItemDetail? Detail { get; set; }
@@ -1540,11 +1576,23 @@ namespace ASLM.Pages
 
             public event PropertyChangedEventHandler? PropertyChanged;
 
-            public DownloadCatalogCategory Category { get; }
+            public DownloadCatalogCategory Category { get; private set; }
             public string Title => Category.Title;
             public string Description => Category.Description;
             public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
             public ICommand SelectCommand { get; }
+
+            internal bool Update(DownloadCatalogCategory category)
+            {
+                if (string.Equals(ComputeCategorySignature(Category), ComputeCategorySignature(category), StringComparison.Ordinal))
+                    return false;
+
+                Category = category;
+                OnPropertyChanged(nameof(Title));
+                OnPropertyChanged(nameof(Description));
+                OnPropertyChanged(nameof(HasDescription));
+                return true;
+            }
 
             public bool IsSelected
             {
