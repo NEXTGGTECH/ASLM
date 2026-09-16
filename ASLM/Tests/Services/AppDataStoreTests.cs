@@ -24,6 +24,7 @@ public sealed class AppDataStoreTests
         store.Data.Navigation.RestoreLastPage.Should().BeTrue();
         store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
         store.Data.Personalization.Appearance.Should().Be("System");
+        store.Data.Personalization.Language.Should().Be(AppLocalizationService.GetDefaultLanguage());
         File.Exists(layout.AppDataFilePath).Should().BeTrue("LoadAsync persists defaults when the file is missing");
     }
 
@@ -158,5 +159,47 @@ public sealed class AppDataStoreTests
 
         store.Data.User.Name.Should().BeEmpty();
         store.IsFirstRun.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"personalization\":null}")]
+    [InlineData("{\"personalization\":{}}")]
+    [InlineData("{\"personalization\":{\"language\":null}}")]
+    [InlineData("{\"personalization\":{\"language\":\"\"}}")]
+    public async Task Missing_language_uses_system_default_and_survives_save(string json)
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson(json);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+        var expected = AppLocalizationService.GetDefaultLanguage();
+
+        await store.LoadAsync();
+        store.Data.Personalization.Language.Should().Be(expected);
+        await store.SaveAsync();
+
+        var reloaded = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+        await reloaded.LoadAsync();
+        reloaded.Data.Personalization.Language.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("en", "en")]
+    [InlineData("de", "de")]
+    [InlineData("PT-br", "pt-BR")]
+    [InlineData("zh-hant", "zh-Hant")]
+    [InlineData("unsupported", "en")]
+    public async Task Saved_language_takes_precedence_over_system_default(string savedLanguage, string expected)
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson($$"""
+            { "firstRunCompleted": true, "personalization": { "language": "{{savedLanguage}}" } }
+            """);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+
+        await store.LoadAsync();
+
+        store.Data.Personalization.Language.Should().Be(expected);
+        new AppLocalizationService(store).GetCurrentLanguage().Should().Be(expected);
     }
 }

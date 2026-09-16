@@ -389,9 +389,9 @@ namespace ASLM.Models
         [JsonPropertyName("appearance")]
         public string Appearance { get; set; } = "System";
 
-        // BCP-47-style language code (e.g. en). Managed in personalization; modules receive a snapshot via locale settings.
+        // Supported BCP-47 language code. New profiles use the system UI language, or English if unsupported.
         [JsonPropertyName("language")]
-        public string Language { get; set; } = "en";
+        public string Language { get; set; } = AppLocalizationService.GetDefaultLanguage();
 
         // Identifier of the selected custom theme when Appearance is "Custom".
         [JsonPropertyName("customThemeId")]
@@ -403,14 +403,16 @@ namespace ASLM.Models
         public void Normalize()
         {
             Appearance = NormalizeAppearance(Appearance);
-            Language = NormalizeLanguage(Language);
+            Language = string.IsNullOrWhiteSpace(Language)
+                ? AppLocalizationService.GetDefaultLanguage()
+                : NormalizeLanguage(Language);
             if (!string.Equals(Appearance, "Custom", StringComparison.OrdinalIgnoreCase))
             {
                 CustomThemeId = null;
             }
         }
 
-        private static readonly HashSet<string> SupportedLanguageCodes = new(StringComparer.OrdinalIgnoreCase)
+        internal static readonly HashSet<string> SupportedLanguageCodes = new(StringComparer.OrdinalIgnoreCase)
         {
             "en",
             "zh-Hans", "es", "ar", "hi", "pt-BR", "ru", "ja", "de", "fr", "ko", "it",
@@ -428,7 +430,7 @@ namespace ASLM.Models
             }
 
             var trimmed = value.Trim();
-            return SupportedLanguageCodes.Contains(trimmed) ? trimmed : "en";
+            return SupportedLanguageCodes.TryGetValue(trimmed, out var language) ? language : "en";
         }
 
         /// <summary>

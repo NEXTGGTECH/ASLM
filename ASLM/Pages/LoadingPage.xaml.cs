@@ -95,6 +95,7 @@ namespace ASLM.Pages
 
             _initialized = true;
             await Task.Run(() => _appData.InitializeAsync());
+            _localization.ApplyCulture();
             await Task.Run(() => _sunriseService.InitializeAsync());
             try
             {
@@ -116,7 +117,6 @@ namespace ASLM.Pages
                 Debug.WriteLine($"SUNRISE cloud-account synchronization failed during startup: {ex.Message}");
             }
             await Task.Run(() => _legalAcceptance.InitializeAsync());
-            _localization.ApplyCulture();
             await Task.Run(() => _moduleTrustService.InitializeAsync());
             await Task.Run(() => _customThemesStore.LoadAsync());
             await Task.Run(() => _notifications.InitializeAsync());

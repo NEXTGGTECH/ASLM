@@ -24,41 +24,79 @@ namespace ASLM.Services.Internal
         private readonly object _localizableLock = new();
         private string _appliedLanguage = "en";
 
-        private static readonly string[] SupportedLanguageCodes =
-        [
-            "en",
-            "zh-Hans",
-            "es",
-            "ar",
-            "hi",
-            "pt-BR",
-            "ru",
-            "ja",
-            "de",
-            "fr",
-            "ko",
-            "it",
-            "zh-Hant",
-            "pt",
-            "tr",
-            "pl",
-            "uk",
-            "id",
-            "vi",
-            "nl",
-        ];
-
-
         // Supported languages
 
         /// <summary>
         /// Languages available in personalization settings, sorted by English name.
         /// </summary>
         public static IReadOnlyList<LanguageOption> SupportedLanguages { get; } =
-            SupportedLanguageCodes
+            AppPersonalizationConfig.SupportedLanguageCodes
                 .Select(id => new LanguageOption(id, GetCultureEnglishName(id)))
                 .OrderBy(option => option.EnglishName, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+
+        /// <summary>
+        /// Resolves the user's primary OS language independently of ASLM's current UI culture.
+        /// Used for new profiles and when personalization settings are reset to defaults.
+        /// </summary>
+        public static string GetDefaultLanguage()
+        {
+            try
+            {
+#if WINDOWS
+                var language = global::Windows.System.UserProfile.GlobalizationPreferences.Languages.FirstOrDefault();
+#elif MACCATALYST
+                var language = Foundation.NSLocale.PreferredLanguages.FirstOrDefault();
+#else
+                var language = CultureInfo.CurrentUICulture.Name;
+#endif
+                return ResolveSystemLanguage(language);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Localization] Failed to read the system UI language: {ex.Message}");
+                return "en";
+            }
+        }
+
+        /// <summary>
+        /// Matches an OS locale to a shipped translation, preserving script and regional variants.
+        /// For example, ru-RU resolves to ru, pt-BR stays pt-BR, and zh-TW resolves to zh-Hant.
+        /// </summary>
+        internal static string ResolveSystemLanguage(string? language)
+        {
+            if (string.IsNullOrWhiteSpace(language))
+            {
+                return "en";
+            }
+
+            try
+            {
+                // Apple locale identifiers can use underscores instead of BCP-47 hyphens.
+                var culture = CultureInfo.GetCultureInfo(language.Trim().Replace('_', '-'));
+                while (!string.IsNullOrEmpty(culture.Name))
+                {
+                    if (AppPersonalizationConfig.SupportedLanguageCodes.TryGetValue(culture.Name, out var supported))
+                    {
+                        return supported;
+                    }
+
+                    // A neutral Chinese locale has no region or script; use simplified Chinese.
+                    if (string.Equals(culture.Name, "zh", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "zh-Hans";
+                    }
+
+                    culture = culture.Parent;
+                }
+            }
+            catch (CultureNotFoundException)
+            {
+                // Unknown OS language identifiers use the English resource bundle.
+            }
+
+            return "en";
+        }
 
 
         // Events
@@ -102,21 +140,22 @@ namespace ASLM.Services.Internal
         public bool ApplyCulture()
         {
             var language = GetCurrentLanguage();
-            if (string.Equals(_appliedLanguage, language, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(CultureInfo.CurrentUICulture.Name, language, StringComparison.OrdinalIgnoreCase))
-            {
-                AppResources.Culture = CultureInfo.CurrentUICulture;
-                ApplyFlowDirection(CultureInfo.CurrentUICulture);
-                return false;
-            }
-
+            var changed = !string.Equals(_appliedLanguage, language, StringComparison.OrdinalIgnoreCase) ||
+                          !string.Equals(CultureInfo.CurrentUICulture.Name, language, StringComparison.OrdinalIgnoreCase);
             var culture = CreateCulture(language);
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+            CultureInfo.DefaultThreadCurrentCulture = culture;
             CultureInfo.CurrentUICulture = culture;
             CultureInfo.CurrentCulture = culture;
             AppResources.Culture = culture;
             _appliedLanguage = language;
 
             ApplyFlowDirection(culture);
+            if (!changed)
+            {
+                return false;
+            }
+
             NotifyLocalizableViews();
             CultureChanged?.Invoke(this, EventArgs.Empty);
             return true;
