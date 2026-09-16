@@ -23,6 +23,7 @@ public sealed class AppDataStoreTests
         store.Data.Navigation.DisableHomePage.Should().BeTrue();
         store.Data.Navigation.RestoreLastPage.Should().BeTrue();
         store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
+        store.Data.Personalization.Appearance.Should().Be("System");
         File.Exists(layout.AppDataFilePath).Should().BeTrue("LoadAsync persists defaults when the file is missing");
     }
 
@@ -76,6 +77,24 @@ public sealed class AppDataStoreTests
         store.Data.Navigation.DisableHomePage.Should().BeTrue();
         store.Data.Navigation.RestoreLastPage.Should().BeTrue();
         store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
+        store.Data.Personalization.Appearance.Should().Be("System");
+    }
+
+    /// <summary>
+    /// Verifies that an unsupported persisted appearance falls back to the system theme.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_normalizes_unknown_appearance_to_system_theme()
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson("""
+            { "personalization": { "appearance": "Unknown" } }
+            """);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+
+        await store.LoadAsync();
+
+        store.Data.Personalization.Appearance.Should().Be("System");
     }
 
     /// <summary>

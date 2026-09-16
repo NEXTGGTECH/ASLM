@@ -358,7 +358,7 @@ namespace ASLM.Pages
                 return;
             }
 
-            var selectedDisplay = _appearancePicker.SelectedItem as string ?? GetAppearanceDisplayName("Dark");
+            var selectedDisplay = _appearancePicker.SelectedItem as string ?? GetAppearanceDisplayName("System");
             var selected = ResolveAppearanceFromDisplayName(selectedDisplay);
             _personalizationDraft.Appearance = AppPersonalizationConfig.NormalizeAppearance(selected);
 

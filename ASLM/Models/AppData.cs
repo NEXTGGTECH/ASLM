@@ -387,7 +387,7 @@ namespace ASLM.Models
     {
         // One of: Dark, Light, System, Custom.
         [JsonPropertyName("appearance")]
-        public string Appearance { get; set; } = "Dark";
+        public string Appearance { get; set; } = "System";
 
         // BCP-47-style language code (e.g. en). Managed in personalization; modules receive a snapshot via locale settings.
         [JsonPropertyName("language")]
@@ -432,14 +432,14 @@ namespace ASLM.Models
         }
 
         /// <summary>
-        /// Returns the canonical appearance string, falling back to Dark for unknown values.
+        /// Returns the canonical appearance string, falling back to System for unknown values.
         /// </summary>
         public static string NormalizeAppearance(string? value)
         {
+            if (string.Equals(value, "Dark", StringComparison.OrdinalIgnoreCase)) return "Dark";
             if (string.Equals(value, "Light", StringComparison.OrdinalIgnoreCase)) return "Light";
-            if (string.Equals(value, "System", StringComparison.OrdinalIgnoreCase)) return "System";
             if (string.Equals(value, "Custom", StringComparison.OrdinalIgnoreCase)) return "Custom";
-            return "Dark";
+            return "System";
         }
     }
 }

@@ -661,7 +661,7 @@ namespace ASLM.Pages
                 }
             }
 
-            return "Dark";
+            return "System";
         }
 
         /// <summary>
