@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>ASLM 핵심 동작, 포트, API 및 콘솔</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>계정</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>ASLM 및 모듈과 공유되는 표시 이름</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>계정</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM 표시 이름, GitHub 및 Ollama 로그인</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM 계정</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>연결 실패: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>모듈별 구성</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Ollama 계정 로그인 및 로그아웃 제어</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>개인 설정</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>테마 모드, 언어 및 사용자 지정 테마 설정</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>업데이트</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>애플리케이션 및 모듈 업데이트 기본 설정</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>자동 업데이트 확인 사용</value>
@@ -954,6 +933,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>포트</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>홈 페이지 비활성화 (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>ASLM 시작 시 마지막으로 방문한 페이지 열기</value>
   </data>
@@ -1080,7 +1062,7 @@
     <value>빠른 설정</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>빠른 설정은 Windows 사용자 이름과 기본 설정을 사용합니다</value>
+    <value>빠른 설정은 기본 설정을 사용합니다.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>완료</value>

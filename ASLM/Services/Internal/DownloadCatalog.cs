@@ -36,13 +36,14 @@ namespace ASLM.Services.Internal
         // Catalog loading
 
         /// <summary>
-        /// Queries all installed module bridges and returns one merged download catalog snapshot.
+        /// Publishes categories as their items arrive, then returns the complete merged snapshot.
         /// </summary>
         public async Task<DownloadCatalogSnapshot> LoadCatalogAsync(
             IReadOnlyDictionary<string, DownloadCatalogQuery>? categoryQueries = null,
             string? categoryGroupKey = null,
             bool preferCached = false,
             bool forceRefresh = false,
+            Func<DownloadCatalogCategory, Task>? categoryLoaded = null,
             CancellationToken ct = default)
         {
             // Discover only modules that actually expose the downloads bridge contract.
@@ -55,6 +56,7 @@ namespace ASLM.Services.Internal
             var categoryBuilders = new Dictionary<string, CategoryBuilder>(StringComparer.OrdinalIgnoreCase);
             var mergeLock = new object();
             using var bridgeThrottle = new SemaphoreSlim(MaxConcurrentBridgeRequests);
+            using var publishLock = new SemaphoreSlim(1);
 
             var loadTasks = bridgeModules.Select(async module =>
             {
@@ -70,6 +72,8 @@ namespace ASLM.Services.Internal
                         warnings,
                         categoryBuilders,
                         mergeLock,
+                        publishLock,
+                        categoryLoaded,
                         ct);
                 }
                 finally
@@ -109,9 +113,12 @@ namespace ASLM.Services.Internal
             List<string> warnings,
             Dictionary<string, CategoryBuilder> categoryBuilders,
             object mergeLock,
+            SemaphoreSlim publishLock,
+            Func<DownloadCatalogCategory, Task>? categoryLoaded,
             CancellationToken ct)
         {
             List<ModuleDownloadCategoryPayload> categories;
+            var succeeded = true;
             try
             {
                 categories = await _bridge.GetCategoriesAsync(module, preferCached, forceRefresh, ct);
@@ -124,8 +131,8 @@ namespace ASLM.Services.Internal
             {
                 _logger.LogWarning(ex, "Failed to load download categories for module {ModuleId}.", module.Id);
                 AddWarning(warnings, mergeLock, $"{module.Name}: download categories could not be loaded.");
-                MergeDeclaredCategories(module, categoryBuilders, mergeLock, categoryGroupKey);
-                return false;
+                categories = CreateDeclaredCategoryPayloads(module);
+                succeeded = false;
             }
 
             if (categories.Count == 0)
@@ -150,17 +157,13 @@ namespace ASLM.Services.Internal
                 if (categoryGroupKey != null && !string.Equals(groupKey, categoryGroupKey, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                CategoryBuilder categoryBuilder;
-                lock (mergeLock)
-                {
-                    categoryBuilder = GetOrCreateCategoryBuilder(categoryBuilders, groupKey, category);
-                }
-
                 ModuleDownloadBridgeResponse itemResponse;
                 try
                 {
                     var query = categoryQueries?.GetValueOrDefault(groupKey);
-                    itemResponse = await _bridge.GetItemsAsync(module, category.Id, query?.QueryText, query?.Filters, preferCached, forceRefresh, ct);
+                    itemResponse = succeeded
+                        ? await _bridge.GetItemsAsync(module, category.Id, query?.QueryText, query?.Filters, preferCached, forceRefresh, ct)
+                        : new ModuleDownloadBridgeResponse();
                 }
                 catch (OperationCanceledException)
                 {
@@ -170,7 +173,7 @@ namespace ASLM.Services.Internal
                 {
                     _logger.LogWarning(ex, "Failed to load download items for module {ModuleId} category {CategoryId}.", module.Id, category.Id);
                     AddWarning(warnings, mergeLock, $"{module.Name}: {category.Title} could not be loaded.");
-                    continue;
+                    itemResponse = new ModuleDownloadBridgeResponse();
                 }
 
                 foreach (var warning in itemResponse.Warnings)
@@ -178,8 +181,12 @@ namespace ASLM.Services.Internal
                     AddWarning(warnings, mergeLock, $"{module.Name}: {warning}");
                 }
 
-                lock (mergeLock)
+                // Serialize merging and delivery so an older provider result cannot overwrite a newer merge.
+                await publishLock.WaitAsync(ct);
+                try
                 {
+                    var categoryBuilder = GetOrCreateCategoryBuilder(categoryBuilders, groupKey, category);
+                    var updatedCategories = new HashSet<CategoryBuilder> { categoryBuilder };
                     foreach (var filterPayload in itemResponse.Filters)
                     {
                         ct.ThrowIfCancellationRequested();
@@ -212,11 +219,20 @@ namespace ASLM.Services.Internal
                             : GetOrCreateCategoryBuilder(categoryBuilders, resourceGroupKey, category);
 
                         MergeItem(itemCategoryBuilder, module, category, item);
+                        updatedCategories.Add(itemCategoryBuilder);
                     }
+
+                    if (categoryLoaded != null)
+                        foreach (var updated in updatedCategories)
+                            await categoryLoaded(updated.ToCategory(_stateStore));
+                }
+                finally
+                {
+                    publishLock.Release();
                 }
             }
 
-            return true;
+            return succeeded;
         }
 
         /// <summary>
@@ -247,29 +263,6 @@ namespace ASLM.Services.Internal
                     SortOrder = category.SortOrder
                 })
                 .ToList() ?? [];
-        }
-
-        /// <summary>
-        /// Adds manifest-declared categories when a provider process cannot be queried.
-        /// </summary>
-        private static void MergeDeclaredCategories(
-            ModuleConfig module,
-            IDictionary<string, CategoryBuilder> categoryBuilders,
-            object mergeLock,
-            string? categoryGroupKey)
-        {
-            lock (mergeLock)
-            {
-                foreach (var category in CreateDeclaredCategoryPayloads(module))
-                {
-                    var groupKey = !string.IsNullOrWhiteSpace(category.GroupKey)
-                        ? category.GroupKey
-                        : $"{module.Id}:{category.Id}";
-                    if (categoryGroupKey != null && !string.Equals(groupKey, categoryGroupKey, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    GetOrCreateCategoryBuilder(categoryBuilders, groupKey, category);
-                }
-            }
         }
 
         /// <summary>

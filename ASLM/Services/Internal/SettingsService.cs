@@ -43,6 +43,7 @@ namespace ASLM.Services.Internal
         string PortStart,
         bool ApiServerEnabled,
         bool RestoreLastPage,
+        bool DisableHomePage,
         ConsoleBaseline ConsoleBaseline,
         UpdateBaseline UpdateBaseline);
 
@@ -228,6 +229,7 @@ namespace ASLM.Services.Internal
                 appData.Data.Ports.ModulesStart.ToString(CultureInfo.InvariantCulture),
                 apiServerEnabled,
                 appData.Data.Navigation.RestoreLastPage,
+                appData.Data.Navigation.DisableHomePage,
                 new ConsoleBaseline(
                     appData.Data.Consoles.SidebarVisible,
                     appData.Data.Consoles.ShowCompletedProcesses,
@@ -249,12 +251,16 @@ namespace ASLM.Services.Internal
             ConsoleBaseline consoleDraft,
             AppUpdateSettings updateSettings,
             bool restoreLastPage,
+            bool disableHomePage,
             bool legalAutoAcceptUpdates)
         {
-            appData.Data.User.Name = userName;
-            if (appData.Data.User.AccountMode == AppAccountMode.Local)
+            if (SunriseService.IsEnabled)
             {
-                appData.Data.User.LocalName = userName;
+                appData.Data.User.Name = userName;
+                if (appData.Data.User.AccountMode == AppAccountMode.Local)
+                {
+                    appData.Data.User.LocalName = userName;
+                }
             }
 
             appData.Data.Ports.ModulesStart = modulesStart;
@@ -270,6 +276,7 @@ namespace ASLM.Services.Internal
             appData.Data.Updates.Normalize();
 
             appData.Data.Navigation.RestoreLastPage = restoreLastPage;
+            appData.Data.Navigation.DisableHomePage = disableHomePage;
             appData.Data.Navigation.Normalize();
 
             appData.Data.Legal.AutoAcceptUpdates = legalAutoAcceptUpdates;
@@ -293,7 +300,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Builds ASLM defaults for ports, API, console, navigation, and legal sections.
         /// </summary>
-        public static (string PortStart, bool ApiServerEnabled, ConsoleBaseline ConsoleDefaults, bool RestoreLastPage, bool LegalAutoAcceptUpdates) BuildDefaultAslmDrafts()
+        public static (string PortStart, bool ApiServerEnabled, ConsoleBaseline ConsoleDefaults, bool RestoreLastPage, bool DisableHomePage, bool LegalAutoAcceptUpdates) BuildDefaultAslmDrafts()
         {
             var defaultPorts = new AppPortConfig();
             var defaultConsoles = new AppConsoleConfig();
@@ -308,6 +315,7 @@ namespace ASLM.Services.Internal
                     defaultConsoles.ShowCompletedProcesses,
                     defaultConsoles.ShowIndividualModuleConsoles),
                 defaultNavigation.RestoreLastPage,
+                defaultNavigation.DisableHomePage,
                 defaultLegal.AutoAcceptUpdates);
         }
 

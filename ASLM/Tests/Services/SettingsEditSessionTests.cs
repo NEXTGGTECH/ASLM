@@ -23,6 +23,7 @@ public sealed class SettingsEditSessionTests
                 "20000",
                 true,
                 true,
+                true,
                 new ConsoleBaseline(true, false, true),
                 new UpdateBaseline(true, false, "release", "release")),
             legalAutoAcceptUpdates: true);
@@ -30,7 +31,7 @@ public sealed class SettingsEditSessionTests
         draft.UserName = "Bob";
         draft.PortStart = "21000";
 
-        draft.HasAccountChanges.Should().BeTrue();
+        draft.HasAccountChanges.Should().Be(ASLM.Services.Sunrise.SunriseService.IsEnabled);
         draft.HasAslmChanges.Should().BeTrue();
 
         draft.DiscardAslm();
@@ -54,12 +55,14 @@ public sealed class SettingsEditSessionTests
                 "20000",
                 true,
                 true,
+                true,
                 new ConsoleBaseline(true, false, true),
                 new UpdateBaseline(true, false, "release", "release")),
             legalAutoAcceptUpdates: true);
 
         draft.ApiServerEnabled = false;
         draft.RestoreLastPage = false;
+        draft.DisableHomePage = false;
         draft.Console = new ConsoleBaseline(false, true, false);
         draft.Update = new UpdateBaseline(false, true, "pre-release", "pre-release");
         draft.LegalAutoAcceptUpdates = false;
@@ -67,6 +70,7 @@ public sealed class SettingsEditSessionTests
 
         draft.ApiServerEnabled = true;
         draft.RestoreLastPage = true;
+        draft.DisableHomePage = true;
         draft.Console = new ConsoleBaseline(true, true, true);
         draft.Update = new UpdateBaseline(true, false, "release", "release");
         draft.LegalAutoAcceptUpdates = true;
@@ -74,6 +78,7 @@ public sealed class SettingsEditSessionTests
 
         draft.ApiServerEnabled.Should().BeFalse();
         draft.RestoreLastPage.Should().BeFalse();
+        draft.DisableHomePage.Should().BeFalse();
         draft.Console.Should().Be(new ConsoleBaseline(false, true, false));
         draft.Update.Should().Be(new UpdateBaseline(false, true, "pre-release", "pre-release"));
         draft.LegalAutoAcceptUpdates.Should().BeFalse();
@@ -93,6 +98,7 @@ public sealed class SettingsEditSessionTests
                 "20000",
                 true,
                 true,
+                true,
                 new ConsoleBaseline(true, false, true),
                 new UpdateBaseline(true, false, "release", "release")),
             legalAutoAcceptUpdates: true);
@@ -102,6 +108,25 @@ public sealed class SettingsEditSessionTests
         draft.HasNavigationChanges.Should().BeTrue();
         draft.HasAslmChanges.Should().BeTrue();
         draft.HasAslmRestartChanges.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Verifies Home visibility participates in draft changes and discard without requiring a restart.
+    /// </summary>
+    [Fact]
+    public void Home_page_preference_is_discardable_and_not_restart_relevant()
+    {
+        var draft = new ApplicationSettingsDraft();
+        draft.AcceptAslm();
+
+        draft.DisableHomePage = false;
+
+        draft.HasNavigationChanges.Should().BeTrue();
+        draft.HasAslmChanges.Should().BeTrue();
+        draft.HasAslmRestartChanges.Should().BeFalse();
+        draft.DiscardAslm();
+        draft.DisableHomePage.Should().BeTrue();
+        draft.HasNavigationChanges.Should().BeFalse();
     }
 
     /// <summary>

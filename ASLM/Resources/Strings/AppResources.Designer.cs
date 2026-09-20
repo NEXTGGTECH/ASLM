@@ -2329,29 +2329,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Display name used by ASLM and shared with modules.
-        /// </summary>
-        public static string Settings_Category_Account_Description {
-            get {
-                return ResourceManager.GetString("Settings_Category_Account_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Accounts.
         /// </summary>
         public static string Settings_Category_Accounts {
             get {
                 return ResourceManager.GetString("Settings_Category_Accounts", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на ASLM display name, GitHub and Ollama sign-in.
-        /// </summary>
-        public static string Settings_Category_Accounts_Description {
-            get {
-                return ResourceManager.GetString("Settings_Category_Accounts_Description", resourceCulture);
             }
         }
         
@@ -2365,38 +2347,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Core ASLM behavior, ports, API, and consoles.
-        /// </summary>
-        public static string Settings_Category_ASLM_Description {
-            get {
-                return ResourceManager.GetString("Settings_Category_ASLM_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Module-specific configuration.
-        /// </summary>
-        public static string Settings_Category_Module_Description {
-            get {
-                return ResourceManager.GetString("Settings_Category_Module_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Ollama.
         /// </summary>
         public static string Settings_Category_Ollama {
             get {
                 return ResourceManager.GetString("Settings_Category_Ollama", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Ollama account sign-in and sign-out controls.
-        /// </summary>
-        public static string Settings_Category_Ollama_Description {
-            get {
-                return ResourceManager.GetString("Settings_Category_Ollama_Description", resourceCulture);
             }
         }
         
@@ -2410,29 +2365,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Theme mode, language, and custom theme settings.
-        /// </summary>
-        public static string Settings_Category_Personalization_Description {
-            get {
-                return ResourceManager.GetString("Settings_Category_Personalization_Description", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Updates.
         /// </summary>
         public static string Settings_Category_Updates {
             get {
                 return ResourceManager.GetString("Settings_Category_Updates", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Application and module update preferences.
-        /// </summary>
-        public static string Settings_Category_Updates_Description {
-            get {
-                return ResourceManager.GetString("Settings_Category_Updates_Description", resourceCulture);
             }
         }
         
@@ -2469,6 +2406,15 @@ namespace ASLM.Resources.Strings {
         public static string Settings_ConsolesPage_Title {
             get {
                 return ResourceManager.GetString("Settings_ConsolesPage_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Disable Home page (WIP).
+        /// </summary>
+        public static string Settings_DisableHomePage_Title {
+            get {
+                return ResourceManager.GetString("Settings_DisableHomePage_Title", resourceCulture);
             }
         }
         
@@ -3447,7 +3393,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Fast Setup uses your Windows username and default settings.
+        ///   Ищет локализованную строку, похожую на Fast Setup uses the default settings..
         /// </summary>
         public static string SetupWizard_FastSetupHint {
             get {

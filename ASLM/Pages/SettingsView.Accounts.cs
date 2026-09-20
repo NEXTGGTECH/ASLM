@@ -16,7 +16,7 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnAslmAccountButtonClicked(object? sender, EventArgs e)
         {
-            if (_isAslmAccountActionRunning)
+            if (!SunriseService.IsEnabled || _isAslmAccountActionRunning)
             {
                 return;
             }
@@ -131,6 +131,11 @@ namespace ASLM.Pages
         /// </summary>
         private void UpdateAslmAccountActionControls()
         {
+            if (!SunriseService.IsEnabled)
+            {
+                return;
+            }
+
             var isCloudAccount = _sunriseService.IsCloudAccount;
             BuiltInSettingsContainer.AslmAccountTypeBadge.Text = L.Get(
                 isCloudAccount

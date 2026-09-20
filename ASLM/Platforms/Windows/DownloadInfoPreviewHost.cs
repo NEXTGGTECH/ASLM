@@ -22,6 +22,7 @@ internal sealed class DownloadInfoPreviewHost : IDisposable
     private Task _initialization = Task.CompletedTask;
     private string? _source;
     private int _generation;
+    private int _navigationVersion;
     private bool _active;
     private bool _disposed;
     private bool _measuring;
@@ -44,19 +45,45 @@ internal sealed class DownloadInfoPreviewHost : IDisposable
 
     public void SetSource(string? source)
     {
+        if (_active && string.Equals(_source, source, StringComparison.Ordinal))
+        {
+            RequestMeasure();
+            return;
+        }
+
         _source = source;
         _active = source != null;
         _generation++;
+        _navigationVersion++;
         _preview?.ResetDocument();
         _timer.Stop();
         _pending = false;
-        RequestMeasure();
+        if (_active) _ = NavigateAsync(_navigationVersion);
+    }
+
+    private async Task NavigateAsync(int version)
+    {
+        try
+        {
+            await _view.EnsureCoreWebView2Async();
+            await _initialization;
+            if (_disposed || !_active || version != _navigationVersion || _core == null) return;
+
+            // WinUI's Source (Uri) round-trip can corrupt UTF-8 escapes in local paths.
+            // Navigate with the original escaped string instead, keeping Unicode intact.
+            _core.Navigate(_source);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Download preview navigation failed: {ex.Message}");
+        }
     }
 
     public void Pause()
     {
         _active = false;
         _generation++;
+        _navigationVersion++;
         _pending = false;
         _timer.Stop();
     }
@@ -114,9 +141,11 @@ internal sealed class DownloadInfoPreviewHost : IDisposable
         if (args.PreviousSize.Width != args.NewSize.Width) RequestMeasure();
     }
 
-    private bool CanMeasure => !_disposed && _active && _view.ActualWidth > 0 &&
+    private bool IsCurrentSource =>
         Uri.TryCreate(_source, UriKind.Absolute, out var expected) &&
         Uri.TryCreate(_core?.Source, UriKind.Absolute, out var actual) && expected.Equals(actual);
+
+    private bool CanMeasure => !_disposed && _active && _view.ActualWidth > 0 && IsCurrentSource;
 
     private void RequestMeasure()
     {

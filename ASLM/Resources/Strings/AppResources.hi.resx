@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>मुख्य ASLM व्यवहार, पोर्ट, API और कंसोल</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>खाता</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>ASLM और मॉड्यूलों के साथ साझा किया गया प्रदर्शन नाम</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>खाते</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM प्रदर्शन नाम, GitHub और Ollama साइन-इन</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM खाता</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>कनेक्शन विफल: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>मॉड्यूल-विशिष्ट कॉन्फ़िगरेशन</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Ollama खाता साइन-इन और साइन-आउट नियंत्रण</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>वैयक्तिकरण</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>थीम मोड, भाषा और कस्टम थीम सेटिंग्स</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>अपडेट</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>एप्लिकेशन और मॉड्यूल अपडेट प्राथमिकताएँ</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>स्वचालित अपडेट जाँच सक्षम करें</value>
@@ -954,6 +933,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>पोर्ट</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>होम पेज अक्षम करें (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>ASLM शुरू होने पर पिछला देखा गया पेज खोलें</value>
   </data>
@@ -1080,7 +1062,7 @@
     <value>त्वरित सेटअप</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>त्वरित सेटअप आपके Windows उपयोगकर्ता नाम और डिफ़ॉल्ट सेटिंग्स का उपयोग करता है</value>
+    <value>त्वरित सेटअप डिफ़ॉल्ट सेटिंग का उपयोग करता है।</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>समाप्त</value>

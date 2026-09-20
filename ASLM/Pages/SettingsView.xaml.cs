@@ -107,6 +107,7 @@ namespace ASLM.Pages
         private SettingsToggle? _consoleIndividualToggle;
         private SettingsToggle? _legalAutoAcceptToggle;
         private SettingsToggle? _restoreLastPageToggle;
+        private SettingsToggle? _disableHomePageToggle;
         private CancellationTokenSource? _ollamaMetadataRefreshCts;
         private CancellationTokenSource? _ollamaStatusPollingCts;
         private CancellationTokenSource? _aslmAccountActionCts;
@@ -218,6 +219,13 @@ namespace ASLM.Pages
             set => _editSession.Application.RestoreLastPage = value;
         }
 
+        /// <summary>Gets or replaces the home-page visibility draft stored by the session.</summary>
+        private bool _disableHomePageDraft
+        {
+            get => _editSession.Application.DisableHomePage;
+            set => _editSession.Application.DisableHomePage = value;
+        }
+
         /// <summary>Gets or replaces the personalization draft stored by the session.</summary>
         private AppPersonalizationConfig _personalizationDraft
         {
@@ -236,6 +244,7 @@ namespace ASLM.Pages
         /// Raised when the user asks to close the settings overlay.
         /// </summary>
         public event EventHandler? CloseRequested;
+        public event EventHandler? NavigationSettingsSaved;
 
         // Initialization
 
@@ -311,6 +320,7 @@ namespace ASLM.Pages
             _consoleCompletedToggle = BuiltInSettingsContainer.ConsoleCompletedInput;
             _legalAutoAcceptToggle = BuiltInSettingsContainer.LegalAutoAcceptInput;
             _restoreLastPageToggle = BuiltInSettingsContainer.RestoreLastPageInput;
+            _disableHomePageToggle = BuiltInSettingsContainer.DisableHomePageInput;
             _aslmAccountButton = BuiltInSettingsContainer.AslmAccountAction;
             _aslmAccountStatusLabel = BuiltInSettingsContainer.AslmAccountState;
             _githubAccountButton = BuiltInSettingsContainer.GitHubAccountAction;
@@ -352,6 +362,7 @@ namespace ASLM.Pages
             _consoleCompletedToggle.Toggled += OnAslmBuiltInToggleChanged;
             _legalAutoAcceptToggle.Toggled += OnAslmBuiltInToggleChanged;
             _restoreLastPageToggle.Toggled += OnAslmBuiltInToggleChanged;
+            _disableHomePageToggle.Toggled += OnAslmBuiltInToggleChanged;
             _checkUpdatesToggle.Toggled += OnUpdateControlChanged;
             _autoUpdatesToggle.Toggled += OnUpdateControlChanged;
             _appUpdateChannelPicker.SelectedIndexChanged += OnUpdateControlChanged;
@@ -650,7 +661,7 @@ namespace ASLM.Pages
                 }
             }
 
-            return "Dark";
+            return "System";
         }
 
         /// <summary>

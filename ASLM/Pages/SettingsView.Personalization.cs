@@ -27,10 +27,8 @@ namespace ASLM.Pages
                         _languagePicker.Items.Add(GetLanguageDisplayName(language.Id));
                     }
 
-                    var selectedLanguage = AppLocalizationService.SupportedLanguages
-                        .FirstOrDefault(language =>
-                            string.Equals(language.Id, _personalizationDraft.Language, StringComparison.OrdinalIgnoreCase))
-                        ?? AppLocalizationService.SupportedLanguages[0];
+                    var languageId = AppPersonalizationConfig.NormalizeLanguage(_personalizationDraft.Language);
+                    var selectedLanguage = AppLocalizationService.SupportedLanguages.First(language => language.Id == languageId);
                     _personalizationDraft.Language = selectedLanguage.Id;
                     _languagePicker.SelectedItem = GetLanguageDisplayName(selectedLanguage.Id);
 
@@ -358,7 +356,7 @@ namespace ASLM.Pages
                 return;
             }
 
-            var selectedDisplay = _appearancePicker.SelectedItem as string ?? GetAppearanceDisplayName("Dark");
+            var selectedDisplay = _appearancePicker.SelectedItem as string ?? GetAppearanceDisplayName("System");
             var selected = ResolveAppearanceFromDisplayName(selectedDisplay);
             _personalizationDraft.Appearance = AppPersonalizationConfig.NormalizeAppearance(selected);
 
@@ -410,8 +408,12 @@ namespace ASLM.Pages
             var selectedDisplayName = _languagePicker.SelectedItem as string;
             var language = AppLocalizationService.SupportedLanguages
                 .FirstOrDefault(option =>
-                    string.Equals(GetLanguageDisplayName(option.Id), selectedDisplayName, StringComparison.Ordinal))
-                ?? AppLocalizationService.SupportedLanguages[0];
+                    string.Equals(GetLanguageDisplayName(option.Id), selectedDisplayName, StringComparison.Ordinal));
+            if (language == null)
+            {
+                return;
+            }
+
             _personalizationDraft.Language = language.Id;
             QueueActionButtonUpdate();
         }

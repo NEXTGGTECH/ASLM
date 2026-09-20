@@ -101,6 +101,11 @@ namespace ASLM.Services.Internal
         public bool RestoreLastPage { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets whether the unfinished home page is disabled.
+        /// </summary>
+        public bool DisableHomePage { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets the editable console preferences.
         /// </summary>
         public ConsoleBaseline Console { get; set; } = new(true, true, true);
@@ -146,6 +151,11 @@ namespace ASLM.Services.Internal
         public bool RestoreLastPageBaseline { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets the accepted home-page visibility preference.
+        /// </summary>
+        public bool DisableHomePageBaseline { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets the accepted personalization baseline used by dirty-state checks.
         /// </summary>
         public AppPersonalizationConfig PersonalizationBaseline { get; set; } = new();
@@ -154,7 +164,7 @@ namespace ASLM.Services.Internal
         /// Gets whether the display-name draft differs from its accepted value.
         /// </summary>
         public bool HasAccountChanges =>
-            !string.Equals(UserName, AslmBaseline.UserName, StringComparison.Ordinal);
+            SunriseService.IsEnabled && !string.Equals(UserName, AslmBaseline.UserName, StringComparison.Ordinal);
 
         /// <summary>
         /// Gets whether restart-relevant ASLM drafts differ from accepted values.
@@ -169,7 +179,8 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets whether the non-restart shell startup preference differs from its accepted value.
         /// </summary>
-        public bool HasNavigationChanges => RestoreLastPage != RestoreLastPageBaseline;
+        public bool HasNavigationChanges => RestoreLastPage != RestoreLastPageBaseline ||
+            DisableHomePage != DisableHomePageBaseline;
 
         /// <summary>
         /// Gets whether any setting shown in the ASLM category differs from its accepted value.
@@ -193,6 +204,7 @@ namespace ASLM.Services.Internal
             PortStart = snapshot.PortStart;
             ApiServerEnabled = snapshot.ApiServerEnabled;
             RestoreLastPage = snapshot.RestoreLastPage;
+            DisableHomePage = snapshot.DisableHomePage;
             Console = snapshot.ConsoleBaseline;
             Update = snapshot.UpdateBaseline;
             LegalAutoAcceptUpdates = legalAutoAcceptUpdates;
@@ -219,6 +231,7 @@ namespace ASLM.Services.Internal
             UpdateBaseline = Update;
             LegalAutoAcceptBaseline = LegalAutoAcceptUpdates;
             RestoreLastPageBaseline = RestoreLastPage;
+            DisableHomePageBaseline = DisableHomePage;
         }
 
         /// <summary>
@@ -239,6 +252,7 @@ namespace ASLM.Services.Internal
             Update = UpdateBaseline;
             LegalAutoAcceptUpdates = LegalAutoAcceptBaseline;
             RestoreLastPage = RestoreLastPageBaseline;
+            DisableHomePage = DisableHomePageBaseline;
         }
 
         /// <summary>

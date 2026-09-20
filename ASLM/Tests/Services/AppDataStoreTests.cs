@@ -20,8 +20,11 @@ public sealed class AppDataStoreTests
         await store.LoadAsync();
 
         store.IsFirstRun.Should().BeTrue();
+        store.Data.Navigation.DisableHomePage.Should().BeTrue();
         store.Data.Navigation.RestoreLastPage.Should().BeTrue();
         store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
+        store.Data.Personalization.Appearance.Should().Be("System");
+        store.Data.Personalization.Language.Should().Be(AppLocalizationService.GetDefaultLanguage());
         File.Exists(layout.AppDataFilePath).Should().BeTrue("LoadAsync persists defaults when the file is missing");
     }
 
@@ -37,6 +40,7 @@ public sealed class AppDataStoreTests
 
         store.Data.FirstRunCompleted = true;
         store.Data.User.Name = "RoundTrip";
+        store.Data.Navigation.DisableHomePage = false;
         store.Data.Navigation.RestoreLastPage = false;
         store.Data.Navigation.LastPage = ShellNavigationRoute.ForModule("aslm-chat");
         await store.SaveAsync();
@@ -45,6 +49,7 @@ public sealed class AppDataStoreTests
         await reloaded.LoadAsync();
 
         reloaded.IsFirstRun.Should().BeFalse();
+        reloaded.Data.Navigation.DisableHomePage.Should().BeFalse();
         reloaded.Data.User.Name.Should().Be("RoundTrip");
         reloaded.Data.Navigation.RestoreLastPage.Should().BeFalse();
         reloaded.Data.Navigation.LastPage.Should().Be("module::aslm-chat");
@@ -70,8 +75,45 @@ public sealed class AppDataStoreTests
 
         await store.LoadAsync();
 
+        store.Data.Navigation.DisableHomePage.Should().BeTrue();
         store.Data.Navigation.RestoreLastPage.Should().BeTrue();
         store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
+        store.Data.Personalization.Appearance.Should().Be("System");
+    }
+
+    /// <summary>
+    /// Verifies that an unsupported persisted appearance falls back to the system theme.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_normalizes_unknown_appearance_to_system_theme()
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson("""
+            { "personalization": { "appearance": "Unknown" } }
+            """);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+
+        await store.LoadAsync();
+
+        store.Data.Personalization.Appearance.Should().Be("System");
+    }
+
+    /// <summary>
+    /// Verifies an older navigation object receives the new default without losing its saved page.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_adds_home_visibility_default_to_existing_navigation()
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson("""
+            { "navigation": { "restoreLastPage": true, "lastPage": "module::aslm-chat" } }
+            """);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+
+        await store.LoadAsync();
+
+        store.Data.Navigation.DisableHomePage.Should().BeTrue();
+        store.Data.Navigation.GetInitialPage().Should().Be("module::aslm-chat");
     }
 
     /// <summary>
@@ -117,5 +159,47 @@ public sealed class AppDataStoreTests
 
         store.Data.User.Name.Should().BeEmpty();
         store.IsFirstRun.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"personalization\":null}")]
+    [InlineData("{\"personalization\":{}}")]
+    [InlineData("{\"personalization\":{\"language\":null}}")]
+    [InlineData("{\"personalization\":{\"language\":\"\"}}")]
+    public async Task Missing_language_uses_system_default_and_survives_save(string json)
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson(json);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+        var expected = AppLocalizationService.GetDefaultLanguage();
+
+        await store.LoadAsync();
+        store.Data.Personalization.Language.Should().Be(expected);
+        await store.SaveAsync();
+
+        var reloaded = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+        await reloaded.LoadAsync();
+        reloaded.Data.Personalization.Language.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("en", "en")]
+    [InlineData("de", "de")]
+    [InlineData("PT-br", "pt-BR")]
+    [InlineData("zh-hant", "zh-Hant")]
+    [InlineData("unsupported", "en")]
+    public async Task Saved_language_takes_precedence_over_system_default(string savedLanguage, string expected)
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson($$"""
+            { "firstRunCompleted": true, "personalization": { "language": "{{savedLanguage}}" } }
+            """);
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+
+        await store.LoadAsync();
+
+        store.Data.Personalization.Language.Should().Be(expected);
+        new AppLocalizationService(store).GetCurrentLanguage().Should().Be(expected);
     }
 }

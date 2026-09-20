@@ -39,7 +39,7 @@ namespace ASLM.Pages
         /// </summary>
         private void SyncAslmDraftValuesFromControls()
         {
-            if (UserProfileSection.IsVisible)
+            if (SunriseService.IsEnabled && UserProfileSection.IsVisible)
             {
                 _userNameDraft = UsernameEntry.Text?.Trim() ?? string.Empty;
             }
@@ -312,13 +312,14 @@ namespace ASLM.Pages
                     _apiServerEnabledDraft = defaults.ApiServerEnabled;
                     _consoleDraft = defaults.ConsoleDefaults;
                     _restoreLastPageDraft = defaults.RestoreLastPage;
+                    _disableHomePageDraft = defaults.DisableHomePage;
                     _legalAutoAcceptDraft = defaults.LegalAutoAcceptUpdates;
                     PortErrorLabel.IsVisible = false;
                     ApplyAslmDraftsToControls();
                     RenderAslmCategory();
                     break;
                 case SettingsCategoryKind.Accounts:
-                    if (!_sunriseService.IsCloudAccount)
+                    if (SunriseService.IsEnabled && !_sunriseService.IsCloudAccount)
                     {
                         _userNameDraft = Environment.UserName;
                     }
@@ -430,12 +431,15 @@ namespace ASLM.Pages
                 UpdateSelectorButtonStates();
                 UpdateActionButtons();
 
-                if (!SettingsService.TryValidateDisplayName(_userNameDraft, out var validatedUserName, out var displayNameErrorMessage))
+                if (SunriseService.IsEnabled)
                 {
-                    await ShowErrorAsync(displayNameErrorMessage);
-                    return;
+                    if (!SettingsService.TryValidateDisplayName(_userNameDraft, out var validatedUserName, out var displayNameErrorMessage))
+                    {
+                        await ShowErrorAsync(displayNameErrorMessage);
+                        return;
+                    }
+                    _userNameDraft = validatedUserName;
                 }
-                _userNameDraft = validatedUserName;
 
                 var portResult = SettingsService.TryParsePortStart(_portStartDraft);
                 if (!portResult.Success)
@@ -478,6 +482,7 @@ namespace ASLM.Pages
 
                 var hadAslmSettingsChanges = HasUnsavedAslmSettingsChanges();
                 var hadAppRestartChanges = HasUnsavedAslmRestartSettingsChanges();
+                var hadNavigationChanges = _editSession.Application.HasNavigationChanges;
                 var hadAslmChanges = HasUnsavedAccountChanges() || hadAslmSettingsChanges;
                 var modulesWithChanges = GetModulesWithUnsavedChanges();
 
@@ -488,6 +493,7 @@ namespace ASLM.Pages
                     _consoleDraft,
                     nextSettings,
                     _restoreLastPageDraft,
+                    _disableHomePageDraft,
                     _legalAutoAcceptDraft);
                 await _appData.SaveAsync();
 
@@ -501,6 +507,8 @@ namespace ASLM.Pages
                     _appData,
                     _mirrorServer.IsEnabled).UpdateBaseline;
                 _editSession.Application.AcceptAslm();
+                if (hadNavigationChanges)
+                    NavigationSettingsSaved?.Invoke(this, EventArgs.Empty);
                 PortErrorLabel.IsVisible = false;
 
                 var touchedModules = new HashSet<ModuleConfig>();

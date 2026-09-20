@@ -110,6 +110,7 @@ public sealed class SettingsServiceTests
         store.Data.User.Name = "Tester";
         store.Data.Ports.ModulesStart = 21000;
         store.Data.Navigation.RestoreLastPage = false;
+        store.Data.Navigation.DisableHomePage = false;
 
         var draft = SettingsService.BuildAslmDraftSnapshot(store, apiServerEnabled: true);
 
@@ -117,6 +118,7 @@ public sealed class SettingsServiceTests
         draft.PortStart.Should().Be("21000");
         draft.ApiServerEnabled.Should().BeTrue();
         draft.RestoreLastPage.Should().BeFalse();
+        draft.DisableHomePage.Should().BeFalse();
     }
 
     /// <summary>
@@ -129,6 +131,8 @@ public sealed class SettingsServiceTests
         var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
         var console = new ConsoleBaseline(false, true, false);
         var updates = new AppUpdateSettings { AutoCheckPeriodHours = 12 };
+        store.Data.User.Name = "Alice";
+        store.Data.User.LocalName = "Alice";
 
         SettingsService.ApplyDraftsToAppData(
             store,
@@ -137,13 +141,23 @@ public sealed class SettingsServiceTests
             console,
             updates,
             restoreLastPage: false,
+            disableHomePage: false,
             legalAutoAcceptUpdates: true);
 
-        store.Data.User.Name.Should().Be("Bob");
+        var expectedName = ASLM.Services.Sunrise.SunriseService.IsEnabled ? "Bob" : "Alice";
+        store.Data.User.Name.Should().Be(expectedName);
+        store.Data.User.LocalName.Should().Be(expectedName);
         store.Data.Ports.ModulesStart.Should().Be(22000);
         store.Data.Consoles.ShowCompletedProcesses.Should().BeTrue();
         store.Data.Updates.AutoCheckPeriodHours.Should().Be(1);
         store.Data.Navigation.RestoreLastPage.Should().BeFalse();
+        store.Data.Navigation.DisableHomePage.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Default_aslm_drafts_disable_the_home_page()
+    {
+        SettingsService.BuildDefaultAslmDrafts().DisableHomePage.Should().BeTrue();
     }
 
     /// <summary>
@@ -347,7 +361,6 @@ public sealed class SettingsServiceTests
         var moduleCategory = new SettingsCategory(
             "module::x",
             "X",
-            "desc",
             SettingsCategoryKind.Module,
             ModuleConfigBuilder.Create(),
             false);

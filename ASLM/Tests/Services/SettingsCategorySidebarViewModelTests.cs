@@ -92,12 +92,11 @@ public sealed class SettingsCategorySidebarViewModelTests
     /// </summary>
     private static IReadOnlyList<SettingsCategory> CreateCategories() =>
     [
-        new("aslm", "ASLM", string.Empty, SettingsCategoryKind.Aslm, null, true),
-        new("aslm-updates", "Updates", string.Empty, SettingsCategoryKind.Updates, null, true),
+        new("aslm", "ASLM", SettingsCategoryKind.Aslm, null, true),
+        new("aslm-updates", "Updates", SettingsCategoryKind.Updates, null, true),
         new(
             "module::demo",
             "Demo",
-            string.Empty,
             SettingsCategoryKind.Module,
             new ModuleConfig { Id = "demo", Name = "Demo" },
             false)

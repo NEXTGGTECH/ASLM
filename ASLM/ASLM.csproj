@@ -14,6 +14,7 @@
 		<SingleProject>true</SingleProject>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<NeutralLanguage>en</NeutralLanguage>
 		<MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
 
 		<!-- Display name -->
@@ -23,8 +24,8 @@
 		<ApplicationId>com.nextggtech.aslm</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>0.9.0</ApplicationDisplayVersion>
-		<ApplicationVersion>4</ApplicationVersion>
+		<ApplicationDisplayVersion>0.9.1</ApplicationDisplayVersion>
+		<ApplicationVersion>10</ApplicationVersion>
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
@@ -40,6 +41,15 @@
 	
 	<Import Project="..\ASLM.Build.props" />
 	<Import Project="Installer\Build\Installer.Build.targets" />
+
+	<!-- ASLM / SUNRISE ID only; GitHub and Ollama accounts remain available. -->
+	<PropertyGroup>
+		<ASLMAccountEnabled>true</ASLMAccountEnabled>
+		<ASLMAccountEnabled Condition="'$(Configuration)' == 'Release'">false</ASLMAccountEnabled>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(ASLMAccountEnabled)' == 'true'">
+		<DefineConstants>$(DefineConstants);ASLM_ACCOUNT_ENABLED</DefineConstants>
+	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(SelfContained)' == ''">
 		<SelfContained>true</SelfContained>

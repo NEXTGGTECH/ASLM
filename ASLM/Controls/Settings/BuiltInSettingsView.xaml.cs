@@ -37,6 +37,8 @@ namespace ASLM.Controls.Settings
         public BuiltInSettingsView()
         {
             InitializeComponent();
+            AslmAccountCard.IsVisible = SunriseService.IsEnabled;
+            UserProfileSection.IsVisible = SunriseService.IsEnabled;
             ApplyLocalization();
         }
 
@@ -51,6 +53,7 @@ namespace ASLM.Controls.Settings
         public SettingsToggle ConsoleCompletedInput => ConsoleCompletedToggle;
         public SettingsToggle LegalAutoAcceptInput => LegalAutoAcceptToggle;
         public SettingsToggle RestoreLastPageInput => RestoreLastPageToggle;
+        public SettingsToggle DisableHomePageInput => DisableHomePageToggle;
         public Button AslmAccountAction => AslmAccountButton;
         public Label AslmAccountState => AslmAccountStatus;
         public Label AslmAccountTypeBadge => AslmAccountTypeBadgeLabel;
@@ -135,6 +138,8 @@ namespace ASLM.Controls.Settings
             // Core settings.
             RestoreLastPageRow.Title = L.Get(LocalizationKeys.Settings_RestoreLastPage_Title);
             RestoreLastPageRow.Description = string.Empty;
+            DisableHomePageRow.Title = L.Get(LocalizationKeys.Settings_DisableHomePage_Title);
+            DisableHomePageRow.Description = string.Empty;
             PortsCategory.Title = L.Get(LocalizationKeys.Settings_Ports);
             ModulePortTitle.Text = L.Get(LocalizationKeys.Settings_ModulePortTitle);
             ModulePortInfoButton.Description = string.Empty;

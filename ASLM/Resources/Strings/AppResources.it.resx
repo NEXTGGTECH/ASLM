@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Comportamento principale di ASLM, porte, API e console</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Account</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Nome visualizzato usato da ASLM e condiviso con i moduli</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Account</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>Nome visualizzato ASLM, accesso a GitHub e Ollama</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Account ASLM</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Connessione non riuscita: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Configurazione specifica del modulo</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Controlli di accesso e uscita dall'account Ollama</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Personalizzazione</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Modalità tema, lingua e impostazioni tema personalizzate</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Aggiornamenti</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Preferenze di aggiornamento per applicazione e moduli</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Abilita il controllo automatico degli aggiornamenti</value>
@@ -954,6 +933,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>Porte</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Disattiva la pagina Home (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>Apri l'ultima pagina visitata all'avvio di ASLM</value>
   </data>
@@ -1080,7 +1062,7 @@
     <value>Configurazione rapida</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>La configurazione rapida usa il nome utente Windows e le impostazioni predefinite</value>
+    <value>La configurazione rapida utilizza le impostazioni predefinite.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Fine</value>

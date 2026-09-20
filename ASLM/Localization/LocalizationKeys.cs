@@ -243,11 +243,8 @@ public static class LocalizationKeys
     public const string Settings_AutoCheckPeriod_Title = "Settings_AutoCheckPeriod_Title";
     public const string Settings_AutoInstall_Title = "Settings_AutoInstall_Title";
     public const string Settings_Category_ASLM = "Settings_Category_ASLM";
-    public const string Settings_Category_ASLM_Description = "Settings_Category_ASLM_Description";
     public const string Settings_Category_Account = "Settings_Category_Account";
-    public const string Settings_Category_Account_Description = "Settings_Category_Account_Description";
     public const string Settings_Category_Accounts = "Settings_Category_Accounts";
-    public const string Settings_Category_Accounts_Description = "Settings_Category_Accounts_Description";
     public const string Settings_Accounts_SectionAslm = "Settings_Accounts_SectionAslm";
     public const string Settings_Accounts_SectionGitHub = "Settings_Accounts_SectionGitHub";
     public const string Settings_Accounts_SectionOllama = "Settings_Accounts_SectionOllama";
@@ -269,13 +266,9 @@ public static class LocalizationKeys
     public const string Settings_GitHub_TokenPlaceholder = "Settings_GitHub_TokenPlaceholder";
     public const string Settings_GitHub_TokenTitle = "Settings_GitHub_TokenTitle";
     public const string Settings_GitHub_ConnectFailed = "Settings_GitHub_ConnectFailed";
-    public const string Settings_Category_Module_Description = "Settings_Category_Module_Description";
     public const string Settings_Category_Ollama = "Settings_Category_Ollama";
-    public const string Settings_Category_Ollama_Description = "Settings_Category_Ollama_Description";
     public const string Settings_Category_Personalization = "Settings_Category_Personalization";
-    public const string Settings_Category_Personalization_Description = "Settings_Category_Personalization_Description";
     public const string Settings_Category_Updates = "Settings_Category_Updates";
-    public const string Settings_Category_Updates_Description = "Settings_Category_Updates_Description";
     public const string Settings_CheckUpdates_Title = "Settings_CheckUpdates_Title";
     public const string Settings_CloseTooltip = "Settings_CloseTooltip";
     public const string Settings_CompletedConsoles_Title = "Settings_CompletedConsoles_Title";
@@ -330,6 +323,7 @@ public static class LocalizationKeys
     public const string Settings_Personalization_Themes = "Settings_Personalization_Themes";
     public const string Settings_Ports = "Settings_Ports";
     public const string Settings_RestoreLastPage_Title = "Settings_RestoreLastPage_Title";
+    public const string Settings_DisableHomePage_Title = "Settings_DisableHomePage_Title";
     public const string Settings_InstallAndRestart = "Settings_InstallAndRestart";
     public const string Settings_Save = "Settings_Save";
     public const string Settings_SaveAndRestart = "Settings_SaveAndRestart";

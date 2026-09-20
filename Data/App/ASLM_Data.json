@@ -11,6 +11,11 @@
     "api": {
         "serverEnabled": true
     },
+    "navigation": {
+        "restoreLastPage": true,
+        "disableHomePage": true,
+        "lastPage": "home"
+    },
     "consoles": {
         "sidebarVisible": true,
         "showIndividualModuleConsoles": true,

@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>ASLM のコア動作、ポート、API、コンソール</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>アカウント</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>ASLM およびモジュールと共有する表示名</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>アカウント</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM の表示名、GitHub と Ollama へのサインイン</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM アカウント</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>接続に失敗しました: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>モジュール固有の設定</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Ollama アカウントのサインインおよびサインアウト</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>パーソナライズ</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>テーマモード、言語、カスタムテーマ設定</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>更新</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>アプリケーションおよびモジュールの更新設定</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>更新の自動確認を有効にする</value>
@@ -954,6 +933,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>ポート</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>ホームページを無効にする (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>ASLM の起動時に最後に表示していたページを開く</value>
   </data>
@@ -1080,7 +1062,7 @@
     <value>クイックセットアップ</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>クイックセットアップでは Windows のユーザー名と既定の設定を使用します</value>
+    <value>クイックセットアップでは既定の設定を使用します。</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>完了</value>

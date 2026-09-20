@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Kernverhalten von ASLM, Ports, API und Konsolen</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Konto</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Von ASLM verwendeter und mit Modulen geteilter Anzeigename</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Konten</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM-Anzeigename, GitHub- und Ollama-Anmeldung</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM-Konto</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Verbindung fehlgeschlagen: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Modulspezifische Konfiguration</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Anmelde- und Abmeldesteuerung für das Ollama-Konto</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Personalisierung</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Designmodus, Sprache und benutzerdefinierte Designeinstellungen</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Aktualisierungen</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Einstellungen für Anwendungs- und Modul-Updates</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Automatische Updateprüfung aktivieren</value>
@@ -954,6 +933,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>Ports</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Startseite deaktivieren (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>Beim Start von ASLM die zuletzt besuchte Seite öffnen</value>
   </data>
@@ -1080,7 +1062,7 @@
     <value>Schnelleinrichtung</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Schnelleinrichtung verwendet Ihren Windows-Benutzernamen und Standardeinstellungen</value>
+    <value>Die Schnelleinrichtung verwendet die Standardeinstellungen.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Fertigstellen</value>

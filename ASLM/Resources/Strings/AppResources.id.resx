@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Perilaku inti ASLM, port, API, dan konsol</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Akun</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Nama tampilan yang digunakan ASLM dan dibagikan ke modul</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Akun</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>Nama tampilan ASLM, masuk ke GitHub dan Ollama</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Akun ASLM</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Koneksi gagal: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Konfigurasi khusus modul</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Kontrol masuk dan keluar akun Ollama</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Personalisasi</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Mode tema, bahasa, dan pengaturan tema kustom</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Pembaruan</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Preferensi pembaruan aplikasi dan modul</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Aktifkan pemeriksaan pembaruan otomatis</value>
@@ -954,6 +933,9 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>Port</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Nonaktifkan halaman beranda (WIP)</value>
+  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>Buka halaman yang terakhir dikunjungi saat ASLM dimulai</value>
   </data>
@@ -1080,7 +1062,7 @@
     <value>Penyiapan Cepat</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Penyiapan Cepat menggunakan nama pengguna Windows dan pengaturan default Anda</value>
+    <value>Penyiapan cepat menggunakan pengaturan bawaan.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Selesai</value>

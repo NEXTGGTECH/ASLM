@@ -117,9 +117,22 @@ namespace ASLM.Models
         [JsonPropertyName("restoreLastPage")]
         public bool RestoreLastPage { get; set; } = true;
 
+        // Hides the unfinished home dashboard and uses Modules as the default page.
+        [JsonPropertyName("disableHomePage")]
+        public bool DisableHomePage { get; set; } = true;
+
         // Uses a stable shell route rather than a transient local module URL.
         [JsonPropertyName("lastPage")]
         public string LastPage { get; set; } = ShellNavigationRoute.Home;
+
+        /// <summary>
+        /// Resolves the startup route without restoring a disabled home page.
+        /// </summary>
+        public string GetInitialPage()
+        {
+            var route = RestoreLastPage ? ShellNavigationRoute.Normalize(LastPage) : ShellNavigationRoute.Home;
+            return DisableHomePage && route == ShellNavigationRoute.Home ? ShellNavigationRoute.Modules : route;
+        }
 
         /// <summary>
         /// Replaces missing or unsupported routes with the home dashboard.
@@ -374,11 +387,11 @@ namespace ASLM.Models
     {
         // One of: Dark, Light, System, Custom.
         [JsonPropertyName("appearance")]
-        public string Appearance { get; set; } = "Dark";
+        public string Appearance { get; set; } = "System";
 
-        // BCP-47-style language code (e.g. en). Managed in personalization; modules receive a snapshot via locale settings.
+        // Supported BCP-47 language code. New profiles use the system UI language, or English if unsupported.
         [JsonPropertyName("language")]
-        public string Language { get; set; } = "en";
+        public string Language { get; set; } = AppLocalizationService.GetDefaultLanguage();
 
         // Identifier of the selected custom theme when Appearance is "Custom".
         [JsonPropertyName("customThemeId")]
@@ -390,14 +403,16 @@ namespace ASLM.Models
         public void Normalize()
         {
             Appearance = NormalizeAppearance(Appearance);
-            Language = NormalizeLanguage(Language);
+            Language = string.IsNullOrWhiteSpace(Language)
+                ? AppLocalizationService.GetDefaultLanguage()
+                : NormalizeLanguage(Language);
             if (!string.Equals(Appearance, "Custom", StringComparison.OrdinalIgnoreCase))
             {
                 CustomThemeId = null;
             }
         }
 
-        private static readonly HashSet<string> SupportedLanguageCodes = new(StringComparer.OrdinalIgnoreCase)
+        internal static readonly HashSet<string> SupportedLanguageCodes = new(StringComparer.OrdinalIgnoreCase)
         {
             "en",
             "zh-Hans", "es", "ar", "hi", "pt-BR", "ru", "ja", "de", "fr", "ko", "it",
@@ -415,18 +430,18 @@ namespace ASLM.Models
             }
 
             var trimmed = value.Trim();
-            return SupportedLanguageCodes.Contains(trimmed) ? trimmed : "en";
+            return SupportedLanguageCodes.TryGetValue(trimmed, out var language) ? language : "en";
         }
 
         /// <summary>
-        /// Returns the canonical appearance string, falling back to Dark for unknown values.
+        /// Returns the canonical appearance string, falling back to System for unknown values.
         /// </summary>
         public static string NormalizeAppearance(string? value)
         {
+            if (string.Equals(value, "Dark", StringComparison.OrdinalIgnoreCase)) return "Dark";
             if (string.Equals(value, "Light", StringComparison.OrdinalIgnoreCase)) return "Light";
-            if (string.Equals(value, "System", StringComparison.OrdinalIgnoreCase)) return "System";
             if (string.Equals(value, "Custom", StringComparison.OrdinalIgnoreCase)) return "Custom";
-            return "Dark";
+            return "System";
         }
     }
 }

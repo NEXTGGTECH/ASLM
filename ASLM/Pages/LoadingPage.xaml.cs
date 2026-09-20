@@ -95,28 +95,31 @@ namespace ASLM.Pages
 
             _initialized = true;
             await Task.Run(() => _appData.InitializeAsync());
-            await Task.Run(() => _sunriseService.InitializeAsync());
-            try
+            _localization.ApplyCulture();
+            if (SunriseService.IsEnabled)
             {
-                using var cloudSyncCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                var cloudSync = await _sunriseService.SynchronizeCloudAccountAsync(cloudSyncCts.Token);
-                if (!cloudSync.Success)
+                await Task.Run(() => _sunriseService.InitializeAsync());
+                try
                 {
-                    Debug.WriteLine($"SUNRISE cloud-account synchronization failed: {cloudSync.Error}");
+                    using var cloudSyncCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    var cloudSync = await _sunriseService.SynchronizeCloudAccountAsync(cloudSyncCts.Token);
+                    if (!cloudSync.Success)
+                    {
+                        Debug.WriteLine($"SUNRISE cloud-account synchronization failed: {cloudSync.Error}");
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Continue with cached account data when SUNRISE is unavailable at startup.
+                    Debug.WriteLine("SUNRISE cloud-account synchronization timed out during startup.");
+                }
+                catch (Exception ex)
+                {
+                    // A temporary account/network failure must not prevent ASLM from starting.
+                    Debug.WriteLine($"SUNRISE cloud-account synchronization failed during startup: {ex.Message}");
                 }
             }
-            catch (OperationCanceledException)
-            {
-                // Continue with cached account data when SUNRISE is unavailable at startup.
-                Debug.WriteLine("SUNRISE cloud-account synchronization timed out during startup.");
-            }
-            catch (Exception ex)
-            {
-                // A temporary account/network failure must not prevent ASLM from starting.
-                Debug.WriteLine($"SUNRISE cloud-account synchronization failed during startup: {ex.Message}");
-            }
             await Task.Run(() => _legalAcceptance.InitializeAsync());
-            _localization.ApplyCulture();
             await Task.Run(() => _moduleTrustService.InitializeAsync());
             await Task.Run(() => _customThemesStore.LoadAsync());
             await Task.Run(() => _notifications.InitializeAsync());

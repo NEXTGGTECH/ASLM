@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Основное поведение ASLM, порты, API и консоли</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Учётная запись</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Отображаемое имя в ASLM, общее для модулей</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Учётные записи</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>Отображаемое имя ASLM, вход в GitHub и Ollama</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Учётная запись ASLM</value>
@@ -810,26 +801,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Не удалось подключиться: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Параметры конкретного модуля</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Вход в учётную запись Ollama и выход</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Персонализация</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Режим темы, язык и пользовательские темы</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Обновления</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Параметры обновления приложения и модулей</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Включить автоматическую проверку обновлений</value>
@@ -980,6 +959,9 @@
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Порты</value>
+  </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Отключить главную страницу (WIP)</value>
   </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>Открывать последнюю посещённую страницу при запуске ASLM</value>
@@ -1140,7 +1122,7 @@
     <value>Быстрая настройка</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Быстрая настройка использует имя пользователя Windows и настройки по умолчанию</value>
+    <value>Быстрая настройка использует параметры по умолчанию.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Готово</value>
