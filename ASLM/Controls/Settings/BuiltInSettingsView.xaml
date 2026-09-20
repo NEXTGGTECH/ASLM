@@ -109,7 +109,8 @@
         <VerticalStackLayout x:Name="AccountsContainer"
                              Spacing="12"
                              IsVisible="False">
-            <settings:SettingsCardView Style="{StaticResource SettingsAccountCardBorderStyle}">
+            <settings:SettingsCardView x:Name="AslmAccountCard"
+                                       Style="{StaticResource SettingsAccountCardBorderStyle}">
                 <VerticalStackLayout Spacing="8"
                                      MinimumWidthRequest="0"
                                      HorizontalOptions="Fill">

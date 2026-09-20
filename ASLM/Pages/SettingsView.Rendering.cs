@@ -27,7 +27,7 @@ namespace ASLM.Pages
         {
             PrepareCategorySurface(showEmptyState: false, showBuiltInSettings: true);
             BuiltInSettingsContainer.ShowCategory(SettingsCategoryKind.Accounts);
-            UserProfileSection.IsVisible = !_sunriseService.IsCloudAccount;
+            UserProfileSection.IsVisible = SunriseService.IsEnabled && !_sunriseService.IsCloudAccount;
 
             _githubDraft = _githubAccountStore.GetState();
             UpdateAslmAccountActionControls();

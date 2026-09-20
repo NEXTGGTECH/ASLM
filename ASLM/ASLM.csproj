@@ -42,6 +42,15 @@
 	<Import Project="..\ASLM.Build.props" />
 	<Import Project="Installer\Build\Installer.Build.targets" />
 
+	<!-- ASLM / SUNRISE ID only; GitHub and Ollama accounts remain available. -->
+	<PropertyGroup>
+		<ASLMAccountEnabled>true</ASLMAccountEnabled>
+		<ASLMAccountEnabled Condition="'$(Configuration)' == 'Release'">false</ASLMAccountEnabled>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(ASLMAccountEnabled)' == 'true'">
+		<DefineConstants>$(DefineConstants);ASLM_ACCOUNT_ENABLED</DefineConstants>
+	</PropertyGroup>
+
 	<PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(SelfContained)' == ''">
 		<SelfContained>true</SelfContained>
 	</PropertyGroup>

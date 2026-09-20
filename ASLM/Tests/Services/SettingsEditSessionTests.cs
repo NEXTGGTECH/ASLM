@@ -31,7 +31,7 @@ public sealed class SettingsEditSessionTests
         draft.UserName = "Bob";
         draft.PortStart = "21000";
 
-        draft.HasAccountChanges.Should().BeTrue();
+        draft.HasAccountChanges.Should().Be(ASLM.Services.Sunrise.SunriseService.IsEnabled);
         draft.HasAslmChanges.Should().BeTrue();
 
         draft.DiscardAslm();

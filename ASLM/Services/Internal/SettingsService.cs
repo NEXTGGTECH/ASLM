@@ -254,10 +254,13 @@ namespace ASLM.Services.Internal
             bool disableHomePage,
             bool legalAutoAcceptUpdates)
         {
-            appData.Data.User.Name = userName;
-            if (appData.Data.User.AccountMode == AppAccountMode.Local)
+            if (SunriseService.IsEnabled)
             {
-                appData.Data.User.LocalName = userName;
+                appData.Data.User.Name = userName;
+                if (appData.Data.User.AccountMode == AppAccountMode.Local)
+                {
+                    appData.Data.User.LocalName = userName;
+                }
             }
 
             appData.Data.Ports.ModulesStart = modulesStart;

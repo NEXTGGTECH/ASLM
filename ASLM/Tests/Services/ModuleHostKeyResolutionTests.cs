@@ -34,18 +34,53 @@ public sealed class ModuleHostKeyResolutionTests
 
         var appData = await CreateAppDataAsync();
         appData.Data.GitHub.PersonalAccessToken = "github-personal-token";
+        appData.Data.User.AccountMode = AppAccountMode.Cloud;
+        appData.Data.User.Name = "Cloud user";
+        appData.Data.User.LocalName = "Local user";
+        await appData.SaveAsync();
         var githubStore = CreateGitHubStore(appData);
         using var sunriseService = new SunriseService(
             NullLogger<SunriseService>.Instance,
             appData);
-        await sunriseService.InitializeAsync();
+        if (SunriseService.IsEnabled)
+        {
+            await sunriseService.InitializeAsync();
+        }
+        else
+        {
+            // A disabled build must not read credentials or mutate them, even if a caller
+            // accidentally invokes an account action. GitHub resolution below stays active.
+            var savedFiles = Directory.GetFiles(layout.DataAppDir)
+                .ToDictionary(path => path, File.ReadAllBytes);
+            await Assert.ThrowsAsync<NotSupportedException>(() => sunriseService.InitializeAsync());
+            await Assert.ThrowsAsync<NotSupportedException>(() => sunriseService.AuthenticateApplicationAsync());
+            await Assert.ThrowsAsync<NotSupportedException>(() => sunriseService.SignOutAsync());
+            await Assert.ThrowsAsync<NotSupportedException>(() => sunriseService.ClearTokensAsync());
+            await Assert.ThrowsAsync<NotSupportedException>(() => sunriseService.ClearUserDataAsync());
+            await Assert.ThrowsAsync<NotSupportedException>(() => sunriseService.SendAsync(
+                SunriseService.AslmGetUserDataEndpoint, "GET"));
+            var sync = await sunriseService.SynchronizeCloudAccountAsync();
+            sync.Success.Should().BeTrue();
+            sync.Skipped.Should().BeTrue();
+            sunriseService.IsCloudAccount.Should().BeFalse();
+            sunriseService.TryGetRefreshToken(out var token).Should().BeFalse();
+            token.Should().BeEmpty();
+            appData.Data.User.AccountMode.Should().Be(AppAccountMode.Cloud);
+            appData.Data.User.Name.Should().Be("Cloud user");
+            appData.Data.User.LocalName.Should().Be("Local user");
+            Directory.GetFiles(layout.DataAppDir).Should().BeEquivalentTo(savedFiles.Keys);
+            foreach (var (path, bytes) in savedFiles)
+            {
+                File.ReadAllBytes(path).Should().Equal(bytes);
+            }
+        }
         using var runner = CreateRunner(appData, githubStore, sunriseService);
         var module = CreateOfficialModule();
 
         runner.GetResolvedSettingValue(
                 module,
                 new ModuleSetting { Key = "key-aslm", Type = "key-aslm" })
-            .Should().Be("aslm-refresh-token");
+            .Should().Be(SunriseService.IsEnabled ? "aslm-refresh-token" : "None");
         runner.GetResolvedSettingValue(
                 module,
                 new ModuleSetting { Key = "key-gh", Type = "key-gh" })
@@ -65,7 +100,10 @@ public sealed class ModuleHostKeyResolutionTests
         using var sunriseService = new SunriseService(
             NullLogger<SunriseService>.Instance,
             appData);
-        await sunriseService.InitializeAsync();
+        if (SunriseService.IsEnabled)
+        {
+            await sunriseService.InitializeAsync();
+        }
         using var runner = CreateRunner(appData, githubStore, sunriseService);
         var module = ModuleConfigBuilder.Create(
             id: "official-author-module",
@@ -89,7 +127,10 @@ public sealed class ModuleHostKeyResolutionTests
         using var sunriseService = new SunriseService(
             NullLogger<SunriseService>.Instance,
             appData);
-        await sunriseService.InitializeAsync();
+        if (SunriseService.IsEnabled)
+        {
+            await sunriseService.InitializeAsync();
+        }
         using var runner = CreateRunner(appData, githubStore, sunriseService);
         var module = CreateOfficialModule();
 
@@ -116,7 +157,10 @@ public sealed class ModuleHostKeyResolutionTests
         using var sunriseService = new SunriseService(
             NullLogger<SunriseService>.Instance,
             appData);
-        await sunriseService.InitializeAsync();
+        if (SunriseService.IsEnabled)
+        {
+            await sunriseService.InitializeAsync();
+        }
         using var runner = CreateRunner(appData, githubStore, sunriseService);
         var module = ModuleConfigBuilder.Create(
             id: "unreviewed-module",

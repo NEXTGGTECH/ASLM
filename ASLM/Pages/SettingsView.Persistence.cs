@@ -39,7 +39,7 @@ namespace ASLM.Pages
         /// </summary>
         private void SyncAslmDraftValuesFromControls()
         {
-            if (UserProfileSection.IsVisible)
+            if (SunriseService.IsEnabled && UserProfileSection.IsVisible)
             {
                 _userNameDraft = UsernameEntry.Text?.Trim() ?? string.Empty;
             }
@@ -319,7 +319,7 @@ namespace ASLM.Pages
                     RenderAslmCategory();
                     break;
                 case SettingsCategoryKind.Accounts:
-                    if (!_sunriseService.IsCloudAccount)
+                    if (SunriseService.IsEnabled && !_sunriseService.IsCloudAccount)
                     {
                         _userNameDraft = Environment.UserName;
                     }
@@ -431,12 +431,15 @@ namespace ASLM.Pages
                 UpdateSelectorButtonStates();
                 UpdateActionButtons();
 
-                if (!SettingsService.TryValidateDisplayName(_userNameDraft, out var validatedUserName, out var displayNameErrorMessage))
+                if (SunriseService.IsEnabled)
                 {
-                    await ShowErrorAsync(displayNameErrorMessage);
-                    return;
+                    if (!SettingsService.TryValidateDisplayName(_userNameDraft, out var validatedUserName, out var displayNameErrorMessage))
+                    {
+                        await ShowErrorAsync(displayNameErrorMessage);
+                        return;
+                    }
+                    _userNameDraft = validatedUserName;
                 }
-                _userNameDraft = validatedUserName;
 
                 var portResult = SettingsService.TryParsePortStart(_portStartDraft);
                 if (!portResult.Success)

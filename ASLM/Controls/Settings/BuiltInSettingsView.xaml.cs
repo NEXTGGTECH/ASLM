@@ -37,6 +37,8 @@ namespace ASLM.Controls.Settings
         public BuiltInSettingsView()
         {
             InitializeComponent();
+            AslmAccountCard.IsVisible = SunriseService.IsEnabled;
+            UserProfileSection.IsVisible = SunriseService.IsEnabled;
             ApplyLocalization();
         }
 

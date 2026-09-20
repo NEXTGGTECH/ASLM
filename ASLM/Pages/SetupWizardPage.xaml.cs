@@ -15,6 +15,7 @@ namespace ASLM.Pages
     public partial class SetupWizardPage : ContentPage, ILocalizable, INotifyPropertyChanged
     {
         private const int TotalSteps = 3;
+        private static int FirstSetupStep => SunriseService.IsEnabled ? 1 : 2;
 
         private readonly AppDataStore _appData;
         private readonly EngineInstaller _engineInstaller;
@@ -120,7 +121,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OnSetupClicked(object? sender, EventArgs e)
         {
-            _currentStep = 1;
+            _currentStep = FirstSetupStep;
             UpdateStepUI();
         }
 
@@ -129,9 +130,12 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnFastSetupClicked(object? sender, EventArgs e)
         {
-            await _sunriseService.SelectLocalAccountAsync();
-            _appData.Data.User.Name = Environment.UserName;
-            _appData.Data.User.LocalName = Environment.UserName;
+            if (SunriseService.IsEnabled)
+            {
+                await _sunriseService.SelectLocalAccountAsync();
+                _appData.Data.User.Name = Environment.UserName;
+                _appData.Data.User.LocalName = Environment.UserName;
+            }
             var defaultPorts = new AppPortConfig();
             _appData.Data.Ports.ModulesStart = defaultPorts.ModulesStart;
             await _appData.SaveAsync();
@@ -167,7 +171,7 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnLocalAccountCheckedChanged(object? sender, CheckedChangedEventArgs e)
         {
-            if (!e.Value || _suppressAccountSelectionEvents || _isAccountActionRunning)
+            if (!SunriseService.IsEnabled || !e.Value || _suppressAccountSelectionEvents || _isAccountActionRunning)
             {
                 return;
             }
@@ -201,7 +205,7 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnCloudAccountCheckedChanged(object? sender, CheckedChangedEventArgs e)
         {
-            if (!e.Value || _suppressAccountSelectionEvents)
+            if (!SunriseService.IsEnabled || !e.Value || _suppressAccountSelectionEvents)
             {
                 return;
             }
@@ -235,7 +239,7 @@ namespace ASLM.Pages
         /// </summary>
         private async Task<bool> AuthenticateCloudAccountAsync()
         {
-            if (_isAccountActionRunning)
+            if (!SunriseService.IsEnabled || _isAccountActionRunning)
             {
                 return false;
             }
@@ -312,6 +316,12 @@ namespace ASLM.Pages
         /// </summary>
         private void UpdateAccountSelectionUI(bool preserveFailureStatus = false)
         {
+            if (!SunriseService.IsEnabled)
+            {
+                Step1Panel.IsVisible = false;
+                return;
+            }
+
             var useCloud = CloudAccountRadioButton.IsChecked;
             LocalAccountPanel.IsVisible = !useCloud;
             CloudAccountPanel.IsVisible = useCloud;
@@ -472,7 +482,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OnBackClicked(object? sender, EventArgs e)
         {
-            if (_currentStep <= 1)
+            if (_currentStep <= FirstSetupStep)
             {
                 return;
             }
@@ -565,23 +575,25 @@ namespace ASLM.Pages
         private void UpdateStepUI()
         {
             Step0Panel.IsVisible = _currentStep == 0;
-            Step1Panel.IsVisible = _currentStep == 1;
+            Step1Panel.IsVisible = SunriseService.IsEnabled && _currentStep == 1;
             Step2Panel.IsVisible = _currentStep == 2;
             Step3Panel.IsVisible = _currentStep == 3;
 
             HeaderRow.IsVisible = _currentStep > 0;
             ButtonPanel.IsVisible = _currentStep > 0;
-            BackButton.IsVisible = _currentStep > 1;
+            BackButton.IsVisible = _currentStep > FirstSetupStep;
             NextButton.Text = _currentStep == TotalSteps
                 ? L.Get(LocalizationKeys.SetupWizard_Next_Install)
                 : L.Get(LocalizationKeys.Common_Next);
             ResetNavigationButtons();
 
+            var visibleStepCount = TotalSteps - FirstSetupStep + 1;
+            var visibleStep = _currentStep - FirstSetupStep + 1;
             StepLabel.Text = _currentStep switch
             {
-                1 => L.Get(LocalizationKeys.SetupWizard_StepFormat, 1, 3, L.Get(LocalizationKeys.Settings_Accounts_SectionAslm)),
-                2 => L.Get(LocalizationKeys.SetupWizard_StepFormat, 2, 3, L.Get(LocalizationKeys.SetupWizard_Step_PortConfiguration)),
-                3 => L.Get(LocalizationKeys.SetupWizard_StepFormat, 3, 3, L.Get(LocalizationKeys.SetupWizard_Step_ModuleSelection)),
+                1 => L.Get(LocalizationKeys.SetupWizard_StepFormat, visibleStep, visibleStepCount, L.Get(LocalizationKeys.Settings_Accounts_SectionAslm)),
+                2 => L.Get(LocalizationKeys.SetupWizard_StepFormat, visibleStep, visibleStepCount, L.Get(LocalizationKeys.SetupWizard_Step_PortConfiguration)),
+                3 => L.Get(LocalizationKeys.SetupWizard_StepFormat, visibleStep, visibleStepCount, L.Get(LocalizationKeys.SetupWizard_Step_ModuleSelection)),
                 _ => string.Empty
             };
         }
@@ -698,7 +710,7 @@ namespace ASLM.Pages
         private async Task StartInstallAsync()
         {
             // Persist the profile and port values before any installation begins.
-            if (_appData.Data.User.AccountMode == AppAccountMode.Local &&
+            if (SunriseService.IsEnabled && _appData.Data.User.AccountMode == AppAccountMode.Local &&
                 SettingsService.TryValidateDisplayName(UsernameEntry.Text, out var validatedUserName, out _))
             {
                 _appData.Data.User.Name = validatedUserName;

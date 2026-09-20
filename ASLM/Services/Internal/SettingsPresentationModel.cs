@@ -31,7 +31,6 @@ namespace ASLM.Services.Internal
     public sealed record SettingsCategory(
         string Id,
         string Title,
-        string Description,
         SettingsCategoryKind Kind,
         ModuleConfig? Module,
         bool SupportsAppRestart);
@@ -77,28 +76,24 @@ namespace ASLM.Services.Internal
                 new(
                     "aslm",
                     "ASLM",
-                    "Core ASLM behavior, ports, API, and consoles.",
                     SettingsCategoryKind.Aslm,
                     null,
                     true),
                 new(
                     "aslm-updates",
                     "Updates",
-                    "Application and module update preferences.",
                     SettingsCategoryKind.Updates,
                     null,
                     true),
                 new(
                     "aslm-accounts",
                     "Accounts",
-                    "ASLM display name, GitHub and Ollama sign-in.",
                     SettingsCategoryKind.Accounts,
                     null,
                     false),
                 new(
                     "aslm-personalization",
                     "Personalization",
-                    "Theme mode, language, and custom theme settings.",
                     SettingsCategoryKind.Personalization,
                     null,
                     false)
@@ -112,9 +107,6 @@ namespace ASLM.Services.Internal
                     .Select(static module => new SettingsCategory(
                         $"module::{module.Id}",
                         module.Name,
-                        string.IsNullOrWhiteSpace(module.Description)
-                            ? "Module-specific configuration."
-                            : module.Description.Trim(),
                         SettingsCategoryKind.Module,
                         module,
                         false)));

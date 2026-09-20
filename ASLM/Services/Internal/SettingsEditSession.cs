@@ -164,7 +164,7 @@ namespace ASLM.Services.Internal
         /// Gets whether the display-name draft differs from its accepted value.
         /// </summary>
         public bool HasAccountChanges =>
-            !string.Equals(UserName, AslmBaseline.UserName, StringComparison.Ordinal);
+            SunriseService.IsEnabled && !string.Equals(UserName, AslmBaseline.UserName, StringComparison.Ordinal);
 
         /// <summary>
         /// Gets whether restart-relevant ASLM drafts differ from accepted values.

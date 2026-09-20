@@ -19,6 +19,16 @@ namespace ASLM.Services.Sunrise
     /// </summary>
     public sealed class SunriseService : IDisposable
     {
+        /// <summary>
+        /// Whether this build enables ASLM accounts (configured in ASLM.csproj).
+        /// </summary>
+        public static bool IsEnabled { get; } =
+#if ASLM_ACCOUNT_ENABLED
+            true;
+#else
+            false;
+#endif
+
         private const int CurrentFileVersion = 2;
 
         private const int CallbackHeaderLimit = 16 * 1024;
@@ -66,7 +76,7 @@ namespace ASLM.Services.Sunrise
 
         private readonly ILogger<SunriseService> _logger;
         private readonly AppDataStore _appData;
-        private readonly HttpClient _httpClient;
+        private readonly Lazy<HttpClient> _httpClient = new(() => new HttpClient());
         private readonly SemaphoreSlim _dataGate = new(1, 1);
         private readonly SemaphoreSlim _accountOperationGate = new(1, 1);
 
@@ -126,7 +136,7 @@ namespace ASLM.Services.Sunrise
         /// <summary>
         /// Gets whether ASLM currently uses a SUNRISE cloud account.
         /// </summary>
-        public bool IsCloudAccount => AccountMode == AppAccountMode.Cloud;
+        public bool IsCloudAccount => IsEnabled && AccountMode == AppAccountMode.Cloud;
 
 
         // Construction
@@ -138,7 +148,6 @@ namespace ASLM.Services.Sunrise
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _appData = appData ?? throw new ArgumentNullException(nameof(appData));
-            _httpClient = new HttpClient();
 
             var dataDirectory = Path.Combine(AppRoot.Directory, "Data", "App");
             _domainsFilePath = Path.Combine(dataDirectory, DomainsFileName);
@@ -156,6 +165,10 @@ namespace ASLM.Services.Sunrise
         public async Task InitializeAsync(CancellationToken ct = default)
         {
             ThrowIfDisposed();
+            if (!IsEnabled)
+            {
+                throw new NotSupportedException("ASLM accounts are disabled in this build.");
+            }
 
             await _dataGate.WaitAsync(ct);
             try
@@ -350,7 +363,7 @@ namespace ASLM.Services.Sunrise
 
             try
             {
-                return await _httpClient.SendAsync(
+                return await _httpClient.Value.SendAsync(
                     request,
                     HttpCompletionOption.ResponseContentRead,
                     ct);
@@ -609,6 +622,10 @@ namespace ASLM.Services.Sunrise
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
+            if (!IsEnabled)
+            {
+                return new SunriseAccountSyncResult { Success = true, Skipped = true };
+            }
             await _accountOperationGate.WaitAsync(ct);
             try
             {
@@ -826,7 +843,7 @@ namespace ASLM.Services.Sunrise
         {
             ThrowIfDisposed();
 
-            refreshToken = _tokensData.Jwt.TokenRefresh;
+            refreshToken = IsEnabled ? _tokensData.Jwt.TokenRefresh : string.Empty;
             return _initialized && !string.IsNullOrEmpty(refreshToken);
         }
 
@@ -1640,7 +1657,10 @@ namespace ASLM.Services.Sunrise
             }
 
             _disposed = true;
-            _httpClient.Dispose();
+            if (_httpClient.IsValueCreated)
+            {
+                _httpClient.Value.Dispose();
+            }
             _dataGate.Dispose();
             _accountOperationGate.Dispose();
         }
