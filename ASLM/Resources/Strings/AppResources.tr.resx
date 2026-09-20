@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Temel ASLM davranışı, bağlantı noktaları, API ve konsollar</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Hesap</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>ASLM tarafından kullanılan ve modüllerle paylaşılan görünen ad</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Hesaplar</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM görünen adı, GitHub ve Ollama oturumu</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM Hesabı</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Bağlantı başarısız: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Modüle özel yapılandırma</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Ollama hesabı oturum açma ve oturum kapatma denetimleri</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Kişiselleştirme</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Tema modu, dil ve özel tema ayarları</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Güncellemeler</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Uygulama ve modül güncelleme tercihleri</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Otomatik güncelleme denetimini etkinleştir</value>
@@ -1083,7 +1062,7 @@
     <value>Hızlı kurulum</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Hızlı kurulum Windows kullanıcı adınızı ve varsayılan ayarları kullanır</value>
+    <value>Hızlı kurulum varsayılan ayarları kullanır.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Bitir</value>

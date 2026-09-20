@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Kern-ASLM-gedrag, poorten, API en consoles</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Account</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Weergavenaam gebruikt door ASLM en gedeeld met modules</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Accounts</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM-weergavenaam, GitHub- en Ollama-aanmelding</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM-account</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Verbinding mislukt: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Modulespecifieke configuratie</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Ollama-account: aan- en afmeldingsopties</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Personalisatie</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Themamodus, taal en aangepaste thema-instellingen</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Bijwerkingen</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Voorkeuren voor applicatie- en module-updates</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Automatisch controleren op updates inschakelen</value>
@@ -1083,7 +1062,7 @@
     <value>Snelle installatie</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Snelle installatie gebruikt uw Windows-gebruikersnaam en standaardinstellingen</value>
+    <value>De snelle installatie gebruikt de standaardinstellingen.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Voltooien</value>

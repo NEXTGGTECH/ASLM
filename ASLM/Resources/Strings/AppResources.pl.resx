@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Podstawowe zachowanie ASLM, porty, API i konsole</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Konto</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Nazwa wyświetlana używana przez ASLM i udostępniana modułom</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Konta</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>Nazwa wyświetlana ASLM oraz logowanie do GitHub i Ollama</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Konto ASLM</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Połączenie nie powiodło się: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Konfiguracja specyficzna dla modułu</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Logowanie i wylogowanie z konta Ollama</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Personalizacja</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Tryb motywu, język i niestandardowe ustawienia motywu</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Aktualizacje</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Preferencje aktualizacji aplikacji i modułów</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Włącz automatyczne sprawdzanie aktualizacji</value>
@@ -1083,7 +1062,7 @@
     <value>Szybka konfiguracja</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Szybka konfiguracja używa nazwy użytkownika Windows i ustawień domyślnych</value>
+    <value>Szybka konfiguracja używa ustawień domyślnych.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Zakończ</value>

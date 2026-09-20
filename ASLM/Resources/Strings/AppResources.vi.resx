@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Hành vi ASLM cốt lõi, cổng, API và bảng điều khiển</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Tài khoản</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Tên hiển thị dùng bởi ASLM và chia sẻ với mô-đun</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Tài khoản</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>Tên hiển thị ASLM, đăng nhập GitHub và Ollama</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Tài khoản ASLM</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Kết nối thất bại: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Cấu hình riêng cho mô-đun</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Đăng nhập và đăng xuất tài khoản Ollama</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Cá nhân hóa</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Chế độ giao diện, ngôn ngữ và chủ đề tùy chỉnh</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Cập nhật</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Tùy chọn cập nhật ứng dụng và mô-đun</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Bật tự động kiểm tra bản cập nhật</value>
@@ -1083,7 +1062,7 @@
     <value>Thiết lập nhanh</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Thiết lập nhanh dùng tên người dùng Windows và cài đặt mặc định</value>
+    <value>Thiết lập nhanh sử dụng các cài đặt mặc định.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Hoàn tất</value>

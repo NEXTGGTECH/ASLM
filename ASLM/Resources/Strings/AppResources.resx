@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Core ASLM behavior, ports, API, and consoles</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Account</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Display name used by ASLM and shared with modules</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Accounts</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM display name, GitHub and Ollama sign-in</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM Account</value>
@@ -810,26 +801,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Connection failed: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Module-specific configuration</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Ollama account sign-in and sign-out controls</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Personalization</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Theme mode, language, and custom theme settings</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Updates</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Application and module update preferences</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Enable automatic update checks</value>
@@ -1143,7 +1122,7 @@
     <value>Fast Setup</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Fast Setup uses your Windows username and default settings</value>
+    <value>Fast Setup uses the default settings.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Finish</value>

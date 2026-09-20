@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>سلوك ASLM الأساسي والمنافذ وAPI ووحدات التحكم</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>الحساب</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>اسم العرض الذي يستخدمه ASLM ويشاركه مع الوحدات</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>الحسابات</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>اسم العرض في ASLM وتسجيل الدخول إلى GitHub وOllama</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>حساب ASLM</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>فشل الاتصال: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>تهيئة خاصة بالوحدة</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>عناصر تسجيل الدخول والخروج من حساب Ollama</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>التخصيص</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>وضع السمة واللغة وإعدادات السمة المخصصة</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>التحديثات</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>تفضيلات تحديث التطبيق والوحدات</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>تمكين التحقق التلقائي من التحديثات</value>
@@ -1083,7 +1062,7 @@
     <value>إعداد سريع</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>يستخدم الإعداد السريع اسم مستخدم Windows والإعدادات الافتراضية</value>
+    <value>يستخدم الإعداد السريع الإعدادات الافتراضية.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>إنهاء</value>

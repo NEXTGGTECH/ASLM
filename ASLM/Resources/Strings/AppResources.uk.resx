@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>Основна поведінка ASLM, порти, API та консолі</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>Обліковий запис</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>Відображуване ім’я для ASLM і спільне з модулями</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Облікові записи</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>Відображуване ім’я ASLM, вхід у GitHub та Ollama</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Обліковий запис ASLM</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>Не вдалося підключитися: {0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>Конфігурація конкретного модуля</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Вхід і вихід з облікового запису Ollama</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>Персоналізація</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>Режим теми, мова та власні налаштування теми</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>Оновлення</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>Налаштування оновлень додатка та модулів</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>Увімкнути автоматичну перевірку оновлень</value>
@@ -1083,7 +1062,7 @@
     <value>Швидке налаштування</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Швидке налаштування використовує ім'я користувача Windows і типові налаштування</value>
+    <value>Швидке налаштування використовує типові параметри.</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Завершити</value>

@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>ASLM 核心行為、連接埠、API 與主控台</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>帳戶</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>ASLM 使用的顯示名稱，並與模組共用</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>帳戶</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM 顯示名稱、GitHub 與 Ollama 登入</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM 帳戶</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>連線失敗：{0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>模組專屬設定</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Ollama 帳戶登入與登出控制項</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>個人化</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>佈景主題模式、語言與自訂佈景主題設定</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>更新</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>應用程式與模組更新偏好設定</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>啟用自動檢查更新</value>
@@ -1083,7 +1062,7 @@
     <value>快速安裝</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>快速安裝會使用您的 Windows 使用者名稱與預設設定</value>
+    <value>快速設定使用預設設定。</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>完成</value>

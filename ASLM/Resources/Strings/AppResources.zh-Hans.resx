@@ -732,20 +732,11 @@
   <data name="Settings_Category_ASLM" xml:space="preserve">
     <value>ASLM</value>
   </data>
-  <data name="Settings_Category_ASLM_Description" xml:space="preserve">
-    <value>ASLM 核心行为、端口、API 与控制台</value>
-  </data>
   <data name="Settings_Category_Account" xml:space="preserve">
     <value>账户</value>
   </data>
-  <data name="Settings_Category_Account_Description" xml:space="preserve">
-    <value>ASLM 使用的显示名称，并与模块共享</value>
-  </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>账户</value>
-  </data>
-  <data name="Settings_Category_Accounts_Description" xml:space="preserve">
-    <value>ASLM 显示名称、GitHub 与 Ollama 登录</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM 账户</value>
@@ -783,26 +774,14 @@
   <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
     <value>连接失败：{0}</value>
   </data>
-  <data name="Settings_Category_Module_Description" xml:space="preserve">
-    <value>模块专属配置</value>
-  </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
-  </data>
-  <data name="Settings_Category_Ollama_Description" xml:space="preserve">
-    <value>Ollama 账户登录与退出控制</value>
   </data>
   <data name="Settings_Category_Personalization" xml:space="preserve">
     <value>个性化</value>
   </data>
-  <data name="Settings_Category_Personalization_Description" xml:space="preserve">
-    <value>主题模式、语言与自定义主题设置</value>
-  </data>
   <data name="Settings_Category_Updates" xml:space="preserve">
     <value>更新</value>
-  </data>
-  <data name="Settings_Category_Updates_Description" xml:space="preserve">
-    <value>应用程序与模块更新偏好</value>
   </data>
   <data name="Settings_CheckUpdates_Title" xml:space="preserve">
     <value>启用自动更新检查</value>
@@ -1083,7 +1062,7 @@
     <value>快速安装</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>快速安装将使用您的 Windows 用户名和默认设置</value>
+    <value>快速设置使用默认设置。</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>完成</value>
