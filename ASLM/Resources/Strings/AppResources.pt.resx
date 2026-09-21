@@ -1091,6 +1091,9 @@
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Tentar novamente</value>
   </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Selecionar idioma</value>
+  </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Configuração</value>
   </data>

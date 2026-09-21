@@ -1091,6 +1091,9 @@
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Coba lagi</value>
   </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Pilih bahasa</value>
+  </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Penyiapan</value>
   </data>

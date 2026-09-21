@@ -172,7 +172,7 @@ namespace ASLM.Pages
             }
 
             _hasLoaded = true;
-            LegalAcceptanceOverlay.PresentIfRequired(OverlayContainer, _legalAcceptance, _services);
+            _ = LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
             ScheduleSidebarButtonLayoutRefresh();
             await RefreshModulesAsync();
             ApplyAslmApiNavigationState();

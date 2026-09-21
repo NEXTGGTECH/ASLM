@@ -31,6 +31,7 @@ namespace ASLM.Pages
         private readonly StringBuilder _logBuffer = new();
 
         private int _currentStep;
+        private bool _isStartingSetup;
         private CancellationTokenSource? _cts;
         private bool _logVisible;
         private string _installLogSessionKey = string.Empty;
@@ -77,6 +78,13 @@ namespace ASLM.Pages
             BindingContext = this;
             LocalizableAttach.Hook(this, _localization, this);
 
+            foreach (var language in AppLocalizationService.SupportedLanguages)
+            {
+                LanguagePicker.Items.Add(AppLocalizationService.GetPickerDisplayName(language.Id));
+            }
+            LanguagePicker.SelectedItem = AppLocalizationService.GetPickerDisplayName(_localization.GetCurrentLanguage());
+            LanguagePicker.SelectedIndexChanged += OnLanguagePickerChanged;
+
             // Reuse the saved profile name when available, otherwise fall back to the Windows user name.
             var existingName = _appData.Data.User.Name;
             UsernameEntry.Text = string.IsNullOrWhiteSpace(existingName)
@@ -110,7 +118,6 @@ namespace ASLM.Pages
 
             _moduleListLoaded = true;
             await PopulateModuleListAsync();
-            LegalAcceptanceOverlay.PresentIfRequired(OverlayContainer, _legalAcceptance, _services);
         }
 
 
@@ -119,29 +126,60 @@ namespace ASLM.Pages
         /// <summary>
         /// Starts the step-by-step setup flow.
         /// </summary>
-        private void OnSetupClicked(object? sender, EventArgs e)
-        {
-            _currentStep = FirstSetupStep;
-            UpdateStepUI();
-        }
+        private async void OnSetupClicked(object? sender, EventArgs e) =>
+            await StartSetupAsync(fastSetup: false);
 
         /// <summary>
         /// Saves default values and jumps directly to module selection.
         /// </summary>
-        private async void OnFastSetupClicked(object? sender, EventArgs e)
-        {
-            if (SunriseService.IsEnabled)
-            {
-                await _sunriseService.SelectLocalAccountAsync();
-                _appData.Data.User.Name = Environment.UserName;
-                _appData.Data.User.LocalName = Environment.UserName;
-            }
-            var defaultPorts = new AppPortConfig();
-            _appData.Data.Ports.ModulesStart = defaultPorts.ModulesStart;
-            await _appData.SaveAsync();
+        private async void OnFastSetupClicked(object? sender, EventArgs e) =>
+            await StartSetupAsync(fastSetup: true);
 
-            _currentStep = 3;
-            UpdateStepUI();
+        /// <summary>
+        /// Leaves the welcome page only after any pending legal documents have been accepted.
+        /// </summary>
+        private async Task StartSetupAsync(bool fastSetup)
+        {
+            if (_isStartingSetup || !Step0Panel.IsEnabled || _currentStep != 0)
+            {
+                return;
+            }
+
+            _isStartingSetup = true;
+            Step0Panel.IsEnabled = false;
+            try
+            {
+                await LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
+
+                if (fastSetup)
+                {
+                    if (SunriseService.IsEnabled)
+                    {
+                        await _sunriseService.SelectLocalAccountAsync();
+                        _appData.Data.User.Name = Environment.UserName;
+                        _appData.Data.User.LocalName = Environment.UserName;
+                    }
+                    var defaultPorts = new AppPortConfig();
+                    _appData.Data.Ports.ModulesStart = defaultPorts.ModulesStart;
+                    await _appData.SaveAsync();
+                }
+
+                _currentStep = fastSetup ? TotalSteps : FirstSetupStep;
+                UpdateStepUI();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SetupWizard] Failed to start setup: {ex}");
+                await DisplayAlertAsync(
+                    L.Get(LocalizationKeys.SetupWizard_Title),
+                    ex.Message,
+                    L.Get(LocalizationKeys.Common_OK));
+            }
+            finally
+            {
+                _isStartingSetup = false;
+                Step0Panel.IsEnabled = true;
+            }
         }
 
         /// <summary>
@@ -539,6 +577,48 @@ namespace ASLM.Pages
         // Localization
 
         /// <summary>
+        /// Applies and persists the welcome-page language override without completing first-run setup.
+        /// </summary>
+        private async void OnLanguagePickerChanged(object? sender, EventArgs e)
+        {
+            var selectedIndex = LanguagePicker.SelectedIndex;
+            if (selectedIndex < 0 || selectedIndex >= AppLocalizationService.SupportedLanguages.Count)
+            {
+                return;
+            }
+
+            var language = AppLocalizationService.SupportedLanguages[selectedIndex].Id;
+            var previousLanguage = _localization.GetCurrentLanguage();
+            if (string.Equals(language, previousLanguage, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            Step0Panel.IsEnabled = false;
+            try
+            {
+                _appData.Data.Personalization.Language = language;
+                _localization.ApplyCulture();
+                await _appData.SaveAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SetupWizard] Failed to save language: {ex}");
+                _appData.Data.Personalization.Language = previousLanguage;
+                LanguagePicker.SelectedItem = AppLocalizationService.GetPickerDisplayName(previousLanguage);
+                _localization.ApplyCulture();
+                await DisplayAlertAsync(
+                    L.Get(LocalizationKeys.SetupWizard_SelectLanguage),
+                    ex.Message,
+                    L.Get(LocalizationKeys.Common_OK));
+            }
+            finally
+            {
+                Step0Panel.IsEnabled = true;
+            }
+        }
+
+        /// <summary>
         /// Applies localized strings to wizard labels and refreshes step UI.
         /// </summary>
         public void ApplyLocalization()
@@ -547,6 +627,7 @@ namespace ASLM.Pages
             HeaderTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_Title);
             WelcomeTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_WelcomeTitle);
             WelcomeSubtitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_WelcomeSubtitle);
+            LanguageLabel.Text = L.Get(LocalizationKeys.SetupWizard_SelectLanguage);
             SetupButton.Text = L.Get(LocalizationKeys.SetupWizard_Setup);
             FastSetupButton.Text = L.Get(LocalizationKeys.SetupWizard_FastSetup);
             FastSetupHintLabel.Text = L.Get(LocalizationKeys.SetupWizard_FastSetupHint);

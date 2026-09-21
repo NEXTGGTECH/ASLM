@@ -386,6 +386,7 @@ public static class LocalizationKeys
     public const string SetupWizard_PortAllocationTitle = "SetupWizard_PortAllocationTitle";
     public const string SetupWizard_Preparing = "SetupWizard_Preparing";
     public const string SetupWizard_Retry = "SetupWizard_Retry";
+    public const string SetupWizard_SelectLanguage = "SetupWizard_SelectLanguage";
     public const string SetupWizard_Setup = "SetupWizard_Setup";
     public const string SetupWizard_SetupComplete = "SetupWizard_SetupComplete";
     public const string SetupWizard_ShowLog = "SetupWizard_ShowLog";

@@ -1091,6 +1091,9 @@
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Ponów</value>
   </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Wybierz język</value>
+  </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Konfiguracja</value>
   </data>

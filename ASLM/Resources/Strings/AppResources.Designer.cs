@@ -3510,6 +3510,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Select language.
+        /// </summary>
+        public static string SetupWizard_SelectLanguage {
+            get {
+                return ResourceManager.GetString("SetupWizard_SelectLanguage", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Setup.
         /// </summary>
         public static string SetupWizard_Setup {

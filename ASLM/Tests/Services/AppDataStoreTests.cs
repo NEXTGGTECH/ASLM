@@ -184,6 +184,28 @@ public sealed class AppDataStoreTests
     }
 
     [Theory]
+    [InlineData("en")]
+    [InlineData("ar")]
+    [InlineData("pt-BR")]
+    [InlineData("zh-Hant")]
+    public async Task Language_selected_before_setup_survives_restart_without_completing_setup(string language)
+    {
+        var layout = new AslmFileSystemLayout();
+        layout.WriteAppDataJson("{}");
+        var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+        await store.LoadAsync();
+
+        store.Data.Personalization.Language = language;
+        await store.SaveAsync();
+
+        var reloaded = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+        await reloaded.LoadAsync();
+
+        reloaded.IsFirstRun.Should().BeTrue();
+        new AppLocalizationService(reloaded).GetCurrentLanguage().Should().Be(language);
+    }
+
+    [Theory]
     [InlineData("en", "en")]
     [InlineData("de", "de")]
     [InlineData("PT-br", "pt-BR")]

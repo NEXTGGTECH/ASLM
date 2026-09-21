@@ -1091,6 +1091,9 @@
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Yeniden dene</value>
   </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Dil seçin</value>
+  </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Kurulum</value>
   </data>

@@ -1151,6 +1151,9 @@
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Повторить</value>
   </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Выберите язык</value>
+  </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Настройка</value>
   </data>
