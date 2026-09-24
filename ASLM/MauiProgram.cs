@@ -30,6 +30,9 @@ namespace ASLM
                 .ConfigureMauiHandlers(handlers =>
                 {
                     handlers.AddHandler<ConsoleOutputView, ConsoleOutputViewHandler>();
+#if WINDOWS
+                    handlers.AddHandler<WebView, WebViewClipboardHandler>();
+#endif
                 })
                 .ConfigureFonts(fonts =>
                 {
