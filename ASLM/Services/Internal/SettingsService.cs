@@ -115,7 +115,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Discovers installed modules and returns their configuration snapshots for the settings page.
         /// </summary>
-        public Task<List<ModuleConfig>> DiscoverModulesAsync() => _moduleInstaller.DiscoverModulesAsync();
+        public Task<List<ModuleConfig>> DiscoverModulesAsync() => _moduleInstaller.DiscoverInstalledModulesAsync();
 
         /// <summary>
         /// Invalidates settings manifest snapshots after an installer-level module change.

@@ -1071,7 +1071,7 @@
     <value>Protokoll ausblenden</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>Installation...</value>
+    <value>Installation</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Installieren</value>
@@ -1216,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Installierte Version: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Verfügbare Module suchen</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Der Modulkatalog konnte nicht geladen werden.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Modulinformationen schließen</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Deinstallieren</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Deinstallation</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>{0} deinstallieren?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>{0} und seine lokalen Daten entfernen? Engines, Umgebungen und Modelle, die nur von diesem Modul verwendet werden, werden ebenfalls entfernt. Gemeinsam genutzte Abhängigkeiten bleiben erhalten.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Das Modul konnte nicht entfernt werden</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Warten Sie vor dem Entfernen eines Moduls, bis Einrichtung, Start, Updates oder Downloads von Modulen abgeschlossen sind.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Dieses Modul wurde entfernt. Aktualisieren Sie die Modulliste, bevor Sie fortfahren.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Einige Manifeste installierter Module fehlen, sind nicht lesbar oder enthalten doppelte IDs. Das Entfernen wurde abgebrochen, da gemeinsam genutzte Abhängigkeiten nicht sicher geprüft werden konnten.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Dieses Modul wird benötigt von: {0}. Entfernen Sie zuerst diese Module.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Das Entfernen wurde abgebrochen, da ein Pfad außerhalb seines verwalteten Verzeichnisses liegt oder einen symbolischen Link enthält.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Ein anderes installiertes Modul verwendet Dateien im Verzeichnis dieses Moduls. Das Entfernen wurde zum Schutz dieser Dateien abgebrochen.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Modul entfernt</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Das Modul wurde aus der Liste installierter Module entfernt, aber einige Dateien konnten nicht gelöscht werden. Sie befinden sich weiterhin unter: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Autor</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>Modul-ID</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Typ</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Kategorien</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Unterstützte Plattformen</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Downloadkanal</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Benötigte Engines</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Benötigte Module</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Benötigte Modellkategorien</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Modulinformationen werden geladen…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>{0} wird heruntergeladen und eingerichtet…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Installiert</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Für dieses Modul ist keine unterstützte Downloadquelle verfügbar.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Installation abgebrochen.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Vorgang fehlgeschlagen: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Das Modul {0} ist nicht mehr im lokalen Katalog verfügbar.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Für {0} konnte keine Downloadquelle ermittelt werden.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Die Installation von {0} konnte nicht abgeschlossen werden. Weitere Informationen finden Sie in den Benachrichtigungen oder in der Modulkonsole.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>{0} ist Teil einer zyklischen Modulabhängigkeit. Die Installation wurde abgebrochen.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Das benötigte Modul {0} fehlt im lokalen Katalog.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Info</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Konfiguration</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Modulstatus</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Nicht installiert</value>
   </data>
 </root>

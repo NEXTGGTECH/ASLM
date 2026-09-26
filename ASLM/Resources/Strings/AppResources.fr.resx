@@ -1071,7 +1071,7 @@
     <value>Masquer le journal</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>Installation...</value>
+    <value>Installation</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Installer</value>
@@ -1216,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Version installée : {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Rechercher des modules disponibles</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Impossible de charger le catalogue des modules.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Fermer les informations du module</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Désinstaller</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Désinstallation</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Désinstaller {0} ?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Supprimer {0} et ses données locales ? Les moteurs, environnements et modèles utilisés uniquement par ce module seront également supprimés. Les dépendances partagées seront conservées.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Impossible de supprimer le module</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Avant de supprimer un module, attendez la fin de la configuration, du lancement, des mises à jour ou des téléchargements de modules.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Ce module a été supprimé. Actualisez la liste des modules avant de continuer.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Certains manifestes des modules installés sont manquants, illisibles ou contiennent des identifiants en double. La suppression a été annulée, car les dépendances partagées n’ont pas pu être vérifiées en toute sécurité.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Ce module est requis par : {0}. Supprimez d’abord ces modules.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>La suppression a été annulée, car un chemin se trouve hors de son répertoire géré ou contient un lien symbolique.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Un autre module installé utilise des fichiers dans le répertoire de ce module. La suppression a été annulée pour protéger ces fichiers.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Module supprimé</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Le module a été retiré de la liste des modules installés, mais certains fichiers n’ont pas pu être supprimés. Ils se trouvent toujours dans : {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Auteur</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>Identifiant du module</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Catégories</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Plateformes prises en charge</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Canal de téléchargement</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Moteurs requis</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Modules requis</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Catégories de modèles requises</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Chargement des informations du module…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>Téléchargement et configuration de {0}…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Installé</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Aucune source de téléchargement prise en charge n’est disponible pour ce module.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Installation annulée.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Échec de l’opération : {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Le module {0} n’est plus disponible dans le catalogue local.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Impossible de déterminer une source de téléchargement pour {0}.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Impossible de terminer l’installation de {0}. Consultez les notifications ou la console du module pour plus de détails.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Une dépendance circulaire entre modules inclut {0}. L’installation a été annulée.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Le module requis {0} est absent du catalogue local.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Informations</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Configuration</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>État</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>État du module</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Non installé</value>
   </data>
 </root>

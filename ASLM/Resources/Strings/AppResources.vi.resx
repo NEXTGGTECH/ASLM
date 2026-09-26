@@ -1071,7 +1071,7 @@
     <value>Ẩn nhật ký</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>Đang cài...</value>
+    <value>Đang cài</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Cài đặt</value>
@@ -1216,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Phiên bản đã cài đặt: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Tìm mô-đun có sẵn</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Không thể tải danh mục mô-đun.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Đóng thông tin mô-đun</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Gỡ cài đặt</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Đang gỡ cài đặt</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Gỡ cài đặt {0}?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Xóa {0} và dữ liệu cục bộ của mô-đun này? Các engine, môi trường và mô hình chỉ được mô-đun này sử dụng cũng sẽ bị xóa. Các thành phần phụ thuộc dùng chung sẽ được giữ lại.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Không thể xóa mô-đun</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Trước khi xóa mô-đun, hãy đợi quá trình thiết lập, khởi chạy, cập nhật hoặc tải xuống mô-đun hoàn tất.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Mô-đun này đã bị xóa. Hãy làm mới danh sách mô-đun trước khi tiếp tục.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Một số tệp kê khai của các mô-đun đã cài đặt bị thiếu, không đọc được hoặc có ID trùng lặp. Đã hủy việc xóa vì không thể kiểm tra an toàn các thành phần phụ thuộc dùng chung.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Các mô-đun sau cần mô-đun này: {0}. Hãy xóa các mô-đun đó trước.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Đã hủy việc xóa vì có đường dẫn nằm ngoài thư mục được quản lý hoặc chứa liên kết tượng trưng.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Một mô-đun đã cài đặt khác đang sử dụng các tệp trong thư mục của mô-đun này. Đã hủy việc xóa để bảo vệ các tệp đó.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Đã xóa mô-đun</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Mô-đun đã được xóa khỏi danh sách đã cài đặt, nhưng không thể xóa một số tệp. Các tệp đó vẫn ở: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Phiên bản</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Tác giả</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>ID mô-đun</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Loại</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Danh mục</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Nền tảng được hỗ trợ</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Kênh tải xuống</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Engine cần thiết</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Mô-đun bắt buộc</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Danh mục mô hình bắt buộc</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Đang tải thông tin mô-đun…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>Đang tải xuống và thiết lập {0}…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Đã cài đặt</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Không có nguồn tải xuống được hỗ trợ cho mô-đun này.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Đã hủy cài đặt.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Thao tác thất bại: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Mô-đun {0} không còn có trong danh mục cục bộ.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Không thể xác định nguồn tải xuống cho {0}.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Không thể hoàn tất cài đặt {0}. Xem thông báo hoặc bảng điều khiển của mô-đun để biết chi tiết.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Phát hiện chu trình phụ thuộc giữa các mô-đun có chứa {0}. Đã hủy cài đặt.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Không tìm thấy mô-đun bắt buộc {0} trong danh mục cục bộ.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Thông tin</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Cấu hình</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Trạng thái</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Trạng thái mô-đun</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Chưa cài đặt</value>
   </data>
 </root>

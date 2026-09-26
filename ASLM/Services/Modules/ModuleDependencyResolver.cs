@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using ASLM.Models;
+using ASLM.Localization;
 
 namespace ASLM.Services.Modules
 {
@@ -24,6 +25,7 @@ namespace ASLM.Services.Modules
 
             var result = new List<ModuleConfig>();
             var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             void Visit(ModuleConfig module)
             {
@@ -31,6 +33,8 @@ namespace ASLM.Services.Modules
                 {
                     return;
                 }
+                if (!visiting.Add(module.Id))
+                    throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_DependencyCycle, module.Name));
 
                 foreach (var dependency in module.Dependencies.Modules)
                 {
@@ -44,8 +48,13 @@ namespace ASLM.Services.Modules
                     {
                         Visit(dependencyModule);
                     }
+                    else
+                    {
+                        throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_MissingDependency, dependencyId));
+                    }
                 }
 
+                visiting.Remove(module.Id);
                 if (added.Add(module.Id))
                 {
                     result.Add(module);

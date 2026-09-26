@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using ASLM.Models;
+using ASLM.Localization;
 
 namespace ASLM.Services.Modules
 {
@@ -13,6 +14,7 @@ namespace ASLM.Services.Modules
         // Fields and constants
 
         private const string OverviewSessionId = "overview";
+        private const string MaintenanceSessionId = "maintenance";
         private const int MaxLinesPerSession = 5000;
         private const int MaxDisplayedLines = 250;
         private const int MaxDisplayedCharacters = 60000;
@@ -22,6 +24,7 @@ namespace ASLM.Services.Modules
 
         private readonly object _sync = new();
         private readonly Dictionary<string, ModuleConsoleModuleState> _modules = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Dictionary<Guid, ModuleActivity>> _activities = new(StringComparer.OrdinalIgnoreCase);
         private long _lineSequence;
         private int _stateChangeQueued;
 
@@ -32,6 +35,91 @@ namespace ASLM.Services.Modules
         /// Raised whenever the console store changes.
         /// </summary>
         public event EventHandler? StateChanged;
+
+        /// <summary>Tracks transient operations independently of persisted installed/enabled flags.</summary>
+        internal IDisposable BeginActivity(string sourcePath, ModuleActivity activity)
+        {
+            var token = Guid.NewGuid();
+            lock (_sync)
+            {
+                if (!_activities.TryGetValue(sourcePath, out var active))
+                    _activities[sourcePath] = active = [];
+                active[token] = activity;
+            }
+            RaiseStateChanged();
+            return new ActivityScope(this, sourcePath, token);
+        }
+
+        /// <summary>Buffers installer/updater output even while no console view is open.</summary>
+        internal IProgress<string> CreateMaintenanceLog(ModuleConfig module, IProgress<string>? downstream, bool reset)
+        {
+            if (downstream is MaintenanceProgress existing && ReferenceEquals(existing.Store, this) &&
+                string.Equals(existing.SourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase))
+                return downstream;
+            lock (_sync)
+            {
+                EnsureModuleCore(module);
+                var state = _modules[module.SourcePath];
+                if (reset || !state.Sessions.ContainsKey(MaintenanceSessionId))
+                    state.Sessions[MaintenanceSessionId] = new ModuleConsoleSessionState
+                    {
+                        Id = MaintenanceSessionId,
+                        Title = L.Get(LocalizationKeys.ModuleUpdate_ActivityTitle_Activity),
+                        Stage = "Maintenance",
+                        StartedUtc = DateTimeOffset.UtcNow
+                    };
+            }
+            RaiseStateChanged();
+            return new MaintenanceProgress(this, module.SourcePath, downstream);
+        }
+
+        internal ModuleMaintenanceSnapshot GetMaintenanceSnapshot(string sourcePath)
+        {
+            lock (_sync)
+            {
+                ModuleActivity? activity = _activities.TryGetValue(sourcePath, out var active) && active.Count > 0
+                    ? active.Values.Max() : null;
+                _modules.TryGetValue(sourcePath, out var module);
+                ModuleConsoleSessionState? session = null;
+                module?.Sessions.TryGetValue(MaintenanceSessionId, out session);
+                var running = module?.Sessions.Values.Any(item => item.IsTrackedProcess && item.IsRunning) == true;
+                return new(activity, running, $"{sourcePath}|{session?.StartedUtc.Ticks}",
+                    session?.Lines.Count > 0 ? string.Join(Environment.NewLine, BuildDisplayLines(session.Lines)) : string.Empty);
+            }
+        }
+
+        private sealed class MaintenanceProgress(ModuleConsoleStore store, string sourcePath, IProgress<string>? downstream) : IProgress<string>
+        {
+            internal ModuleConsoleStore Store => store;
+            internal string SourcePath => sourcePath;
+            public void Report(string value)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    lock (store._sync)
+                    {
+                        var module = store._modules[sourcePath];
+                        store.AppendLineCore(module.Sessions[MaintenanceSessionId], value);
+                        module.LastActivityUtc = DateTimeOffset.UtcNow;
+                    }
+                    store.RaiseStateChanged();
+                }
+                downstream?.Report(value);
+            }
+        }
+
+        private sealed class ActivityScope(ModuleConsoleStore store, string sourcePath, Guid token) : IDisposable
+        {
+            public void Dispose()
+            {
+                lock (store._sync)
+                {
+                    if (!store._activities.TryGetValue(sourcePath, out var active) || !active.Remove(token)) return;
+                    if (active.Count == 0) store._activities.Remove(sourcePath);
+                }
+                store.RaiseStateChanged();
+            }
+        }
 
 
         // Module registration
@@ -875,6 +963,10 @@ namespace ASLM.Services.Modules
     /// References one live console session in the store.
     /// </summary>
     public readonly record struct ModuleConsoleSessionHandle(string ModuleSourcePath, string SessionId);
+
+    // Parent maintenance operations remain visible during their nested stop/restart steps.
+    internal enum ModuleActivity { Stopping, Restarting, Updating, Installing }
+    internal sealed record ModuleMaintenanceSnapshot(ModuleActivity? Activity, bool IsRunning, string SessionKey, string Text);
 
     /// <summary>
     /// Describes one observed child process started by a module at runtime.

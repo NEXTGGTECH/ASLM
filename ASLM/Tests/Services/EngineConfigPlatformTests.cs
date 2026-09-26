@@ -11,6 +11,45 @@ public sealed class EngineConfigPlatformTests
         JsonSerializer.Deserialize<EngineConfig>(json)!;
 
     [Fact]
+    public void Supported_platforms_require_an_install_block_and_do_not_mutate_the_active_engine()
+    {
+        var engine = Deserialize("""
+            {
+              "fileVersion":2, "id":"custom-keys",
+              "supportedPlatforms":[
+                {"os":"win","arch":"x64","key":"windows-amd64"},
+                {"os":"macos","arch":"arm64","key":"macos-runtime"},
+                {"os":"linux","arch":"amd64","key":"missing"}
+              ],
+              "windows-amd64":{"executablePath":"tool.exe"},
+              "macos-runtime":{"executablePath":"tool"}
+            }
+            """);
+        engine.ResolveForPlatform("windows", "amd64");
+        engine.GetSupportedPlatforms().Select(platform => platform.Key)
+            .Should().Equal("windows-amd64", "macos-arm64");
+        engine.ActivePlatformKey.Should().Be("windows-amd64");
+        engine.ExecutablePath.Should().Be("tool.exe");
+        engine.IsSupportedOnCurrentPlatform.Should().BeTrue();
+    }
+
+    [Fact]
+    public void An_install_block_cannot_bypass_an_explicit_supported_platform_list()
+    {
+        var engine = Deserialize("""
+            {
+              "fileVersion":2, "id":"restricted",
+              "supportedPlatforms":[{"os":"windows","arch":"amd64"}],
+              "windows-amd64":{"executablePath":"tool.exe"},
+              "macos-arm64":{"executablePath":"tool"}
+            }
+            """);
+        engine.ResolveForPlatform("macos", "arm64");
+        engine.IsSupportedOnCurrentPlatform.Should().BeFalse();
+        engine.GetSupportedPlatforms().Should().ContainSingle().Which.Key.Should().Be("windows-amd64");
+    }
+
+    [Fact]
     public void V2_manifest_resolves_per_platform_blocks()
     {
         var config = Deserialize(

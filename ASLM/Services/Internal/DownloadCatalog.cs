@@ -47,7 +47,7 @@ namespace ASLM.Services.Internal
             CancellationToken ct = default)
         {
             // Discover only modules that actually expose the downloads bridge contract.
-            var modules = await _moduleInstaller.DiscoverModulesAsync();
+            var modules = await _moduleInstaller.DiscoverInstalledModulesAsync();
             var bridgeModules = modules
                 .Where(module => module.DownloadsBridge?.IsConfigured == true)
                 .ToList();

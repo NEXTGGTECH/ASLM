@@ -1071,7 +1071,7 @@
     <value>लॉग छिपाएँ</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>इंस्टॉल हो रहा है...</value>
+    <value>इंस्टॉल हो रहा है</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>इंस्टॉल करें</value>
@@ -1216,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>इंस्टॉल किया गया संस्करण: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>उपलब्ध मॉड्यूल खोजें</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>मॉड्यूल कैटलॉग लोड नहीं हो सका।</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>मॉड्यूल की जानकारी बंद करें</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>अनइंस्टॉल करें</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>अनइंस्टॉल हो रहा है</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>{0} अनइंस्टॉल करें?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>क्या {0} और उसका स्थानीय डेटा हटाना है? केवल इस मॉड्यूल द्वारा उपयोग किए जाने वाले इंजन, परिवेश और मॉडल भी हटा दिए जाएँगे। साझा निर्भरताएँ बनी रहेंगी।</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>मॉड्यूल हटाया नहीं जा सका</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>मॉड्यूल हटाने से पहले मॉड्यूल का सेटअप, शुरू होने की प्रक्रिया, अपडेट या डाउनलोड पूरा होने की प्रतीक्षा करें।</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>यह मॉड्यूल हटा दिया गया है। आगे बढ़ने से पहले मॉड्यूल सूची रीफ़्रेश करें।</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>इंस्टॉल किए गए कुछ मॉड्यूल की मैनिफ़ेस्ट फ़ाइलें गायब हैं, पढ़ी नहीं जा सकतीं या उनमें एक जैसे आईडी हैं। साझा निर्भरताओं की सुरक्षित जाँच नहीं हो सकी, इसलिए हटाने की प्रक्रिया रद्द कर दी गई।</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>इन मॉड्यूल को इस मॉड्यूल की आवश्यकता है: {0}। पहले इन्हें हटाएँ।</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>हटाने की प्रक्रिया रद्द कर दी गई क्योंकि कोई पथ प्रबंधित डायरेक्टरी के बाहर है या उसमें प्रतीकात्मक लिंक है।</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>इंस्टॉल किया गया कोई दूसरा मॉड्यूल इस मॉड्यूल की डायरेक्टरी में मौजूद फ़ाइलों का उपयोग करता है। उन फ़ाइलों की सुरक्षा के लिए हटाने की प्रक्रिया रद्द कर दी गई।</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>मॉड्यूल हटा दिया गया</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>मॉड्यूल को इंस्टॉल किए गए मॉड्यूल की सूची से हटा दिया गया, लेकिन कुछ फ़ाइलें हटाई नहीं जा सकीं। वे अभी भी यहाँ हैं: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>संस्करण</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>लेखक</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>मॉड्यूल आईडी</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>प्रकार</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>श्रेणियाँ</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>समर्थित प्लेटफ़ॉर्म</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>डाउनलोड चैनल</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>आवश्यक इंजन</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>आवश्यक मॉड्यूल</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>आवश्यक मॉडल श्रेणियाँ</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>मॉड्यूल की जानकारी लोड हो रही है…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>{0} डाउनलोड और सेटअप हो रहा है…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>इंस्टॉल है</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>इस मॉड्यूल के लिए कोई समर्थित डाउनलोड स्रोत उपलब्ध नहीं है।</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>इंस्टॉलेशन रद्द कर दिया गया।</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>कार्रवाई विफल हुई: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>मॉड्यूल {0} अब स्थानीय कैटलॉग में उपलब्ध नहीं है।</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>{0} के लिए डाउनलोड स्रोत निर्धारित नहीं हो सका।</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>{0} का इंस्टॉलेशन पूरा नहीं हो सका। विवरण के लिए सूचनाएँ या मॉड्यूल कंसोल देखें।</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>{0} को शामिल करने वाली चक्रीय मॉड्यूल निर्भरता मिली है। इंस्टॉलेशन रद्द कर दिया गया।</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>आवश्यक मॉड्यूल {0} स्थानीय कैटलॉग में नहीं है।</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>जानकारी</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>कॉन्फ़िगरेशन</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>स्थिति</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>मॉड्यूल की स्थिति</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>इंस्टॉल नहीं है</value>
   </data>
 </root>

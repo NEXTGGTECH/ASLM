@@ -839,9 +839,11 @@ namespace ASLM.Pages
             var logProgress = new InlineProgress<string>(AddLog);
 
             List<ModuleConfig> catalog;
+            IReadOnlyList<ModuleConfig> installModules;
             try
             {
                 catalog = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync(), _cts.Token);
+                installModules = ModuleDependencyResolver.ExpandInstallOrder(selectedModules, catalog);
             }
             catch (Exception ex)
             {
@@ -849,8 +851,6 @@ namespace ASLM.Pages
                 ConfigureRetryAndSkipButtons();
                 return;
             }
-
-            var installModules = ModuleDependencyResolver.ExpandInstallOrder(selectedModules, catalog);
 
             var totalSteps = 0;
             var completedSteps = 0;

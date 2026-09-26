@@ -503,7 +503,7 @@ namespace ASLM.Pages
                 {
                     if (shouldForceReload || _knownModules.Count == 0)
                     {
-                        _knownModules = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync());
+                        _knownModules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
                     }
 
                     var modules = _knownModules.ToList();

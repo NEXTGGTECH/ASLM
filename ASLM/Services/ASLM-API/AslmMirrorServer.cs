@@ -1545,7 +1545,7 @@ namespace ASLM.Services.API
         {
             try
             {
-                var modules = await _moduleInstaller.DiscoverModulesAsync();
+                var modules = await _moduleInstaller.DiscoverInstalledModulesAsync();
                 return modules
                     .Where(static module => !string.IsNullOrWhiteSpace(module.Id))
                     .GroupBy(static module => module.Id, StringComparer.OrdinalIgnoreCase)

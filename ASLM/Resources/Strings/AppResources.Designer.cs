@@ -1510,6 +1510,240 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Author.
+        /// </summary>
+        public static string ModuleInfo_Author {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Author", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Installation canceled..
+        /// </summary>
+        public static string ModuleInfo_Canceled {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Canceled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Categories.
+        /// </summary>
+        public static string ModuleInfo_Categories {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Categories", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Download channel.
+        /// </summary>
+        public static string ModuleInfo_Channel {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Channel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Configuration.
+        /// </summary>
+        public static string ModuleInfo_ConfigurationTab {
+            get {
+                return ResourceManager.GetString("ModuleInfo_ConfigurationTab", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на A circular module dependency includes {0}. Installation was canceled..
+        /// </summary>
+        public static string ModuleInfo_DependencyCycle {
+            get {
+                return ResourceManager.GetString("ModuleInfo_DependencyCycle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Downloading and setting up {0}….
+        /// </summary>
+        public static string ModuleInfo_Downloading {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Downloading", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Required engines.
+        /// </summary>
+        public static string ModuleInfo_Engines {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Engines", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Operation failed: {0}.
+        /// </summary>
+        public static string ModuleInfo_Failed {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Failed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Module ID.
+        /// </summary>
+        public static string ModuleInfo_Id {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Id", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Info.
+        /// </summary>
+        public static string ModuleInfo_InfoTab {
+            get {
+                return ResourceManager.GetString("ModuleInfo_InfoTab", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Installed.
+        /// </summary>
+        public static string ModuleInfo_Installed {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Installed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not finish installing {0}. See Notifications or the module console for details..
+        /// </summary>
+        public static string ModuleInfo_InstallFailed {
+            get {
+                return ResourceManager.GetString("ModuleInfo_InstallFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Loading module information….
+        /// </summary>
+        public static string ModuleInfo_Loading {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Loading", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Required module {0} is missing from the local catalog..
+        /// </summary>
+        public static string ModuleInfo_MissingDependency {
+            get {
+                return ResourceManager.GetString("ModuleInfo_MissingDependency", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Required model categories.
+        /// </summary>
+        public static string ModuleInfo_Models {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Models", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Required modules.
+        /// </summary>
+        public static string ModuleInfo_Modules {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Modules", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на No supported download source is available for this module..
+        /// </summary>
+        public static string ModuleInfo_NoSource {
+            get {
+                return ResourceManager.GetString("ModuleInfo_NoSource", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Module {0} is no longer available in the local catalog..
+        /// </summary>
+        public static string ModuleInfo_NotAvailable {
+            get {
+                return ResourceManager.GetString("ModuleInfo_NotAvailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Not installed.
+        /// </summary>
+        public static string ModuleInfo_NotInstalled {
+            get {
+                return ResourceManager.GetString("ModuleInfo_NotInstalled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Supported platforms.
+        /// </summary>
+        public static string ModuleInfo_Platforms {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Platforms", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not resolve a download source for {0}..
+        /// </summary>
+        public static string ModuleInfo_SourceUnavailable {
+            get {
+                return ResourceManager.GetString("ModuleInfo_SourceUnavailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Module state.
+        /// </summary>
+        public static string ModuleInfo_StateTitle {
+            get {
+                return ResourceManager.GetString("ModuleInfo_StateTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Status.
+        /// </summary>
+        public static string ModuleInfo_StatusTab {
+            get {
+                return ResourceManager.GetString("ModuleInfo_StatusTab", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Type.
+        /// </summary>
+        public static string ModuleInfo_Type {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Type", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Version.
+        /// </summary>
+        public static string ModuleInfo_Version {
+            get {
+                return ResourceManager.GetString("ModuleInfo_Version", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Check updates.
         /// </summary>
         public static string Modules_CheckUpdates {
@@ -1551,6 +1785,123 @@ namespace ASLM.Resources.Strings {
         public static string Modules_NotVerified {
             get {
                 return ResourceManager.GetString("Modules_NotVerified", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Uninstall.
+        /// </summary>
+        public static string Modules_Remove {
+            get {
+                return ResourceManager.GetString("Modules_Remove", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Wait for module setup, launch, updates, or downloads to finish before removing a module..
+        /// </summary>
+        public static string Modules_RemoveBusy {
+            get {
+                return ResourceManager.GetString("Modules_RemoveBusy", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The module was removed from the installed list, but some files could not be deleted. They remain in: {0}.
+        /// </summary>
+        public static string Modules_RemoveCleanupFormat {
+            get {
+                return ResourceManager.GetString("Modules_RemoveCleanupFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Module removed.
+        /// </summary>
+        public static string Modules_RemoveCleanupTitle {
+            get {
+                return ResourceManager.GetString("Modules_RemoveCleanupTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Remove {0} and its local data? Engines, environments, and models used only by this module will also be removed. Shared dependencies will be kept..
+        /// </summary>
+        public static string Modules_RemoveConfirmFormat {
+            get {
+                return ResourceManager.GetString("Modules_RemoveConfirmFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Uninstall {0}?.
+        /// </summary>
+        public static string Modules_RemoveConfirmTitle {
+            get {
+                return ResourceManager.GetString("Modules_RemoveConfirmTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not remove the module.
+        /// </summary>
+        public static string Modules_RemoveFailed {
+            get {
+                return ResourceManager.GetString("Modules_RemoveFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на This module is required by: {0}. Remove these modules first..
+        /// </summary>
+        public static string Modules_RemoveRequiredFormat {
+            get {
+                return ResourceManager.GetString("Modules_RemoveRequiredFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Another installed module uses files inside this module&apos;s directory. Removal was canceled to protect those files..
+        /// </summary>
+        public static string Modules_RemoveSharedFiles {
+            get {
+                return ResourceManager.GetString("Modules_RemoveSharedFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на This module has been removed. Refresh the module list before continuing..
+        /// </summary>
+        public static string Modules_RemoveStale {
+            get {
+                return ResourceManager.GetString("Modules_RemoveStale", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Some installed module manifests are missing, unreadable, or have duplicate IDs. Removal was canceled because shared dependencies could not be checked safely..
+        /// </summary>
+        public static string Modules_RemoveUnknownDependencies {
+            get {
+                return ResourceManager.GetString("Modules_RemoveUnknownDependencies", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Removal was canceled because a path is outside its managed directory or contains a symbolic link..
+        /// </summary>
+        public static string Modules_RemoveUnsafePath {
+            get {
+                return ResourceManager.GetString("Modules_RemoveUnsafePath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Uninstalling.
+        /// </summary>
+        public static string Modules_Removing {
+            get {
+                return ResourceManager.GetString("Modules_Removing", resourceCulture);
             }
         }
         
@@ -1614,6 +1965,33 @@ namespace ASLM.Resources.Strings {
         public static string Modules_Updating {
             get {
                 return ResourceManager.GetString("Modules_Updating", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Close module information.
+        /// </summary>
+        public static string ModulesDownloads_Close {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_Close", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not load the module catalog..
+        /// </summary>
+        public static string ModulesDownloads_LoadFailed {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_LoadFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Search available modules.
+        /// </summary>
+        public static string ModulesDownloads_Search {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_Search", resourceCulture);
             }
         }
         
@@ -3420,7 +3798,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Installing....
+        ///   Ищет локализованную строку, похожую на Installing.
         /// </summary>
         public static string SetupWizard_Installing {
             get {
@@ -3517,7 +3895,7 @@ namespace ASLM.Resources.Strings {
                 return ResourceManager.GetString("SetupWizard_SelectLanguage", resourceCulture);
             }
         }
-
+        
         /// <summary>
         ///   Ищет локализованную строку, похожую на Setup.
         /// </summary>

@@ -21,6 +21,30 @@ namespace ASLM.Services.Internal
         public static readonly BindableProperty SessionKeyProperty =
             BindableProperty.Create(nameof(SessionKey), typeof(string), typeof(ConsoleOutputView), string.Empty);
 
+        public static readonly BindableProperty UseCustomScrollBarProperty =
+            BindableProperty.Create(nameof(UseCustomScrollBar), typeof(bool), typeof(ConsoleOutputView), false);
+
+        public bool UseCustomScrollBar
+        {
+            get => (bool)GetValue(UseCustomScrollBarProperty);
+            set => SetValue(UseCustomScrollBarProperty, value);
+        }
+
+        internal event EventHandler? ScrollMetricsChanged;
+        internal double ScrollViewport { get; private set; }
+        internal double ScrollExtent { get; private set; }
+        internal double ScrollOffset { get; private set; }
+        internal Action<double>? ScrollToOffset { get; set; }
+
+        internal void SetScrollMetrics(double viewport, double extent, double offset)
+        {
+            if (ScrollViewport == viewport && ScrollExtent == extent && ScrollOffset == offset) return;
+            ScrollViewport = viewport;
+            ScrollExtent = extent;
+            ScrollOffset = offset;
+            ScrollMetricsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         /// <summary>
         /// Gets or sets the console text rendered by the native host.
         /// </summary>

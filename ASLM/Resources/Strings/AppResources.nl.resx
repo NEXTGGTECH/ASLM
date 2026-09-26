@@ -1071,7 +1071,7 @@
     <value>Log verbergen</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>Installeren...</value>
+    <value>Installeren</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Installeren</value>
@@ -1216,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Geïnstalleerde versie: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Beschikbare modules zoeken</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>De modulecatalogus kon niet worden geladen.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Module-informatie sluiten</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Verwijderen</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Bezig met verwijderen</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>{0} verwijderen?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>{0} en de lokale gegevens verwijderen? Engines, omgevingen en modellen die alleen door deze module worden gebruikt, worden ook verwijderd. Gedeelde afhankelijkheden blijven behouden.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>De module kon niet worden verwijderd</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Wacht met het verwijderen van een module totdat het instellen, starten, bijwerken of downloaden van modules is voltooid.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Deze module is verwijderd. Vernieuw de modulelijst voordat u doorgaat.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Sommige manifesten van geïnstalleerde modules ontbreken, zijn onleesbaar of bevatten dubbele ID’s. Het verwijderen is geannuleerd omdat gedeelde afhankelijkheden niet veilig konden worden gecontroleerd.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Deze module is vereist voor: {0}. Verwijder eerst deze modules.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Het verwijderen is geannuleerd omdat een pad buiten de beheerde map ligt of een symbolische koppeling bevat.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Een andere geïnstalleerde module gebruikt bestanden in de map van deze module. Het verwijderen is geannuleerd om die bestanden te beschermen.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Module verwijderd</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>De module is uit de lijst met geïnstalleerde modules verwijderd, maar sommige bestanden konden niet worden verwijderd. Ze staan nog in: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Versie</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Auteur</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>Module-ID</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Categorieën</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Ondersteunde platforms</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Downloadkanaal</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Vereiste engines</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Vereiste modules</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Vereiste modelcategorieën</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Module-informatie laden…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>{0} downloaden en instellen…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Geïnstalleerd</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Er is geen ondersteunde downloadbron beschikbaar voor deze module.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Installatie geannuleerd.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Bewerking mislukt: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Module {0} is niet meer beschikbaar in de lokale catalogus.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Er kon geen downloadbron voor {0} worden bepaald.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>De installatie van {0} kon niet worden voltooid. Raadpleeg de meldingen of de moduleconsole voor meer informatie.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Er is een cyclische afhankelijkheid tussen modules gevonden waarbij {0} betrokken is. De installatie is geannuleerd.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>De vereiste module {0} ontbreekt in de lokale catalogus.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Informatie</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Configuratie</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Modulestatus</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Niet geïnstalleerd</value>
   </data>
 </root>

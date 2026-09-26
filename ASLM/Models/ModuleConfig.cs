@@ -69,7 +69,7 @@ namespace ASLM.Models
         [JsonPropertyName("source")]
         public ModuleSource Source { get; set; } = new();
 
-        // Platforms supported by ModulesAPI v2 manifests. Legacy v1 modules are platform agnostic.
+        // Optional module-level restriction, required by the v2 schema.
         [JsonPropertyName("supportedPlatforms")]
         public List<SupportedPlatform> SupportedPlatforms { get; set; } = [];
 
@@ -120,6 +120,10 @@ namespace ASLM.Models
         // Whether the manifest supports the currently resolved host platform.
         [JsonIgnore]
         public bool IsSupportedOnCurrentPlatform { get; private set; } = true;
+
+        // Runtime intersection of module and required-engine platforms; never persisted to the manifest.
+        [JsonIgnore]
+        public IReadOnlyList<SupportedPlatform> EffectiveSupportedPlatforms { get; private set; } = [];
 
         // Canonical platform key used for the latest compatibility resolution.
         [JsonIgnore]
@@ -215,14 +219,37 @@ namespace ASLM.Models
         }
 
         /// <summary>
-        /// Resolves whether this module supports one host os/architecture pair.
-        /// Version 1 manifests remain compatible with every platform supported by ASLM.
+        /// Intersects declared module platforms, when present, with every required engine.
+        /// Parsing alone resolves the module declaration; catalog/install callers supply engine lookup.
         /// </summary>
-        public void ResolveForPlatform(string osKey, string archKey)
+        public void ResolveForPlatform(string osKey, string archKey, Func<string, EngineConfig?>? findEngine = null)
         {
             ActivePlatformKey = $"{SupportedPlatform.CanonicalToken(osKey)}-{SupportedPlatform.CanonicalToken(archKey)}";
-            IsSupportedOnCurrentPlatform = FileVersion < 2 ||
-                SupportedPlatforms.Any(platform => platform.Matches(osKey, archKey));
+            List<SupportedPlatform>? platforms = SupportedPlatforms.Count > 0
+                ? SupportedPlatforms.Select(platform => SupportedPlatform.FromKey(
+                        $"{SupportedPlatform.CanonicalToken(platform.Os)}-{SupportedPlatform.CanonicalToken(platform.Arch)}"))
+                    .DistinctBy(platform => platform.Key, StringComparer.OrdinalIgnoreCase).ToList()
+                : null;
+
+            if (findEngine != null)
+            {
+                foreach (var engineId in Dependencies.Engines
+                    .Where(dependency => dependency != null)
+                    .Select(dependency => dependency.Id.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    // An unresolved required engine cannot confirm any compatible platform.
+                    var enginePlatforms = findEngine(engineId)?.GetSupportedPlatforms() ?? [];
+                    platforms = platforms == null
+                        ? enginePlatforms.ToList()
+                        : platforms.Where(platform => enginePlatforms.Any(enginePlatform =>
+                            enginePlatform.Matches(platform.Os, platform.Arch))).ToList();
+                }
+            }
+
+            EffectiveSupportedPlatforms = platforms ?? [];
+            IsSupportedOnCurrentPlatform = platforms == null ||
+                platforms.Any(platform => platform.Matches(osKey, archKey));
         }
 
 
@@ -276,6 +303,12 @@ namespace ASLM.Models
         // Release channel: release only, or release plus pre-release.
         [JsonPropertyName("channel")]
         public string Channel { get; set; } = "release";
+
+        // Catalog entries follow ASLM's default until the user saves their own selection.
+        // Installed modules always retain their own update configuration.
+        [JsonPropertyName("useDefaultChannel")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? UseDefaultChannel { get; set; }
 
         // Branch selected when mode is branch.
         [JsonPropertyName("branch")]

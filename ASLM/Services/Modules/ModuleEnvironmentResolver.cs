@@ -119,8 +119,7 @@ namespace ASLM.Services.Modules
             var engineDir = Path.GetDirectoryName(engine.SourcePath)
                 ?? throw new InvalidOperationException($"Engine '{engine.Id}' has no source directory.");
             var config = engine.ModuleEnvironment!;
-            var moduleSlug = NormalizeModuleSlug(module);
-            var environmentDir = Path.Combine(engineDir, $"{config.DirectoryPrefix}{moduleSlug}");
+            var environmentDir = GetEnvironmentDirectory(module, engine);
             var resolution = new ModuleEnvironmentResolution(
                 DirectoryPath: environmentDir,
                 ExecutablePath: string.Empty,
@@ -161,6 +160,11 @@ namespace ASLM.Services.Modules
 
 
         // Process environment
+
+        /// <summary>Resolves environment ownership without requiring an installed executable.</summary>
+        internal static string GetEnvironmentDirectory(ModuleConfig module, EngineConfig engine) =>
+            Path.GetFullPath(Path.Combine(Path.GetDirectoryName(engine.SourcePath)!,
+                $"{engine.ModuleEnvironment!.DirectoryPrefix}{NormalizeModuleSlug(module)}"));
 
         /// <summary>
         /// Applies environment variables declared by the engine's module environment.

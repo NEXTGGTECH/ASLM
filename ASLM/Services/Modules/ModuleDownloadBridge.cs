@@ -246,6 +246,7 @@ namespace ASLM.Services.Modules
             ModuleDownloadBridgeRequest request,
             CancellationToken ct = default)
         {
+            using var operation = ModuleInstaller.BeginContentOperation();
             // Normalize the outgoing request before any bridge-specific checks.
             request.Normalize();
 

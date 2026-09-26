@@ -39,7 +39,8 @@ namespace ASLM.Services.Internal
             new PropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler>(ViewHandler.ViewMapper)
             {
                 [nameof(ConsoleOutputView.Text)] = static (handler, view) => handler.ApplyText(view.Text),
-                [nameof(ConsoleOutputView.SessionKey)] = static (handler, view) => handler.ApplySessionKey(view.SessionKey)
+                [nameof(ConsoleOutputView.SessionKey)] = static (handler, view) => handler.ApplySessionKey(view.SessionKey),
+                [nameof(ConsoleOutputView.UseCustomScrollBar)] = static (handler, view) => handler.ApplyScrollChrome()
             };
 
         private ScrollViewer? _scrollViewer;
@@ -124,6 +125,11 @@ namespace ASLM.Services.Internal
             platformView.SelectionChanged += OnPlatformViewSelectionChanged;
 
             EnsureScrollViewer();
+            VirtualView.ScrollToOffset = offset =>
+            {
+                EnsureScrollViewer();
+                _scrollViewer?.ChangeView(null, offset, null, disableAnimation: true);
+            };
             ApplySessionKey(VirtualView?.SessionKey);
             ApplyText(VirtualView?.Text);
             QueueViewportRefresh(scrollToEnd: true, passCount: 3);
@@ -153,8 +159,11 @@ namespace ASLM.Services.Internal
             if (_scrollViewer != null)
             {
                 _scrollViewer.ViewChanged -= OnScrollViewerViewChanged;
+                _scrollViewer.SizeChanged -= OnScrollMetricsChanged;
+                _scrollViewer.LayoutUpdated -= OnScrollMetricsChanged;
                 _scrollViewer = null;
             }
+            if (VirtualView != null) VirtualView.ScrollToOffset = null;
 
             base.DisconnectHandler(platformView);
         }
@@ -323,6 +332,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private void OnScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
         {
+            PublishScrollMetrics();
             if (_scrollViewer == null || _isApplyingProgrammaticScroll)
             {
                 return;
@@ -649,8 +659,27 @@ namespace ASLM.Services.Internal
             if (_scrollViewer != null)
             {
                 _scrollViewer.ViewChanged += OnScrollViewerViewChanged;
+                _scrollViewer.SizeChanged += OnScrollMetricsChanged;
+                _scrollViewer.LayoutUpdated += OnScrollMetricsChanged;
+                ApplyScrollChrome();
                 _isNearBottom = IsNearBottom();
             }
+        }
+
+        private void OnScrollMetricsChanged(object? sender, object e) => PublishScrollMetrics();
+
+        private void PublishScrollMetrics()
+        {
+            if (VirtualView?.UseCustomScrollBar == true && _scrollViewer is { } viewer)
+                VirtualView.SetScrollMetrics(viewer.ViewportHeight, viewer.ExtentHeight, viewer.VerticalOffset);
+        }
+
+        private void ApplyScrollChrome()
+        {
+            if (_scrollViewer == null) return;
+            _scrollViewer.VerticalScrollBarVisibility = VirtualView?.UseCustomScrollBar == true
+                ? Microsoft.UI.Xaml.Controls.ScrollBarVisibility.Hidden : Microsoft.UI.Xaml.Controls.ScrollBarVisibility.Auto;
+            PublishScrollMetrics();
         }
 
 

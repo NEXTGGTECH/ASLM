@@ -75,7 +75,7 @@ namespace ASLM.Services.Modules
             try
             {
                 // Discover installed modules and match by stable id.
-                var modules = await _installer.DiscoverModulesAsync();
+                var modules = await _installer.DiscoverInstalledModulesAsync();
                 matches = modules
                     .Where(m => string.Equals(m.Id, trimmedId, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(m => m.SourcePath, StringComparer.OrdinalIgnoreCase)
@@ -138,6 +138,7 @@ namespace ASLM.Services.Modules
             var launchSlotAcquired = false;
             try
             {
+                using var operation = ModuleInstaller.BeginContentOperation();
                 await _startThrottle.WaitAsync(ct);
                 launchSlotAcquired = true;
                 return await LaunchOrEnsureRunningCoreAsync(discovered, log, ct);

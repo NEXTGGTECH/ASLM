@@ -30,6 +30,7 @@ namespace ASLM.Pages
         private readonly DownloadCatalog _catalog;
         private readonly DownloadInstaller _installer;
         private readonly AppLocalizationService _localization;
+        private readonly ModuleInfo _moduleInfo;
         private CancellationTokenSource? _catalogLoadCts;
         private CancellationTokenSource? _catalogRefreshCts;
         private CancellationTokenSource? _detailRefreshCts;
@@ -74,13 +75,27 @@ namespace ASLM.Pages
         /// <summary>
         /// Builds the download overlay and wires its core events.
         /// </summary>
-        public DownloadsView(DownloadCatalog catalog, DownloadInstaller installer, AppLocalizationService localization)
+        public DownloadsView(DownloadCatalog catalog, DownloadInstaller installer, AppLocalizationService localization,
+            ModuleInstaller moduleInstaller, ModuleTrustService moduleTrustService, ModuleInfo moduleInfo, UpdateManager updates)
         {
             _catalog = catalog;
             _installer = installer;
             _localization = localization;
+            _moduleInfo = moduleInfo;
 
             InitializeComponent();
+            ModulesContent.Initialize(moduleInstaller, moduleTrustService, localization, updates);
+            ModuleInfoHost.Content = moduleInfo;
+            moduleInfo.CloseRequested += async (_, _) =>
+            {
+                ModuleInfoHost.IsVisible = false;
+                await ModulesContent.RefreshAsync();
+            };
+            ModulesContent.ModuleSelected += async (_, module) =>
+            {
+                ModuleInfoHost.IsVisible = true;
+                await moduleInfo.OpenAsync(module);
+            };
             InstallCommand = new Command(async () => await InstallSelectedVariantAsync());
             OpenVariantCommand = new Command(async () => await OpenSelectedVariantAsync());
             BindingContext = this;
@@ -299,12 +314,13 @@ namespace ASLM.Pages
             RefreshThemeIcons();
             UpdateInfoBlockPreviewSource();
             UpdateDialogSize();
-            return LoadCatalogAsync(
+            ModuleInfoHost.IsVisible = false;
+            return Task.WhenAll(ModulesContent.RefreshAsync(), LoadCatalogAsync(
                 preferCached: true,
                 forceRefresh: true,
                 preserveSelection: true,
                 showBusyIndicator: true,
-                silentRefresh: false);
+                silentRefresh: false));
         }
 
 
@@ -1278,6 +1294,11 @@ namespace ASLM.Pages
         /// </summary>
         private void RequestClose()
         {
+            if (ModuleInfoHost.IsVisible)
+            {
+                _moduleInfo.RequestClose();
+                return;
+            }
             SaveCategorySelection();
             _isDownloadsOpen = false;
 #if WINDOWS
@@ -1412,7 +1433,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Formats download sizes in decimal byte units, matching the provider's MB/GB labels.
         /// </summary>
-        private static string FormatDownloadSize(long bytes)
+        internal static string FormatDownloadSize(long bytes)
         {
             string[] units = ["B", "KB", "MB", "GB", "TB", "PB", "EB"];
             decimal value = bytes;

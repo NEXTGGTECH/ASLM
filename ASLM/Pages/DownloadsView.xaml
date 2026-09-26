@@ -11,133 +11,138 @@
         <TapGestureRecognizer Tapped="OnBackgroundTapped" />
     </ContentView.GestureRecognizers>
 
-    <Border x:Name="DownloadDialog"
-            WidthRequest="1240"
-            HeightRequest="720"
-            HorizontalOptions="Center"
-            VerticalOptions="Center"
-            Style="{StaticResource SettingsDialogBorderStyle}">
-        <Border.GestureRecognizers>
-            <TapGestureRecognizer Tapped="OnDialogTapped" />
-        </Border.GestureRecognizers>
+    <Grid>
+        <Border x:Name="DownloadDialog"
+                WidthRequest="1240"
+                HeightRequest="720"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                Style="{StaticResource SettingsDialogBorderStyle}">
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnDialogTapped" />
+            </Border.GestureRecognizers>
 
-        <Grid ColumnDefinitions="220,*"
-              ColumnSpacing="0">
-            <Border Grid.Column="0"
-                    Style="{StaticResource SettingsSidebarBorderStyle}">
-                <Grid RowDefinitions="24,*"
-                      RowSpacing="12">
-                    <Label x:Name="DownloadsTitleLabel"
-                           Text="Downloads"
-                           Style="{StaticResource SettingsDialogTitleLabelStyle}" />
+            <Grid ColumnDefinitions="220,*"
+                  ColumnSpacing="0">
+                <Border Grid.Column="0"
+                        Style="{StaticResource SettingsSidebarBorderStyle}">
+                    <Grid RowDefinitions="24,*"
+                          RowSpacing="12">
+                        <Label x:Name="DownloadsTitleLabel"
+                               Text="Downloads"
+                               Style="{StaticResource SettingsDialogTitleLabelStyle}" />
 
-                    <ScrollView Grid.Row="1"
-                                Margin="0,4,0,0"
-                                VerticalScrollBarVisibility="Never">
-                        <VerticalStackLayout Spacing="1">
-                            <Label Text="ASLM"
-                                   Style="{StaticResource SettingsSelectorHeaderLabelStyle}" />
-
-                            <Border Style="{StaticResource SettingsSelectorButtonBorderStyle}">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnModulesTapped" />
-                                </Border.GestureRecognizers>
-                                <Border.Triggers>
-                                    <DataTrigger TargetType="Border"
-                                                 Binding="{Binding IsInternalModulesSelected}"
-                                                 Value="True">
-                                        <Setter Property="BackgroundColor"
-                                                Value="{DynamicResource BackgroundTertiary}" />
-                                    </DataTrigger>
-                                </Border.Triggers>
-                                <Label x:Name="InternalModulesLabel"
-                                       Text="Modules"
-                                       Style="{StaticResource SettingsSelectorButtonLabelStyle}">
-                                    <Label.Triggers>
-                                        <DataTrigger TargetType="Label"
-                                                     Binding="{Binding IsInternalModulesSelected}"
-                                                     Value="True">
-                                            <Setter Property="TextColor"
-                                                    Value="{DynamicResource LabelPrimary}" />
-                                        </DataTrigger>
-                                    </Label.Triggers>
-                                </Label>
-                            </Border>
-
-                            <BoxView HeightRequest="12"
-                                     Color="Transparent" />
-
-                            <VerticalStackLayout Spacing="1"
-                                                 IsVisible="{Binding HasModuleCategories}">
-                                <Label x:Name="ModulesSectionLabel"
-                                       Text="MODULES"
+                        <ScrollView Grid.Row="1"
+                                    Margin="0,4,0,0"
+                                    VerticalScrollBarVisibility="Never">
+                            <VerticalStackLayout Spacing="1">
+                                <Label Text="ASLM"
                                        Style="{StaticResource SettingsSelectorHeaderLabelStyle}" />
 
+                                <Border Style="{StaticResource SettingsSelectorButtonBorderStyle}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnModulesTapped" />
+                                    </Border.GestureRecognizers>
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border"
+                                                     Binding="{Binding IsInternalModulesSelected}"
+                                                     Value="True">
+                                            <Setter Property="BackgroundColor"
+                                                    Value="{DynamicResource BackgroundTertiary}" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                    <Label x:Name="InternalModulesLabel"
+                                           Text="Modules"
+                                           Style="{StaticResource SettingsSelectorButtonLabelStyle}">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label"
+                                                         Binding="{Binding IsInternalModulesSelected}"
+                                                         Value="True">
+                                                <Setter Property="TextColor"
+                                                        Value="{DynamicResource LabelPrimary}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </Border>
+
+                                <BoxView HeightRequest="12"
+                                         Color="Transparent" />
+
                                 <VerticalStackLayout Spacing="1"
-                                                     BindableLayout.ItemsSource="{Binding Categories}">
-                                    <BindableLayout.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource SettingsSelectorButtonBorderStyle}">
-                                                <Border.GestureRecognizers>
-                                                    <TapGestureRecognizer Command="{Binding SelectCommand}" />
-                                                </Border.GestureRecognizers>
-                                                <Border.Triggers>
-                                                    <DataTrigger TargetType="Border"
-                                                                 Binding="{Binding IsSelected}"
-                                                                 Value="True">
-                                                        <Setter Property="BackgroundColor"
-                                                                Value="{DynamicResource BackgroundTertiary}" />
-                                                    </DataTrigger>
-                                                </Border.Triggers>
-                                                <Label Text="{Binding Title}"
-                                                       Style="{StaticResource SettingsSelectorButtonLabelStyle}">
-                                                    <Label.Triggers>
-                                                        <DataTrigger TargetType="Label"
+                                                     IsVisible="{Binding HasModuleCategories}">
+                                    <Label x:Name="ModulesSectionLabel"
+                                           Text="MODULES"
+                                           Style="{StaticResource SettingsSelectorHeaderLabelStyle}" />
+
+                                    <VerticalStackLayout Spacing="1"
+                                                         BindableLayout.ItemsSource="{Binding Categories}">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource SettingsSelectorButtonBorderStyle}">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding SelectCommand}" />
+                                                    </Border.GestureRecognizers>
+                                                    <Border.Triggers>
+                                                        <DataTrigger TargetType="Border"
                                                                      Binding="{Binding IsSelected}"
                                                                      Value="True">
-                                                            <Setter Property="TextColor"
-                                                                    Value="{DynamicResource LabelPrimary}" />
+                                                            <Setter Property="BackgroundColor"
+                                                                    Value="{DynamicResource BackgroundTertiary}" />
                                                         </DataTrigger>
-                                                    </Label.Triggers>
-                                                </Label>
-                                            </Border>
-                                        </DataTemplate>
-                                    </BindableLayout.ItemTemplate>
+                                                    </Border.Triggers>
+                                                    <Label Text="{Binding Title}"
+                                                           Style="{StaticResource SettingsSelectorButtonLabelStyle}">
+                                                        <Label.Triggers>
+                                                            <DataTrigger TargetType="Label"
+                                                                         Binding="{Binding IsSelected}"
+                                                                         Value="True">
+                                                                <Setter Property="TextColor"
+                                                                        Value="{DynamicResource LabelPrimary}" />
+                                                            </DataTrigger>
+                                                        </Label.Triggers>
+                                                    </Label>
+                                                </Border>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
                                 </VerticalStackLayout>
                             </VerticalStackLayout>
-                        </VerticalStackLayout>
-                    </ScrollView>
+                        </ScrollView>
+                    </Grid>
+                </Border>
+
+                <BoxView Grid.Column="0"
+                         HorizontalOptions="End"
+                         WidthRequest="1"
+                         Color="{DynamicResource Separator}"
+                         Opacity="0.5" />
+
+                <Grid Grid.Column="1"
+                      BackgroundColor="{DynamicResource BackgroundPrimary}">
+                    <downloads:ModulesDownloadsView x:Name="ModulesContent"
+                                                    IsVisible="{Binding IsInternalModulesSelected}" />
+
+                    <downloads:BridgeDownloadsView x:Name="BridgeContent"
+                                                   IsVisible="{Binding IsModuleCategorySelected}" />
+
+                    <Button Text="&#x2715;"
+                            FontSize="17"
+                            WidthRequest="24"
+                            MinimumWidthRequest="24"
+                            HeightRequest="24"
+                            MinimumHeightRequest="24"
+                            HorizontalOptions="End"
+                            VerticalOptions="Start"
+                            Margin="12"
+                            Padding="0"
+                            BackgroundColor="Transparent"
+                            TextColor="{DynamicResource LabelSecondary}"
+                            CornerRadius="6"
+                            Clicked="OnCloseClicked" />
                 </Grid>
-            </Border>
-
-            <BoxView Grid.Column="0"
-                     HorizontalOptions="End"
-                     WidthRequest="1"
-                     Color="{DynamicResource Separator}"
-                     Opacity="0.5" />
-
-            <Grid Grid.Column="1"
-                  BackgroundColor="{DynamicResource BackgroundPrimary}">
-                <downloads:ModulesDownloadsView IsVisible="{Binding IsInternalModulesSelected}" />
-
-                <downloads:BridgeDownloadsView x:Name="BridgeContent"
-                                               IsVisible="{Binding IsModuleCategorySelected}" />
-
-                <Button Text="&#x2715;"
-                        FontSize="17"
-                        WidthRequest="24"
-                        MinimumWidthRequest="24"
-                        HeightRequest="24"
-                        MinimumHeightRequest="24"
-                        HorizontalOptions="End"
-                        VerticalOptions="Start"
-                        Margin="12"
-                        Padding="0"
-                        BackgroundColor="Transparent"
-                        TextColor="{DynamicResource LabelSecondary}"
-                        CornerRadius="6"
-                        Clicked="OnCloseClicked" />
             </Grid>
-        </Grid>
-    </Border>
+        </Border>
+        <ContentView x:Name="ModuleInfoHost"
+                     IsVisible="False" />
+    </Grid>
 </ContentView>

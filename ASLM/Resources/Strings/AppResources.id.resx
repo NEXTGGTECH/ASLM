@@ -1071,7 +1071,7 @@
     <value>Sembunyikan Log</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>Memasang...</value>
+    <value>Memasang</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Pasang</value>
@@ -1216,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Versi terinstal: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Cari modul yang tersedia</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Katalog modul tidak dapat dimuat.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Tutup informasi modul</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Copot pemasangan</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Mencopot pemasangan</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Copot pemasangan {0}?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Hapus {0} beserta data lokalnya? Mesin, lingkungan, dan model yang hanya digunakan oleh modul ini juga akan dihapus. Dependensi bersama akan dipertahankan.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Modul tidak dapat dihapus</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Sebelum menghapus modul, tunggu hingga proses penyiapan, pengaktifan, pembaruan, atau pengunduhan modul selesai.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Modul ini telah dihapus. Muat ulang daftar modul sebelum melanjutkan.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Beberapa manifes modul yang terpasang tidak ditemukan, tidak dapat dibaca, atau berisi ID duplikat. Penghapusan dibatalkan karena dependensi bersama tidak dapat diperiksa dengan aman.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Modul ini diperlukan oleh: {0}. Hapus modul-modul tersebut terlebih dahulu.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Penghapusan dibatalkan karena suatu jalur berada di luar direktori yang dikelola atau mengandung tautan simbolis.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Modul terpasang lainnya menggunakan berkas di dalam direktori modul ini. Penghapusan dibatalkan untuk melindungi berkas tersebut.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Modul dihapus</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Modul telah dihapus dari daftar modul terpasang, tetapi beberapa berkas tidak dapat dihapus. Berkas tersebut masih ada di: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Versi</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Pembuat</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>ID modul</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Jenis</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Kategori</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Platform yang didukung</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Saluran unduhan</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Mesin yang diperlukan</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Modul yang diperlukan</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Kategori model yang diperlukan</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Memuat informasi modul…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>Mengunduh dan menyiapkan {0}…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Terpasang</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Tidak ada sumber unduhan yang didukung untuk modul ini.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Pemasangan dibatalkan.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Operasi gagal: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Modul {0} tidak lagi tersedia di katalog lokal.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Sumber unduhan untuk {0} tidak dapat ditentukan.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Pemasangan {0} tidak dapat diselesaikan. Lihat notifikasi atau konsol modul untuk detailnya.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Ditemukan dependensi melingkar antarmodul yang melibatkan {0}. Pemasangan dibatalkan.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Modul yang diperlukan, {0}, tidak ditemukan di katalog lokal.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Informasi</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Konfigurasi</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Status modul</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Belum terpasang</value>
   </data>
 </root>

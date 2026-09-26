@@ -1071,7 +1071,7 @@
     <value>إخفاء السجل</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>جارٍ التثبيت...</value>
+    <value>جارٍ التثبيت</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>تثبيت</value>
@@ -1216,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>الإصدار المثبّت: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>البحث عن الوحدات المتاحة</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>تعذّر تحميل فهرس الوحدات.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>إغلاق معلومات الوحدة</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>إلغاء التثبيت</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>جارٍ إلغاء التثبيت</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>هل تريد إلغاء تثبيت {0}؟</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>هل تريد إزالة {0} وبياناتها المحلية؟ ستُزال أيضًا المحرّكات والبيئات والنماذج التي تستخدمها هذه الوحدة وحدها. وسيُحتفظ بالتبعيات المشتركة.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>تعذّرت إزالة الوحدة</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>انتظر اكتمال إعداد الوحدات أو تشغيلها أو تحديثها أو تنزيلها قبل إزالة أي وحدة.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>أُزيلت هذه الوحدة. حدّث قائمة الوحدات قبل المتابعة.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>بعض ملفات بيان الوحدات المثبتة مفقودة أو غير قابلة للقراءة أو تحتوي على معرّفات مكررة. أُلغيت الإزالة لتعذّر التحقق من التبعيات المشتركة بأمان.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>تحتاج الوحدات التالية إلى هذه الوحدة: {0}. أزل تلك الوحدات أولًا.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>أُلغيت الإزالة لأن أحد المسارات يقع خارج المجلد المُدار أو يحتوي على رابط رمزي.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>تستخدم وحدة مثبتة أخرى ملفات داخل مجلد هذه الوحدة. أُلغيت الإزالة لحماية تلك الملفات.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>أُزيلت الوحدة</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>أُزيلت الوحدة من قائمة الوحدات المثبتة، لكن تعذّر حذف بعض الملفات. ما زالت موجودة في: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>الإصدار</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>المؤلف</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>معرّف الوحدة</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>الفئات</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>المنصات المدعومة</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>قناة التنزيل</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>المحرّكات المطلوبة</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>الوحدات المطلوبة</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>فئات النماذج المطلوبة</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>جارٍ تحميل معلومات الوحدة…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>جارٍ تنزيل {0} وإعدادها…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>مثبتة</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>لا يتوفر مصدر تنزيل مدعوم لهذه الوحدة.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>أُلغي التثبيت.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>فشلت العملية: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>لم تعد الوحدة {0} متاحة في الفهرس المحلي.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>تعذّر تحديد مصدر تنزيل لـ {0}.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>تعذّر إكمال تثبيت {0}. راجع الإشعارات أو وحدة التحكم الخاصة بالوحدة للاطلاع على التفاصيل.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>توجد تبعية دائرية بين الوحدات تشمل {0}. أُلغي التثبيت.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>الوحدة المطلوبة {0} غير موجودة في الفهرس المحلي.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>المعلومات</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>التكوين</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>حالة الوحدة</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>غير مثبتة</value>
   </data>
 </root>

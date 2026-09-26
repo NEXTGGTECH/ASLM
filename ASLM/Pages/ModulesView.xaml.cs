@@ -26,6 +26,7 @@ namespace ASLM.Pages
         private AppShellPage? _shell;
         private int _gridSpan = 1;
         private ImageSource _moreIconSource = null!;
+        private string? _removingSourcePath;
 
 
         // View data
@@ -91,6 +92,7 @@ namespace ASLM.Pages
             _launchCoordinator = launchCoordinator;
             _localization = localization;
             InitializeComponent();
+            UninstallConfirmation.Initialize(_localization);
             BindingContext = this;
             DashboardView.HandlerChanged += OnDashboardViewHandlerChanged;
             Loaded += OnLoaded;
@@ -190,7 +192,7 @@ namespace ASLM.Pages
 
             foreach (var module in modules)
             {
-                Modules.Add(new ModuleViewModel(
+                var viewModel = new ModuleViewModel(
                     module,
                     installer,
                     runner,
@@ -200,7 +202,10 @@ namespace ASLM.Pages
                     OnModuleStateChanged,
                     OnMenuToggleRequested,
                     OpenConfigureUpdates,
-                    OpenUpdateDialog));
+                    OpenUpdateDialog,
+                    OnRemoveRequested);
+                viewModel.SetRemoving(string.Equals(_removingSourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase));
+                Modules.Add(viewModel);
             }
         }
 
@@ -223,6 +228,7 @@ namespace ASLM.Pages
                 updateManager,
                 moduleTrustService,
                 onStateChanged,
+                static _ => { },
                 static _ => { },
                 static _ => { },
                 static _ => { });
@@ -282,6 +288,46 @@ namespace ASLM.Pages
             }
         }
 
+        /// <summary>Confirms uninstall in the dashboard overlay and keeps the card busy throughout removal.</summary>
+        private async void OnRemoveRequested(ModuleViewModel module)
+        {
+            if (_removingSourcePath != null || UninstallConfirmation.IsOpen) return;
+            CloseAllMenus();
+            if (!await UninstallConfirmation.ConfirmAsync(module.Name)) return;
+            if (!module.RemoveCommand.CanExecute(null)) return;
+
+            SetRemovingModule(module.SourcePath);
+            string? retainedFiles = null;
+            Exception? failure = null;
+            try
+            {
+                retainedFiles = await module.UninstallAsync();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            finally
+            {
+                // A manifest refresh may have replaced the card while the uninstall was running.
+                module.SetRemoving(false);
+                SetRemovingModule(null);
+            }
+
+            if (!IsLoaded) return;
+            if (failure != null)
+                await UninstallConfirmation.ShowFailureAsync(failure.Message);
+            else if (retainedFiles != null)
+                await UninstallConfirmation.ShowCleanupAsync(retainedFiles);
+        }
+
+        private void SetRemovingModule(string? sourcePath)
+        {
+            _removingSourcePath = sourcePath;
+            foreach (var module in Modules)
+                module.SetRemoving(string.Equals(sourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase));
+        }
+
 
         // Layout events
 
@@ -315,6 +361,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OnUnloaded(object? sender, EventArgs e)
         {
+            UninstallConfirmation.Dismiss();
             ThemeService.PaletteApplied -= OnPaletteAppliedForMoreIcon;
             if (Application.Current is { } app)
             {
@@ -439,6 +486,7 @@ namespace ASLM.Pages
         private readonly Action<ModuleViewModel> _onMenuToggleRequested;
         private readonly Action<ModuleViewModel> _onConfigureUpdatesRequested;
         private readonly Action<ModuleViewModel> _onUpdateDialogRequested;
+        private readonly Action<ModuleViewModel> _onRemoveRequested;
         private readonly ObservableCollection<string> _branchOptions = [];
         private readonly ObservableCollection<UpdateCandidate> _releaseOptions = [];
         private readonly Command _launchCommand;
@@ -447,6 +495,8 @@ namespace ASLM.Pages
         private readonly Command _checkUpdateCommand;
         private readonly Command _updateCommand;
         private readonly Command _closeMenuCommand;
+        private readonly Command _removeCommand;
+        private bool _isRemoving;
 
         private string _selectedSourceMode = "release";
         private string _selectedBranch = "main";
@@ -501,7 +551,8 @@ namespace ASLM.Pages
             Action onStateChanged,
             Action<ModuleViewModel> onMenuToggleRequested,
             Action<ModuleViewModel> onConfigureUpdatesRequested,
-            Action<ModuleViewModel> onUpdateDialogRequested)
+            Action<ModuleViewModel> onUpdateDialogRequested,
+            Action<ModuleViewModel> onRemoveRequested)
         {
             _config = config;
             _installer = installer;
@@ -513,6 +564,7 @@ namespace ASLM.Pages
             _onMenuToggleRequested = onMenuToggleRequested;
             _onConfigureUpdatesRequested = onConfigureUpdatesRequested;
             _onUpdateDialogRequested = onUpdateDialogRequested;
+            _onRemoveRequested = onRemoveRequested;
 
             // Normalize once so every card starts from the persisted update preferences.
             _config.Normalize();
@@ -529,6 +581,7 @@ namespace ASLM.Pages
             OpenUpdateDialogCommand = new Command(ExecuteOpenUpdateDialogCommand);
             _checkUpdateCommand = new Command(ExecuteCheckUpdateCommand, CanCheckOrUpdate);
             _updateCommand = new Command(ExecuteApplyUpdateCommand, CanApplyUpdate);
+            _removeCommand = new Command(OnRemove, () => !IsRemoving && !IsBusy && !IsStarting && !IsRestarting);
 
             LaunchCommand = _launchCommand;
             StopCommand = _stopCommand;
@@ -599,6 +652,29 @@ namespace ASLM.Pages
 
 
         // Localized card labels
+
+        public ICommand RemoveCommand => _removeCommand;
+        public string RemoveLabel => L.Get(LocalizationKeys.Modules_Remove);
+        public string RemovingLabel => L.Get(LocalizationKeys.Modules_Removing);
+        public bool IsRemoving => _isRemoving;
+        public bool IsNotRemoving => !IsRemoving;
+
+        internal void SetRemoving(bool removing)
+        {
+            if (_isRemoving == removing) return;
+            _isRemoving = removing;
+            if (removing) SetMenuOpen(false);
+            OnPropertyChanged(nameof(IsRemoving));
+            OnPropertyChanged(nameof(IsNotRemoving));
+            OnPropertyChanged(nameof(CanShowLaunchAction));
+            OnPropertyChanged(nameof(ShowRunningActions));
+            OnPropertyChanged(nameof(ShowCardUpdateAction));
+            OnPropertyChanged(nameof(ShowUpdatingStatus));
+            OnPropertyChanged(nameof(ShowStartingStatus));
+            RefreshCommandStates();
+        }
+
+        internal Task<string?> UninstallAsync() => Task.Run(() => _installer.UninstallAsync(_config));
 
         /// <summary>
         /// Gets the localized not-verified badge text.
@@ -677,6 +753,8 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(LaunchLabel));
             OnPropertyChanged(nameof(CheckUpdatesLabel));
             OnPropertyChanged(nameof(ConfigureUpdatesLabel));
+            OnPropertyChanged(nameof(RemoveLabel));
+            OnPropertyChanged(nameof(RemovingLabel));
         }
 
 
@@ -1069,7 +1147,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Gets whether the compact update action should stay visible in the card header.
         /// </summary>
-        public bool ShowCardUpdateAction => HasUpdate && !IsUpdating;
+        public bool ShowCardUpdateAction => HasUpdate && !IsUpdating && !IsRemoving;
 
         /// <summary>
         /// Gets or sets whether the module is currently starting.
@@ -1096,22 +1174,22 @@ namespace ASLM.Pages
         /// <summary>
         /// Gets whether the launch button should stay visible.
         /// </summary>
-        public bool CanShowLaunchAction => IsStopped && !IsUpdating && !IsStarting;
+        public bool CanShowLaunchAction => IsStopped && !IsUpdating && !IsStarting && !IsRemoving;
 
         /// <summary>
         /// Gets whether the running action buttons should stay visible.
         /// </summary>
-        public bool ShowRunningActions => IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
+        public bool ShowRunningActions => IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsRemoving;
 
         /// <summary>
         /// Gets whether the updating status pill should be visible.
         /// </summary>
-        public bool ShowUpdatingStatus => IsUpdating;
+        public bool ShowUpdatingStatus => IsUpdating && !IsRemoving;
 
         /// <summary>
         /// Gets whether the starting status pill should be visible.
         /// </summary>
-        public bool ShowStartingStatus => IsStarting;
+        public bool ShowStartingStatus => IsStarting && !IsRemoving;
 
 
         // Card menu
@@ -1190,6 +1268,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ExecuteToggleMenuCommand()
         {
+            if (IsRemoving) return;
             _onMenuToggleRequested(this);
         }
 
@@ -1206,6 +1285,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ExecuteOpenConfigureUpdatesCommand()
         {
+            if (IsRemoving) return;
             SetMenuOpen(false);
             _onConfigureUpdatesRequested(this);
         }
@@ -1215,7 +1295,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ExecuteOpenUpdateDialogCommand()
         {
-            if (!HasUpdate)
+            if (!HasUpdate || IsRemoving)
             {
                 return;
             }
@@ -1240,7 +1320,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanCheckOrUpdate()
         {
-            return !IsCheckingUpdate && !IsUpdating;
+            return !_isRemoving && !IsCheckingUpdate && !IsUpdating;
         }
 
         /// <summary>
@@ -1256,7 +1336,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanLaunch()
         {
-            return IsStopped && !IsStarting && !IsUpdating;
+            return !_isRemoving && IsStopped && !IsStarting && !IsUpdating;
         }
 
         /// <summary>
@@ -1264,7 +1344,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanStop()
         {
-            return IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
+            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
         }
 
         /// <summary>
@@ -1272,7 +1352,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanRestart()
         {
-            return IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
+            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
         }
 
         /// <summary>
@@ -1285,6 +1365,7 @@ namespace ASLM.Pages
             _restartCommand.ChangeCanExecute();
             _checkUpdateCommand.ChangeCanExecute();
             _updateCommand.ChangeCanExecute();
+            _removeCommand.ChangeCanExecute();
         }
 
         /// <summary>
@@ -1850,6 +1931,13 @@ namespace ASLM.Pages
 
         // Launch flow
 
+        private void OnRemove()
+        {
+            if (!_removeCommand.CanExecute(null)) return;
+            SetMenuOpen(false);
+            _onRemoveRequested(this);
+        }
+
         /// <summary>
         /// Loads the latest config, completes first-run setup if needed, and starts the module.
         /// </summary>
@@ -1939,6 +2027,7 @@ namespace ASLM.Pages
             await ReloadEditableConfigAsync();
 
             IsRestarting = true;
+            using var activity = _runner.ConsoleStore.BeginActivity(_config.SourcePath, ModuleActivity.Restarting);
 
             try
             {

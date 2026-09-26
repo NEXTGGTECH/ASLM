@@ -3,6 +3,7 @@
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:controls="clr-namespace:ASLM.Controls"
              x:Class="ASLM.Pages.SettingsView"
              BackgroundColor="{DynamicResource OverlayBackground}">
 
@@ -119,22 +120,9 @@
                         </VerticalStackLayout>
                     </ScrollView>
 
-                    <Grid x:Name="SettingsScrollBarTrack"
-                          Grid.Column="1"
-                          Margin="0"
-                          WidthRequest="12"
-                          MinimumWidthRequest="12"
-                          HorizontalOptions="Center"
-                          VerticalOptions="Fill"
-                          BackgroundColor="Transparent"
-                          IsVisible="False">
-                        <Grid.GestureRecognizers>
-                            <PanGestureRecognizer PanUpdated="OnSettingsScrollBarPanUpdated" />
-                        </Grid.GestureRecognizers>
-
-                        <BoxView x:Name="SettingsScrollBarThumb"
-                                 Style="{StaticResource SettingsScrollBarThumbStyle}" />
-                    </Grid>
+                    <controls:AppScrollBar x:Name="SettingsScrollBarTrack"
+                                           Grid.Column="1"
+                                           Target="{x:Reference SettingsScroll}" />
 
                     <ContentView x:Name="ModuleSectionNavigationContainer"
                                  Grid.Column="2"

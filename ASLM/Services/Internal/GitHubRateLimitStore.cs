@@ -18,6 +18,7 @@ namespace ASLM.Services.Internal
         private readonly string _filePath;
         private readonly ILogger<GitHubRateLimitStore> _logger;
         private readonly object _sync = new();
+        private readonly SemaphoreSlim _saveGate = new(1, 1);
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
@@ -237,15 +238,15 @@ namespace ASLM.Services.Internal
         /// </summary>
         public async Task SaveAsync()
         {
-            EnsureDirectoryExists();
-
-            string json;
-            lock (_sync)
+            await _saveGate.WaitAsync().ConfigureAwait(false);
+            try
             {
-                json = JsonSerializer.Serialize(Data, _jsonOptions);
+                EnsureDirectoryExists();
+                string json;
+                lock (_sync) { json = JsonSerializer.Serialize(Data, _jsonOptions); }
+                await File.WriteAllTextAsync(_filePath, json).ConfigureAwait(false);
             }
-
-            await File.WriteAllTextAsync(_filePath, json);
+            finally { _saveGate.Release(); }
         }
 
         /// <summary>
@@ -253,15 +254,16 @@ namespace ASLM.Services.Internal
         /// </summary>
         private void Save()
         {
-            EnsureDirectoryExists();
-
-            string json;
-            lock (_sync)
+            // Parallel repository responses must not write the same history file simultaneously.
+            _saveGate.Wait();
+            try
             {
-                json = JsonSerializer.Serialize(Data, _jsonOptions);
+                EnsureDirectoryExists();
+                string json;
+                lock (_sync) { json = JsonSerializer.Serialize(Data, _jsonOptions); }
+                File.WriteAllText(_filePath, json);
             }
-
-            File.WriteAllText(_filePath, json);
+            finally { _saveGate.Release(); }
         }
 
         private int CountAutoRequestsInCurrentWindow()

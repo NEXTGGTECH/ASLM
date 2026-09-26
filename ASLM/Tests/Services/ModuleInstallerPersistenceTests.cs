@@ -10,6 +10,54 @@ namespace ASLM.Tests.Services;
 [Collection("ModuleManifestDiscovery")]
 public sealed class ModuleInstallerPersistenceTests
 {
+    [Theory]
+    [InlineData("release", "v1.2", "main")]
+    [InlineData("pre-release", "latest", "main")]
+    [InlineData("branch", "latest", "preview")]
+    public async Task Download_preferences_preserve_manifest_state_and_do_not_install_the_catalog_entry(
+        string mode, string tag, string branch)
+    {
+        using var layout = new AslmFileSystemLayout();
+        var directory = Directory.CreateTempSubdirectory("ASLM-Preferences-");
+        try
+        {
+            var module = ModuleConfigBuilder.Create(configure: config =>
+            {
+                config.SourcePath = Path.Combine(directory.FullName, ModuleManifestDiscovery.ManifestFileName);
+                config.Update.InstalledCommitSha = "recorded-commit";
+            });
+            var installer = new ModuleInstaller(null!, null!, null!);
+            installer.SaveModuleConfig(module, raiseModulesChanged: false);
+            var changes = 0;
+            installer.ModulesChanged += (_, _) => changes++;
+
+            module.Name = "Stale module name";
+            module.Status.Installed = true;
+            module.Update.InstalledCommitSha = "stale-commit";
+            module.Update.Mode = mode;
+            module.Update.Channel = mode == "pre-release" ? "pre-release" : "release";
+            module.Update.SelectedReleaseTag = tag;
+            module.Update.Branch = branch;
+            module.Update.UseDefaultChannel = false;
+            installer.SaveModuleUpdatePreferences(module);
+
+            var saved = (await installer.LoadModuleConfig(module.SourcePath))!;
+            saved.Name.Should().Be("Test Module");
+            saved.Status.Installed.Should().BeFalse();
+            saved.Update.InstalledCommitSha.Should().Be("recorded-commit");
+            saved.Update.Mode.Should().Be(mode);
+            saved.Update.SelectedReleaseTag.Should().Be(tag);
+            saved.Update.Branch.Should().Be(branch);
+            saved.Update.UseDefaultChannel.Should().BeFalse();
+            UpdateManager.ApplyCatalogDefaults(saved, false, "pre-release");
+            saved.Update.Mode.Should().Be(mode, "a saved catalog selection survives reopening and a changed global default");
+            saved.HasDeclaredUpdateConfig.Should().BeTrue();
+            module.HasDeclaredUpdateConfig.Should().BeTrue();
+            changes.Should().Be(0);
+        }
+        finally { directory.Delete(recursive: true); }
+    }
+
     /// <summary>
     /// Verifies that checkpoint saves persist state without rebuilding module-backed UI.
     /// </summary>
