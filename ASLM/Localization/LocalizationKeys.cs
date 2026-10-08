@@ -247,6 +247,8 @@ public static class LocalizationKeys
     public const string Modules_Empty = "Modules_Empty";
     public const string Modules_Launch = "Modules_Launch";
     public const string Modules_NotVerified = "Modules_NotVerified";
+    public const string Modules_Beta = "Modules_Beta";
+    public const string Modules_Experimental = "Modules_Experimental";
     public const string Modules_Restart = "Modules_Restart";
     public const string Modules_Restarting = "Modules_Restarting";
     public const string Modules_Starting = "Modules_Starting";

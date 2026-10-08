@@ -176,9 +176,18 @@
                     </Border>
                     <VerticalStackLayout Grid.Column="1"
                                          Spacing="4">
-                        <Label Text="{Binding VersionText}"
-                               IsVisible="{Binding HasVersion}"
-                               Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                        <Grid ColumnDefinitions="*,Auto"
+                              HorizontalOptions="Start">
+                            <Label Text="{Binding VersionText}"
+                                   IsVisible="{Binding HasVersion}"
+                                   Style="{StaticResource ModuleInfoFieldLabelStyle}"
+                                   VerticalOptions="Center" />
+                            <ContentView Grid.Column="1"
+                                         IsVisible="{Binding HasDevelopmentStatus}"
+                                         ControlTemplate="{StaticResource ModuleDevelopmentBadgesTemplate}"
+                                         VerticalOptions="Center"
+                                         Margin="4,0,0,0" />
+                        </Grid>
                         <Label Text="{Binding AuthorText}"
                                IsVisible="{Binding HasAuthor}"
                                Style="{StaticResource ModuleInfoFieldLabelStyle}" />

@@ -33,6 +33,15 @@ namespace ASLM.Models
         [JsonPropertyName("version")]
         public string Version { get; set; } = string.Empty;
 
+        // Optional development-stage badges, independent of trust and the update channel.
+        [JsonPropertyName("is_beta")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool IsBeta { get; set; }
+
+        [JsonPropertyName("is_experemental")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool IsExperimental { get; set; }
+
         // Module author displayed to the user.
         [JsonPropertyName("author")]
         public string Author { get; set; } = string.Empty;

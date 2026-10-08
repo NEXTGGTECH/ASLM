@@ -6,6 +6,64 @@ namespace ASLM.Tests.Services;
 
 public sealed class ModuleConfigV2Tests
 {
+    [Theory]
+    [InlineData(1, false, false)]
+    [InlineData(1, true, false)]
+    [InlineData(1, false, true)]
+    [InlineData(1, true, true)]
+    [InlineData(2, false, false)]
+    [InlineData(2, true, false)]
+    [InlineData(2, false, true)]
+    [InlineData(2, true, true)]
+    public void Development_flags_are_independent_and_survive_manifest_round_trip(int version, bool beta, bool experimental)
+    {
+        var config = ModuleManifestParser.Parse($$"""
+            {
+              "fileVersion": {{version}},
+              "id": "development-flags",
+              "supportedPlatforms": [{"os": "windows", "arch": "amd64"}],
+              "is_beta": {{(beta ? "true" : "false")}},
+              "is_experemental": {{(experimental ? "true" : "false")}}
+            }
+            """);
+        config.IsBeta.Should().Be(beta);
+        config.IsExperimental.Should().Be(experimental);
+        var json = System.Text.Json.JsonSerializer.Serialize(config);
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+        document.RootElement.TryGetProperty("is_beta", out _).Should().Be(beta);
+        document.RootElement.TryGetProperty("is_experemental", out _).Should().Be(experimental);
+        document.RootElement.TryGetProperty("is_experimental", out _).Should().BeFalse();
+        var reloaded = ModuleManifestParser.Parse(json);
+        reloaded.IsBeta.Should().Be(beta);
+        reloaded.IsExperimental.Should().Be(experimental);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Omitted_development_flags_default_to_false(int version)
+    {
+        var config = ModuleManifestParser.Parse($$"""
+            {"fileVersion": {{version}}, "id": "stable",
+             "supportedPlatforms": [{"os": "windows", "arch": "amd64"}]}
+            """);
+        config.IsBeta.Should().BeFalse();
+        config.IsExperimental.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("is_beta", "\"true\"")]
+    [InlineData("is_beta", "1")]
+    [InlineData("is_beta", "null")]
+    [InlineData("is_experemental", "\"true\"")]
+    [InlineData("is_experemental", "1")]
+    [InlineData("is_experemental", "null")]
+    public void Development_flags_require_json_booleans(string key, string value)
+    {
+        var parse = () => ModuleManifestParser.Parse($$"""{"id":"invalid", "{{key}}":{{value}}}""");
+        parse.Should().Throw<System.Text.Json.JsonException>();
+    }
+
     /// <summary>
     /// Verifies the stable top-level order used when ASLM persists module manifests.
     /// </summary>

@@ -1343,4 +1343,10 @@
   <data name="ModuleInfo_NotInstalled" xml:space="preserve">
     <value>इंस्टॉल नहीं है</value>
   </data>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>बीटा</value>
+  </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>प्रायोगिक</value>
+  </data>
 </root>

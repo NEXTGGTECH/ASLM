@@ -130,10 +130,20 @@ namespace ASLM.Controls.Downloads
             public string VersionString => string.IsNullOrWhiteSpace(_version) ? string.Empty
                 : _version.StartsWith('v') ? _version : $"v{_version}";
             public bool HasIcon => IconSource != null;
+            public bool IsBeta => Module.IsBeta;
+            public bool IsExperimental => Module.IsExperimental;
+            public bool HasDevelopmentStatus => IsBeta || IsExperimental;
+            public string BetaLabel => L.Get(LocalizationKeys.Modules_Beta);
+            public string ExperimentalLabel => L.Get(LocalizationKeys.Modules_Experimental);
             public bool ShowVerifiedBadge => Trust == ModuleTrustLevel.Official;
             public bool ShowUnverifiedWarning => Trust == ModuleTrustLevel.Unreviewed;
             public string NotVerifiedLabel => L.Get(LocalizationKeys.Modules_NotVerified);
-            internal void RefreshLocalization() => OnPropertyChanged(nameof(NotVerifiedLabel));
+            internal void RefreshLocalization()
+            {
+                OnPropertyChanged(nameof(NotVerifiedLabel));
+                OnPropertyChanged(nameof(BetaLabel));
+                OnPropertyChanged(nameof(ExperimentalLabel));
+            }
 
             internal Task RefreshPresentationAsync(UpdateManager updates, CancellationToken ct)
             {

@@ -1744,6 +1744,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Beta.
+        /// </summary>
+        public static string Modules_Beta {
+            get {
+                return ResourceManager.GetString("Modules_Beta", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Check updates.
         /// </summary>
         public static string Modules_CheckUpdates {
@@ -1767,6 +1776,15 @@ namespace ASLM.Resources.Strings {
         public static string Modules_Empty {
             get {
                 return ResourceManager.GetString("Modules_Empty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Experimental.
+        /// </summary>
+        public static string Modules_Experimental {
+            get {
+                return ResourceManager.GetString("Modules_Experimental", resourceCulture);
             }
         }
         

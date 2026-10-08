@@ -744,6 +744,8 @@ namespace ASLM.Pages
             RefreshUpdateStatusLocalization();
 
             OnPropertyChanged(nameof(NotVerifiedLabel));
+            OnPropertyChanged(nameof(BetaLabel));
+            OnPropertyChanged(nameof(ExperimentalLabel));
             OnPropertyChanged(nameof(UpdateLabel));
             OnPropertyChanged(nameof(StopLabel));
             OnPropertyChanged(nameof(RestartLabel));
@@ -794,6 +796,12 @@ namespace ASLM.Pages
         /// Gets the formatted version label shown on the card.
         /// </summary>
         public string VersionString => $"v{_config.Version}";
+
+        public bool IsBeta => _config.IsBeta;
+        public bool IsExperimental => _config.IsExperimental;
+        public bool HasDevelopmentStatus => IsBeta || IsExperimental;
+        public string BetaLabel => L.Get(LocalizationKeys.Modules_Beta);
+        public string ExperimentalLabel => L.Get(LocalizationKeys.Modules_Experimental);
 
         /// <summary>
         /// Gets the resolved module icon path.
@@ -2103,6 +2111,8 @@ namespace ASLM.Pages
             _config.Name = freshConfig.Name;
             _config.Description = freshConfig.Description;
             _config.Version = freshConfig.Version;
+            _config.IsBeta = freshConfig.IsBeta;
+            _config.IsExperimental = freshConfig.IsExperimental;
             _config.Author = freshConfig.Author;
             _config.Type = freshConfig.Type;
             _config.Category = freshConfig.Category;
@@ -2165,6 +2175,9 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(Name));
             OnPropertyChanged(nameof(Description));
             OnPropertyChanged(nameof(VersionString));
+            OnPropertyChanged(nameof(IsBeta));
+            OnPropertyChanged(nameof(IsExperimental));
+            OnPropertyChanged(nameof(HasDevelopmentStatus));
             OnPropertyChanged(nameof(IconFullPath));
             OnPropertyChanged(nameof(HasIcon));
             OnPropertyChanged(nameof(SourceModeOptions));

@@ -8,6 +8,68 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:shimmer="clr-namespace:Syncfusion.Maui.Toolkit.Shimmer;assembly=Syncfusion.Maui.Toolkit">
 
+    <!-- Shared module development badges; used beside the version on all module cards. -->
+    <ControlTemplate x:Key="ModuleDevelopmentBadgesTemplate">
+        <HorizontalStackLayout BindingContext="{TemplateBinding BindingContext}"
+                               Spacing="4"
+                               VerticalOptions="Center">
+            <Border IsVisible="False"
+                    Background="{DynamicResource SystemOrange}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 2"
+                    HeightRequest="24"
+                    Padding="4,0"
+                    VerticalOptions="Center">
+                <Border.Triggers>
+                    <MultiTrigger TargetType="Border">
+                        <MultiTrigger.Conditions>
+                            <BindingCondition Binding="{Binding IsBeta}"
+                                              Value="True" />
+                            <BindingCondition Binding="{Binding IsExperimental}"
+                                              Value="False" />
+                        </MultiTrigger.Conditions>
+                        <Setter Property="IsVisible"
+                                Value="True" />
+                    </MultiTrigger>
+                </Border.Triggers>
+                <HorizontalStackLayout Spacing="4"
+                                       VerticalOptions="Center">
+                    <Image Source="icon_warning.png"
+                           WidthRequest="20"
+                           HeightRequest="20"
+                           VerticalOptions="Center"
+                           Aspect="AspectFit" />
+                    <Label Text="{Binding BetaLabel}"
+                           FontSize="14"
+                           TextColor="{DynamicResource White}"
+                           VerticalOptions="Center"
+                           LineBreakMode="NoWrap" />
+                </HorizontalStackLayout>
+            </Border>
+            <Border IsVisible="{Binding IsExperimental}"
+                    Background="{DynamicResource SystemPurple}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 2"
+                    HeightRequest="24"
+                    Padding="4,0"
+                    VerticalOptions="Center">
+                <HorizontalStackLayout Spacing="4"
+                                       VerticalOptions="Center">
+                    <Image Source="icon_warning.png"
+                           WidthRequest="20"
+                           HeightRequest="20"
+                           VerticalOptions="Center"
+                           Aspect="AspectFit" />
+                    <Label Text="{Binding ExperimentalLabel}"
+                           FontSize="14"
+                           TextColor="{DynamicResource White}"
+                           VerticalOptions="Center"
+                           LineBreakMode="NoWrap" />
+                </HorizontalStackLayout>
+            </Border>
+        </HorizontalStackLayout>
+    </ControlTemplate>
+
     <!-- Core controls -->
     <Style x:Key="AppScrollBarThumbStyle" TargetType="BoxView">
         <Setter Property="WidthRequest" Value="4" />

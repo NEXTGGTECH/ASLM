@@ -200,9 +200,20 @@
                                     <VerticalStackLayout Grid.Row="1"
                                                          Spacing="4"
                                                          Margin="0,4">
-                                        <Label Text="{Binding VersionString}"
-                                               FontSize="14"
-                                               TextColor="{DynamicResource LabelSecondary}" />
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              HorizontalOptions="Start">
+                                            <Label Text="{Binding VersionString}"
+                                                   FontSize="14"
+                                                   TextColor="{DynamicResource LabelSecondary}"
+                                                   VerticalOptions="Center"
+                                                   MaxLines="1"
+                                                   LineBreakMode="TailTruncation" />
+                                            <ContentView Grid.Column="1"
+                                                         IsVisible="{Binding HasDevelopmentStatus}"
+                                                         ControlTemplate="{StaticResource ModuleDevelopmentBadgesTemplate}"
+                                                         VerticalOptions="Center"
+                                                         Margin="4,0,0,0" />
+                                        </Grid>
                                     </VerticalStackLayout>
 
                                     <Grid Grid.Row="2"

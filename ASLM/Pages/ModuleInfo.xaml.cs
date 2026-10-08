@@ -46,11 +46,16 @@ public partial class ModuleInfo : ContentView, ILocalizable
     public string AuthorText => string.IsNullOrWhiteSpace(_module?.Author) ? string.Empty
         : $"{L.Get(LocalizationKeys.ModuleInfo_Author)}: {_module.Author}";
     public bool HasVersion => !string.IsNullOrWhiteSpace(VersionText);
+    public bool IsBeta => _module?.IsBeta == true;
+    public bool IsExperimental => _module?.IsExperimental == true;
+    public bool HasDevelopmentStatus => IsBeta || IsExperimental;
+    public string BetaLabel => L.Get(LocalizationKeys.Modules_Beta);
+    public string ExperimentalLabel => L.Get(LocalizationKeys.Modules_Experimental);
     public bool HasAuthor => !string.IsNullOrWhiteSpace(AuthorText);
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
     public ImageSource? IconSource => _iconSource;
     public bool HasIcon => IconSource != null;
-    public bool HasOverview => HasIcon || HasDescription || HasVersion || HasAuthor;
+    public bool HasOverview => HasIcon || HasDescription || HasVersion || HasAuthor || HasDevelopmentStatus;
     public bool IsInfoSelected => _selectedSection == Section.Info;
     public bool IsConfigurationSelected => _selectedSection == Section.Configuration;
     public bool IsStatusSelected => _selectedSection == Section.Status;
@@ -215,6 +220,7 @@ public partial class ModuleInfo : ContentView, ILocalizable
         foreach (var property in new[] { nameof(ModuleName), nameof(Description), nameof(HasDescription),
                      nameof(IconSource), nameof(HasIcon), nameof(HasOverview), nameof(IsBusy), nameof(IsCurrentInstallation),
                      nameof(VersionText), nameof(AuthorText), nameof(HasVersion), nameof(HasAuthor),
+                     nameof(IsBeta), nameof(IsExperimental), nameof(HasDevelopmentStatus), nameof(BetaLabel), nameof(ExperimentalLabel),
                      nameof(CanInstall), nameof(ShowInstallButton),
                      nameof(ShowVerifiedBadge), nameof(ShowUnverifiedWarning), nameof(NotVerifiedText),
                      nameof(SourceUrl), nameof(HasSourceLink),

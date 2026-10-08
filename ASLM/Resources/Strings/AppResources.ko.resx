@@ -1343,4 +1343,10 @@
   <data name="ModuleInfo_NotInstalled" xml:space="preserve">
     <value>설치되지 않음</value>
   </data>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>베타</value>
+  </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>실험적</value>
+  </data>
 </root>
