@@ -51,6 +51,9 @@ public partial class ModuleInstaller
     /// </summary>
     public async Task<string?> UninstallAsync(ModuleConfig selected, CancellationToken ct = default)
     {
+        // Required modules are not removable; leave their processes and files untouched.
+        if (ModuleRegistry.IsRequired(selected.Id)) return null;
+
         lock (OperationLock)
         {
             if (_removingModule || _contentOperations != 0)

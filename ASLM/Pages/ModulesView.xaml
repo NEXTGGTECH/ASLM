@@ -410,7 +410,8 @@
                                                    VerticalOptions="Center" />
                                         </Grid>
                                         <Grid HeightRequest="32"
-                                              Padding="4">
+                                              Padding="4"
+                                              IsVisible="{Binding CanUninstall}">
                                             <Grid.GestureRecognizers>
                                                 <TapGestureRecognizer Command="{Binding RemoveCommand}" />
                                             </Grid.GestureRecognizers>

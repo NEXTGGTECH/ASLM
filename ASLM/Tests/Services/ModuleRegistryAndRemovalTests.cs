@@ -9,6 +9,43 @@ namespace ASLM.Tests.Services;
 [Collection("ModuleManifestDiscovery")]
 public sealed class ModuleRegistryAndRemovalTests
 {
+    [Theory]
+    [InlineData("aslm-chat", true)]
+    [InlineData("ASLM-CHAT", true)]
+    [InlineData("aslm-code", false)]
+    [InlineData("aslm-chat-example", false)]
+    public void Required_modules_are_matched_by_exact_case_insensitive_id(string id, bool required)
+    {
+        ModuleRegistry.IsRequired(id).Should().Be(required);
+    }
+
+    [Theory]
+    [InlineData("aslm-chat")]
+    [InlineData("ASLM-CHAT")]
+    public async Task Uninstall_skips_required_modules_without_changing_content_or_registry(string id)
+    {
+        using var fixture = new InstalledFixture(id);
+        var manifest = File.ReadAllText(fixture.Module.SourcePath);
+        var engineManifest = File.ReadAllText(fixture.Engine.SourcePath);
+        var registryPath = Path.Combine(AppRoot.Directory, "Data", "App", "ASLM_Modules.json");
+        var registry = File.ReadAllText(registryPath);
+        var changes = 0;
+        fixture.Installer.ModulesChanged += (_, _) => changes++;
+
+        (await fixture.Installer.UninstallAsync(fixture.Module)).Should().BeNull();
+
+        File.ReadAllText(fixture.Module.SourcePath).Should().Be(manifest);
+        File.ReadAllText(fixture.Engine.SourcePath).Should().Be(engineManifest);
+        File.ReadAllText(registryPath).Should().Be(registry);
+        File.ReadAllText(fixture.Payload).Should().Be("installed content");
+        Directory.Exists(fixture.Runtime).Should().BeTrue();
+        Directory.Exists(fixture.Environment).Should().BeTrue();
+        Directory.Exists(fixture.Models).Should().BeTrue();
+        changes.Should().Be(0);
+        // A rejected uninstall must not hold the global content-operation lock.
+        using var operation = ModuleInstaller.BeginContentOperation();
+    }
+
     [Fact]
     public void Registry_migrates_installed_manifests_once_and_respects_an_empty_registry()
     {
@@ -274,12 +311,13 @@ public sealed class ModuleRegistryAndRemovalTests
         public string Models { get; }
         public string Payload { get; }
 
-        public InstalledFixture()
+        public InstalledFixture(string? moduleId = null)
         {
             using var layout = new AslmFileSystemLayout();
             File.WriteAllText(Path.Combine(layout.DataAppDir, "ASLM_Modules.json"), "[]");
             var id = "removal-test-" + Guid.NewGuid().ToString("N");
             Module = MakeModule(layout.Root, id);
+            Module.Id = moduleId ?? id;
             Module.Status.Installed = true;
             Module.Icon = "icon.png";
             Engine = MakeEngine(layout.Root, id + "-engine");

@@ -452,10 +452,11 @@ namespace ASLM.Pages
             foreach (var module in modules)
             {
                 var isSupported = module.IsSupportedOnCurrentPlatform;
+                var isRequired = ModuleRegistry.IsRequired(module.Id);
                 var check = new CheckBox
                 {
-                    IsChecked = isSupported,
-                    IsEnabled = isSupported
+                    IsChecked = isSupported || isRequired,
+                    IsEnabled = isSupported && !isRequired
                 };
                 check.SetDynamicResource(CheckBox.ColorProperty, "LabelPrimary");
                 var row = new HorizontalStackLayout { Spacing = 10 };
@@ -807,16 +808,10 @@ namespace ASLM.Pages
 
             await _appData.SaveAsync();
 
-            var selectedModules = _moduleChecks
-                .Where(moduleCheck => moduleCheck.Check.IsEnabled && moduleCheck.Check.IsChecked)
-                .Select(moduleCheck => moduleCheck.Module)
-                .ToList();
-
-            if (selectedModules.Count == 0)
-            {
-                await FinishSetupAsync();
-                return;
-            }
+            var selectedIds = _moduleChecks
+                .Where(moduleCheck => moduleCheck.Check.IsChecked && moduleCheck.Module.IsSupportedOnCurrentPlatform)
+                .Select(moduleCheck => moduleCheck.Module.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // Switch the final wizard step from selection mode into install mode.
             ButtonPanel.IsVisible = false;
@@ -843,11 +838,17 @@ namespace ASLM.Pages
             try
             {
                 catalog = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync(), _cts.Token);
+                // Required choices do not depend on the checkbox's enabled state or list-loading timing.
+                // Entries without a discovered manifest are intentionally skipped.
+                var selectedModules = catalog.Where(module => ModuleRegistry.IsRequired(module.Id) ||
+                    (module.IsSupportedOnCurrentPlatform && selectedIds.Contains(module.Id))).ToList();
                 installModules = ModuleDependencyResolver.ExpandInstallOrder(selectedModules, catalog);
             }
             catch (Exception ex)
             {
                 AddLog($"Failed to load module catalog: {ex.Message}");
+                ButtonPanel.IsVisible = true;
+                StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Failed);
                 ConfigureRetryAndSkipButtons();
                 return;
             }

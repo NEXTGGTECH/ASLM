@@ -291,7 +291,7 @@ namespace ASLM.Pages
         /// <summary>Confirms uninstall in the dashboard overlay and keeps the card busy throughout removal.</summary>
         private async void OnRemoveRequested(ModuleViewModel module)
         {
-            if (_removingSourcePath != null || UninstallConfirmation.IsOpen) return;
+            if (_removingSourcePath != null || UninstallConfirmation.IsOpen || !module.RemoveCommand.CanExecute(null)) return;
             CloseAllMenus();
             if (!await UninstallConfirmation.ConfirmAsync(module.Name)) return;
             if (!module.RemoveCommand.CanExecute(null)) return;
@@ -581,7 +581,7 @@ namespace ASLM.Pages
             OpenUpdateDialogCommand = new Command(ExecuteOpenUpdateDialogCommand);
             _checkUpdateCommand = new Command(ExecuteCheckUpdateCommand, CanCheckOrUpdate);
             _updateCommand = new Command(ExecuteApplyUpdateCommand, CanApplyUpdate);
-            _removeCommand = new Command(OnRemove, () => !IsRemoving && !IsBusy && !IsStarting && !IsRestarting);
+            _removeCommand = new Command(OnRemove, () => CanUninstall && !IsRemoving && !IsBusy && !IsStarting && !IsRestarting);
 
             LaunchCommand = _launchCommand;
             StopCommand = _stopCommand;
@@ -654,6 +654,7 @@ namespace ASLM.Pages
         // Localized card labels
 
         public ICommand RemoveCommand => _removeCommand;
+        public bool CanUninstall => !ModuleRegistry.IsRequired(_config.Id);
         public string RemoveLabel => L.Get(LocalizationKeys.Modules_Remove);
         public string RemovingLabel => L.Get(LocalizationKeys.Modules_Removing);
         public bool IsRemoving => _isRemoving;
@@ -2173,6 +2174,7 @@ namespace ASLM.Pages
         private void NotifyModuleMetadataChanged()
         {
             OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(CanUninstall));
             OnPropertyChanged(nameof(Description));
             OnPropertyChanged(nameof(VersionString));
             OnPropertyChanged(nameof(IsBeta));
