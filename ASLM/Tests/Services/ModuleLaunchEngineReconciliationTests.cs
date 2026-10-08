@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using ASLM.Tests.TestSupport;
+using ASLM.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ASLM.Tests.Services;
@@ -11,6 +12,87 @@ namespace ASLM.Tests.Services;
 [Collection("ModuleManifestDiscovery")]
 public sealed class ModuleLaunchEngineReconciliationTests
 {
+    [Theory]
+    [InlineData("run", ModuleLaunchStatus.Started)]
+    [InlineData("empty", ModuleLaunchStatus.NoRunCommands)]
+    [InlineData("invalid", ModuleLaunchStatus.Error)]
+    [InlineData("canceled", ModuleLaunchStatus.Error)]
+    public async Task Catalog_install_completion_launches_once_and_preserves_installation_on_launch_failure(
+        string scenario, ModuleLaunchStatus expected)
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var directory = Path.Combine(layout.ModulesDir, "catalog-launch");
+        Directory.CreateDirectory(directory);
+        var manifestPath = Path.Combine(directory, ModuleManifestDiscovery.ManifestFileName);
+        await File.WriteAllTextAsync(manifestPath, $$"""
+        {
+          "fileVersion": 2,
+          "id": "catalog-launch",
+          "name": "Catalog launch",
+          "version": "1.0.0",
+          "supportedPlatforms": [
+            { "os": "{{PlatformInfo.OsKey}}", "arch": "{{PlatformInfo.ArchKey}}" }
+          ]
+        }
+        """);
+
+        var engines = new EngineInstaller();
+        var reconciler = new ModuleEngineReconciler(engines);
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, reconciler);
+        var coordinator = new ModuleLaunchCoordinator(installer, runner,
+            new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
+        var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
+            installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
+            NullLogger<UpdateManager>.Instance);
+        var module = (await installer.LoadModuleConfig(manifestPath))!;
+        module.Status.Installed = true;
+        module.Status.FirstRunCompleted = true;
+        if (scenario != "empty")
+            module.Commands.Run.Add(new ModuleCommand
+            {
+                Name = "Test process",
+                Exec = scenario == "invalid" ? "aslm-nonexistent-test-command"
+                    : "cmd.exe /d /c ping -n 30 127.0.0.1"
+            });
+        // Exercise the final installation stage without network requests or changing real user modules.
+        await installer.SaveConfigAsync(module);
+        var log = new RecordingProgress();
+        using var cts = new CancellationTokenSource();
+        if (scenario == "canceled") cts.Cancel();
+        try
+        {
+            if (scenario == "canceled")
+            {
+                var install = () => manager.InstallCatalogModuleAsync(module, log, ct: cts.Token);
+                await install.Should().ThrowAsync<OperationCanceledException>();
+            }
+            else
+            {
+                var result = await manager.InstallCatalogModuleAsync(module, log, ct: cts.Token);
+                result.Status.Should().Be(expected);
+                if (expected == ModuleLaunchStatus.Started)
+                {
+                    runner.GetRunningModuleSourcePaths().Should().Contain(manifestPath);
+                    var repeated = await manager.InstallCatalogModuleAsync(module, log);
+                    repeated.Status.Should().Be(ModuleLaunchStatus.AlreadyRunning);
+                    log.Messages.Count(message => message.StartsWith("[Run]", StringComparison.Ordinal)).Should().Be(1);
+                }
+                else
+                    runner.GetRunningModuleSourcePaths().Should().NotContain(manifestPath);
+            }
+            installer.Registry.ReadIds().Should().Contain(module.Id);
+            (await installer.LoadModuleConfig(manifestPath))!.Status.FirstRunCompleted.Should().BeTrue();
+            if (scenario == "canceled")
+                runner.GetRunningModuleSourcePaths().Should().NotContain(manifestPath);
+        }
+        finally
+        {
+            await runner.StopModuleAsync(manifestPath);
+        }
+    }
+
     /// <summary>
     /// Verifies that launch installs a missing required engine before completing module setup.
     /// </summary>

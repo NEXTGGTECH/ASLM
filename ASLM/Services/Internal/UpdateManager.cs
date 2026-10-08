@@ -27,6 +27,7 @@ namespace ASLM.Services.Internal
         private readonly ModuleInstaller _moduleInstaller;
         private readonly EngineInstaller _engineInstaller;
         private readonly ModuleRunner _moduleRunner;
+        private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
         private readonly ModuleTrustService _moduleTrustService;
         private readonly ModuleEngineReconciler _moduleEngineReconciler;
         private readonly OllamaSettingsStore _ollamaSettings;
@@ -53,6 +54,7 @@ namespace ASLM.Services.Internal
             ModuleInstaller moduleInstaller,
             EngineInstaller engineInstaller,
             ModuleRunner moduleRunner,
+            ModuleLaunchCoordinator moduleLaunchCoordinator,
             ModuleTrustService moduleTrustService,
             ModuleEngineReconciler moduleEngineReconciler,
             OllamaSettingsStore ollamaSettings,
@@ -64,6 +66,7 @@ namespace ASLM.Services.Internal
             _moduleInstaller = moduleInstaller;
             _engineInstaller = engineInstaller;
             _moduleRunner = moduleRunner;
+            _moduleLaunchCoordinator = moduleLaunchCoordinator;
             _moduleTrustService = moduleTrustService;
             _moduleEngineReconciler = moduleEngineReconciler;
             _ollamaSettings = ollamaSettings;
@@ -837,8 +840,8 @@ namespace ASLM.Services.Internal
                 part.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.'));
         }
 
-        /// <summary>Installs a local catalog entry and its module dependencies without launching them.</summary>
-        public async Task InstallCatalogModuleAsync(ModuleConfig selected, IProgress<string> log,
+        /// <summary>Installs a catalog entry and its dependencies, then launches it through the shared module lifecycle.</summary>
+        public async Task<ModuleLaunchResult> InstallCatalogModuleAsync(ModuleConfig selected, IProgress<string> log,
             IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
         {
             await _moduleInstallGate.WaitAsync(ct);
@@ -925,6 +928,14 @@ namespace ASLM.Services.Internal
                         throw;
                     }
                 }
+
+                // Launch only after every dependency and first-run step has succeeded. The coordinator
+                // reloads the installed manifest and starts dependencies without duplicating running processes.
+                ct.ThrowIfCancellationRequested();
+                var launch = await _moduleLaunchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
+                    module.SourcePath, log, ct);
+                ct.ThrowIfCancellationRequested();
+                return launch;
             }
             finally
             {

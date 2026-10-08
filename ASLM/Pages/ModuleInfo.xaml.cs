@@ -621,7 +621,13 @@ public partial class ModuleInfo : ContentView, ILocalizable
         });
         try
         {
-            await Task.Run(() => _updates.InstallCatalogModuleAsync(selected, log, progress, cts.Token));
+            var launch = await Task.Run(() => _updates.InstallCatalogModuleAsync(selected, log, progress, cts.Token));
+            if (launch.Status is not (ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning or ModuleLaunchStatus.NoRunCommands))
+            {
+                // Installation remains recorded even if the subsequent launch fails.
+                resultKey = LocalizationKeys.ModuleInfo_Failed;
+                resultDetail = launch.Message ?? launch.Status.ToString();
+            }
         }
         catch (OperationCanceledException)
         {
