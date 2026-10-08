@@ -21,6 +21,7 @@ namespace ASLM.Pages
         private readonly EngineInstaller _engineInstaller;
         private readonly ModuleInstaller _moduleInstaller;
         private readonly ModuleRunner _moduleRunner;
+        private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
         private readonly UpdateManager _updateManager;
         private readonly LegalAcceptanceService _legalAcceptance;
         private readonly AppLocalizationService _localization;
@@ -58,6 +59,7 @@ namespace ASLM.Pages
             EngineInstaller engineInstaller,
             ModuleInstaller moduleInstaller,
             ModuleRunner moduleRunner,
+            ModuleLaunchCoordinator moduleLaunchCoordinator,
             UpdateManager updateManager,
             LegalAcceptanceService legalAcceptance,
             AppLocalizationService localization,
@@ -68,6 +70,7 @@ namespace ASLM.Pages
             _engineInstaller = engineInstaller;
             _moduleInstaller = moduleInstaller;
             _moduleRunner = moduleRunner;
+            _moduleLaunchCoordinator = moduleLaunchCoordinator;
             _updateManager = updateManager;
             _legalAcceptance = legalAcceptance;
             _localization = localization;
@@ -955,6 +958,7 @@ namespace ASLM.Pages
                         AddLog($"[OK] {module.Name} already set up.");
                         completedSteps += GetModuleInstallStepCount(module);
                         UpdateOverallProgress(completedSteps, totalSteps);
+                        hasFailures |= !await LaunchInstalledModuleAsync(module, logProgress, _cts.Token);
                         continue;
                     }
 
@@ -978,6 +982,8 @@ namespace ASLM.Pages
                             ? $"[OK] {module.Name} installed successfully"
                             : $"[Error] Installation failed for {module.Name}");
                         hasFailures |= !updateInstalled;
+                        if (updateInstalled)
+                            hasFailures |= !await LaunchInstalledModuleAsync(module, logProgress, _cts.Token);
                         continue;
                     }
 
@@ -1035,10 +1041,14 @@ namespace ASLM.Pages
                         ? $"[OK] {module.Name} installed successfully"
                         : $"[Error] Setup failed for {module.Name}");
                     hasFailures |= !success;
+                    if (success)
+                        hasFailures |= !await LaunchInstalledModuleAsync(installedModule, logProgress, _cts.Token);
                 }
 
-                UpdateInstallStatus("Setup complete!");
-                StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_SetupComplete);
+                var completionStatus = L.Get(hasFailures
+                    ? LocalizationKeys.SetupWizard_Failed : LocalizationKeys.SetupWizard_SetupComplete);
+                UpdateInstallStatus(completionStatus);
+                StepLabel.Text = completionStatus;
             }
             catch (OperationCanceledException)
             {
@@ -1209,6 +1219,28 @@ namespace ASLM.Pages
         private static int GetModuleInstallStepCount(ModuleConfig module)
         {
             return ShouldUseConfiguredUpdateInstall(module) ? 1 : 2;
+        }
+
+        /// <summary>
+        /// Uses the same launch pipeline as catalog installation, including dependency startup and retry safety.
+        /// </summary>
+        private async Task<bool> LaunchInstalledModuleAsync(
+            ModuleConfig module,
+            IProgress<string> log,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.Modules_Starting)}");
+            var launch = await Task.Run(() => _moduleLaunchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
+                module.SourcePath, log, ct), ct);
+            // The coordinator returns Error for cancellation; preserve the wizard's canceled state.
+            ct.ThrowIfCancellationRequested();
+            if (launch.Status is ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning or ModuleLaunchStatus.NoRunCommands)
+                return true;
+
+            // Keep the completed installation so Retry only needs to attempt startup again.
+            log.Report(L.Get(LocalizationKeys.ModuleInfo_Failed, $"{module.Name}: {launch.Message ?? launch.Status.ToString()}"));
+            return false;
         }
 
         /// <summary>
