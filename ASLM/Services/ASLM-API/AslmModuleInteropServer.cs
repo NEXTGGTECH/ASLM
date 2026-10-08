@@ -381,7 +381,7 @@ namespace ASLM.Services.API
         /// </summary>
         private async Task<List<InstalledModuleDto>> BuildInstalledModulesAsync()
         {
-            var modules = await _moduleInstaller.DiscoverModulesAsync();
+            var modules = await _moduleInstaller.DiscoverInstalledModulesAsync();
             var byId = modules
                 .GroupBy(m => m.Id, StringComparer.OrdinalIgnoreCase)
                 .ToList();

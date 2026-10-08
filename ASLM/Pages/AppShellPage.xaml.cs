@@ -172,7 +172,7 @@ namespace ASLM.Pages
             }
 
             _hasLoaded = true;
-            LegalAcceptanceOverlay.PresentIfRequired(OverlayContainer, _legalAcceptance, _services);
+            _ = LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
             ScheduleSidebarButtonLayoutRefresh();
             await RefreshModulesAsync();
             ApplyAslmApiNavigationState();
@@ -292,7 +292,7 @@ namespace ASLM.Pages
                 do
                 {
                     Interlocked.Exchange(ref _moduleRefreshQueued, 0);
-                    var modules = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync());
+                    var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
                     await MainThread.InvokeOnMainThreadAsync(() => ApplyModules(modules));
                 }
                 while (Interlocked.Exchange(ref _moduleRefreshQueued, 0) == 1);
@@ -319,7 +319,8 @@ namespace ASLM.Pages
 
             BuildPageButtons();
 
-            if (_activeModule is { HasPage: true, Status.Enabled: false })
+            if ((!string.IsNullOrWhiteSpace(activeModuleSourcePath) && _activeModule == null) ||
+                _activeModule is { HasPage: true, Status.Enabled: false })
             {
                 NavigateTo(HomeButton);
             }
@@ -871,7 +872,7 @@ namespace ASLM.Pages
         /// </summary>
         private async Task OpenModuleUpdateFromNotificationAsync(string moduleId)
         {
-            var modules = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync());
+            var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
             var config = modules.FirstOrDefault(module =>
                 string.Equals(module.Id, moduleId, StringComparison.OrdinalIgnoreCase));
 

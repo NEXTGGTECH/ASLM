@@ -346,7 +346,7 @@ namespace ASLM.Pages
 
             try
             {
-                var modules = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync());
+                var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
                 moduleStates = BuildModuleDisplayStates(modules);
             }
             catch

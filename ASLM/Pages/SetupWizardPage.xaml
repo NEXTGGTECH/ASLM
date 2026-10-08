@@ -3,6 +3,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:services="clr-namespace:ASLM.Services.Internal"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
              x:Class="ASLM.Pages.SetupWizardPage"
              x:Name="RootView"
              Title="ASLM Setup"
@@ -57,6 +58,24 @@
                        TextColor="{DynamicResource LabelSecondary}"
                        HorizontalTextAlignment="Center"
                        Margin="0,0,0,24" />
+                <Grid RowDefinitions="Auto,Auto"
+                      RowSpacing="8"
+                      WidthRequest="280"
+                      HorizontalOptions="Center"
+                      Margin="0,0,0,8">
+                    <Label x:Name="LanguageLabel"
+                           Text="Select language"
+                           Style="{StaticResource SettingsCardTitleLabelStyle}" />
+                    <settings:SettingsFieldView Grid.Row="1"
+                                                HorizontalOptions="Fill">
+                        <settings:SettingsFieldView.FieldContent>
+                            <Picker x:Name="LanguagePicker"
+                                    FontSize="13"
+                                    Style="{StaticResource SettingsPickerStyle}"
+                                    settings:SettingsControlChrome.CompactPicker="True" />
+                        </settings:SettingsFieldView.FieldContent>
+                    </settings:SettingsFieldView>
+                </Grid>
                 <Button x:Name="SetupButton"
                         Text="Setup"
                         BackgroundColor="{DynamicResource ActionBlue}"
@@ -76,7 +95,7 @@
                         HorizontalOptions="Center"
                         Clicked="OnFastSetupClicked" />
                 <Label x:Name="FastSetupHintLabel"
-                       Text="Fast Setup uses your Windows username and default ports"
+                       Text="Fast Setup uses the default settings."
                        FontSize="12"
                        TextColor="{DynamicResource LabelSecondary}"
                        HorizontalTextAlignment="Center"

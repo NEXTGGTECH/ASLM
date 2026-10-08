@@ -1,12 +1,126 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using ASLM.Tests.TestSupport;
+using ASLM.Models;
+using System.Text.Json;
 
 namespace ASLM.Tests.Services;
 
 [Collection("ModuleManifestDiscovery")]
 public sealed class ModuleProvidedEngineDiscoveryTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Catalog_setup_and_info_use_engine_intersection_and_reload_changed_definitions(int version)
+    {
+        using var layout = new AslmFileSystemLayout();
+        var id = "platform-test-" + Guid.NewGuid().ToString("N");
+        var moduleDir = Path.Combine(layout.ModulesDir, id);
+        var engineDir = Path.Combine(layout.Root, "Engines", id);
+        Directory.CreateDirectory(moduleDir);
+        Directory.CreateDirectory(engineDir);
+        var manifestPath = Path.Combine(moduleDir, ModuleManifestDiscovery.ManifestFileName);
+        var enginePath = Path.Combine(engineDir, "ASLM_Engine.json");
+        var foreign = PlatformInfo.OsKey == "windows" ? "macos-arm64" : "windows-amd64";
+        try
+        {
+            var module = new ModuleConfig
+            {
+                FileVersion = version, Id = id,
+                SupportedPlatforms = version == 2
+                    ? [SupportedPlatform.FromKey(PlatformInfo.PlatformKey), SupportedPlatform.FromKey(foreign)] : [],
+                Dependencies = new() { Engines = [new() { Id = id }] }
+            };
+            await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(module));
+            await File.WriteAllTextAsync(enginePath, JsonSerializer.Serialize(TestEngine(id, foreign)));
+            var installer = new ModuleInstaller(null!, null!, null!);
+
+            // Initial setup lists the module but cannot select it on this host.
+            var catalog = await installer.DiscoverModulesAsync();
+            var discovered = catalog.Single(item => item.Id == id);
+            discovered.IsSupportedOnCurrentPlatform.Should().BeFalse();
+            discovered.EffectiveSupportedPlatforms.Should().ContainSingle().Which.Key.Should().Be(foreign);
+            (await installer.DiscoverAvailableModulesAsync()).Should().NotContain(item => item.Id == id);
+            var fields = ASLM.Pages.ModuleInfo.CreateFields(discovered, catalog, []);
+            fields.Single(field => field.Key == ASLM.Localization.LocalizationKeys.ModuleInfo_Platforms)
+                .Value.Should().Be(foreign.Replace("-", " "));
+
+            await File.WriteAllTextAsync(enginePath, JsonSerializer.Serialize(TestEngine(id, PlatformInfo.PlatformKey)));
+            (await installer.LoadModuleConfig(manifestPath))!.IsSupportedOnCurrentPlatform.Should().BeTrue();
+            (await installer.DiscoverAvailableModulesAsync()).Should().Contain(item => item.Id == id);
+        }
+        finally
+        {
+            Directory.Delete(moduleDir, recursive: true);
+            Directory.Delete(engineDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Downloaded_manifest_uses_new_embedded_engine_but_preserves_standalone_precedence()
+    {
+        using var layout = new AslmFileSystemLayout();
+        var id = "archive-test-" + Guid.NewGuid().ToString("N");
+        var moduleDir = Path.Combine(layout.ModulesDir, id);
+        var engineDir = Path.Combine(layout.Root, "Engines", id);
+        Directory.CreateDirectory(moduleDir);
+        var manifestPath = Path.Combine(moduleDir, ModuleManifestDiscovery.ManifestFileName);
+        var foreign = PlatformInfo.OsKey == "windows" ? "macos-arm64" : "windows-amd64";
+        try
+        {
+            var current = new ModuleConfig
+            {
+                FileVersion = 2, Id = id,
+                SupportedPlatforms = [SupportedPlatform.FromKey(PlatformInfo.PlatformKey)],
+                Dependencies = new() { Engines = [new() { Id = id }] },
+                Engines = [TestEngine(id, PlatformInfo.PlatformKey)]
+            };
+            File.WriteAllText(manifestPath, JsonSerializer.Serialize(current));
+            var installer = new ModuleInstaller(null!, null!, null!);
+            var downloaded = ModuleManifestParser.Parse(JsonSerializer.Serialize(current));
+            downloaded.Engines = [TestEngine(id, foreign)];
+            installer.ResolvePlatformSupport(downloaded);
+            downloaded.IsSupportedOnCurrentPlatform.Should().BeFalse();
+            downloaded.EffectiveSupportedPlatforms.Should().BeEmpty();
+
+            // Removing an embedded definition must not fall back to the installed old definition.
+            downloaded.Engines.Clear();
+            installer.ResolvePlatformSupport(downloaded);
+            downloaded.IsSupportedOnCurrentPlatform.Should().BeFalse();
+
+            Directory.CreateDirectory(engineDir);
+            File.WriteAllText(Path.Combine(engineDir, "ASLM_Engine.json"),
+                JsonSerializer.Serialize(TestEngine(id, PlatformInfo.PlatformKey)));
+            downloaded.Engines = [TestEngine(id, foreign)];
+            installer.ResolvePlatformSupport(downloaded);
+            downloaded.IsSupportedOnCurrentPlatform.Should().BeTrue();
+
+            // Likewise, a compatible embedded definition cannot replace an incompatible standalone engine.
+            File.WriteAllText(Path.Combine(engineDir, "ASLM_Engine.json"),
+                JsonSerializer.Serialize(TestEngine(id, foreign)));
+            downloaded.Engines = [TestEngine(id, PlatformInfo.PlatformKey)];
+            installer.ResolvePlatformSupport(downloaded);
+            downloaded.IsSupportedOnCurrentPlatform.Should().BeFalse();
+        }
+        finally
+        {
+            Directory.Delete(moduleDir, recursive: true);
+            if (Directory.Exists(engineDir)) Directory.Delete(engineDir, recursive: true);
+        }
+    }
+
+    private static EngineConfig TestEngine(string id, string platformKey)
+    {
+        var engine = new EngineConfig
+        {
+            Id = id,
+            Platforms = new() { [platformKey] = new() { ExecutablePath = "runtime/tool" } }
+        };
+        engine.Normalize();
+        return engine;
+    }
+
     [Fact]
     public void Discovery_reads_engine_manifests_from_module_v2()
     {

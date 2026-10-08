@@ -1071,7 +1071,7 @@
     <value>ログを非表示</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>インストール中...</value>
+    <value>インストール中</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>インストール</value>
@@ -1090,6 +1090,9 @@
   </data>
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>再試行</value>
+  </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>言語を選択</value>
   </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>セットアップ</value>
@@ -1213,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>インストール済みバージョン: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>利用可能なモジュールを検索</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>モジュールカタログを読み込めませんでした。</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>モジュール情報を閉じる</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>アンインストール</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>アンインストール中</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>{0}をアンインストールしますか？</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>{0} とそのローカルデータを削除しますか？このモジュールだけが使用するエンジン、環境、モデルも削除されます。共有されている依存関係は保持されます。</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>モジュールを削除できませんでした</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>モジュールのセットアップ、起動、更新、ダウンロードが完了するまで、モジュールの削除をお待ちください。</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>このモジュールは削除されています。続行する前にモジュール一覧を更新してください。</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>インストール済みモジュールのマニフェストに、欠落、読み取り不能、ID の重複があります。共有されている依存関係を安全に確認できないため、削除をキャンセルしました。</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>次のモジュールがこのモジュールを必要としています：{0}。先にこれらのモジュールを削除してください。</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>パスが管理対象ディレクトリの外部を指しているか、シンボリックリンクを含んでいるため、削除をキャンセルしました。</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>インストール済みの別のモジュールが、このモジュールのディレクトリ内のファイルを使用しています。これらのファイルを保護するため、削除をキャンセルしました。</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>モジュールを削除しました</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>モジュールをインストール済み一覧から削除しましたが、一部のファイルを削除できませんでした。これらのファイルは次の場所に残っています：{0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>バージョン</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>作成者</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>モジュール ID</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>種類</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>カテゴリ</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>対応プラットフォーム</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>ダウンロードチャネル</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>必要なエンジン</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>必要なモジュール</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>必要なモデルカテゴリ</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>モジュール情報を読み込み中…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>{0} をダウンロードしてセットアップ中…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>インストール済み</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>このモジュールに対応するダウンロード元がありません。</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>インストールをキャンセルしました。</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>操作に失敗しました：{0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>モジュール {0} はローカルカタログで利用できなくなりました。</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>{0} のダウンロード元を特定できませんでした。</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>{0} のインストールを完了できませんでした。詳細は通知またはモジュールのコンソールをご確認ください。</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>{0} を含むモジュール間の循環依存が検出されました。インストールをキャンセルしました。</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>必要なモジュール {0} がローカルカタログにありません。</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>情報</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>構成</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>状態</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>モジュールの状態</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>未インストール</value>
   </data>
 </root>

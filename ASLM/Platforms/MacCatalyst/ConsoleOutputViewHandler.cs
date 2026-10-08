@@ -23,7 +23,8 @@ namespace ASLM.Services.Internal
             new PropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler>(ViewHandler.ViewMapper)
             {
                 [nameof(ConsoleOutputView.Text)] = static (handler, view) => handler.ApplyText(view.Text),
-                [nameof(ConsoleOutputView.SessionKey)] = static (handler, view) => handler.ApplySessionKey(view.SessionKey)
+                [nameof(ConsoleOutputView.SessionKey)] = static (handler, view) => handler.ApplySessionKey(view.SessionKey),
+                [nameof(ConsoleOutputView.UseCustomScrollBar)] = static (handler, view) => handler.ApplyScrollChrome()
             };
 
         private string _lastSessionKey = string.Empty;
@@ -78,6 +79,10 @@ namespace ASLM.Services.Internal
             ThemeService.PaletteApplied += OnPaletteApplied;
 
             ApplyConsoleTheme(platformView);
+            platformView.Scrolled += OnScrolled;
+            VirtualView.SizeChanged += OnScrolled;
+            VirtualView.ScrollToOffset = offset => platformView.SetContentOffset(new CGPoint(0, offset), false);
+            ApplyScrollChrome();
         }
 
         /// <summary>
@@ -91,6 +96,12 @@ namespace ASLM.Services.Internal
             }
 
             ThemeService.PaletteApplied -= OnPaletteApplied;
+            platformView.Scrolled -= OnScrolled;
+            if (VirtualView != null)
+            {
+                VirtualView.SizeChanged -= OnScrolled;
+                VirtualView.ScrollToOffset = null;
+            }
             base.DisconnectHandler(platformView);
         }
 
@@ -109,6 +120,7 @@ namespace ASLM.Services.Internal
 
             var pinToBottom = _forceScrollToEnd || IsNearBottom(textView);
             textView.Text = text ?? string.Empty;
+            MainThread.BeginInvokeOnMainThread(PublishScrollMetrics);
 
             if (pinToBottom)
             {
@@ -159,7 +171,26 @@ namespace ASLM.Services.Internal
                 var target = textView.ContentSize.Height - textView.Bounds.Height + textView.ContentInset.Bottom;
                 textView.SetContentOffset(new CGPoint(0, Math.Max(0, target)), animated: false);
                 _forceScrollToEnd = false;
+                PublishScrollMetrics();
             });
+        }
+
+        private void OnScrolled(object? sender, EventArgs e) => PublishScrollMetrics();
+
+        private void PublishScrollMetrics()
+        {
+            if (VirtualView?.UseCustomScrollBar == true && PlatformView is { } view)
+            {
+                view.LayoutIfNeeded();
+                VirtualView.SetScrollMetrics(view.Bounds.Height, view.ContentSize.Height, view.ContentOffset.Y);
+            }
+        }
+
+        private void ApplyScrollChrome()
+        {
+            if (PlatformView == null) return;
+            PlatformView.ShowsVerticalScrollIndicator = VirtualView?.UseCustomScrollBar != true;
+            PublishScrollMetrics();
         }
 
 

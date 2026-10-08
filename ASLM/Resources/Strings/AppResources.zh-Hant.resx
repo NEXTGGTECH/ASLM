@@ -1071,7 +1071,7 @@
     <value>隱藏記錄</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>正在安裝...</value>
+    <value>正在安裝</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>安裝</value>
@@ -1090,6 +1090,9 @@
   </data>
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>重試</value>
+  </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>選擇語言</value>
   </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>安裝</value>
@@ -1213,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>已安裝版本：{0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>搜尋可用模組</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>無法載入模組目錄。</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>關閉模組資訊</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>解除安裝</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>正在解除安裝</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>解除安裝 {0}？</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>是否移除 {0} 及其本機資料？僅供此模組使用的引擎、環境和模型也將被移除。共用相依項目將會保留。</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>無法移除模組</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>請等待模組設定、啟動、更新或下載完成後，再移除模組。</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>此模組已被移除。請重新整理模組清單後再繼續。</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>部分已安裝模組的資訊清單檔案遺失、無法讀取或包含重複的 ID。由於無法安全檢查共用相依項目，已取消移除。</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>下列模組需要此模組：{0}。請先移除這些模組。</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>由於某個路徑位於其受管理目錄之外或包含符號連結，已取消移除。</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>另一個已安裝的模組正在使用此模組目錄中的檔案。為保護這些檔案，已取消移除。</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>模組已移除</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>模組已從已安裝清單中移除，但部分檔案無法刪除。這些檔案仍位於：{0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>版本</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>作者</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>模組 ID</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>類型</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>分類</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>支援的平台</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>下載管道</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>所需引擎</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>所需模組</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>所需模型分類</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>正在載入模組資訊…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>正在下載並設定 {0}…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>已安裝</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>此模組沒有可用的受支援下載來源。</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>安裝已取消。</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>操作失敗：{0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>模組 {0} 已不在本機目錄中。</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>無法判定 {0} 的下載來源。</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>無法完成 {0} 的安裝。請查看通知或模組主控台以瞭解詳情。</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>偵測到包含 {0} 的模組循環相依關係。安裝已取消。</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>本機目錄中缺少所需模組 {0}。</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>資訊</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>組態</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>狀態</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>模組狀態</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>未安裝</value>
   </data>
 </root>

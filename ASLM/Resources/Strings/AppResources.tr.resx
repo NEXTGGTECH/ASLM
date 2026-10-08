@@ -1071,7 +1071,7 @@
     <value>Günlüğü gizle</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>Yükleniyor...</value>
+    <value>Yükleniyor</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Yükle</value>
@@ -1090,6 +1090,9 @@
   </data>
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Yeniden dene</value>
+  </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Dil seçin</value>
   </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Kurulum</value>
@@ -1213,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Yüklü sürüm: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Kullanılabilir modülleri ara</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Modül kataloğu yüklenemedi.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Modül bilgilerini kapat</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Kaldır</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Kaldırılıyor</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>{0} kaldırılsın mı?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>{0} ve yerel verileri kaldırılsın mı? Yalnızca bu modülün kullandığı motorlar, ortamlar ve modeller de kaldırılacak. Paylaşılan bağımlılıklar korunacak.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Modül kaldırılamadı</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Bir modülü kaldırmadan önce modül kurulumu, başlatma, güncelleme veya indirme işlemlerinin tamamlanmasını bekleyin.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Bu modül kaldırıldı. Devam etmeden önce modül listesini yenileyin.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Yüklü modüllerin bazı bildirim dosyaları eksik, okunamıyor veya yinelenen kimlikler içeriyor. Paylaşılan bağımlılıklar güvenli bir şekilde denetlenemediği için kaldırma işlemi iptal edildi.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Şu modüller bu modüle ihtiyaç duyuyor: {0}. Önce bu modülleri kaldırın.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Bir yol yönetilen dizinin dışında olduğu veya sembolik bağlantı içerdiği için kaldırma işlemi iptal edildi.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Yüklü başka bir modül bu modülün dizinindeki dosyaları kullanıyor. Bu dosyaları korumak için kaldırma işlemi iptal edildi.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Modül kaldırıldı</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Modül yüklü modüller listesinden kaldırıldı ancak bazı dosyalar silinemedi. Dosyalar hâlâ şu konumda: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Sürüm</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Yazar</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>Modül kimliği</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Tür</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Kategoriler</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Desteklenen platformlar</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>İndirme kanalı</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Gerekli motorlar</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Gerekli modüller</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Gerekli model kategorileri</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Modül bilgileri yükleniyor…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>{0} indiriliyor ve kuruluyor…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Yüklü</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Bu modül için desteklenen bir indirme kaynağı bulunmuyor.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Kurulum iptal edildi.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>İşlem başarısız oldu: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>{0} modülü artık yerel katalogda bulunmuyor.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>{0} için bir indirme kaynağı belirlenemedi.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>{0} kurulumu tamamlanamadı. Ayrıntılar için bildirimlere veya modül konsoluna bakın.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>{0} modülünü içeren döngüsel bir modül bağımlılığı bulundu. Kurulum iptal edildi.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Gerekli {0} modülü yerel katalogda bulunmuyor.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Bilgi</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Yapılandırma</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Durum</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Modül durumu</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Yüklü değil</value>
   </data>
 </root>

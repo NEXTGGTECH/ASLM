@@ -18,7 +18,6 @@ namespace ASLM.Pages
         private const double MinDialogHeight = 540;
         private const double MaxDialogWidth = 1280;
         private const double MaxDialogHeight = 720;
-        private const double SettingsScrollBarMinThumbHeight = 24;
         private const string GitHubHomeUrl = "https://github.com/";
         private const string OllamaSettingsUrl = "https://ollama.com/settings";
         private static readonly TimeSpan OllamaSignInPollInterval = TimeSpan.FromSeconds(3);
@@ -68,7 +67,6 @@ namespace ASLM.Pages
         private bool _isGitHubAccountActionRunning;
         private bool _isAslmAccountActionRunning;
         private bool _isUpdateSchedulerSubscribed;
-        private bool _isUpdatingSettingsScrollBar;
         private int _actionButtonUpdateQueued;
         private int _moduleRuntimeLoadGeneration;
         private long _loadedModuleCatalogRevision = -1;
@@ -112,8 +110,6 @@ namespace ASLM.Pages
         private CancellationTokenSource? _ollamaStatusPollingCts;
         private CancellationTokenSource? _aslmAccountActionCts;
         private int _builtInControlStateApplicationDepth;
-        private double _settingsScrollBarDragStart;
-        private double _settingsScrollBarThumbTop;
 
         private CustomTheme? _editingThemeDraft;
         private Picker? _appearancePicker;
@@ -289,10 +285,7 @@ namespace ASLM.Pages
             InitializeBuiltInControlReferences();
             LocalizableAttach.Hook(this, _localization, this);
             ApplyScrollViewChrome(CategoryScroll);
-            ApplyScrollViewChrome(SettingsScroll);
             SettingsScroll.Scrolled += OnSettingsScrollScrolled;
-            SettingsScroll.SizeChanged += OnSettingsScrollGeometryChanged;
-            SettingsContentContainer.SizeChanged += OnSettingsScrollGeometryChanged;
             UsernameEntry.TextChanged += (_, args) =>
             {
                 _userNameDraft = args.NewTextValue?.Trim() ?? string.Empty;

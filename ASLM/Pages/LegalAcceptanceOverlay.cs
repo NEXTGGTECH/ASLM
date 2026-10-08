@@ -11,9 +11,9 @@ namespace ASLM.Pages;
 internal static class LegalAcceptanceOverlay
 {
     /// <summary>
-    /// Presents the legal acceptance overlay when manual review is still required at startup.
+    /// Presents the legal acceptance overlay when required and waits for the user to accept.
     /// </summary>
-    public static void PresentIfRequired(
+    public static async Task PresentIfRequiredAsync(
         ContentView overlayContainer,
         LegalAcceptanceService legalAcceptance,
         IServiceProvider services)
@@ -24,7 +24,7 @@ internal static class LegalAcceptanceOverlay
         }
 
         var view = services.GetRequiredService<LegalAcceptanceView>();
-        view.AcceptanceCompleted -= OnAcceptanceCompleted;
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         view.AcceptanceCompleted += OnAcceptanceCompleted;
 
         if (view is ILocalizable localizable)
@@ -34,15 +34,19 @@ internal static class LegalAcceptanceOverlay
 
         overlayContainer.Content = view;
         overlayContainer.IsVisible = true;
-        _ = view.OpenAsync();
-        return;
-
-        void OnAcceptanceCompleted(object? sender, EventArgs e)
+        try
+        {
+            await view.OpenAsync();
+            await completion.Task;
+            legalAcceptance.ClearManualAcceptanceRequired();
+        }
+        finally
         {
             view.AcceptanceCompleted -= OnAcceptanceCompleted;
             overlayContainer.IsVisible = false;
             overlayContainer.Content = null;
-            legalAcceptance.ClearManualAcceptanceRequired();
         }
+
+        void OnAcceptanceCompleted(object? sender, EventArgs e) => completion.TrySetResult();
     }
 }

@@ -61,7 +61,7 @@ public sealed class ModuleConfigV2Tests
     }
 
     [Fact]
-    public void Missing_fileVersion_is_legacy_and_platform_agnostic()
+    public void Missing_platforms_and_engine_dependencies_leave_the_module_unrestricted()
     {
         var config = ModuleManifestParser.Parse(
             """
@@ -73,6 +73,103 @@ public sealed class ModuleConfigV2Tests
 
         config.FileVersion.Should().Be(1);
         config.IsSupportedOnCurrentPlatform.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Legacy_module_platforms_are_the_intersection_of_all_required_engines()
+    {
+        var config = ModuleManifestParser.Parse("""
+            { "id": "legacy", "dependencies": { "engines": [{"id":"first"}, {"id":"second"}] } }
+            """);
+        var first = PlatformEngine("first", "windows-amd64", "macos-arm64");
+        var second = PlatformEngine("second", "windows-x64", "linux-amd64");
+        EngineConfig? FindEngine(string id) => id == "first" ? first : second;
+
+        config.ResolveForPlatform("windows", "amd64", FindEngine);
+        config.IsSupportedOnCurrentPlatform.Should().BeTrue();
+        config.EffectiveSupportedPlatforms.Should().ContainSingle().Which.Key.Should().Be("windows-amd64");
+        config.ResolveForPlatform("macos", "arm64", FindEngine);
+        config.IsSupportedOnCurrentPlatform.Should().BeFalse();
+        config.SupportedPlatforms.Should().BeEmpty();
+
+        // Calculated restrictions must never overwrite a module's own declaration on save.
+        var saved = System.Text.Json.JsonSerializer.Serialize(config);
+        saved.Should().NotContain(nameof(ModuleConfig.EffectiveSupportedPlatforms));
+        ModuleManifestParser.Parse(saved).SupportedPlatforms.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void A_declared_module_platform_list_limits_the_engine_intersection_regardless_of_version(int version)
+    {
+        var config = ModuleManifestParser.Parse($$"""
+            {
+              "fileVersion": {{version}}, "id": "restricted",
+              "supportedPlatforms": [{"os":"osx", "arch":"aarch64"}],
+              "dependencies": { "engines": [{"id":"engine"}] }
+            }
+            """);
+        var engine = PlatformEngine("engine", "windows-amd64", "macos-arm64");
+
+        config.ResolveForPlatform("windows", "amd64", _ => engine);
+        config.IsSupportedOnCurrentPlatform.Should().BeFalse();
+        config.EffectiveSupportedPlatforms.Should().ContainSingle().Which.Key.Should().Be("macos-arm64");
+        config.ResolveForPlatform("macos", "arm64", _ => engine);
+        config.IsSupportedOnCurrentPlatform.Should().BeTrue();
+        config.SupportedPlatforms.Single().Os.Should().Be("osx");
+    }
+
+    [Fact]
+    public void A_legacy_engine_without_platform_metadata_limits_the_module_to_windows_amd64()
+    {
+        var config = ModuleManifestParser.Parse("""
+            {"id":"legacy", "dependencies":{"engines":[{"id":"legacy-engine"}]}}
+            """);
+        var engine = System.Text.Json.JsonSerializer.Deserialize<EngineConfig>("""
+            {"fileVersion":1, "id":"legacy-engine", "executablePath":"runtime/tool.exe", "install":[]}
+            """)!;
+        config.ResolveForPlatform("macos", "arm64", _ => engine);
+        config.IsSupportedOnCurrentPlatform.Should().BeFalse();
+        config.EffectiveSupportedPlatforms.Should().ContainSingle().Which.Key.Should().Be("windows-amd64");
+    }
+
+    [Fact]
+    public void Missing_or_incompatible_required_engine_leaves_no_supported_platforms()
+    {
+        var config = ModuleManifestParser.Parse("""
+            {
+              "id":"module", "supportedPlatforms":[{"os":"windows", "arch":"amd64"}],
+              "dependencies":{"engines":[{"id":"required"}]}
+            }
+            """);
+        config.ResolveForPlatform("windows", "amd64", _ => null);
+        config.IsSupportedOnCurrentPlatform.Should().BeFalse();
+        config.EffectiveSupportedPlatforms.Should().BeEmpty();
+
+        config.ResolveForPlatform("windows", "amd64", _ => PlatformEngine("required", "macos-arm64"));
+        config.IsSupportedOnCurrentPlatform.Should().BeFalse();
+        config.EffectiveSupportedPlatforms.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Providing_an_unused_engine_does_not_make_it_a_required_dependency()
+    {
+        var config = new ModuleConfig { Engines = [PlatformEngine("optional", "windows-amd64")] };
+        config.ResolveForPlatform("macos", "arm64", _ => throw new InvalidOperationException());
+        config.IsSupportedOnCurrentPlatform.Should().BeTrue();
+        config.EffectiveSupportedPlatforms.Should().BeEmpty();
+    }
+
+    private static EngineConfig PlatformEngine(string id, params string[] platforms)
+    {
+        var engine = new EngineConfig
+        {
+            Id = id,
+            Platforms = platforms.ToDictionary(key => key, _ => new EnginePlatform())
+        };
+        engine.Normalize();
+        return engine;
     }
 
     /// <summary>

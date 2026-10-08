@@ -1071,7 +1071,7 @@
     <value>Приховати журнал</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>Встановлення...</value>
+    <value>Встановлення</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Встановити</value>
@@ -1090,6 +1090,9 @@
   </data>
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Повторити</value>
+  </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Виберіть мову</value>
   </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Налаштування</value>
@@ -1213,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Установлена версія: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Пошук доступних модулів</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Не вдалося завантажити каталог модулів.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Закрити інформацію про модуль</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Видалити</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Видалення</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Видалити {0}?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Видалити {0} і його локальні дані? Рушії, середовища та моделі, які використовує лише цей модуль, також буде видалено. Спільні залежності буде збережено.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Не вдалося видалити модуль</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Перш ніж видаляти модуль, дочекайтеся завершення налаштування, запуску, оновлень або завантажень модулів.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Цей модуль уже видалено. Оновіть список модулів, перш ніж продовжити.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Деякі маніфести встановлених модулів відсутні, недоступні для читання або містять повторювані ідентифікатори. Видалення скасовано, оскільки не вдалося безпечно перевірити спільні залежності.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Від цього модуля залежать: {0}. Спочатку видаліть ці модулі.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Видалення скасовано: шлях виходить за межі керованого каталогу або містить символічне посилання.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Інший установлений модуль використовує файли в каталозі цього модуля. Видалення скасовано, щоб зберегти ці файли.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Модуль видалено</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Модуль видалено зі списку встановлених, але деякі файли видалити не вдалося. Вони залишилися в: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Версія</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Автор</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>Ідентифікатор модуля</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Тип</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Категорії</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Підтримувані платформи</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Канал завантаження</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Потрібні рушії</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Потрібні модулі</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Потрібні категорії моделей</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Завантаження інформації про модуль…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>Завантаження та налаштування {0}…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Установлено</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Для цього модуля немає підтримуваного джерела завантаження.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Установлення скасовано.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Помилка виконання операції: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Модуль {0} більше не доступний у локальному каталозі.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Не вдалося визначити джерело завантаження для {0}.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Не вдалося завершити встановлення {0}. Докладніше — у сповіщеннях або консолі модуля.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Виявлено циклічну залежність модулів, до якої входить {0}. Установлення скасовано.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Потрібний модуль {0} відсутній у локальному каталозі.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Інформація</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Конфігурація</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Стан модуля</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Не встановлено</value>
   </data>
 </root>

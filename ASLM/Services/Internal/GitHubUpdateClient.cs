@@ -1,5 +1,6 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -16,17 +17,17 @@ namespace ASLM.Services.Internal
         private static readonly TimeSpan ReleaseCacheLifetime = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan BranchCacheLifetime = TimeSpan.FromMinutes(5);
 
-        private readonly HttpClient _httpClient = new();
+        private readonly HttpClient _httpClient;
         private readonly GitHubRateLimitStore _rateLimitStore;
         private readonly GitHubAccountStore _githubAccountStore;
+        private readonly ModuleIconCache _moduleIcons;
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
-        private readonly SemaphoreSlim _cacheGate = new(1, 1);
-        private readonly Dictionary<string, CacheEntry<List<GitHubReleaseInfo>>> _releaseCache =
+        private readonly ConcurrentDictionary<string, CachedRequest<List<GitHubReleaseInfo>>> _releaseCache =
             new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, CacheEntry<List<GitHubBranchInfo>>> _branchCache =
+        private readonly ConcurrentDictionary<string, CachedRequest<List<GitHubBranchInfo>>> _branchCache =
             new(StringComparer.OrdinalIgnoreCase);
 
 
@@ -35,8 +36,16 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates the GitHub client with the headers required by the REST API.
         /// </summary>
-        public GitHubUpdateClient(GitHubRateLimitStore rateLimitStore, GitHubAccountStore githubAccountStore)
+        public GitHubUpdateClient(GitHubRateLimitStore rateLimitStore, GitHubAccountStore githubAccountStore, ModuleIconCache moduleIcons)
+            : this(rateLimitStore, githubAccountStore, new HttpClient(), moduleIcons)
         {
+        }
+
+        internal GitHubUpdateClient(GitHubRateLimitStore rateLimitStore, GitHubAccountStore githubAccountStore, HttpClient httpClient,
+            ModuleIconCache moduleIcons)
+        {
+            _httpClient = httpClient;
+            _moduleIcons = moduleIcons;
             _rateLimitStore = rateLimitStore ?? throw new ArgumentNullException(nameof(rateLimitStore));
             _githubAccountStore = githubAccountStore ?? throw new ArgumentNullException(nameof(githubAccountStore));
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ASLM-Updater");
@@ -145,6 +154,58 @@ namespace ASLM.Services.Internal
 
         // Downloads
 
+        /// <summary>Reads the current manifest and icon from the repository's default branch, without downloading the module.</summary>
+        internal async Task<ModuleArtwork> GetModuleArtworkAsync(string repo, string moduleId, CancellationToken ct = default) =>
+            new(await _moduleIcons.GetOrDownloadAsync(moduleId,
+                async token =>
+                {
+                    var manifestBytes = await GetRepositoryFileAsync(repo, "ASLM_Module.json", 1024 * 1024, token);
+                    using var manifest = JsonDocument.Parse(manifestBytes);
+                    var iconPath = ReadModuleIconPath(manifest.RootElement, moduleId);
+                    return iconPath == null ? null : new ModuleIconCache.DownloadedIcon(
+                        await GetRepositoryFileAsync(repo, iconPath, 8 * 1024 * 1024, token), Path.GetExtension(iconPath));
+                }, ct));
+
+        internal sealed record ModuleArtwork(byte[]? Icon);
+
+        internal static string? ReadModuleIconPath(JsonElement manifest, string moduleId)
+        {
+            if (!manifest.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String ||
+                !string.Equals(id.GetString(), moduleId, StringComparison.OrdinalIgnoreCase))
+                throw new JsonException("The repository manifest belongs to a different module.");
+            if (!manifest.TryGetProperty("icon", out var icon) || icon.ValueKind == JsonValueKind.Null) return null;
+            var path = icon.GetString()?.Trim().Replace('\\', '/');
+            if (string.IsNullOrWhiteSpace(path)) return null;
+            var segments = path.Split('/');
+            if (segments.Any(segment => segment is ".." or "" || segment.Contains(':')))
+                throw new JsonException("The module icon must be a repository-relative path.");
+            return string.Join('/', segments.Where(segment => segment != "."));
+        }
+
+        private async Task<byte[]> GetRepositoryFileAsync(string repo, string path, int maxBytes, CancellationToken ct)
+        {
+            // Omitting ref selects GitHub's actual default branch (which need not be named main).
+            var url = BuildApiUrl(repo, "contents/" + string.Join('/', path.Split('/').Select(Uri.EscapeDataString)));
+            using var request = CreateAuthorizedGetRequest(url);
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.raw+json"));
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            ApplyRateLimitHeaders(response);
+            _rateLimitStore.RecordRequest(url, GitHubRequestTypes.Download, GitHubRequestSources.Manual, (int)response.StatusCode);
+            response.EnsureSuccessStatusCode();
+            if (response.Content.Headers.ContentLength > maxBytes) throw new InvalidDataException("Repository file is too large.");
+            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var output = new MemoryStream();
+            var buffer = new byte[8192];
+            int count;
+            while ((count = await stream.ReadAsync(buffer, ct)) > 0)
+            {
+                if (output.Length + count > maxBytes) throw new InvalidDataException("Repository file is too large.");
+                output.Write(buffer, 0, count);
+            }
+            return output.ToArray();
+        }
+
         /// <summary>
         /// Downloads one URL to the requested file path with throttled progress.
         /// </summary>
@@ -228,78 +289,39 @@ namespace ASLM.Services.Internal
         /// Returns a cached value when still fresh, otherwise fetches and stores a new one.
         /// </summary>
         private async Task<T> GetOrFetchCachedValueAsync<T>(
-            Dictionary<string, CacheEntry<T>> cache,
+            ConcurrentDictionary<string, CachedRequest<T>> cache,
             string cacheKey,
             TimeSpan lifetime,
             Func<CancellationToken, Task<T>> fetch,
             CancellationToken ct)
         {
-            if (TryGetCachedValue(cache, cacheKey, out var cached))
-            {
-                return cached;
-            }
-
-            await _cacheGate.WaitAsync(ct);
+            // Coalesce the same request without making unrelated repositories or branches wait for it.
+            var request = cache.GetOrAdd(cacheKey, _ => new CachedRequest<T>());
+            await request.Gate.WaitAsync(ct);
             try
             {
-                if (TryGetCachedValue(cache, cacheKey, out cached))
+                if (request.Entry is { } cached && cached.ExpiresAt > DateTimeOffset.UtcNow)
                 {
-                    return cached;
+                    return cached.Value;
                 }
 
                 try
                 {
                     var fetched = await fetch(ct);
-                    cache[cacheKey] = new CacheEntry<T>(fetched, DateTimeOffset.UtcNow.Add(lifetime));
+                    ct.ThrowIfCancellationRequested();
+                    request.Entry = new CacheEntry<T>(fetched, DateTimeOffset.UtcNow.Add(lifetime));
                     return fetched;
                 }
-                catch when (TryGetAnyCachedValue(cache, cacheKey, out var stale))
+                catch when (!ct.IsCancellationRequested && request.Entry != null)
                 {
                     // When GitHub throttles the client, stale metadata is still more useful than a hard failure.
-                    return stale;
+                    return request.Entry.Value;
                 }
             }
             finally
             {
-                _cacheGate.Release();
+                request.Gate.Release();
             }
-        }
-
-        /// <summary>
-        /// Returns whether a cached value is still valid.
-        /// </summary>
-        private static bool TryGetCachedValue<T>(
-            Dictionary<string, CacheEntry<T>> cache,
-            string cacheKey,
-            out T value)
-        {
-            if (cache.TryGetValue(cacheKey, out var entry) &&
-                entry.ExpiresAt > DateTimeOffset.UtcNow)
-            {
-                value = entry.Value;
-                return true;
-            }
-
-            value = default!;
-            return false;
-        }
-
-        /// <summary>
-        /// Returns any cached value even when it has expired.
-        /// </summary>
-        private static bool TryGetAnyCachedValue<T>(
-            Dictionary<string, CacheEntry<T>> cache,
-            string cacheKey,
-            out T value)
-        {
-            if (cache.TryGetValue(cacheKey, out var entry))
-            {
-                value = entry.Value;
-                return true;
-            }
-
-            value = default!;
-            return false;
         }
 
 
@@ -473,6 +495,12 @@ namespace ASLM.Services.Internal
         /// Stores one cached GitHub payload with its expiration timestamp.
         /// </summary>
         private sealed record CacheEntry<T>(T Value, DateTimeOffset ExpiresAt);
+
+        private sealed class CachedRequest<T>
+        {
+            public SemaphoreSlim Gate { get; } = new(1, 1);
+            public CacheEntry<T>? Entry { get; set; }
+        }
     }
 
     /// <summary>

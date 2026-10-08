@@ -1131,7 +1131,7 @@
     <value>Hide Log</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>Installing...</value>
+    <value>Installing</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Install</value>
@@ -1150,6 +1150,9 @@
   </data>
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Retry</value>
+  </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Select language</value>
   </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Setup</value>
@@ -1213,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Installed version: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Search available modules</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Could not load the module catalog.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Close module information</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Uninstall</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Uninstalling</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Uninstall {0}?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Remove {0} and its local data? Engines, environments, and models used only by this module will also be removed. Shared dependencies will be kept.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Could not remove the module</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Wait for module setup, launch, updates, or downloads to finish before removing a module.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>This module has been removed. Refresh the module list before continuing.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Some installed module manifests are missing, unreadable, or have duplicate IDs. Removal was canceled because shared dependencies could not be checked safely.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>This module is required by: {0}. Remove these modules first.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Removal was canceled because a path is outside its managed directory or contains a symbolic link.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Another installed module uses files inside this module's directory. Removal was canceled to protect those files.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Module removed</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>The module was removed from the installed list, but some files could not be deleted. They remain in: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>Module ID</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Categories</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Supported platforms</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Download channel</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Required engines</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Required modules</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Required model categories</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Loading module information…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>Downloading and setting up {0}…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Installed</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>No supported download source is available for this module.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Installation canceled.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Operation failed: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Module {0} is no longer available in the local catalog.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Could not resolve a download source for {0}.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Could not finish installing {0}. See Notifications or the module console for details.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>A circular module dependency includes {0}. Installation was canceled.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Required module {0} is missing from the local catalog.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Info</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Configuration</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Module state</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Not installed</value>
   </data>
 </root>

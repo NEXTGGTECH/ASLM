@@ -30,6 +30,9 @@ namespace ASLM
                 .ConfigureMauiHandlers(handlers =>
                 {
                     handlers.AddHandler<ConsoleOutputView, ConsoleOutputViewHandler>();
+#if WINDOWS
+                    handlers.AddHandler<WebView, WebViewClipboardHandler>();
+#endif
                 })
                 .ConfigureFonts(fonts =>
                 {
@@ -72,6 +75,7 @@ namespace ASLM
             builder.Services.AddSingleton<OllamaSettingsStore>();
             builder.Services.AddSingleton<GitHubAccountStore>();
             builder.Services.AddSingleton<GitHubRateLimitStore>();
+            builder.Services.AddSingleton<ModuleIconCache>();
             builder.Services.AddSingleton<GitHubUpdateClient>();
             builder.Services.AddSingleton<UpdateManager>();
             builder.Services.AddSingleton<UpdateScheduler>();
@@ -98,6 +102,7 @@ namespace ASLM
             builder.Services.AddTransient<DownloadsView>();
             builder.Services.AddTransient<SettingsView>();
             builder.Services.AddTransient<ModuleUpdateView>();
+            builder.Services.AddTransient<ModuleInfo>();
 
 #if WINDOWS
             ConfigureWindowsCompactControlSizing();
@@ -106,6 +111,9 @@ namespace ASLM
             var app = builder.Build();
             var localization = app.Services.GetRequiredService<AppLocalizationService>();
             Localization.L.Initialize(localization);
+            // Cache maintenance must not delay the first window or initial setup.
+            var moduleIcons = app.Services.GetRequiredService<ModuleIconCache>();
+            _ = Task.Run(() => moduleIcons.PruneAsync());
             return app;
         }
 

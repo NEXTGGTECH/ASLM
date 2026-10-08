@@ -1071,7 +1071,7 @@
     <value>Ocultar registo</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
-    <value>A instalar...</value>
+    <value>A instalar</value>
   </data>
   <data name="SetupWizard_Next_Install" xml:space="preserve">
     <value>Instalar</value>
@@ -1090,6 +1090,9 @@
   </data>
   <data name="SetupWizard_Retry" xml:space="preserve">
     <value>Tentar novamente</value>
+  </data>
+  <data name="SetupWizard_SelectLanguage" xml:space="preserve">
+    <value>Selecionar idioma</value>
   </data>
   <data name="SetupWizard_Setup" xml:space="preserve">
     <value>Configuração</value>
@@ -1213,5 +1216,131 @@
   </data>
   <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
     <value>Versão instalada: {0}</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Pesquisar módulos disponíveis</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Não foi possível carregar o catálogo de módulos.</value>
+  </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Fechar informações do módulo</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Desinstalar</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>A desinstalar</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Desinstalar {0}?</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Remover {0} e os seus dados locais? Os motores, ambientes e modelos utilizados apenas por este módulo também serão removidos. As dependências partilhadas serão mantidas.</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Não foi possível remover o módulo</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Antes de remover um módulo, aguarde a conclusão da configuração, do arranque, das atualizações ou das transferências de módulos.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Este módulo foi removido. Atualize a lista de módulos antes de continuar.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Alguns manifestos dos módulos instalados estão em falta, não podem ser lidos ou contêm identificadores duplicados. A remoção foi cancelada porque não foi possível verificar as dependências partilhadas em segurança.</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Este módulo é necessário para: {0}. Remova primeiro esses módulos.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>A remoção foi cancelada porque um caminho está fora do diretório gerido ou contém uma ligação simbólica.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Outro módulo instalado utiliza ficheiros no diretório deste módulo. A remoção foi cancelada para proteger esses ficheiros.</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Módulo removido</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>O módulo foi removido da lista de módulos instalados, mas não foi possível eliminar alguns ficheiros. Permanecem em: {0}</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Versão</value>
+  </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Autor</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>ID do módulo</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Tipo</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Categorias</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Plataformas suportadas</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Canal de transferência</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Motores necessários</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Módulos necessários</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Categorias de modelos necessárias</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>A carregar informações do módulo…</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>A transferir e a configurar {0}…</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Instalado</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Não existe uma fonte de transferência suportada disponível para este módulo.</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Instalação cancelada.</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>A operação falhou: {0}</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>O módulo {0} já não está disponível no catálogo local.</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Não foi possível determinar uma fonte de transferência para {0}.</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Não foi possível concluir a instalação de {0}. Consulte as notificações ou a consola do módulo para obter mais informações.</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Foi detetada uma dependência circular entre módulos que inclui {0}. A instalação foi cancelada.</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>O módulo necessário {0} está em falta no catálogo local.</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Informações</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Configuração</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Estado</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Estado do módulo</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Não instalado</value>
   </data>
 </root>

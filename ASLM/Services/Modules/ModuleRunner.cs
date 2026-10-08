@@ -108,6 +108,7 @@ namespace ASLM.Services.Modules
             CancellationToken ct,
             bool skipModuleDependencies = false)
         {
+            using var operation = ModuleInstaller.BeginContentOperation();
             _consoleStore.EnsureModule(module);
             var moduleLog = CreateModuleLog(module, log);
 
@@ -168,6 +169,7 @@ namespace ASLM.Services.Modules
         /// <returns>True if commands were started successfully.</returns>
         public async Task<bool> ExecuteRunAsync(ModuleConfig module, IProgress<string> log, CancellationToken ct)
         {
+            using var operation = ModuleInstaller.BeginContentOperation();
             _consoleStore.EnsureModule(module);
             var moduleLog = CreateModuleLog(module, log);
 
@@ -308,6 +310,8 @@ namespace ASLM.Services.Modules
             }
         }
 
+        internal ModuleConsoleStore ConsoleStore => _consoleStore;
+
         // Module stop
 
         /// <summary>
@@ -316,6 +320,7 @@ namespace ASLM.Services.Modules
         /// <param name="moduleSourcePath">The module's SourcePath (unique per instance).</param>
         public async Task StopModuleAsync(string moduleSourcePath)
         {
+            using var activity = _consoleStore.BeginActivity(moduleSourcePath, ModuleActivity.Stopping);
             _consoleStore.AppendOverviewLine(moduleSourcePath, "Stopping module processes...");
             _consoleStore.UpdateModuleEnabledState(moduleSourcePath, false);
 
@@ -462,6 +467,7 @@ namespace ASLM.Services.Modules
                 var modulesToRestart = GetRunningModuleSnapshots();
                 foreach (var module in modulesToRestart)
                 {
+                    using var activity = _consoleStore.BeginActivity(module.SourcePath, ModuleActivity.Restarting);
                     _logger.LogInformation("Restarting module '{ModuleName}' after port redistribution.", module.Name);
                     await StopModuleAsync(module.SourcePath);
                     await Task.Delay(500);
@@ -1017,6 +1023,7 @@ namespace ASLM.Services.Modules
         /// <returns>The standard output of the command if successful, otherwise null.</returns>
         public async Task<string?> ExecuteSettingCommandAsync(ModuleConfig module, ModuleSetting setting, bool isSet, string? newValue, CancellationToken ct)
         {
+            using var operation = ModuleInstaller.BeginContentOperation();
             var execStr = isSet ? setting.SetExec : setting.GetExec;
             if (string.IsNullOrEmpty(execStr)) return null;
 

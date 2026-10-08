@@ -132,7 +132,10 @@ public sealed class ModuleDownloadBridgeTests
                 catch (OperationCanceledException) { }
             }
             foreach (var directory in directories)
+            {
+                new ModuleRegistry().Remove(Path.GetFileName(directory));
                 Directory.Delete(directory, recursive: true);
+            }
         }
 
         string WriteProvider(string name, string groupKey, bool waitForRelease)
@@ -162,6 +165,7 @@ public sealed class ModuleDownloadBridgeTests
                 }
             };
             File.WriteAllText(Path.Combine(directory, "ASLM_Module.json"), JsonSerializer.Serialize(module));
+            new ModuleRegistry().Add(module.Id);
             return directory;
         }
     }

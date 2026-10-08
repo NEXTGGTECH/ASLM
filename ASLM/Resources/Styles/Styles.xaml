@@ -9,6 +9,18 @@
     xmlns:shimmer="clr-namespace:Syncfusion.Maui.Toolkit.Shimmer;assembly=Syncfusion.Maui.Toolkit">
 
     <!-- Core controls -->
+    <Style x:Key="AppScrollBarThumbStyle" TargetType="BoxView">
+        <Setter Property="WidthRequest" Value="4" />
+        <Setter Property="MinimumWidthRequest" Value="4" />
+        <Setter Property="MaximumWidthRequest" Value="4" />
+        <Setter Property="HeightRequest" Value="24" />
+        <Setter Property="MinimumHeightRequest" Value="24" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+        <Setter Property="VerticalOptions" Value="Start" />
+        <Setter Property="Color" Value="{DynamicResource BackgroundSecondary}" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
     <Style TargetType="ActivityIndicator">
         <Setter Property="Color" Value="{DynamicResource ActionBlue}" />
     </Style>

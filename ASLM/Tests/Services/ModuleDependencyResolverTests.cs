@@ -51,6 +51,23 @@ public sealed class ModuleDependencyResolverTests
         ModuleDependencyResolver.GetDirectModuleDependencyIds(module).Should().Equal(["aslm-chat"]);
     }
 
+    [Fact]
+    public void ExpandInstallOrder_rejects_cycles_without_recursing_forever()
+    {
+        var first = CreateModule("first", module => module.Dependencies.Modules.Add(new() { Id = "second" }));
+        var second = CreateModule("second", module => module.Dependencies.Modules.Add(new() { Id = "first" }));
+        var resolve = () => ModuleDependencyResolver.ExpandInstallOrder([first], [first, second]);
+        resolve.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void ExpandInstallOrder_rejects_missing_dependencies_before_installation()
+    {
+        var module = CreateModule("module", item => item.Dependencies.Modules.Add(new() { Id = "missing" }));
+        var resolve = () => ModuleDependencyResolver.ExpandInstallOrder([module], [module]);
+        resolve.Should().Throw<InvalidOperationException>();
+    }
+
     private static ModuleConfig CreateModule(string id, Action<ModuleConfig>? configure = null)
     {
         return ModuleConfigBuilder.Create(id: id, name: id, configure: configure);

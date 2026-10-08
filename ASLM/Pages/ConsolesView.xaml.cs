@@ -530,7 +530,7 @@ namespace ASLM.Pages
 
                 if (forceModuleReload || _knownModules.Count == 0)
                 {
-                    _knownModules = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync());
+                    _knownModules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
                 }
 
                 var state = await Task.Run(() =>

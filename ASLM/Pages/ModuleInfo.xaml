@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:pages="clr-namespace:ASLM.Pages"
+             xmlns:models="clr-namespace:ASLM.Models"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:controls="clr-namespace:ASLM.Controls"
+             xmlns:services="clr-namespace:ASLM.Services.Internal"
+             x:Class="ASLM.Pages.ModuleInfo"
+             x:DataType="pages:ModuleInfo"
+             BackgroundColor="{DynamicResource OverlayBackground}">
+    <ContentView.GestureRecognizers>
+        <TapGestureRecognizer Tapped="OnCloseClicked" />
+    </ContentView.GestureRecognizers>
+
+    <ContentView.Resources>
+        <Style x:Key="ModuleInfoCardStyle"
+               TargetType="Border">
+            <Setter Property="Background"
+                    Value="{DynamicResource BackgroundSecondary}" />
+            <Setter Property="StrokeThickness"
+                    Value="0" />
+            <Setter Property="StrokeShape"
+                    Value="RoundRectangle 8" />
+            <Setter Property="Padding"
+                    Value="8" />
+        </Style>
+        <Style x:Key="ModuleInfoFieldLabelStyle"
+               TargetType="Label">
+            <Setter Property="FontSize"
+                    Value="14" />
+            <Setter Property="TextColor"
+                    Value="{DynamicResource LabelPrimary}" />
+            <Setter Property="LineBreakMode"
+                    Value="WordWrap" />
+        </Style>
+        <Style x:Key="ModuleInfoPickerBorderStyle"
+               TargetType="Border">
+            <Setter Property="Background"
+                    Value="{DynamicResource BackgroundSecondary}" />
+            <Setter Property="Stroke"
+                    Value="{DynamicResource Separator}" />
+            <Setter Property="StrokeThickness"
+                    Value="1" />
+            <Setter Property="StrokeShape"
+                    Value="RoundRectangle 6" />
+            <Setter Property="Padding"
+                    Value="8,0" />
+        </Style>
+        <Style x:Key="ModuleInfoPickerStyle"
+               TargetType="Picker">
+            <Setter Property="FontSize"
+                    Value="14" />
+            <Setter Property="HeightRequest"
+                    Value="44" />
+            <Setter Property="BackgroundColor"
+                    Value="Transparent" />
+            <Setter Property="TextColor"
+                    Value="{DynamicResource LabelPrimary}" />
+            <Setter Property="TitleColor"
+                    Value="{DynamicResource LabelPrimary}" />
+        </Style>
+        <Style x:Key="ModuleInfoTabStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource SidebarButton}">
+            <Setter Property="FontSize"
+                    Value="14" />
+            <Setter Property="HeightRequest"
+                    Value="24" />
+            <Setter Property="MinimumHeightRequest"
+                    Value="24" />
+            <Setter Property="Padding"
+                    Value="8,0" />
+            <Setter Property="CornerRadius"
+                    Value="0" />
+        </Style>
+    </ContentView.Resources>
+
+    <Border x:Name="DialogBorder"
+            WidthRequest="940"
+            HeightRequest="620"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            Background="{DynamicResource BackgroundPrimary}"
+            Stroke="{DynamicResource Separator}"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 10"
+            Padding="12">
+        <Border.GestureRecognizers>
+            <TapGestureRecognizer Tapped="OnDialogTapped" />
+        </Border.GestureRecognizers>
+
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
+              RowSpacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto"
+                      HorizontalOptions="Start"
+                      VerticalOptions="Center">
+                    <Label Text="{Binding ModuleName}"
+                           Style="{StaticResource DownloadsColumnTitleLabelStyle}"
+                           VerticalOptions="Center" />
+                    <Image Grid.Column="1"
+                           Source="icon_verified.png"
+                           IsVisible="{Binding ShowVerifiedBadge}"
+                           WidthRequest="24"
+                           HeightRequest="24"
+                           Margin="4,0,0,0"
+                           Aspect="AspectFit"
+                           VerticalOptions="Center" />
+                    <Border Grid.Column="2"
+                            IsVisible="{Binding ShowUnverifiedWarning}"
+                            Background="{DynamicResource ActionRed}"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 2"
+                            HeightRequest="24"
+                            Margin="4,0,0,0"
+                            Padding="4,0"
+                            VerticalOptions="Center">
+                        <HorizontalStackLayout Spacing="4"
+                                               VerticalOptions="Center">
+                            <Image Source="icon_warning.png"
+                                   WidthRequest="20"
+                                   HeightRequest="20"
+                                   Aspect="AspectFit" />
+                            <Label Text="{Binding NotVerifiedText}"
+                                   FontSize="14"
+                                   TextColor="{DynamicResource White}"
+                                   VerticalOptions="Center"
+                                   LineBreakMode="NoWrap" />
+                        </HorizontalStackLayout>
+                    </Border>
+                    <ImageButton x:Name="SourceLinkButton"
+                                 Grid.Column="3"
+                                 IsVisible="{Binding HasSourceLink}"
+                                 Style="{StaticResource SettingsAccountLinkButtonStyle}"
+                                 Margin="4,0,0,0"
+                                 Clicked="OnSourceLinkClicked" />
+                </Grid>
+                <Button x:Name="CloseButton"
+                        Grid.Column="1"
+                        Text="&#x2715;"
+                        FontSize="17"
+                        WidthRequest="24"
+                        MinimumWidthRequest="24"
+                        HeightRequest="24"
+                        MinimumHeightRequest="24"
+                        HorizontalOptions="End"
+                        VerticalOptions="Start"
+                        Padding="0"
+                        BackgroundColor="Transparent"
+                        TextColor="{DynamicResource LabelSecondary}"
+                        CornerRadius="6"
+                        Clicked="OnCloseClicked" />
+            </Grid>
+
+            <Border Grid.Row="1"
+                    Style="{StaticResource ModuleInfoCardStyle}"
+                    IsVisible="{Binding HasOverview}">
+                <Grid ColumnDefinitions="Auto,*"
+                      ColumnSpacing="8">
+                    <Border IsVisible="{Binding HasIcon}"
+                            WidthRequest="104"
+                            HeightRequest="104"
+                            Background="{DynamicResource BackgroundSecondary}"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 4"
+                            Padding="0"
+                            VerticalOptions="Start">
+                        <Image Source="{Binding IconSource}"
+                               Aspect="AspectFit"
+                               HorizontalOptions="Fill"
+                               VerticalOptions="Fill" />
+                    </Border>
+                    <VerticalStackLayout Grid.Column="1"
+                                         Spacing="4">
+                        <Label Text="{Binding VersionText}"
+                               IsVisible="{Binding HasVersion}"
+                               Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                        <Label Text="{Binding AuthorText}"
+                               IsVisible="{Binding HasAuthor}"
+                               Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                        <Label Text="{Binding Description}"
+                               IsVisible="{Binding HasDescription}"
+                               Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <HorizontalStackLayout Grid.Row="2"
+                                   Spacing="0">
+                <Button x:Name="InfoTabButton"
+                        Style="{StaticResource ModuleInfoTabStyle}"
+                        Clicked="OnInfoTabClicked">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button"
+                                     Binding="{Binding IsInfoSelected}"
+                                     Value="True">
+                            <Setter Property="TextColor"
+                                    Value="{DynamicResource LabelPrimary}" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <BoxView WidthRequest="1"
+                         HeightRequest="24"
+                         Color="{DynamicResource Separator}"
+                         VerticalOptions="Fill" />
+                <Button x:Name="ConfigurationTabButton"
+                        Style="{StaticResource ModuleInfoTabStyle}"
+                        Clicked="OnConfigurationTabClicked">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button"
+                                     Binding="{Binding IsConfigurationSelected}"
+                                     Value="True">
+                            <Setter Property="TextColor"
+                                    Value="{DynamicResource LabelPrimary}" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+                <BoxView WidthRequest="1"
+                         HeightRequest="24"
+                         Color="{DynamicResource Separator}"
+                         VerticalOptions="Fill" />
+                <Button x:Name="StatusTabButton"
+                        Style="{StaticResource ModuleInfoTabStyle}"
+                        Clicked="OnStatusTabClicked">
+                    <Button.Triggers>
+                        <DataTrigger TargetType="Button"
+                                     Binding="{Binding IsStatusSelected}"
+                                     Value="True">
+                            <Setter Property="TextColor"
+                                    Value="{DynamicResource LabelPrimary}" />
+                        </DataTrigger>
+                    </Button.Triggers>
+                </Button>
+            </HorizontalStackLayout>
+
+            <Grid Grid.Row="3">
+                <Grid IsVisible="{Binding IsInfoSelected}"
+                      ColumnDefinitions="*,Auto">
+                    <ScrollView x:Name="InfoScroll"
+                                VerticalScrollBarVisibility="Never"
+                                HorizontalScrollBarVisibility="Never">
+                        <Border Style="{StaticResource ModuleInfoCardStyle}"
+                                VerticalOptions="Start">
+                            <VerticalStackLayout Spacing="8"
+                                                 BindableLayout.ItemsSource="{Binding Fields}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="pages:ModuleInfo+InfoField">
+                                        <Grid ColumnDefinitions="180,*"
+                                              ColumnSpacing="8">
+                                            <Label Text="{Binding Title}"
+                                                   Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                                            <VerticalStackLayout Grid.Column="1"
+                                                                 Spacing="4"
+                                                                 BindableLayout.ItemsSource="{Binding Items}">
+                                                <BindableLayout.ItemTemplate>
+                                                    <DataTemplate x:DataType="pages:ModuleInfo+InfoValue">
+                                                        <FlexLayout Direction="Row"
+                                                                    AlignItems="Start">
+                                                            <Label Text="{Binding Text}"
+                                                                   FlexLayout.Shrink="1"
+                                                                   Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                                                            <settings:SettingsInfoButton Description="{Binding Description}"
+                                                                                         FlexLayout.Shrink="0" />
+                                                        </FlexLayout>
+                                                    </DataTemplate>
+                                                </BindableLayout.ItemTemplate>
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </Border>
+                    </ScrollView>
+                    <controls:AppScrollBar Grid.Column="1"
+                                           Target="{x:Reference InfoScroll}" />
+                </Grid>
+
+                <Grid IsVisible="{Binding IsConfigurationSelected}"
+                      ColumnDefinitions="*,Auto">
+                    <ScrollView x:Name="ConfigurationScroll"
+                                VerticalScrollBarVisibility="Never"
+                                HorizontalScrollBarVisibility="Never">
+                        <Border Style="{StaticResource ModuleInfoCardStyle}"
+                                VerticalOptions="Start">
+                            <VerticalStackLayout Spacing="8">
+                                <Grid ColumnDefinitions="*,*"
+                                      ColumnSpacing="8">
+                                    <VerticalStackLayout Spacing="8">
+                                        <Label x:Name="ChannelLabel"
+                                               Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                                        <Border Style="{StaticResource ModuleInfoPickerBorderStyle}">
+                                            <Picker x:Name="ChannelPicker"
+                                                    ItemsSource="{Binding ChannelOptions}"
+                                                    IsEnabled="{Binding CanConfigure}"
+                                                    Style="{StaticResource ModuleInfoPickerStyle}"
+                                                    settings:SettingsControlChrome.CompactPicker="True"
+                                                    SelectedIndexChanged="OnChannelChanged" />
+                                        </Border>
+                                    </VerticalStackLayout>
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="8"
+                                                         IsVisible="{Binding IsReleaseMode}">
+                                        <Label x:Name="ReleaseLabel"
+                                               Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                                        <Border Style="{StaticResource ModuleInfoPickerBorderStyle}">
+                                            <Picker x:Name="ReleasePicker"
+                                                    ItemsSource="{Binding ReleaseOptions}"
+                                                    ItemDisplayBinding="{Binding DisplayName, x:DataType=models:UpdateCandidate}"
+                                                    IsEnabled="{Binding CanSelectTarget}"
+                                                    Style="{StaticResource ModuleInfoPickerStyle}"
+                                                    settings:SettingsControlChrome.CompactPicker="True"
+                                                    SelectedIndexChanged="OnReleaseChanged" />
+                                        </Border>
+                                    </VerticalStackLayout>
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="8"
+                                                         IsVisible="{Binding IsBranchMode}">
+                                        <Label x:Name="BranchLabel"
+                                               Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                                        <Border Style="{StaticResource ModuleInfoPickerBorderStyle}">
+                                            <Picker x:Name="BranchPicker"
+                                                    ItemsSource="{Binding BranchOptions}"
+                                                    IsEnabled="{Binding CanSelectTarget}"
+                                                    Style="{StaticResource ModuleInfoPickerStyle}"
+                                                    settings:SettingsControlChrome.CompactPicker="True"
+                                                    SelectedIndexChanged="OnBranchChanged" />
+                                        </Border>
+                                    </VerticalStackLayout>
+                                </Grid>
+                                <Label Text="{Binding ConfigurationMessage}"
+                                       IsVisible="{Binding HasConfigurationMessage}"
+                                       Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </ScrollView>
+                    <controls:AppScrollBar Grid.Column="1"
+                                           Target="{x:Reference ConfigurationScroll}" />
+                </Grid>
+
+                <Grid IsVisible="{Binding IsStatusSelected}"
+                      RowDefinitions="Auto,*"
+                      RowSpacing="8">
+                    <Border Style="{StaticResource ModuleInfoCardStyle}">
+                        <Grid ColumnDefinitions="180,*"
+                              ColumnSpacing="8">
+                            <Label x:Name="StateTitleLabel"
+                                   Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding ModuleStateText}"
+                                   Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                        </Grid>
+                    </Border>
+                    <Grid Grid.Row="1"
+                          IsVisible="{Binding HasLog}"
+                          ColumnDefinitions="*,Auto">
+                        <Border x:Name="ActivityLogPanel"
+                                Background="{DynamicResource BackgroundSecondary}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 8"
+                                Padding="0">
+                            <services:ConsoleOutputView x:Name="ActivityLogConsole"
+                                                        Text="{Binding LogText}"
+                                                        SessionKey="{Binding LogSessionKey}"
+                                                        HorizontalOptions="Fill"
+                                                        VerticalOptions="Fill" />
+                        </Border>
+                        <controls:AppScrollBar Grid.Column="1"
+                                               Target="{x:Reference ActivityLogConsole}" />
+                    </Grid>
+                </Grid>
+            </Grid>
+
+            <Grid Grid.Row="4"
+                  RowDefinitions="Auto,Auto">
+                <BoxView HeightRequest="1"
+                         Color="{DynamicResource Separator}" />
+                <Grid Grid.Row="1"
+                      ColumnDefinitions="*,Auto"
+                      ColumnSpacing="16"
+                      Margin="0,12,0,0">
+                    <VerticalStackLayout Spacing="6"
+                                         IsVisible="{Binding IsCurrentInstallation}"
+                                         VerticalOptions="Center">
+                        <ProgressBar Progress="{Binding DownloadFraction}"
+                                     ProgressColor="{DynamicResource ActionBlue}" />
+                        <Label Text="{Binding TransferText}"
+                               IsVisible="{Binding HasTransferText}"
+                               FontSize="13"
+                               TextColor="{DynamicResource LabelSecondary}" />
+                    </VerticalStackLayout>
+                    <HorizontalStackLayout Grid.Column="1"
+                                           Spacing="8"
+                                           VerticalOptions="Center">
+                        <Button x:Name="CancelButton"
+                                IsVisible="{Binding IsCurrentInstallation}"
+                                Style="{StaticResource SettingsFooterButtonStyle}"
+                                Clicked="OnCancelClicked" />
+                        <Button x:Name="InstallButton"
+                                IsVisible="{Binding ShowInstallButton}"
+                                IsEnabled="{Binding CanInstall}"
+                                Style="{StaticResource SettingsFooterPrimaryButtonStyle}"
+                                Clicked="OnInstallClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</ContentView>

@@ -197,8 +197,32 @@ namespace ASLM.Models
         /// </summary>
         public void ResolveForPlatform(string osKey, string archKey)
         {
+            var resolvedKey = ResolvePlatformKey(osKey, archKey);
+            ActivePlatformKey = resolvedKey ?? $"{osKey}-{archKey}";
+            IsSupportedOnCurrentPlatform = resolvedKey != null;
+        }
+
+        /// <summary>
+        /// Enumerates installable platforms using the same block lookup as installation,
+        /// without changing the active platform of a shared engine configuration.
+        /// </summary>
+        public IReadOnlyList<SupportedPlatform> GetSupportedPlatforms() =>
+            (SupportedPlatforms.Count > 0 ? SupportedPlatforms : Platforms.Keys.Select(SupportedPlatform.FromKey))
+                .Where(platform => platform != null &&
+                    !string.IsNullOrWhiteSpace(platform.Os) && !string.IsNullOrWhiteSpace(platform.Arch))
+                .Select(platform => SupportedPlatform.FromKey(
+                    $"{SupportedPlatform.CanonicalToken(platform.Os)}-{SupportedPlatform.CanonicalToken(platform.Arch)}"))
+                .DistinctBy(platform => platform.Key, StringComparer.OrdinalIgnoreCase)
+                .Where(platform => ResolvePlatformKey(platform.Os, platform.Arch) != null)
+                .ToList();
+
+        private string? ResolvePlatformKey(string osKey, string archKey)
+        {
             var match = SupportedPlatforms.FirstOrDefault(platform =>
-                ArchEquals(platform.Os, osKey) && ArchEquals(platform.Arch, archKey));
+                platform != null && platform.Matches(osKey, archKey));
+
+            // An existing install block must not bypass an explicit platform restriction.
+            if (SupportedPlatforms.Count > 0 && match == null) return null;
 
             string? resolvedKey = match?.Key;
             if (string.IsNullOrWhiteSpace(resolvedKey) || !Platforms.ContainsKey(resolvedKey))
@@ -214,16 +238,9 @@ namespace ASLM.Models
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(resolvedKey) && Platforms.ContainsKey(resolvedKey))
-            {
-                ActivePlatformKey = resolvedKey;
-                IsSupportedOnCurrentPlatform = true;
-            }
-            else
-            {
-                ActivePlatformKey = $"{osKey}-{archKey}";
-                IsSupportedOnCurrentPlatform = false;
-            }
+            return !string.IsNullOrWhiteSpace(resolvedKey) &&
+                Platforms.TryGetValue(resolvedKey, out var block) && block != null
+                    ? resolvedKey : null;
         }
 
         /// <summary>
@@ -234,29 +251,6 @@ namespace ASLM.Models
                 ? [$"{osKey}-amd64", $"{osKey}-x64"]
                 : [$"{osKey}-{archKey}"];
 
-        /// <summary>
-        /// Compares two os/arch tokens, treating amd64 and x64 as equivalent.
-        /// </summary>
-        private static bool ArchEquals(string left, string right)
-        {
-            left = CanonicalToken(left);
-            right = CanonicalToken(right);
-            return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static string CanonicalToken(string value)
-        {
-            value = (value ?? string.Empty).Trim();
-            return value.ToLowerInvariant() switch
-            {
-                "x64" => "amd64",
-                "x86_64" => "amd64",
-                "aarch64" => "arm64",
-                "osx" => "macos",
-                "win" => "windows",
-                _ => value
-            };
-        }
     }
 
 

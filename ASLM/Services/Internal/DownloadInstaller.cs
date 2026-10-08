@@ -69,6 +69,7 @@ namespace ASLM.Services.Internal
             IProgress<string>? log = null,
             CancellationToken ct = default)
         {
+            using var operation = ModuleInstaller.BeginContentOperation();
             if (item.Sources.Count == 0)
             {
                 return new DownloadInstallResult(false, "No module source is available for this download item.");
@@ -180,6 +181,7 @@ namespace ASLM.Services.Internal
             IProgress<string>? log = null,
             CancellationToken ct = default)
         {
+            using var operation = ModuleInstaller.BeginContentOperation();
             if (item.Sources.Count == 0)
             {
                 return new DownloadInstallResult(false, "No module source is available for this download item.");

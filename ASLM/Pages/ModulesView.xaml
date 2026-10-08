@@ -2,6 +2,7 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:modules="clr-namespace:ASLM.Controls.Modules"
              x:Class="ASLM.Pages.ModulesView"
              x:Name="RootView">
 
@@ -9,373 +10,416 @@
         <TapGestureRecognizer Tapped="OnBackgroundTapped" />
     </ContentView.GestureRecognizers>
 
-    <CollectionView x:Name="DashboardView"
-                    ItemsSource="{Binding Modules}"
-                    SelectionMode="None">
+    <Grid>
+        <CollectionView x:Name="DashboardView"
+                        ItemsSource="{Binding Modules}"
+                        SelectionMode="None">
 
-        <CollectionView.ItemsLayout>
-            <GridItemsLayout Orientation="Vertical"
-                             Span="{Binding GridSpan}"
-                             VerticalItemSpacing="4"
-                             HorizontalItemSpacing="4" />
-        </CollectionView.ItemsLayout>
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical"
+                                 Span="{Binding GridSpan}"
+                                 VerticalItemSpacing="4"
+                                 HorizontalItemSpacing="4" />
+            </CollectionView.ItemsLayout>
 
-        <CollectionView.Header>
-            <VerticalStackLayout Spacing="0"
-                                 Margin="0,0,0,8"
-                                 Padding="4">
-                <Label x:Name="PageTitleLabel"
-                       Text="Modules"
-                       FontSize="24"
-                       FontAttributes="Bold"
-                       TextColor="{DynamicResource LabelPrimary}" />
-            </VerticalStackLayout>
-        </CollectionView.Header>
+            <CollectionView.Header>
+                <VerticalStackLayout Spacing="0"
+                                     Margin="0,0,0,8"
+                                     Padding="4">
+                    <Label x:Name="PageTitleLabel"
+                           Text="Modules"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource LabelPrimary}" />
+                </VerticalStackLayout>
+            </CollectionView.Header>
 
-        <CollectionView.EmptyView>
-            <Label x:Name="EmptyModulesLabel"
-                   Text="No modules found. Install modules via the Setup Wizard."
-                   FontSize="14"
-                   TextColor="{DynamicResource LabelSecondary}"
-                   HorizontalOptions="Center"
-                   VerticalOptions="Center"
-                   Margin="0,20,0,0" />
-        </CollectionView.EmptyView>
+            <CollectionView.EmptyView>
+                <Label x:Name="EmptyModulesLabel"
+                       Text="No modules found. Install modules via the Setup Wizard."
+                       FontSize="14"
+                       TextColor="{DynamicResource LabelSecondary}"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       Margin="0,20,0,0" />
+            </CollectionView.EmptyView>
 
-        <CollectionView.ItemTemplate>
-            <DataTemplate>
-                <Border BackgroundColor="{DynamicResource BackgroundSecondary}"
-                        Stroke="{DynamicResource Separator}"
-                        StrokeThickness="1"
-                        StrokeShape="RoundRectangle 8"
-                        Padding="0">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border BackgroundColor="{DynamicResource BackgroundSecondary}"
+                            Stroke="{DynamicResource Separator}"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 8"
+                            Padding="0">
 
-                    <Grid>
-                        <Grid ColumnDefinitions="Auto,*">
-                            <Border Grid.Column="0"
-                                    IsVisible="{Binding HasIcon}"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 4"
-                                    BackgroundColor="{DynamicResource BackgroundSecondary}"
-                                    WidthRequest="164"
-                                    HeightRequest="164"
-                                    Padding="0"
-                                    Margin="8,8,0,8">
-                                <Image Source="{Binding IconFullPath}"
-                                       Aspect="AspectFit"
-                                       HorizontalOptions="Fill"
-                                       VerticalOptions="Fill" />
-                            </Border>
+                        <Grid>
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Border Grid.Column="0"
+                                        IsVisible="{Binding HasIcon}"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 4"
+                                        BackgroundColor="{DynamicResource BackgroundSecondary}"
+                                        WidthRequest="164"
+                                        HeightRequest="164"
+                                        Padding="0"
+                                        Margin="8,8,0,8">
+                                    <Image Source="{Binding IconFullPath}"
+                                           Aspect="AspectFit"
+                                           HorizontalOptions="Fill"
+                                           VerticalOptions="Fill" />
+                                </Border>
 
-                            <Grid Grid.Column="1"
-                                  RowDefinitions="Auto,*,Auto"
-                                  HeightRequest="164"
-                                  Margin="8">
-                                <Grid Grid.Row="0"
-                                      ColumnDefinitions="*,Auto,Auto,Auto"
-                                      ColumnSpacing="4">
-                                    <Grid Grid.Column="0"
-                                          ColumnDefinitions="*,Auto,Auto"
-                                          ColumnSpacing="0"
-                                          VerticalOptions="Center"
-                                          HorizontalOptions="Start">
-                                        <Label Grid.Column="0"
-                                               Text="{Binding Name}"
-                                               FontSize="16"
-                                               HeightRequest="24"
-                                               FontAttributes="Bold"
-                                               TextColor="{DynamicResource LabelPrimary}"
-                                               VerticalOptions="Center"
-                                               MaxLines="1"
-                                               LineBreakMode="TailTruncation"
-                                               HorizontalOptions="Fill"
-                                               HorizontalTextAlignment="Start"
-                                               Margin="0,0,4,0"/>
+                                <Grid Grid.Column="1"
+                                      RowDefinitions="Auto,*,Auto"
+                                      HeightRequest="164"
+                                      Margin="8">
+                                    <Grid Grid.Row="0"
+                                          ColumnDefinitions="*,Auto,Auto,Auto"
+                                          ColumnSpacing="4">
+                                        <Grid Grid.Column="0"
+                                              ColumnDefinitions="*,Auto,Auto"
+                                              ColumnSpacing="0"
+                                              VerticalOptions="Center"
+                                              HorizontalOptions="Start">
+                                            <Label Grid.Column="0"
+                                                   Text="{Binding Name}"
+                                                   FontSize="16"
+                                                   HeightRequest="24"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   VerticalOptions="Center"
+                                                   MaxLines="1"
+                                                   LineBreakMode="TailTruncation"
+                                                   HorizontalOptions="Fill"
+                                                   HorizontalTextAlignment="Start"
+                                                   Margin="0,0,4,0"/>
 
-                                        <Border Grid.Column="1"
-                                                IsVisible="{Binding ShowVerifiedBadge}"
-                                                BackgroundColor="Transparent"
+                                            <Border Grid.Column="1"
+                                                    IsVisible="{Binding ShowVerifiedBadge}"
+                                                    BackgroundColor="Transparent"
+                                                    StrokeThickness="0"
+                                                    WidthRequest="24"
+                                                    HeightRequest="24"
+                                                    Padding="0"
+                                                    VerticalOptions="Center">
+                                                <Image Source="icon_verified.png"
+                                                       WidthRequest="24"
+                                                       HeightRequest="24"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"
+                                                       Aspect="AspectFit" />
+                                            </Border>
+
+                                            <Border Grid.Column="2"
+                                                    IsVisible="{Binding ShowUnverifiedWarning}"
+                                                    Background="#FF453A"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 2"
+                                                    HeightRequest="24"
+                                                    Padding="0"
+                                                    VerticalOptions="Center">
+                                                <HorizontalStackLayout Spacing="4"
+                                                                       Padding="4,0"
+                                                                       VerticalOptions="Center">
+                                                    <Image Source="icon_warning.png"
+                                                           WidthRequest="20"
+                                                           HeightRequest="20"
+                                                           VerticalOptions="Center"
+                                                           Aspect="AspectFit" />
+                                                    <Label Text="{Binding NotVerifiedLabel}"
+                                                           FontSize="14"
+                                                           TextColor="#FFFFFF"
+                                                           VerticalOptions="Center"
+                                                           Padding="0"
+                                                           LineBreakMode="NoWrap" />
+                                                </HorizontalStackLayout>
+                                            </Border>
+                                        </Grid>
+
+                                        <ActivityIndicator Grid.Column="1"
+                                                           IsRunning="{Binding ShowHeaderBusyIndicator}"
+                                                           IsVisible="{Binding ShowHeaderBusyIndicator}"
+                                                           WidthRequest="24"
+                                                           HeightRequest="24"
+                                                           VerticalOptions="Center"
+                                                           Color="{DynamicResource LabelSecondary}" />
+
+                                        <Border Grid.Column="2"
+                                                IsVisible="{Binding ShowCardUpdateAction}"
+                                                Background="{SolidColorBrush {DynamicResource SystemGreen}}"
                                                 StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 2"
+                                                MinimumWidthRequest="50"
+                                                HeightRequest="24"
+                                                Padding="0"
+                                                VerticalOptions="Center">
+                                            <Grid ColumnDefinitions="Auto,Auto"
+                                                  ColumnSpacing="0"
+                                                  Padding="4,0">
+                                                <Grid.GestureRecognizers>
+                                                    <TapGestureRecognizer Command="{Binding OpenUpdateDialogCommand}" />
+                                                </Grid.GestureRecognizers>
+
+                                                <Image Source="icon_update.png"
+                                                       WidthRequest="20"
+                                                       HeightRequest="20"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center" />
+                                                <Label Grid.Column="1"
+                                                       Text="{Binding UpdateLabel}"
+                                                       FontSize="14"
+                                                       TextColor="{DynamicResource White}"
+                                                       VerticalOptions="Center"
+                                                       Padding="4,0,0,0" />
+                                            </Grid>
+                                        </Border>
+
+                                        <Border Grid.Column="3"
+                                                IsEnabled="{Binding IsNotRemoving}"
+                                                BackgroundColor="{DynamicResource BackgroundSecondary}"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 4"
                                                 WidthRequest="24"
                                                 HeightRequest="24"
                                                 Padding="0"
                                                 VerticalOptions="Center">
-                                            <Image Source="icon_verified.png"
-                                                   WidthRequest="24"
-                                                   HeightRequest="24"
-                                                   HorizontalOptions="Center"
-                                                   VerticalOptions="Center"
-                                                   Aspect="AspectFit" />
-                                        </Border>
+                                            <Grid>
+                                                <Grid.GestureRecognizers>
+                                                    <TapGestureRecognizer Command="{Binding ToggleMenuCommand}" />
+                                                </Grid.GestureRecognizers>
 
-                                        <Border Grid.Column="2"
-                                                IsVisible="{Binding ShowUnverifiedWarning}"
-                                                Background="#FF453A"
-                                                StrokeThickness="0"
-                                                StrokeShape="RoundRectangle 2"
-                                                HeightRequest="24"
-                                                Padding="0"
-                                                VerticalOptions="Center">
-                                            <HorizontalStackLayout Spacing="4"
-                                                                   Padding="4,0"
-                                                                   VerticalOptions="Center">
-                                                <Image Source="icon_warning.png"
-                                                       WidthRequest="20"
-                                                       HeightRequest="20"
-                                                       VerticalOptions="Center"
-                                                       Aspect="AspectFit" />
-                                                <Label Text="{Binding NotVerifiedLabel}"
-                                                       FontSize="14"
-                                                       TextColor="#FFFFFF"
-                                                       VerticalOptions="Center"
-                                                       Padding="0"
-                                                       LineBreakMode="NoWrap" />
-                                            </HorizontalStackLayout>
+                                                <Image Source="{Binding MoreIconSource, Source={x:Reference RootView}}"
+                                                       WidthRequest="24"
+                                                       HeightRequest="24"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center" />
+                                            </Grid>
                                         </Border>
                                     </Grid>
 
-                                    <ActivityIndicator Grid.Column="1"
-                                                       IsRunning="{Binding ShowHeaderBusyIndicator}"
-                                                       IsVisible="{Binding ShowHeaderBusyIndicator}"
-                                                       WidthRequest="24"
-                                                       HeightRequest="24"
-                                                       VerticalOptions="Center"
-                                                       Color="{DynamicResource LabelSecondary}" />
+                                    <VerticalStackLayout Grid.Row="1"
+                                                         Spacing="4"
+                                                         Margin="0,4">
+                                        <Label Text="{Binding VersionString}"
+                                               FontSize="14"
+                                               TextColor="{DynamicResource LabelSecondary}" />
+                                    </VerticalStackLayout>
 
-                                    <Border Grid.Column="2"
-                                            IsVisible="{Binding ShowCardUpdateAction}"
-                                            Background="{SolidColorBrush {DynamicResource SystemGreen}}"
-                                            StrokeThickness="0"
-                                            StrokeShape="RoundRectangle 2"
-                                            MinimumWidthRequest="50"
-                                            HeightRequest="24"
-                                            Padding="0"
-                                            VerticalOptions="Center">
-                                        <Grid ColumnDefinitions="Auto,Auto"
-                                              ColumnSpacing="0"
-                                              Padding="4,0">
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding OpenUpdateDialogCommand}" />
-                                            </Grid.GestureRecognizers>
+                                    <Grid Grid.Row="2"
+                                          ColumnDefinitions="*,*"
+                                          ColumnSpacing="8"
+                                          IsVisible="{Binding ShowRunningActions}">
+                                        <Button Grid.Column="0"
+                                                Text="{Binding StopLabel}"
+                                                ImageSource="icon_stop.png"
+                                                ContentLayout="Left,4"
+                                                Command="{Binding StopCommand}"
+                                                BackgroundColor="{DynamicResource ActionRed}"
+                                                TextColor="{DynamicResource White}"
+                                                FontSize="13"
+                                                HeightRequest="32"
+                                                CornerRadius="4"
+                                                HorizontalOptions="Fill"
+                                                Padding="0,10" />
+                                        <Button Grid.Column="1"
+                                                Text="{Binding RestartLabel}"
+                                                ImageSource="icon_restart.png"
+                                                ContentLayout="Left,4"
+                                                Command="{Binding RestartCommand}"
+                                                BackgroundColor="{DynamicResource ActionBlue}"
+                                                TextColor="{DynamicResource White}"
+                                                FontSize="13"
+                                                HeightRequest="32"
+                                                CornerRadius="4"
+                                                HorizontalOptions="Fill"
+                                                Padding="0,10" />
+                                    </Grid>
 
-                                            <Image Source="icon_update.png"
-                                                   WidthRequest="20"
-                                                   HeightRequest="20"
-                                                   HorizontalOptions="Center"
-                                                   VerticalOptions="Center" />
-                                            <Label Grid.Column="1"
-                                                   Text="{Binding UpdateLabel}"
-                                                   FontSize="14"
-                                                   TextColor="{DynamicResource White}"
-                                                   VerticalOptions="Center"
-                                                   Padding="4,0,0,0" />
-                                        </Grid>
-                                    </Border>
-
-                                    <Border Grid.Column="3"
-                                            BackgroundColor="{DynamicResource BackgroundSecondary}"
-                                            StrokeThickness="0"
+                                    <Border Grid.Row="2"
+                                            Background="Transparent"
+                                            Stroke="{DynamicResource ActionRed}"
                                             StrokeShape="RoundRectangle 4"
-                                            WidthRequest="24"
-                                            HeightRequest="24"
+                                            StrokeThickness="1"
+                                            StrokeDashArray="4,2"
                                             Padding="0"
-                                            VerticalOptions="Center">
-                                        <Grid>
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding ToggleMenuCommand}" />
-                                            </Grid.GestureRecognizers>
-
-                                            <Image Source="{Binding MoreIconSource, Source={x:Reference RootView}}"
-                                                   WidthRequest="24"
-                                                   HeightRequest="24"
-                                                   HorizontalOptions="Center"
-                                                   VerticalOptions="Center" />
-                                        </Grid>
-                                    </Border>
-                                </Grid>
-
-                                <VerticalStackLayout Grid.Row="1"
-                                                     Spacing="4"
-                                                     Margin="0,4">
-                                    <Label Text="{Binding VersionString}"
-                                           FontSize="14"
-                                           TextColor="{DynamicResource LabelSecondary}" />
-                                </VerticalStackLayout>
-
-                                <Grid Grid.Row="2"
-                                      ColumnDefinitions="*,*"
-                                      ColumnSpacing="8"
-                                      IsVisible="{Binding ShowRunningActions}">
-                                    <Button Grid.Column="0"
-                                            Text="{Binding StopLabel}"
-                                            ImageSource="icon_stop.png"
-                                            ContentLayout="Left,4"
-                                            Command="{Binding StopCommand}"
-                                            BackgroundColor="{DynamicResource ActionRed}"
-                                            TextColor="{DynamicResource White}"
-                                            FontSize="13"
-                                            HeightRequest="32"
-                                            CornerRadius="4"
+                                            IsVisible="{Binding IsRemoving}"
+                                            MinimumHeightRequest="44"
                                             HorizontalOptions="Fill"
-                                            Padding="0,10" />
-                                    <Button Grid.Column="1"
-                                            Text="{Binding RestartLabel}"
-                                            ImageSource="icon_restart.png"
+                                            VerticalOptions="Fill">
+                                        <HorizontalStackLayout HorizontalOptions="Center"
+                                                               VerticalOptions="Center"
+                                                               Spacing="8">
+                                            <ActivityIndicator IsRunning="{Binding IsRemoving}"
+                                                               Color="{DynamicResource LabelPrimary}"
+                                                               WidthRequest="16"
+                                                               HeightRequest="16"
+                                                               VerticalOptions="Center" />
+                                            <Label Text="{Binding RemovingLabel}"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   FontSize="13"
+                                                   VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+                                    </Border>
+
+                                    <Border Grid.Row="2"
+                                            BackgroundColor="{DynamicResource SystemBlueOverlay}"
+                                            Stroke="{DynamicResource ActionBlue}"
+                                            StrokeShape="RoundRectangle 4"
+                                            StrokeThickness="1"
+                                            StrokeDashArray="4,2"
+                                            Padding="0"
+                                            Margin="0"
+                                            IsVisible="{Binding IsRestarting}"
+                                            MinimumHeightRequest="44"
+                                            HorizontalOptions="Fill"
+                                            VerticalOptions="Fill">
+                                        <HorizontalStackLayout HorizontalOptions="Center"
+                                                               VerticalOptions="Center"
+                                                               Spacing="8">
+                                            <ActivityIndicator IsRunning="{Binding IsRestarting}"
+                                                               Color="{DynamicResource LabelPrimary}"
+                                                               WidthRequest="16"
+                                                               HeightRequest="16"
+                                                               VerticalOptions="Center" />
+                                            <Label Text="{Binding RestartingLabel}"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   FontSize="13"
+                                                   VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+                                    </Border>
+
+                                    <Border Grid.Row="2"
+                                            BackgroundColor="{DynamicResource SystemBlueOverlay}"
+                                            Stroke="{DynamicResource ActionBlue}"
+                                            StrokeShape="RoundRectangle 4"
+                                            StrokeThickness="1"
+                                            StrokeDashArray="4,2"
+                                            Padding="0"
+                                            Margin="0"
+                                            IsVisible="{Binding ShowStartingStatus}"
+                                            MinimumHeightRequest="44"
+                                            HorizontalOptions="Fill"
+                                            VerticalOptions="Fill">
+                                        <HorizontalStackLayout HorizontalOptions="Center"
+                                                               VerticalOptions="Center"
+                                                               Spacing="8">
+                                            <ActivityIndicator IsRunning="{Binding ShowStartingStatus}"
+                                                               Color="{DynamicResource LabelPrimary}"
+                                                               WidthRequest="16"
+                                                               HeightRequest="16"
+                                                               VerticalOptions="Center" />
+                                            <Label Text="{Binding StartingLabel}"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   FontSize="13"
+                                                   VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+                                    </Border>
+
+                                    <Border Grid.Row="2"
+                                            BackgroundColor="#2032D74B"
+                                            Stroke="{DynamicResource SystemGreen}"
+                                            StrokeShape="RoundRectangle 4"
+                                            StrokeThickness="1"
+                                            StrokeDashArray="4,2"
+                                            Padding="0"
+                                            Margin="0"
+                                            IsVisible="{Binding ShowUpdatingStatus}"
+                                            MinimumHeightRequest="44"
+                                            HorizontalOptions="Fill"
+                                            VerticalOptions="Fill">
+                                        <HorizontalStackLayout HorizontalOptions="Center"
+                                                               VerticalOptions="Center"
+                                                               Spacing="8">
+                                            <ActivityIndicator IsRunning="{Binding ShowUpdatingStatus}"
+                                                               Color="{DynamicResource LabelPrimary}"
+                                                               WidthRequest="16"
+                                                               HeightRequest="16"
+                                                               VerticalOptions="Center" />
+                                            <Label Text="{Binding UpdatingLabel}"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   FontSize="13"
+                                                   VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
+                                    </Border>
+
+                                    <Button Grid.Row="2"
+                                            Text="{Binding LaunchLabel}"
+                                            ImageSource="icon_play.png"
                                             ContentLayout="Left,4"
-                                            Command="{Binding RestartCommand}"
+                                            Command="{Binding LaunchCommand}"
+                                            IsVisible="{Binding CanShowLaunchAction}"
                                             BackgroundColor="{DynamicResource ActionBlue}"
                                             TextColor="{DynamicResource White}"
                                             FontSize="13"
                                             HeightRequest="32"
                                             CornerRadius="4"
                                             HorizontalOptions="Fill"
-                                            Padding="0,10" />
+                                            Margin="0" />
+                                </Grid>
+                            </Grid>
+
+                            <Grid IsVisible="{Binding IsMenuOpen}"
+                                  ZIndex="10"
+                                  InputTransparent="False">
+                                <Grid BackgroundColor="Transparent">
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding CloseMenuCommand}" />
+                                    </Grid.GestureRecognizers>
                                 </Grid>
 
-                                <Border Grid.Row="2"
-                                        BackgroundColor="{DynamicResource SystemBlueOverlay}"
-                                        Stroke="{DynamicResource ActionBlue}"
-                                        StrokeShape="RoundRectangle 4"
+                                <Border BackgroundColor="{DynamicResource BackgroundTertiary}"
+                                        Stroke="{DynamicResource Separator}"
                                         StrokeThickness="1"
-                                        StrokeDashArray="4,2"
-                                        Padding="0"
-                                        Margin="0"
-                                        IsVisible="{Binding IsRestarting}"
-                                        MinimumHeightRequest="44"
-                                        HorizontalOptions="Fill"
-                                        VerticalOptions="Fill">
-                                    <HorizontalStackLayout HorizontalOptions="Center"
-                                                           VerticalOptions="Center"
-                                                           Spacing="8">
-                                        <ActivityIndicator IsRunning="{Binding IsRestarting}"
-                                                           Color="{DynamicResource LabelPrimary}"
-                                                           WidthRequest="16"
-                                                           HeightRequest="16"
-                                                           VerticalOptions="Center" />
-                                        <Label Text="{Binding RestartingLabel}"
-                                               TextColor="{DynamicResource LabelPrimary}"
-                                               FontSize="13"
-                                               VerticalOptions="Center" />
-                                    </HorizontalStackLayout>
+                                        StrokeShape="RoundRectangle 8"
+                                        Padding="4"
+                                        HorizontalOptions="End"
+                                        VerticalOptions="Start"
+                                        Margin="0,40,16,0">
+                                    <VerticalStackLayout Spacing="0">
+                                        <Grid HeightRequest="32"
+                                              Padding="4">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding CheckUpdateCommand}" />
+                                            </Grid.GestureRecognizers>
+                                            <Label Text="{Binding CheckUpdatesLabel}"
+                                                   FontSize="13"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   HorizontalOptions="Start"
+                                                   VerticalOptions="Center" />
+                                        </Grid>
+                                        <Grid HeightRequest="32"
+                                              Padding="4">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding OpenConfigureUpdatesCommand}" />
+                                            </Grid.GestureRecognizers>
+                                            <Label Text="{Binding ConfigureUpdatesLabel}"
+                                                   FontSize="13"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   HorizontalOptions="Start"
+                                                   VerticalOptions="Center" />
+                                        </Grid>
+                                        <Grid HeightRequest="32"
+                                              Padding="4">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding RemoveCommand}" />
+                                            </Grid.GestureRecognizers>
+                                            <Label Text="{Binding RemoveLabel}"
+                                                   FontSize="13"
+                                                   TextColor="{DynamicResource ActionRed}"
+                                                   HorizontalOptions="Start"
+                                                   VerticalOptions="Center" />
+                                        </Grid>
+                                    </VerticalStackLayout>
                                 </Border>
-
-                                <Border Grid.Row="2"
-                                        BackgroundColor="{DynamicResource SystemBlueOverlay}"
-                                        Stroke="{DynamicResource ActionBlue}"
-                                        StrokeShape="RoundRectangle 4"
-                                        StrokeThickness="1"
-                                        StrokeDashArray="4,2"
-                                        Padding="0"
-                                        Margin="0"
-                                        IsVisible="{Binding ShowStartingStatus}"
-                                        MinimumHeightRequest="44"
-                                        HorizontalOptions="Fill"
-                                        VerticalOptions="Fill">
-                                    <HorizontalStackLayout HorizontalOptions="Center"
-                                                           VerticalOptions="Center"
-                                                           Spacing="8">
-                                        <ActivityIndicator IsRunning="{Binding ShowStartingStatus}"
-                                                           Color="{DynamicResource LabelPrimary}"
-                                                           WidthRequest="16"
-                                                           HeightRequest="16"
-                                                           VerticalOptions="Center" />
-                                        <Label Text="{Binding StartingLabel}"
-                                               TextColor="{DynamicResource LabelPrimary}"
-                                               FontSize="13"
-                                               VerticalOptions="Center" />
-                                    </HorizontalStackLayout>
-                                </Border>
-
-                                <Border Grid.Row="2"
-                                        BackgroundColor="#2032D74B"
-                                        Stroke="{DynamicResource SystemGreen}"
-                                        StrokeShape="RoundRectangle 4"
-                                        StrokeThickness="1"
-                                        StrokeDashArray="4,2"
-                                        Padding="0"
-                                        Margin="0"
-                                        IsVisible="{Binding ShowUpdatingStatus}"
-                                        MinimumHeightRequest="44"
-                                        HorizontalOptions="Fill"
-                                        VerticalOptions="Fill">
-                                    <HorizontalStackLayout HorizontalOptions="Center"
-                                                           VerticalOptions="Center"
-                                                           Spacing="8">
-                                        <ActivityIndicator IsRunning="{Binding ShowUpdatingStatus}"
-                                                           Color="{DynamicResource LabelPrimary}"
-                                                           WidthRequest="16"
-                                                           HeightRequest="16"
-                                                           VerticalOptions="Center" />
-                                        <Label Text="{Binding UpdatingLabel}"
-                                               TextColor="{DynamicResource LabelPrimary}"
-                                               FontSize="13"
-                                               VerticalOptions="Center" />
-                                    </HorizontalStackLayout>
-                                </Border>
-
-                                <Button Grid.Row="2"
-                                        Text="{Binding LaunchLabel}"
-                                        ImageSource="icon_play.png"
-                                        ContentLayout="Left,4"
-                                        Command="{Binding LaunchCommand}"
-                                        IsVisible="{Binding CanShowLaunchAction}"
-                                        BackgroundColor="{DynamicResource ActionBlue}"
-                                        TextColor="{DynamicResource White}"
-                                        FontSize="13"
-                                        HeightRequest="32"
-                                        CornerRadius="4"
-                                        HorizontalOptions="Fill"
-                                        Margin="0" />
                             </Grid>
                         </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
 
-                        <Grid IsVisible="{Binding IsMenuOpen}"
-                              ZIndex="10"
-                              InputTransparent="False">
-                            <Grid BackgroundColor="Transparent">
-                                <Grid.GestureRecognizers>
-                                    <TapGestureRecognizer Command="{Binding CloseMenuCommand}" />
-                                </Grid.GestureRecognizers>
-                            </Grid>
-
-                            <Border BackgroundColor="{DynamicResource BackgroundTertiary}"
-                                    Stroke="{DynamicResource Separator}"
-                                    StrokeThickness="1"
-                                    StrokeShape="RoundRectangle 8"
-                                    Padding="4"
-                                    HorizontalOptions="End"
-                                    VerticalOptions="Start"
-                                    Margin="0,40,16,0">
-                                <VerticalStackLayout Spacing="0">
-                                    <Grid HeightRequest="32"
-                                          Padding="4">
-                                        <Grid.GestureRecognizers>
-                                            <TapGestureRecognizer Command="{Binding CheckUpdateCommand}" />
-                                        </Grid.GestureRecognizers>
-                                        <Label Text="{Binding CheckUpdatesLabel}"
-                                               FontSize="13"
-                                               TextColor="{DynamicResource LabelPrimary}"
-                                               HorizontalOptions="Start"
-                                               VerticalOptions="Center" />
-                                    </Grid>
-                                    <Grid HeightRequest="32"
-                                          Padding="4">
-                                        <Grid.GestureRecognizers>
-                                            <TapGestureRecognizer Command="{Binding OpenConfigureUpdatesCommand}" />
-                                        </Grid.GestureRecognizers>
-                                        <Label Text="{Binding ConfigureUpdatesLabel}"
-                                               FontSize="13"
-                                               TextColor="{DynamicResource LabelPrimary}"
-                                               HorizontalOptions="Start"
-                                               VerticalOptions="Center" />
-                                    </Grid>
-                                </VerticalStackLayout>
-                            </Border>
-                        </Grid>
-                    </Grid>
-                </Border>
-            </DataTemplate>
-        </CollectionView.ItemTemplate>
-    </CollectionView>
+        <modules:ModuleUninstallConfirmationView x:Name="UninstallConfirmation"
+                                                ZIndex="20" />
+    </Grid>
 
 </ContentView>

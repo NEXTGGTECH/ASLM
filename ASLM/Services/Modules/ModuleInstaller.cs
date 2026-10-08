@@ -3,7 +3,9 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using ASLM.Localization;
 using ASLM.Models;
 
 namespace ASLM.Services.Modules
@@ -11,7 +13,7 @@ namespace ASLM.Services.Modules
     /// <summary>
     /// Discovers module manifests and installs or refreshes module source files.
     /// </summary>
-    public class ModuleInstaller
+    public partial class ModuleInstaller
     {
         private const int ManifestWriteAttemptCount = 5;
         private static readonly TimeSpan ManifestWriteRetryDelay = TimeSpan.FromMilliseconds(50);
@@ -20,6 +22,8 @@ namespace ASLM.Services.Modules
         private readonly ModuleRunner _moduleRunner;
         private readonly ModuleTrustService _moduleTrustService;
         private readonly ModuleEngineReconciler _moduleEngineReconciler;
+        private readonly EngineInstaller _engineInstaller;
+        internal ModuleRegistry Registry { get; } = new();
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -40,11 +44,13 @@ namespace ASLM.Services.Modules
         public ModuleInstaller(
             ModuleRunner moduleRunner,
             ModuleTrustService moduleTrustService,
-            ModuleEngineReconciler moduleEngineReconciler)
+            ModuleEngineReconciler moduleEngineReconciler,
+            EngineInstaller? engineInstaller = null)
         {
             _moduleRunner = moduleRunner;
             _moduleTrustService = moduleTrustService;
             _moduleEngineReconciler = moduleEngineReconciler;
+            _engineInstaller = engineInstaller ?? new EngineInstaller();
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ASLM-ModuleInstaller");
         }
 
@@ -70,7 +76,9 @@ namespace ASLM.Services.Modules
                 .EnumerateInstalledManifests(modulesRoot)
                 .ToList()).ConfigureAwait(false);
 
-            var tasks = jsonFiles.Select(LoadModuleConfig);
+            // Use one fresh engine catalog for the entire module discovery pass.
+            _engineInstaller.InvalidateCache();
+            var tasks = jsonFiles.Select(path => LoadModuleConfig(path, refreshEngines: false));
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
             foreach (var result in results)
@@ -89,9 +97,31 @@ namespace ASLM.Services.Modules
         // Single manifest
 
         /// <summary>
+        /// Returns installed modules only. Discovery without this filter remains the local catalog.
+        /// </summary>
+        public async Task<List<ModuleConfig>> DiscoverInstalledModulesAsync()
+        {
+            var ids = Registry.ReadIds();
+            return (await DiscoverModulesAsync().ConfigureAwait(false))
+                .Where(module => ids.Contains(module.Id)).ToList();
+        }
+
+        /// <summary>Returns compatible catalog entries that have not been installed.</summary>
+        public async Task<List<ModuleConfig>> DiscoverAvailableModulesAsync()
+        {
+            var ids = Registry.ReadIds();
+            return (await DiscoverModulesAsync().ConfigureAwait(false))
+                .Where(module => module.IsSupportedOnCurrentPlatform && !ids.Contains(module.Id))
+                .DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        /// <summary>
         /// Loads one module configuration from disk.
         /// </summary>
-        public async Task<ModuleConfig?> LoadModuleConfig(string jsonFile)
+        public Task<ModuleConfig?> LoadModuleConfig(string jsonFile) =>
+            LoadModuleConfig(jsonFile, refreshEngines: true);
+
+        private async Task<ModuleConfig?> LoadModuleConfig(string jsonFile, bool refreshEngines)
         {
             if (!File.Exists(jsonFile))
             {
@@ -109,13 +139,41 @@ namespace ASLM.Services.Modules
             try
             {
                 var json = await File.ReadAllTextAsync(jsonFile).ConfigureAwait(false);
-                return ModuleManifestParser.Parse(json, jsonFile);
+                var config = ModuleManifestParser.Parse(json, jsonFile);
+                ResolvePlatformSupport(config, refreshEngines);
+                return config;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to parse {jsonFile}: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Resolves module compatibility against the engines installation will actually use.
+        /// Downloaded definitions replace this module's old embedded engines before files are copied.
+        /// </summary>
+        internal void ResolvePlatformSupport(ModuleConfig module, bool refreshEngines = true)
+        {
+            if (refreshEngines) _engineInstaller.InvalidateCache();
+            var available = module.Dependencies.Engines.Count > 0
+                ? _engineInstaller.DiscoverEngines() : [];
+
+            module.ResolveForPlatform(PlatformInfo.OsKey, PlatformInfo.ArchKey, engineId =>
+            {
+                var existing = available.FirstOrDefault(engine =>
+                    string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
+
+                // Keep discovery precedence: standalone engines, then the first module provider.
+                if (existing != null && (!existing.IsModuleProvided ||
+                    !string.Equals(existing.OwnerModuleId, module.Id, StringComparison.OrdinalIgnoreCase)))
+                    return existing;
+
+                // Never validate a new archive using an outdated definition owned by the old module.
+                return module.Engines.FirstOrDefault(engine =>
+                    string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
+            });
         }
 
 
@@ -130,7 +188,15 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress = null,
             CancellationToken ct = default)
         {
-            if (module.Source.Type != "github" || string.IsNullOrEmpty(module.Source.Repo))
+            using var operation = BeginContentOperation();
+            ResolvePlatformSupport(module);
+            if (!module.IsSupportedOnCurrentPlatform)
+            {
+                log.Report($"Module '{module.Name}' does not support {PlatformInfo.PlatformKey}.");
+                return false;
+            }
+
+            if (!string.Equals(module.Source.Type, "github", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(module.Source.Repo))
             {
                 log.Report("No GitHub source defined, skipping download.");
                 return true;
@@ -173,6 +239,7 @@ namespace ASLM.Services.Modules
                         var downloadedConfig = ModuleManifestParser.Parse(
                             File.ReadAllText(downloadedManifestPath),
                             downloadedManifestPath);
+                        ResolvePlatformSupport(downloadedConfig);
                         if (!string.Equals(downloadedConfig.Id, module.Id, StringComparison.OrdinalIgnoreCase))
                         {
                             throw new InvalidDataException(
@@ -191,6 +258,10 @@ namespace ASLM.Services.Modules
                 }, ct);
 
                 log.Report("Source downloaded.");
+                // Keep a downloaded module manageable even if its subsequent first-run setup fails.
+                var installed = await LoadModuleConfig(module.SourcePath)
+                    ?? throw new InvalidDataException("Downloaded module manifest could not be loaded.");
+                await SaveInstalledContentAsync(installed);
                 return true;
             }
             catch (Exception ex)
@@ -208,6 +279,25 @@ namespace ASLM.Services.Modules
 
         // Archive install
 
+        /// <summary>Records newly copied, validated content, including reinstalls in the same session.</summary>
+        internal async Task SaveInstalledContentAsync(ModuleConfig config, bool raiseModulesChanged = true)
+        {
+            using var operation = BeginContentOperation();
+            var wasRemoved = _removedModuleIds.TryRemove(config.Id, out _);
+            try
+            {
+                config.Status.Installed = true;
+                config.Status.InstalledVersion = config.Version;
+                config.Status.LastUpdated = DateTime.UtcNow.ToString("o");
+                await SaveConfigAsync(config, raiseModulesChanged);
+            }
+            catch
+            {
+                if (wasRemoved) _removedModuleIds[config.Id] = 0;
+                throw;
+            }
+        }
+
         /// <summary>
         /// Downloads a module archive, installs it into <c>Modules/{id}</c>, and runs first-run setup.
         /// </summary>
@@ -217,6 +307,7 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress = null,
             CancellationToken ct = default)
         {
+            using var operation = BeginContentOperation();
             var baseDir = GetRootDirectory();
             var modulesRoot = Path.Combine(baseDir, "Modules");
             var tempZip = Path.GetTempFileName();
@@ -249,6 +340,7 @@ namespace ASLM.Services.Modules
                     // Load the manifest first so the final install location can be derived from the module id.
                     var json = await File.ReadAllTextAsync(jsonFile, ct);
                     var config = ModuleManifestParser.Parse(json, jsonFile);
+                    ResolvePlatformSupport(config);
                     if (!config.IsSupportedOnCurrentPlatform)
                     {
                         throw new PlatformNotSupportedException(
@@ -282,6 +374,7 @@ namespace ASLM.Services.Modules
                         ct);
 
                     config.Status.Installed = true;
+                    _removedModuleIds.TryRemove(config.Id, out _);
                     config.Status.InstalledVersion = config.Version;
                     config.Status.LastUpdated = DateTime.UtcNow.ToString("o");
 
@@ -430,6 +523,8 @@ namespace ASLM.Services.Modules
         /// </param>
         public void SaveModuleConfig(ModuleConfig config, bool raiseModulesChanged = true)
         {
+            using var operation = BeginContentOperation();
+            EnsureNotRemoved(config);
             if (string.IsNullOrEmpty(config.SourcePath))
             {
                 return;
@@ -437,10 +532,37 @@ namespace ASLM.Services.Modules
 
             var json = JsonSerializer.Serialize(config, _jsonOptions);
             WriteManifest(config.SourcePath, json);
+            RegisterInstalledModule(config);
             if (raiseModulesChanged)
             {
                 RaiseModulesChanged();
             }
+        }
+
+        /// <summary>
+        /// Saves only download preferences, including for uninstalled catalog entries.
+        /// Never restores stale runtime state, registers a module, or clears removal protection.
+        /// </summary>
+        internal void SaveModuleUpdatePreferences(ModuleConfig config)
+        {
+            using var operation = BeginContentOperation();
+            var manifest = JsonNode.Parse(File.ReadAllText(config.SourcePath))?.AsObject()
+                ?? throw new JsonException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, config.Name));
+            if (!string.Equals(manifest["id"]?.GetValue<string>(), config.Id, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveStale));
+            config.Update.Normalize();
+            var preferences = JsonSerializer.SerializeToNode(config.Update, _jsonOptions)!.AsObject();
+            if (manifest["update"] is JsonObject stored)
+            {
+                foreach (var key in new[] { "mode", "channel", "branch", "selectedReleaseTag", "pendingUpdate", "useDefaultChannel" })
+                    stored[key] = preferences[key]?.DeepClone();
+            }
+            else
+            {
+                manifest["update"] = preferences;
+            }
+            WriteManifest(config.SourcePath, manifest.ToJsonString(_jsonOptions));
+            config.HasDeclaredUpdateConfig = true;
         }
 
         /// <summary>
@@ -453,6 +575,8 @@ namespace ASLM.Services.Modules
         /// </param>
         public async Task SaveConfigAsync(ModuleConfig config, bool raiseModulesChanged = true)
         {
+            using var operation = BeginContentOperation();
+            EnsureNotRemoved(config);
             if (string.IsNullOrEmpty(config.SourcePath))
             {
                 return;
@@ -460,6 +584,7 @@ namespace ASLM.Services.Modules
 
             var json = JsonSerializer.Serialize(config, _jsonOptions);
             await WriteManifestAsync(config.SourcePath, json);
+            RegisterInstalledModule(config);
             if (raiseModulesChanged)
             {
                 RaiseModulesChanged();
@@ -515,6 +640,13 @@ namespace ASLM.Services.Modules
 
 
         // Temp cleanup
+
+        private void RegisterInstalledModule(ModuleConfig config)
+        {
+            if (config.Status.Installed && ModuleManifestDiscovery.IsInstalledModuleManifest(
+                    Path.Combine(GetRootDirectory(), "Modules"), config.SourcePath))
+                Registry.Add(config.Id);
+        }
 
         /// <summary>
         /// Deletes a temporary file on a best-effort basis.

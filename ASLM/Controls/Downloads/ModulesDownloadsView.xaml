@@ -4,6 +4,117 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:controls="clr-namespace:ASLM.Controls"
              x:Class="ASLM.Controls.Downloads.ModulesDownloadsView"
+             x:Name="RootView"
              BackgroundColor="{DynamicResource BackgroundPrimary}">
+    <Grid BindingContext="{x:Reference RootView}"
+          RowDefinitions="Auto,Auto,*"
+          RowSpacing="8"
+          Padding="12">
+        <Label x:Name="TitleLabel"
+               FontSize="18"
+               FontAttributes="Bold"
+               TextColor="{DynamicResource LabelPrimary}"
+               Margin="0,0,36,0" />
+        <Border Grid.Row="1"
+                Background="{DynamicResource BackgroundSecondary}"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 6"
+                Padding="8,0"
+                Margin="0,4,0,0">
+            <Entry x:Name="SearchEntry"
+                   Style="{StaticResource SettingsTextEntryStyle}"
+                   settings:SettingsControlChrome.FlatEntry="True"
+                   ClearButtonVisibility="WhileEditing"
+                   HeightRequest="34"
+                   MinimumHeightRequest="34"
+                   FontSize="13"
+                   TextChanged="OnSearchTextChanged"
+                   BackgroundColor="Transparent"
+                   TextColor="{DynamicResource LabelPrimary}"
+                   PlaceholderColor="{DynamicResource LabelSecondary}" />
+        </Border>
+        <Grid Grid.Row="2"
+              ColumnDefinitions="*,Auto">
+            <ScrollView x:Name="ModulesScroll"
+                        VerticalScrollBarVisibility="Never"
+                        HorizontalScrollBarVisibility="Never">
+                <VerticalStackLayout Spacing="8"
+                                     BindableLayout.ItemsSource="{Binding Modules}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate>
+                            <Border StrokeShape="RoundRectangle 8"
+                                    Padding="8">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnModuleTapped" />
+                                </Border.GestureRecognizers>
+                                <Grid ColumnDefinitions="Auto,*"
+                                      ColumnSpacing="8"
+                                      MinimumHeightRequest="164">
+                                    <Border IsVisible="{Binding HasIcon}"
+                                            StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 4"
+                                            BackgroundColor="{DynamicResource BackgroundSecondary}"
+                                            WidthRequest="164"
+                                            HeightRequest="164"
+                                            Padding="0">
+                                        <Image Source="{Binding IconSource}"
+                                               Aspect="AspectFit" />
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="4">
+                                        <Grid ColumnDefinitions="*,Auto,Auto"
+                                              ColumnSpacing="4"
+                                              HorizontalOptions="Start">
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="16"
+                                                   HeightRequest="24"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource LabelPrimary}"
+                                                   VerticalOptions="Center"
+                                                   MaxLines="1"
+                                                   LineBreakMode="TailTruncation" />
+                                            <Image Grid.Column="1"
+                                                   IsVisible="{Binding ShowVerifiedBadge}"
+                                                   Source="icon_verified.png"
+                                                   WidthRequest="24"
+                                                   HeightRequest="24" />
+                                            <Border Grid.Column="2"
+                                                    IsVisible="{Binding ShowUnverifiedWarning}"
+                                                    BackgroundColor="{DynamicResource ActionRed}"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 2"
+                                                    Padding="4,0">
+                                                <HorizontalStackLayout Spacing="4">
+                                                    <Image Source="icon_warning.png"
+                                                           WidthRequest="20"
+                                                           HeightRequest="20" />
+                                                    <Label Text="{Binding NotVerifiedLabel}"
+                                                           FontSize="14"
+                                                           TextColor="{DynamicResource White}"
+                                                           VerticalOptions="Center" />
+                                                </HorizontalStackLayout>
+                                            </Border>
+                                        </Grid>
+                                        <Label Text="{Binding VersionString}"
+                                               FontSize="14"
+                                               TextColor="{DynamicResource LabelSecondary}" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+            </ScrollView>
+            <controls:AppScrollBar Grid.Column="1"
+                                   Target="{x:Reference ModulesScroll}" />
+            <Label x:Name="EmptyLabel"
+                   FontSize="14"
+                   TextColor="{DynamicResource LabelSecondary}"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center" />
+        </Grid>
+    </Grid>
 </ContentView>
