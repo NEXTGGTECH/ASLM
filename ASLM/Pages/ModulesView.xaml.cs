@@ -670,7 +670,7 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(CanShowLaunchAction));
             OnPropertyChanged(nameof(ShowRunningActions));
             OnPropertyChanged(nameof(ShowCardUpdateAction));
-            OnPropertyChanged(nameof(ShowUpdatingStatus));
+            OnPropertyChanged(nameof(ShowMaintenanceStatus));
             OnPropertyChanged(nameof(ShowStartingStatus));
             RefreshCommandStates();
         }
@@ -711,6 +711,9 @@ namespace ASLM.Pages
         /// Gets the localized updating status label.
         /// </summary>
         public string UpdatingLabel { get; private set; } = string.Empty;
+
+        public bool IsInstalling => _installer.IsInstalling(_config.Id);
+        public string MaintenanceLabel => IsInstalling ? L.Get(LocalizationKeys.SetupWizard_Installing) : UpdatingLabel;
 
         /// <summary>
         /// Gets the localized launch action label.
@@ -753,6 +756,7 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(RestartingLabel));
             OnPropertyChanged(nameof(StartingLabel));
             OnPropertyChanged(nameof(UpdatingLabel));
+            OnPropertyChanged(nameof(MaintenanceLabel));
             OnPropertyChanged(nameof(LaunchLabel));
             OnPropertyChanged(nameof(CheckUpdatesLabel));
             OnPropertyChanged(nameof(ConfigureUpdatesLabel));
@@ -1082,7 +1086,7 @@ namespace ASLM.Pages
                 OnPropertyChanged(nameof(CanCheckUpdates));
                 OnPropertyChanged(nameof(HasUpdateProgress));
                 OnPropertyChanged(nameof(ShowInstallAction));
-                OnPropertyChanged(nameof(ShowUpdatingStatus));
+                OnPropertyChanged(nameof(ShowMaintenanceStatus));
                 OnPropertyChanged(nameof(CanShowLaunchAction));
                 OnPropertyChanged(nameof(ShowRunningActions));
                 OnPropertyChanged(nameof(ShowCardUpdateAction));
@@ -1092,9 +1096,9 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Gets whether any update-related work is currently running.
+        /// Gets whether installation or update-related work is currently running.
         /// </summary>
-        public bool IsBusy => IsCheckingUpdate || IsUpdating;
+        public bool IsBusy => IsCheckingUpdate || IsUpdating || IsInstalling;
 
         /// <summary>
         /// Gets whether the update check action should be enabled.
@@ -1104,7 +1108,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Gets whether the install action should stay visible for the current target selection.
         /// </summary>
-        public bool ShowInstallAction => CanInstallSelectedUpdate && !IsUpdating;
+        public bool ShowInstallAction => CanInstallSelectedUpdate && !IsUpdating && !IsInstalling;
 
         /// <summary>
         /// Gets the activity status cached for the module update dialog.
@@ -1156,7 +1160,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Gets whether the compact update action should stay visible in the card header.
         /// </summary>
-        public bool ShowCardUpdateAction => HasUpdate && !IsUpdating && !IsRemoving;
+        public bool ShowCardUpdateAction => HasUpdate && !IsUpdating && !IsRemoving && !IsInstalling;
 
         /// <summary>
         /// Gets or sets whether the module is currently starting.
@@ -1183,22 +1187,22 @@ namespace ASLM.Pages
         /// <summary>
         /// Gets whether the launch button should stay visible.
         /// </summary>
-        public bool CanShowLaunchAction => IsStopped && !IsUpdating && !IsStarting && !IsRemoving;
+        public bool CanShowLaunchAction => IsStopped && !IsUpdating && !IsStarting && !IsRemoving && !IsInstalling;
 
         /// <summary>
         /// Gets whether the running action buttons should stay visible.
         /// </summary>
-        public bool ShowRunningActions => IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsRemoving;
+        public bool ShowRunningActions => IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsRemoving && !IsInstalling;
 
         /// <summary>
-        /// Gets whether the updating status pill should be visible.
+        /// Uses one status pill for installation and updating.
         /// </summary>
-        public bool ShowUpdatingStatus => IsUpdating && !IsRemoving;
+        public bool ShowMaintenanceStatus => (IsUpdating || IsInstalling) && !IsRemoving;
 
         /// <summary>
         /// Gets whether the starting status pill should be visible.
         /// </summary>
-        public bool ShowStartingStatus => IsStarting && !IsRemoving;
+        public bool ShowStartingStatus => IsStarting && !IsRemoving && !IsInstalling;
 
 
         // Card menu
@@ -1277,7 +1281,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ExecuteToggleMenuCommand()
         {
-            if (IsRemoving) return;
+            if (IsRemoving || IsInstalling) return;
             _onMenuToggleRequested(this);
         }
 
@@ -1294,7 +1298,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ExecuteOpenConfigureUpdatesCommand()
         {
-            if (IsRemoving) return;
+            if (IsRemoving || IsInstalling) return;
             SetMenuOpen(false);
             _onConfigureUpdatesRequested(this);
         }
@@ -1304,7 +1308,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ExecuteOpenUpdateDialogCommand()
         {
-            if (!HasUpdate || IsRemoving)
+            if (!HasUpdate || IsRemoving || IsInstalling)
             {
                 return;
             }
@@ -1329,7 +1333,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanCheckOrUpdate()
         {
-            return !_isRemoving && !IsCheckingUpdate && !IsUpdating;
+            return !_isRemoving && !IsBusy;
         }
 
         /// <summary>
@@ -1345,7 +1349,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanLaunch()
         {
-            return !_isRemoving && IsStopped && !IsStarting && !IsUpdating;
+            return !_isRemoving && IsStopped && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -1353,7 +1357,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanStop()
         {
-            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
+            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -1361,7 +1365,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanRestart()
         {
-            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
+            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -1924,7 +1928,7 @@ namespace ASLM.Pages
                 if (enteredApply)
                 {
                     IsUpdating = false;
-                    OnPropertyChanged(nameof(ShowUpdatingStatus));
+                    OnPropertyChanged(nameof(ShowMaintenanceStatus));
                     OnPropertyChanged(nameof(CanShowLaunchAction));
                 }
             }
@@ -2164,7 +2168,7 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(IsStopped));
             OnPropertyChanged(nameof(CanShowLaunchAction));
             OnPropertyChanged(nameof(ShowRunningActions));
-            OnPropertyChanged(nameof(ShowUpdatingStatus));
+            OnPropertyChanged(nameof(ShowMaintenanceStatus));
             RefreshCommandStates();
         }
 

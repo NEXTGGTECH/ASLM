@@ -292,7 +292,7 @@ namespace ASLM.Pages
                 do
                 {
                     Interlocked.Exchange(ref _moduleRefreshQueued, 0);
-                    var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
+                    var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync(includeInstalling: true));
                     await MainThread.InvokeOnMainThreadAsync(() => ApplyModules(modules));
                 }
                 while (Interlocked.Exchange(ref _moduleRefreshQueued, 0) == 1);

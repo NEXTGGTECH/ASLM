@@ -24,6 +24,8 @@ namespace ASLM.Services.Modules
         private readonly ModuleEngineReconciler _moduleEngineReconciler;
         private readonly EngineInstaller _engineInstaller;
         internal ModuleRegistry Registry { get; } = new();
+        private readonly object _installationLock = new();
+        private readonly Dictionary<Guid, ModuleConfig[]> _catalogInstallations = [];
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -32,7 +34,7 @@ namespace ASLM.Services.Modules
         };
 
         /// <summary>
-        /// Raised after an installed module manifest is saved.
+        /// Raised when module metadata or the set of modules being installed changes.
         /// </summary>
         public event EventHandler? ModulesChanged;
 
@@ -97,22 +99,76 @@ namespace ASLM.Services.Modules
         // Single manifest
 
         /// <summary>
-        /// Returns installed modules only. Discovery without this filter remains the local catalog.
+        /// Returns registered modules. The dashboard can also include the current installation plan,
+        /// without exposing unfinished modules to services that require an installed module.
         /// </summary>
-        public async Task<List<ModuleConfig>> DiscoverInstalledModulesAsync()
+        public async Task<List<ModuleConfig>> DiscoverInstalledModulesAsync(bool includeInstalling = false)
         {
+            var catalog = await DiscoverModulesAsync().ConfigureAwait(false);
             var ids = Registry.ReadIds();
-            return (await DiscoverModulesAsync().ConfigureAwait(false))
-                .Where(module => ids.Contains(module.Id)).ToList();
+            var installing = includeInstalling ? GetInstallingModules() : [];
+            var installingIds = installing.Select(module => module.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return catalog.Where(module => ids.Contains(module.Id) || installingIds.Contains(module.Id))
+                // Keep pending cards visible even while the updater is replacing their manifests.
+                .Concat(installing).DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(module => module.Name, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         /// <summary>Returns compatible catalog entries that have not been installed.</summary>
         public async Task<List<ModuleConfig>> DiscoverAvailableModulesAsync()
         {
+            var catalog = await DiscoverModulesAsync().ConfigureAwait(false);
             var ids = Registry.ReadIds();
-            return (await DiscoverModulesAsync().ConfigureAwait(false))
+            ids.UnionWith(GetInstallingModules().Select(module => module.Id));
+            return catalog
                 .Where(module => module.IsSupportedOnCurrentPlatform && !ids.Contains(module.Id))
                 .DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        internal bool IsInstalling(string moduleId)
+        {
+            lock (_installationLock)
+                return _catalogInstallations.Values.SelectMany(modules => modules)
+                    .Any(module => string.Equals(module.Id, moduleId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private ModuleConfig[] GetInstallingModules()
+        {
+            lock (_installationLock)
+                return _catalogInstallations.Values.SelectMany(modules => modules).ToArray();
+        }
+
+        /// <summary>Publishes the entire validated plan at once; no installed flags or registry entries are written.</summary>
+        internal IDisposable BeginCatalogInstallation(IEnumerable<ModuleConfig> modules)
+        {
+            var pending = modules.DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase).ToArray();
+            var token = Guid.NewGuid();
+            var activities = pending.Select(module =>
+                _moduleRunner.ConsoleStore.BeginActivity(module.SourcePath, ModuleActivity.Installing)).ToArray();
+            lock (_installationLock) _catalogInstallations.Add(token, pending);
+            var scope = new CatalogInstallation(this, token, activities);
+            try
+            {
+                RaiseModulesChanged();
+                return scope;
+            }
+            catch
+            {
+                scope.Dispose();
+                throw;
+            }
+        }
+
+        private sealed class CatalogInstallation(ModuleInstaller installer, Guid token, IDisposable[] activities) : IDisposable
+        {
+            public void Dispose()
+            {
+                lock (installer._installationLock)
+                    if (!installer._catalogInstallations.Remove(token)) return;
+                foreach (var activity in activities) activity.Dispose();
+                // On failure/cancellation only actually downloaded modules remain registered.
+                installer.RaiseModulesChanged();
+            }
         }
 
         /// <summary>

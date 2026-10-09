@@ -3,6 +3,7 @@
 using ASLM.Tests.TestSupport;
 using ASLM.Models;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Text.Json;
 
 namespace ASLM.Tests.Services;
 
@@ -12,6 +13,134 @@ namespace ASLM.Tests.Services;
 [Collection("ModuleManifestDiscovery")]
 public sealed class ModuleLaunchEngineReconciliationTests
 {
+    [Fact]
+    public async Task Catalog_install_announces_all_pending_dependencies_before_downloading_and_clears_them_on_cancel()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var ready = await WriteCatalogModuleAsync(layout, "already-installed");
+        var leaf = await WriteCatalogModuleAsync(layout, "pending-leaf", ready.Id);
+        var dependency = await WriteCatalogModuleAsync(layout, "pending-dependency", leaf.Id);
+        var root = await WriteCatalogModuleAsync(layout, "pending-root", dependency.Id);
+        var pending = new[] { root, dependency, leaf };
+        var engines = new EngineInstaller();
+        var reconciler = new ModuleEngineReconciler(engines);
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, reconciler);
+        var coordinator = new ModuleLaunchCoordinator(installer, runner,
+            new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
+        var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
+            installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
+            NullLogger<UpdateManager>.Instance);
+        ready.Status.Installed = ready.Status.FirstRunCompleted = true;
+        await installer.SaveConfigAsync(ready);
+        using var cts = new CancellationTokenSource();
+        var announced = false;
+        installer.ModulesChanged += (_, _) =>
+        {
+            if (!installer.IsInstalling(root.Id)) return;
+            announced = true;
+            foreach (var module in pending)
+            {
+                installer.IsInstalling(module.Id).Should().BeTrue();
+                runner.ConsoleStore.GetMaintenanceSnapshot(module.SourcePath).Activity.Should().Be(ModuleActivity.Installing);
+            }
+            installer.IsInstalling(ready.Id).Should().BeFalse();
+            installer.Registry.ReadIds().Should().Equal(ready.Id);
+            // Cancel before candidate resolution: this test must never request a real repository.
+            cts.Cancel();
+        };
+
+        var install = () => manager.InstallCatalogModuleAsync(root, new RecordingProgress(), ct: cts.Token);
+        await install.Should().ThrowAsync<OperationCanceledException>();
+
+        announced.Should().BeTrue();
+        foreach (var module in pending)
+        {
+            installer.IsInstalling(module.Id).Should().BeFalse();
+            runner.ConsoleStore.GetMaintenanceSnapshot(module.SourcePath).Activity.Should().BeNull();
+        }
+        (await installer.DiscoverAvailableModulesAsync()).Select(module => module.Id).Should()
+            .BeEquivalentTo(pending.Select(module => module.Id));
+        (await installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Select(module => module.Id)
+            .Should().Equal(ready.Id);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Pending_catalog_cards_survive_refresh_and_only_downloaded_modules_remain_after_the_operation(bool complete)
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var dependency = await WriteCatalogModuleAsync(layout, "pending-dependency");
+        var root = await WriteCatalogModuleAsync(layout, "pending-root", dependency.Id);
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        var ids = new[] { root.Id, dependency.Id };
+        var changes = 0;
+        installer.ModulesChanged += (_, _) => changes++;
+        using (installer.BeginCatalogInstallation([dependency, root]))
+        {
+            changes.Should().Be(1);
+            installer.Registry.ReadIds().Should().BeEmpty();
+            (await installer.DiscoverAvailableModulesAsync()).Should().BeEmpty();
+            (await installer.DiscoverInstalledModulesAsync()).Should().BeEmpty();
+            (await installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Select(module => module.Id)
+                .Should().BeEquivalentTo(ids);
+            // The updater can temporarily move the original manifest out of the live module directory.
+            var manifest = await File.ReadAllTextAsync(root.SourcePath);
+            File.Delete(root.SourcePath);
+            try
+            {
+                (await installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Select(module => module.Id)
+                    .Should().BeEquivalentTo(ids);
+            }
+            finally { await File.WriteAllTextAsync(root.SourcePath, manifest); }
+
+            dependency.Status.Installed = dependency.Status.FirstRunCompleted = true;
+            await installer.SaveConfigAsync(dependency);
+            if (complete)
+            {
+                root.Status.Installed = root.Status.FirstRunCompleted = true;
+                await installer.SaveConfigAsync(root);
+            }
+            (await installer.DiscoverAvailableModulesAsync()).Should().BeEmpty();
+            (await installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Select(module => module.Id)
+                .Should().BeEquivalentTo(ids);
+            installer.IsInstalling(root.Id).Should().BeTrue();
+            installer.IsInstalling(dependency.Id).Should().BeTrue();
+        }
+
+        changes.Should().Be(complete ? 4 : 3);
+        installer.IsInstalling(root.Id).Should().BeFalse();
+        installer.IsInstalling(dependency.Id).Should().BeFalse();
+        runner.ConsoleStore.GetMaintenanceSnapshot(root.SourcePath).Activity.Should().BeNull();
+        runner.ConsoleStore.GetMaintenanceSnapshot(dependency.SourcePath).Activity.Should().BeNull();
+        var installed = complete ? ids : new[] { dependency.Id };
+        installer.Registry.ReadIds().Should().BeEquivalentTo(installed);
+        (await installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Select(module => module.Id)
+            .Should().BeEquivalentTo(installed);
+        (await installer.DiscoverAvailableModulesAsync()).Select(module => module.Id)
+            .Should().BeEquivalentTo(complete ? Array.Empty<string>() : new[] { root.Id });
+    }
+
+    private static async Task<ModuleConfig> WriteCatalogModuleAsync(AslmFileSystemLayout layout, string id, params string[] dependencies)
+    {
+        var module = new ModuleConfig
+        {
+            FileVersion = 2, Id = id, Name = id, Version = "1.0.0",
+            Source = new() { Type = "github", Repo = "test/catalog" },
+            SupportedPlatforms = [SupportedPlatform.FromKey(PlatformInfo.PlatformKey)],
+            SourcePath = Path.Combine(layout.ModulesDir, id, ModuleManifestDiscovery.ManifestFileName)
+        };
+        module.Dependencies.Modules.AddRange(dependencies.Select(dependency => new ModuleModuleDependency { Id = dependency }));
+        Directory.CreateDirectory(Path.GetDirectoryName(module.SourcePath)!);
+        await File.WriteAllTextAsync(module.SourcePath, JsonSerializer.Serialize(module));
+        return module;
+    }
+
     [Theory]
     [InlineData("run", ModuleLaunchStatus.Started)]
     [InlineData("empty", ModuleLaunchStatus.NoRunCommands)]

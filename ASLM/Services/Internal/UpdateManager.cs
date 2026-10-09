@@ -867,11 +867,14 @@ namespace ASLM.Services.Internal
                         throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_SourceUnavailable, item.Name));
                 }
 
+                ct.ThrowIfCancellationRequested();
+                using var installation = _moduleInstaller.BeginCatalogInstallation(order.Where(item =>
+                    !registered.Contains(item.Id) || !item.Status.FirstRunCompleted));
+
                 foreach (var item in order)
                 {
                     ct.ThrowIfCancellationRequested();
                     if (registered.Contains(item.Id) && item.Status.FirstRunCompleted) continue;
-                    using var itemActivity = _moduleRunner.ConsoleStore.BeginActivity(item.SourcePath, ModuleActivity.Installing);
                     var isDownloaded = registered.Contains(item.Id);
                     if (!isDownloaded && item.HasDeclaredUpdateConfig)
                     {
