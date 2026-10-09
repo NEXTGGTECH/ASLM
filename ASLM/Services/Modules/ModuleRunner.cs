@@ -108,7 +108,7 @@ namespace ASLM.Services.Modules
             CancellationToken ct,
             bool skipModuleDependencies = false)
         {
-            using var operation = ModuleInstaller.BeginContentOperation();
+            using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             _consoleStore.EnsureModule(module);
             var moduleLog = CreateModuleLog(module, log);
 
@@ -169,7 +169,7 @@ namespace ASLM.Services.Modules
         /// <returns>True if commands were started successfully.</returns>
         public async Task<bool> ExecuteRunAsync(ModuleConfig module, IProgress<string> log, CancellationToken ct)
         {
-            using var operation = ModuleInstaller.BeginContentOperation();
+            using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             _consoleStore.EnsureModule(module);
             var moduleLog = CreateModuleLog(module, log);
 
@@ -1023,7 +1023,7 @@ namespace ASLM.Services.Modules
         /// <returns>The standard output of the command if successful, otherwise null.</returns>
         public async Task<string?> ExecuteSettingCommandAsync(ModuleConfig module, ModuleSetting setting, bool isSet, string? newValue, CancellationToken ct)
         {
-            using var operation = ModuleInstaller.BeginContentOperation();
+            using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             var execStr = isSet ? setting.SetExec : setting.GetExec;
             if (string.IsNullOrEmpty(execStr)) return null;
 

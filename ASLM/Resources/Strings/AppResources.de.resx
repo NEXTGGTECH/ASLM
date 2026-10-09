@@ -1349,4 +1349,19 @@
   <data name="Modules_Experimental" xml:space="preserve">
     <value>Experimentell</value>
   </data>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>In der Warteschlange</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>Als Abhängigkeit eingereiht</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>Wird als Abhängigkeit installiert</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>Als Abhängigkeit von {0} eingereiht</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>Wird als Abhängigkeit von {0} installiert</value>
+  </data>
 </root>

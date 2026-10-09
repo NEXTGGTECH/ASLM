@@ -25,6 +25,7 @@ namespace ASLM.Services.Internal
         private readonly DownloadStateStore _stateStore;
         private readonly NotificationCenter _notifications;
         private readonly ILogger<DownloadInstaller> _logger;
+        private readonly DownloadQueue _downloadQueue;
         private readonly HttpClient _httpClient = new();
 
         private readonly JsonSerializerOptions _jsonOptions = new()
@@ -46,7 +47,8 @@ namespace ASLM.Services.Internal
             ModuleEnvironmentResolver environmentResolver,
             DownloadStateStore stateStore,
             NotificationCenter notifications,
-            ILogger<DownloadInstaller> logger)
+            ILogger<DownloadInstaller> logger,
+            DownloadQueue downloadQueue)
         {
             _moduleInstaller = moduleInstaller;
             _bridge = bridge;
@@ -55,31 +57,48 @@ namespace ASLM.Services.Internal
             _stateStore = stateStore;
             _notifications = notifications;
             _logger = logger;
+            _downloadQueue = downloadQueue;
         }
 
 
         // Catalog install
 
+        public event EventHandler? OperationsChanged
+        {
+            add => _downloadQueue.StateChanged += value;
+            remove => _downloadQueue.StateChanged -= value;
+        }
+
+        internal static string GetResourceKey(DownloadCatalogItem item, DownloadCatalogVariant? variant) =>
+            !string.IsNullOrWhiteSpace(variant?.ResourceKey) ? variant.ResourceKey
+                : !string.IsNullOrWhiteSpace(item.DefaultVariantResourceKey) ? item.DefaultVariantResourceKey : item.ResourceKey;
+
+        public bool IsPending(DownloadCatalogItem item, DownloadCatalogVariant? variant) =>
+            _downloadQueue.Contains("resource:" + GetResourceKey(item, variant));
+
+        public DownloadOperationState? GetState(string resourceKey) => _downloadQueue.GetState("resource:" + resourceKey);
+        public void Cancel(string resourceKey) => _downloadQueue.Cancel("resource:" + resourceKey);
+
         /// <summary>
         /// Installs one shared catalog item using the first module source that resolves a valid install manifest.
         /// </summary>
-        public async Task<DownloadInstallResult> InstallAsync(
+        public Task<DownloadInstallResult> InstallAsync(
             DownloadCatalogItem item,
             DownloadCatalogVariant? selectedVariant,
             IProgress<string>? log = null,
             CancellationToken ct = default)
+            => _downloadQueue.EnqueueAsync("resource:" + GetResourceKey(item, selectedVariant),
+                token => InstallCoreAsync(item, selectedVariant, log, token), ct);
+
+        private async Task<DownloadInstallResult> InstallCoreAsync(DownloadCatalogItem item,
+            DownloadCatalogVariant? selectedVariant, IProgress<string>? log, CancellationToken ct)
         {
-            using var operation = ModuleInstaller.BeginContentOperation();
             if (item.Sources.Count == 0)
             {
                 return new DownloadInstallResult(false, "No module source is available for this download item.");
             }
 
-            var selectedResourceKey = !string.IsNullOrWhiteSpace(selectedVariant?.ResourceKey)
-                ? selectedVariant!.ResourceKey
-                : !string.IsNullOrWhiteSpace(item.DefaultVariantResourceKey)
-                    ? item.DefaultVariantResourceKey
-                    : item.ResourceKey;
+            var selectedResourceKey = GetResourceKey(item, selectedVariant);
             var selectedTitle = !string.IsNullOrWhiteSpace(selectedVariant?.Title)
                 ? selectedVariant!.Title
                 : item.Title;
@@ -108,10 +127,16 @@ namespace ASLM.Services.Internal
                     continue;
                 }
 
+                using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
                 ModuleDownloadInstallManifest? manifest;
                 try
                 {
                     manifest = await _bridge.ResolveInstallAsync(module, source.CategoryId, selectedResourceKey, ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    _notifications.FailDownload(operationKey, $"Installation canceled for {selectedTitle}.");
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -175,23 +200,23 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Removes one shared catalog variant using the first module source that resolves a valid uninstall manifest.
         /// </summary>
-        public async Task<DownloadInstallResult> UninstallAsync(
+        public Task<DownloadInstallResult> UninstallAsync(
             DownloadCatalogItem item,
             DownloadCatalogVariant? selectedVariant,
             IProgress<string>? log = null,
             CancellationToken ct = default)
+            => _downloadQueue.EnqueueAsync("resource:" + GetResourceKey(item, selectedVariant),
+                token => UninstallCoreAsync(item, selectedVariant, log, token), ct, removal: true);
+
+        private async Task<DownloadInstallResult> UninstallCoreAsync(DownloadCatalogItem item,
+            DownloadCatalogVariant? selectedVariant, IProgress<string>? log, CancellationToken ct)
         {
-            using var operation = ModuleInstaller.BeginContentOperation();
             if (item.Sources.Count == 0)
             {
                 return new DownloadInstallResult(false, "No module source is available for this download item.");
             }
 
-            var selectedResourceKey = !string.IsNullOrWhiteSpace(selectedVariant?.ResourceKey)
-                ? selectedVariant!.ResourceKey
-                : !string.IsNullOrWhiteSpace(item.DefaultVariantResourceKey)
-                    ? item.DefaultVariantResourceKey
-                    : item.ResourceKey;
+            var selectedResourceKey = GetResourceKey(item, selectedVariant);
             var selectedTitle = !string.IsNullOrWhiteSpace(selectedVariant?.Title)
                 ? selectedVariant!.Title
                 : item.Title;
@@ -220,10 +245,16 @@ namespace ASLM.Services.Internal
                     continue;
                 }
 
+                using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
                 ModuleDownloadInstallManifest? manifest;
                 try
                 {
                     manifest = await _bridge.ResolveUninstallAsync(module, source.CategoryId, selectedResourceKey, ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    _notifications.FailDownload(operationKey, $"Removal canceled for {selectedTitle}.");
+                    throw;
                 }
                 catch (Exception ex)
                 {

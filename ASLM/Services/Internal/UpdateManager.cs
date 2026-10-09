@@ -34,7 +34,7 @@ namespace ASLM.Services.Internal
         private readonly GitHubUpdateClient _github;
         private readonly NotificationCenter _notifications;
         private readonly ILogger<UpdateManager> _logger;
-        private readonly SemaphoreSlim _moduleInstallGate = new(1, 1);
+        private readonly DownloadQueue _downloadQueue;
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -60,7 +60,8 @@ namespace ASLM.Services.Internal
             OllamaSettingsStore ollamaSettings,
             GitHubUpdateClient github,
             NotificationCenter notifications,
-            ILogger<UpdateManager> logger)
+            ILogger<UpdateManager> logger,
+            DownloadQueue downloadQueue)
         {
             _appData = appData;
             _moduleInstaller = moduleInstaller;
@@ -73,6 +74,7 @@ namespace ASLM.Services.Internal
             _github = github;
             _notifications = notifications;
             _logger = logger;
+            _downloadQueue = downloadQueue;
         }
 
 
@@ -194,7 +196,7 @@ namespace ASLM.Services.Internal
             bool publishUpdateNotification = true,
             bool isManualRequest = false)
         {
-            using var operation = ModuleInstaller.BeginContentOperation();
+            using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             module.Normalize();
             if (!string.Equals(module.Source.Type, "github", StringComparison.OrdinalIgnoreCase) ||
                 string.IsNullOrWhiteSpace(module.Source.Repo))
@@ -841,109 +843,177 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>Installs a catalog entry and its dependencies, then launches it through the shared module lifecycle.</summary>
-        public async Task<ModuleLaunchResult> InstallCatalogModuleAsync(ModuleConfig selected, IProgress<string> log,
+        public Task<ModuleLaunchResult> InstallCatalogModuleAsync(ModuleConfig selected, IProgress<string> log,
             IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
         {
-            await _moduleInstallGate.WaitAsync(ct);
-            try
-            {
-                using var operation = ModuleInstaller.BeginContentOperation();
-                using var activity = _moduleRunner.ConsoleStore.BeginActivity(selected.SourcePath, ModuleActivity.Installing);
-                log = _moduleRunner.ConsoleStore.CreateMaintenanceLog(selected, log, reset: true);
-                log.Report(L.Get(LocalizationKeys.ModuleInfo_Downloading, selected.Name));
-                var catalog = await _moduleInstaller.DiscoverModulesAsync();
-                var module = catalog.SingleOrDefault(item => string.Equals(item.Id, selected.Id, StringComparison.OrdinalIgnoreCase))
-                    ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, selected.Name));
-                var order = ModuleDependencyResolver.ExpandInstallOrder([module], catalog);
-                var registered = _moduleInstaller.Registry.ReadIds();
-                foreach (var item in order)
-                    ApplyCatalogDefaults(item, registered.Contains(item.Id));
-                // Validate the whole plan before downloading any files.
-                foreach (var item in order)
+            if (ct.IsCancellationRequested) return Task.FromCanceled<ModuleLaunchResult>(ct);
+            _moduleInstaller.RecordManualRequest(selected.Id);
+            ModuleInstaller.CatalogInstallation? request = null;
+            return _downloadQueue.EnqueueAsync("module:" + selected.Id,
+                token => InstallCatalogModuleCoreAsync(request!, log, progress, token), ct,
+                kind: DownloadQueueKind.Modules,
+                prepare: async token =>
                 {
-                    if (!item.IsSupportedOnCurrentPlatform)
-                        throw new InvalidOperationException(L.Get(LocalizationKeys.SetupWizard_ModuleUnsupported, PlatformInfo.PlatformKey));
-                    if (!registered.Contains(item.Id) && !CanDownloadModule(item))
-                        throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_SourceUnavailable, item.Name));
-                }
-
-                ct.ThrowIfCancellationRequested();
-                using var installation = _moduleInstaller.BeginCatalogInstallation(order.Where(item =>
-                    !registered.Contains(item.Id) || !item.Status.FirstRunCompleted));
-
-                foreach (var item in order)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    if (registered.Contains(item.Id) && item.Status.FirstRunCompleted) continue;
-                    var isDownloaded = registered.Contains(item.Id);
-                    if (!isDownloaded && item.HasDeclaredUpdateConfig)
-                    {
-                        var candidate = await ResolveModuleInstallCandidateAsync(item, ct, isManualRequest: true)
-                            ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_SourceUnavailable, item.Name));
-                        try
-                        {
-                            var success = await ApplyModuleUpdateAsync(candidate, log, progress, isManualRequest: true, ct: ct);
-                            ct.ThrowIfCancellationRequested();
-                            if (!success)
-                                throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_InstallFailed, item.Name));
-                        }
-                        finally
-                        {
-                            // Even a failed first-run must leave downloaded files visible and manageable.
-                            var installed = await _moduleInstaller.LoadModuleConfig(item.SourcePath);
-                            if (installed?.Status.Installed == true)
-                                await _moduleInstaller.SaveConfigAsync(installed);
-                        }
-                        continue;
-                    }
-
-                    var key = NotificationCenter.BuildOperationKey("module-install", item.Id);
-                    await _notifications.StartDownloadAsync(key, L.Get(LocalizationKeys.ModuleInfo_Downloading, item.Name),
-                        item.Name, "module", item.Id);
+                    await _moduleInstaller.CatalogPlanGate.WaitAsync(token).ConfigureAwait(false);
                     try
                     {
-                        if (!isDownloaded)
+                        var catalog = await _moduleInstaller.DiscoverModulesAsync().ConfigureAwait(false);
+                        var module = catalog.SingleOrDefault(item => string.Equals(item.Id, selected.Id, StringComparison.OrdinalIgnoreCase))
+                            ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, selected.Name));
+                        var order = ModuleDependencyResolver.ExpandInstallOrder([module], catalog);
+                        var registered = _moduleInstaller.Registry.ReadIds();
+                        foreach (var item in order)
                         {
-                            var downloaded = await _moduleInstaller.DownloadSourceAsync(item, log,
-                                _notifications.CreateDownloadProgressBridge(key, progress), ct);
-                            ct.ThrowIfCancellationRequested();
-                            if (!downloaded)
-                                throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_InstallFailed, item.Name));
+                            ApplyCatalogDefaults(item, registered.Contains(item.Id));
+                            if (!item.IsSupportedOnCurrentPlatform)
+                                throw new InvalidOperationException(L.Get(LocalizationKeys.SetupWizard_ModuleUnsupported, PlatformInfo.PlatformKey));
+                            if (!registered.Contains(item.Id) && !CanDownloadModule(item))
+                                throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_SourceUnavailable, item.Name));
                         }
-                        var installed = await _moduleInstaller.LoadModuleConfig(item.SourcePath)
-                            ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, item.Name));
-                        await _moduleInstaller.ReconcileRequiredEnginesAsync(installed, log, progress, ct);
-                        var success = await _moduleRunner.ExecuteFirstRunAsync(installed, log, ct);
-                        await _moduleInstaller.SaveConfigAsync(installed);
+                        token.ThrowIfCancellationRequested();
+                        request = _moduleInstaller.BeginCatalogInstallation(module, order);
+                    }
+                    finally { _moduleInstaller.CatalogPlanGate.Release(); }
+                },
+                finish: async canceled =>
+                {
+                    if (request == null) return;
+                    try
+                    {
+                        if (canceled) await _moduleInstaller.RollbackCatalogInstallationAsync(request, log).ConfigureAwait(false);
+                    }
+                    finally { request.Dispose(); }
+                });
+        }
+
+        public bool IsCatalogInstallPending(string moduleId) => _downloadQueue.Contains("module:" + moduleId);
+        public void CancelCatalogInstall(string moduleId) => _downloadQueue.Cancel("module:" + moduleId);
+
+        public async Task<string?> UninstallModuleAsync(ModuleConfig module)
+        {
+            Task<string?> job;
+            // Publish the removal reservation and its queue task atomically with respect to install plans.
+            await _moduleInstaller.CatalogPlanGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_downloadQueue.GetTask("module-remove:" + module.Id) is Task<string?> existing) job = existing;
+                else
+                {
+                    var consumers = _moduleInstaller.GetPendingConsumers(module.Id);
+                    if (!string.IsNullOrEmpty(consumers))
+                        throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveRequiredFormat, consumers));
+                    _moduleInstaller.SetRemovalState(module.Id, DownloadOperationState.Queued);
+                    job = _downloadQueue.EnqueueAsync("module-remove:" + module.Id, async token =>
+                    {
+                        _moduleInstaller.SetRemovalState(module.Id, DownloadOperationState.Removing);
+                        return await _moduleInstaller.UninstallQueuedAsync(module, token).ConfigureAwait(false);
+                    }, kind: DownloadQueueKind.ModuleRemoval, removal: true,
+                    finish: _ =>
+                    {
+                        _moduleInstaller.SetRemovalState(module.Id, null);
+                        return Task.CompletedTask;
+                    });
+                }
+            }
+            finally { _moduleInstaller.CatalogPlanGate.Release(); }
+            return await job.ConfigureAwait(false);
+        }
+
+        private async Task<ModuleLaunchResult> InstallCatalogModuleCoreAsync(ModuleInstaller.CatalogInstallation request, IProgress<string> log,
+            IProgress<DownloadProgress>? progress, CancellationToken ct)
+        {
+            // Do not hold a content-operation lease while waiting: removal needs exclusive file access.
+            foreach (var pending in request.Plan)
+                if (_downloadQueue.GetTask("module-remove:" + pending.Id) is { } removal)
+                {
+                    try { await removal.WaitAsync(ct).ConfigureAwait(false); }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        log.Report(L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
+                    }
+                }
+            using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, request.Plan.ToArray()).ConfigureAwait(false);
+            var module = request.Root;
+            var order = request.Plan;
+            request.SetPhase(module.Id, DownloadOperationState.Running);
+            ct.ThrowIfCancellationRequested();
+            log = _moduleRunner.ConsoleStore.CreateMaintenanceLog(module, log, reset: true);
+            log.Report(L.Get(LocalizationKeys.ModuleInfo_Downloading, module.Name));
+            var registered = _moduleInstaller.Registry.ReadIds();
+
+            foreach (var item in order)
+            {
+                ct.ThrowIfCancellationRequested();
+                var current = await _moduleInstaller.LoadModuleConfig(item.SourcePath).ConfigureAwait(false);
+                if (registered.Contains(item.Id) && current?.Status.FirstRunCompleted == true) continue;
+                request.SetPhase(item.Id, DownloadOperationState.Running);
+                ct.ThrowIfCancellationRequested();
+                using var activity = _moduleRunner.ConsoleStore.BeginActivity(item.SourcePath, ModuleActivity.Installing);
+                var isDownloaded = registered.Contains(item.Id);
+                if (!isDownloaded) request.TrackNewContent(item);
+                if (!isDownloaded && item.HasDeclaredUpdateConfig)
+                {
+                    var candidate = await ResolveModuleInstallCandidateAsync(item, ct, isManualRequest: true)
+                        ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_SourceUnavailable, item.Name));
+                    try
+                    {
+                        var success = await ApplyModuleUpdateAsync(candidate, log, progress, isManualRequest: true, ct: ct);
                         ct.ThrowIfCancellationRequested();
                         if (!success)
                             throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_InstallFailed, item.Name));
-                        _notifications.CompleteDownload(key, L.Get(LocalizationKeys.ModuleInfo_Installed));
                     }
-                    catch (OperationCanceledException)
+                    finally
                     {
-                        _notifications.FailDownload(key, L.Get(LocalizationKeys.ModuleInfo_Canceled));
-                        throw;
+                        // Even a failed first-run must leave downloaded files visible and manageable.
+                        var installed = await _moduleInstaller.LoadModuleConfig(item.SourcePath);
+                        if (installed?.Status.Installed == true)
+                            await _moduleInstaller.SaveConfigAsync(installed);
                     }
-                    catch (Exception ex)
-                    {
-                        _notifications.FailDownload(key, L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
-                        throw;
-                    }
+                    continue;
                 }
 
-                // Launch only after every dependency and first-run step has succeeded. The coordinator
-                // reloads the installed manifest and starts dependencies without duplicating running processes.
-                ct.ThrowIfCancellationRequested();
-                var launch = await _moduleLaunchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
-                    module.SourcePath, log, ct);
-                ct.ThrowIfCancellationRequested();
-                return launch;
+                var key = NotificationCenter.BuildOperationKey("module-install", item.Id);
+                await _notifications.StartDownloadAsync(key, L.Get(LocalizationKeys.ModuleInfo_Downloading, item.Name),
+                    item.Name, "module", item.Id);
+                try
+                {
+                    if (!isDownloaded)
+                    {
+                        var downloaded = await _moduleInstaller.DownloadSourceAsync(item, log,
+                            _notifications.CreateDownloadProgressBridge(key, progress), ct);
+                        ct.ThrowIfCancellationRequested();
+                        if (!downloaded)
+                            throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_InstallFailed, item.Name));
+                    }
+                    var installed = await _moduleInstaller.LoadModuleConfig(item.SourcePath)
+                        ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, item.Name));
+                    await _moduleInstaller.ReconcileRequiredEnginesAsync(installed, log, progress, ct);
+                    var success = await _moduleRunner.ExecuteFirstRunAsync(installed, log, ct);
+                    await _moduleInstaller.SaveConfigAsync(installed);
+                    ct.ThrowIfCancellationRequested();
+                    if (!success)
+                        throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_InstallFailed, item.Name));
+                    _notifications.CompleteDownload(key, L.Get(LocalizationKeys.ModuleInfo_Installed));
+                }
+                catch (OperationCanceledException)
+                {
+                    _notifications.FailDownload(key, L.Get(LocalizationKeys.ModuleInfo_Canceled));
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _notifications.FailDownload(key, L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
+                    throw;
+                }
             }
-            finally
-            {
-                _moduleInstallGate.Release();
-            }
+
+            // Launch only after every dependency and first-run step has succeeded. The coordinator
+            // reloads the installed manifest and starts dependencies without duplicating running processes.
+            ct.ThrowIfCancellationRequested();
+            var launch = await _moduleLaunchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
+                module.SourcePath, log, ct);
+            ct.ThrowIfCancellationRequested();
+            return launch;
         }
 
         // Module update application
@@ -958,9 +1028,9 @@ namespace ASLM.Services.Internal
             bool isManualRequest = false,
             CancellationToken ct = default)
         {
-            using var operation = ModuleInstaller.BeginContentOperation();
             var module = candidate.Module ?? throw new InvalidOperationException(
                 "Module update candidate does not contain module metadata.");
+            using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             module.Normalize();
             var wasEnabled = module.Status.Enabled;
             var isInstallation = !_moduleInstaller.Registry.ReadIds().Contains(module.Id);
@@ -1106,7 +1176,7 @@ namespace ASLM.Services.Internal
             bool isManualRequest = false,
             CancellationToken ct = default)
         {
-            using var operation = ModuleInstaller.BeginContentOperation();
+            using var operation = await ModuleInstaller.BeginContentOperationAsync(ct).ConfigureAwait(false);
             var engine = candidate.Engine ?? throw new InvalidOperationException(
                 "Engine update candidate does not contain engine metadata.");
             engine.Normalize();

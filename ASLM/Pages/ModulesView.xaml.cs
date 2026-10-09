@@ -26,7 +26,7 @@ namespace ASLM.Pages
         private AppShellPage? _shell;
         private int _gridSpan = 1;
         private ImageSource _moreIconSource = null!;
-        private string? _removingSourcePath;
+        private readonly HashSet<string> _removingSourcePaths = new(StringComparer.OrdinalIgnoreCase);
 
 
         // View data
@@ -204,7 +204,7 @@ namespace ASLM.Pages
                     OpenConfigureUpdates,
                     OpenUpdateDialog,
                     OnRemoveRequested);
-                viewModel.SetRemoving(string.Equals(_removingSourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase));
+                viewModel.SetRemoving(_removingSourcePaths.Contains(module.SourcePath));
                 Modules.Add(viewModel);
             }
         }
@@ -291,12 +291,12 @@ namespace ASLM.Pages
         /// <summary>Confirms uninstall in the dashboard overlay and keeps the card busy throughout removal.</summary>
         private async void OnRemoveRequested(ModuleViewModel module)
         {
-            if (_removingSourcePath != null || UninstallConfirmation.IsOpen || !module.RemoveCommand.CanExecute(null)) return;
+            if (UninstallConfirmation.IsOpen || !module.RemoveCommand.CanExecute(null)) return;
             CloseAllMenus();
             if (!await UninstallConfirmation.ConfirmAsync(module.Name)) return;
             if (!module.RemoveCommand.CanExecute(null)) return;
 
-            SetRemovingModule(module.SourcePath);
+            SetRemovingModule(module.SourcePath, true);
             string? retainedFiles = null;
             Exception? failure = null;
             try
@@ -311,7 +311,7 @@ namespace ASLM.Pages
             {
                 // A manifest refresh may have replaced the card while the uninstall was running.
                 module.SetRemoving(false);
-                SetRemovingModule(null);
+                SetRemovingModule(module.SourcePath, false);
             }
 
             if (!IsLoaded) return;
@@ -321,11 +321,12 @@ namespace ASLM.Pages
                 await UninstallConfirmation.ShowCleanupAsync(retainedFiles);
         }
 
-        private void SetRemovingModule(string? sourcePath)
+        private void SetRemovingModule(string sourcePath, bool removing)
         {
-            _removingSourcePath = sourcePath;
+            if (removing) _removingSourcePaths.Add(sourcePath);
+            else _removingSourcePaths.Remove(sourcePath);
             foreach (var module in Modules)
-                module.SetRemoving(string.Equals(sourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase));
+                module.SetRemoving(_removingSourcePaths.Contains(module.SourcePath));
         }
 
 
@@ -654,10 +655,12 @@ namespace ASLM.Pages
         // Localized card labels
 
         public ICommand RemoveCommand => _removeCommand;
-        public bool CanUninstall => !ModuleRegistry.IsRequired(_config.Id);
+        public bool CanUninstall => !ModuleRegistry.IsRequired(_config.Id) && string.IsNullOrEmpty(_installer.GetPendingConsumers(_config.Id));
         public string RemoveLabel => L.Get(LocalizationKeys.Modules_Remove);
-        public string RemovingLabel => L.Get(LocalizationKeys.Modules_Removing);
-        public bool IsRemoving => _isRemoving;
+        public string RemovingLabel => L.Get(_installer.GetRemovalState(_config.Id) == DownloadOperationState.Queued
+            ? LocalizationKeys.Downloads_Queued : LocalizationKeys.Modules_Removing);
+        public bool IsRemoving => _isRemoving || _installer.GetRemovalState(_config.Id) != null ||
+            _installer.GetInstallationState(_config.Id)?.Phase == DownloadOperationState.Removing;
         public bool IsNotRemoving => !IsRemoving;
 
         internal void SetRemoving(bool removing)
@@ -675,7 +678,7 @@ namespace ASLM.Pages
             RefreshCommandStates();
         }
 
-        internal Task<string?> UninstallAsync() => Task.Run(() => _installer.UninstallAsync(_config));
+        internal Task<string?> UninstallAsync() => _updateManager.UninstallModuleAsync(_config);
 
         /// <summary>
         /// Gets the localized not-verified badge text.
@@ -713,7 +716,7 @@ namespace ASLM.Pages
         public string UpdatingLabel { get; private set; } = string.Empty;
 
         public bool IsInstalling => _installer.IsInstalling(_config.Id);
-        public string MaintenanceLabel => IsInstalling ? L.Get(LocalizationKeys.SetupWizard_Installing) : UpdatingLabel;
+        public string MaintenanceLabel => _installer.GetInstallationState(_config.Id)?.Label ?? UpdatingLabel;
 
         /// <summary>
         /// Gets the localized launch action label.
@@ -1333,7 +1336,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanCheckOrUpdate()
         {
-            return !_isRemoving && !IsBusy;
+            return !IsRemoving && !IsBusy;
         }
 
         /// <summary>
@@ -1349,7 +1352,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanLaunch()
         {
-            return !_isRemoving && IsStopped && !IsStarting && !IsUpdating && !IsInstalling;
+            return !IsRemoving && IsStopped && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -1357,7 +1360,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanStop()
         {
-            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsInstalling;
+            return !IsRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -1365,7 +1368,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanRestart()
         {
-            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsInstalling;
+            return !IsRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -2016,12 +2019,20 @@ namespace ASLM.Pages
                 return;
             }
 
-            await Task.Run(() => _runner.StopModuleAsync(_config.SourcePath));
-
-            _config.Status.Enabled = false;
-            await Task.Run(() => _installer.SaveConfigAsync(_config));
-            NotifyStateChanged();
-            _onStateChanged?.Invoke();
+            try
+            {
+                using var operation = await ModuleInstaller.BeginContentOperationAsync(CancellationToken.None, _config);
+                await Task.Run(() => _runner.StopModuleAsync(_config.SourcePath));
+                _config.Status.Enabled = false;
+                await Task.Run(() => _installer.SaveConfigAsync(_config));
+                NotifyStateChanged();
+                _onStateChanged?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                _runner.ConsoleStore.AppendOverviewLine(_config, ex.Message);
+                Debug.WriteLine($"Stop failed: {ex}");
+            }
         }
 
 
@@ -2037,13 +2048,13 @@ namespace ASLM.Pages
                 return;
             }
 
-            await ReloadEditableConfigAsync();
-
             IsRestarting = true;
             using var activity = _runner.ConsoleStore.BeginActivity(_config.SourcePath, ModuleActivity.Restarting);
 
             try
             {
+                using var operation = await ModuleInstaller.BeginContentOperationAsync(CancellationToken.None, _config);
+                await ReloadEditableConfigAsync();
                 await Task.Run(() => _runner.StopModuleAsync(_config.SourcePath));
                 await Task.Delay(1000);
 
@@ -2064,6 +2075,11 @@ namespace ASLM.Pages
                     NotifyStateChanged();
                     _onStateChanged?.Invoke();
                 }
+            }
+            catch (Exception ex)
+            {
+                _runner.ConsoleStore.AppendOverviewLine(_config, ex.Message);
+                Debug.WriteLine($"Restart failed: {ex}");
             }
             finally
             {

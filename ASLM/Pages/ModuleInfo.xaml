@@ -405,7 +405,7 @@
                                            Spacing="8"
                                            VerticalOptions="Center">
                         <Button x:Name="CancelButton"
-                                IsVisible="{Binding IsCurrentInstallation}"
+                                IsVisible="{Binding CanCancelInstallation}"
                                 Style="{StaticResource SettingsFooterButtonStyle}"
                                 Clicked="OnCancelClicked" />
                         <Button x:Name="InstallButton"

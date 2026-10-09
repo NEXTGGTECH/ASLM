@@ -835,6 +835,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Queued.
+        /// </summary>
+        public static string Downloads_Queued {
+            get {
+                return ResourceManager.GetString("Downloads_Queued", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Search the provider catalog.
         /// </summary>
         public static string Downloads_SearchPlaceholder {
@@ -1789,6 +1798,24 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Installing as a dependency.
+        /// </summary>
+        public static string Modules_InstallingDependency {
+            get {
+                return ResourceManager.GetString("Modules_InstallingDependency", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Installing as a dependency of {0}.
+        /// </summary>
+        public static string Modules_InstallingDependencyFor {
+            get {
+                return ResourceManager.GetString("Modules_InstallingDependencyFor", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Launch.
         /// </summary>
         public static string Modules_Launch {
@@ -1803,6 +1830,24 @@ namespace ASLM.Resources.Strings {
         public static string Modules_NotVerified {
             get {
                 return ResourceManager.GetString("Modules_NotVerified", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Queued as a dependency.
+        /// </summary>
+        public static string Modules_QueuedDependency {
+            get {
+                return ResourceManager.GetString("Modules_QueuedDependency", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Queued as a dependency of {0}.
+        /// </summary>
+        public static string Modules_QueuedDependencyFor {
+            get {
+                return ResourceManager.GetString("Modules_QueuedDependencyFor", resourceCulture);
             }
         }
         

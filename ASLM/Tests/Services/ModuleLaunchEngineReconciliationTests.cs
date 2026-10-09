@@ -14,6 +14,56 @@ namespace ASLM.Tests.Services;
 public sealed class ModuleLaunchEngineReconciliationTests
 {
     [Fact]
+    public async Task Module_installs_do_not_wait_for_the_bridge_download_queue()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var module = await WriteCatalogModuleAsync(layout, "queued-module");
+        var engines = new EngineInstaller();
+        var reconciler = new ModuleEngineReconciler(engines);
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, reconciler);
+        var coordinator = new ModuleLaunchCoordinator(installer, runner,
+            new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
+        var queue = new DownloadQueue();
+        var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
+            installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
+            NullLogger<UpdateManager>.Instance, queue);
+        var downloads = new DownloadInstaller(installer, null!, engines, null!, null!, null!,
+            NullLogger<DownloadInstaller>.Instance, queue);
+        // Already prepared, no commands or network needed to verify scheduling through the real entry points.
+        module.Status.Installed = module.Status.FirstRunCompleted = true;
+        await installer.SaveConfigAsync(module);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseModules = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var preceding = queue.EnqueueAsync("preceding", async _ => { await release.Task; return true; });
+        var precedingModule = queue.EnqueueAsync("preceding-module", async _ => { await releaseModules.Task; return true; },
+            kind: DownloadQueueKind.Modules);
+        try
+        {
+            var moduleJob = manager.InstallCatalogModuleAsync(module, new RecordingProgress());
+            var item = new DownloadCatalogItem { ResourceKey = "queued-resource" };
+            var resourceJob = downloads.InstallAsync(item, null);
+            manager.IsCatalogInstallPending(module.Id).Should().BeTrue();
+            downloads.IsPending(item, null).Should().BeTrue();
+            resourceJob.IsCompleted.Should().BeFalse();
+            manager.InstallCatalogModuleAsync(module, new RecordingProgress()).Should().BeSameAs(moduleJob);
+            downloads.InstallAsync(item, null).Should().BeSameAs(resourceJob);
+            releaseModules.SetResult();
+            (await moduleJob.WaitAsync(TimeSpan.FromSeconds(5))).Status.Should().Be(ModuleLaunchStatus.NoRunCommands);
+            preceding.IsCompleted.Should().BeFalse();
+            resourceJob.IsCompleted.Should().BeFalse();
+            release.SetResult();
+            await Task.WhenAll(preceding, precedingModule, moduleJob, resourceJob).WaitAsync(TimeSpan.FromSeconds(5));
+            (await moduleJob).Status.Should().Be(ModuleLaunchStatus.NoRunCommands);
+            (await resourceJob).Success.Should().BeFalse(); // no source, handled normally without blocking the queue
+            manager.IsCatalogInstallPending(module.Id).Should().BeFalse();
+            downloads.IsPending(item, null).Should().BeFalse();
+        }
+        finally { release.TrySetResult(); releaseModules.TrySetResult(); }
+    }
+
+    [Fact]
     public async Task Catalog_install_announces_all_pending_dependencies_before_downloading_and_clears_them_on_cancel()
     {
         using var layout = new AslmFileSystemLayout();
@@ -31,7 +81,7 @@ public sealed class ModuleLaunchEngineReconciliationTests
             new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
         var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
             installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
-            NullLogger<UpdateManager>.Instance);
+            NullLogger<UpdateManager>.Instance, new DownloadQueue());
         ready.Status.Installed = ready.Status.FirstRunCompleted = true;
         await installer.SaveConfigAsync(ready);
         using var cts = new CancellationTokenSource();
@@ -43,7 +93,8 @@ public sealed class ModuleLaunchEngineReconciliationTests
             foreach (var module in pending)
             {
                 installer.IsInstalling(module.Id).Should().BeTrue();
-                runner.ConsoleStore.GetMaintenanceSnapshot(module.SourcePath).Activity.Should().Be(ModuleActivity.Installing);
+                installer.GetInstallationState(module.Id)!.Phase.Should().Be(DownloadOperationState.Queued);
+                installer.GetInstallationState(module.Id)!.IsDependency.Should().Be(module.Id != root.Id);
             }
             installer.IsInstalling(ready.Id).Should().BeFalse();
             installer.Registry.ReadIds().Should().Equal(ready.Id);
@@ -81,11 +132,11 @@ public sealed class ModuleLaunchEngineReconciliationTests
         var ids = new[] { root.Id, dependency.Id };
         var changes = 0;
         installer.ModulesChanged += (_, _) => changes++;
-        using (installer.BeginCatalogInstallation([dependency, root]))
+        using (installer.BeginCatalogInstallation(root, [dependency, root]))
         {
             changes.Should().Be(1);
             installer.Registry.ReadIds().Should().BeEmpty();
-            (await installer.DiscoverAvailableModulesAsync()).Should().BeEmpty();
+            (await installer.DiscoverAvailableModulesAsync()).Select(module => module.Id).Should().BeEquivalentTo(ids);
             (await installer.DiscoverInstalledModulesAsync()).Should().BeEmpty();
             (await installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Select(module => module.Id)
                 .Should().BeEquivalentTo(ids);
@@ -106,7 +157,7 @@ public sealed class ModuleLaunchEngineReconciliationTests
                 root.Status.Installed = root.Status.FirstRunCompleted = true;
                 await installer.SaveConfigAsync(root);
             }
-            (await installer.DiscoverAvailableModulesAsync()).Should().BeEmpty();
+            (await installer.DiscoverAvailableModulesAsync()).Select(module => module.Id).Should().BeEquivalentTo(ids);
             (await installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Select(module => module.Id)
                 .Should().BeEquivalentTo(ids);
             installer.IsInstalling(root.Id).Should().BeTrue();
@@ -124,6 +175,131 @@ public sealed class ModuleLaunchEngineReconciliationTests
             .Should().BeEquivalentTo(installed);
         (await installer.DiscoverAvailableModulesAsync()).Select(module => module.Id)
             .Should().BeEquivalentTo(complete ? Array.Empty<string>() : new[] { root.Id });
+    }
+
+    [Fact]
+    public async Task Removal_queued_before_a_new_dependency_finishes_before_that_dependency_is_reinstalled()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var dependency = await WriteCatalogModuleAsync(layout, "remove-then-reinstall");
+        var root = await WriteCatalogModuleAsync(layout, "new-consumer", dependency.Id);
+        var engines = new EngineInstaller();
+        var reconciler = new ModuleEngineReconciler(engines);
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, reconciler);
+        var coordinator = new ModuleLaunchCoordinator(installer, runner,
+            new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
+        var queue = new DownloadQueue();
+        var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
+            installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
+            NullLogger<UpdateManager>.Instance, queue);
+        dependency.Status.Installed = dependency.Status.FirstRunCompleted = true;
+        await installer.SaveConfigAsync(dependency);
+        var payload = Path.Combine(Path.GetDirectoryName(dependency.SourcePath)!, "payload.txt");
+        await File.WriteAllTextAsync(payload, "installed dependency");
+        var releaseRemoval = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var prepared = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocker = queue.EnqueueAsync("removal-blocker", async _ => { await releaseRemoval.Task; return true; },
+            kind: DownloadQueueKind.ModuleRemoval);
+        using var cts = new CancellationTokenSource();
+        var reinstallReached = false;
+        installer.ModulesChanged += (_, _) =>
+        {
+            if (!installer.IsInstalling(root.Id)) return;
+            prepared.TrySetResult();
+            if (installer.GetInstallationState(dependency.Id)?.Phase != DownloadOperationState.Running) return;
+            reinstallReached = true;
+            installer.Registry.ReadIds().Should().NotContain(dependency.Id);
+            File.Exists(payload).Should().BeFalse();
+            // Verify entry into reinstallation, but never download from a real repository in this test.
+            cts.Cancel();
+        };
+        Task? install = null;
+        Task<string?>? removal = null;
+        try
+        {
+            removal = manager.UninstallModuleAsync(dependency);
+            installer.GetRemovalState(dependency.Id).Should().Be(DownloadOperationState.Queued);
+            install = manager.InstallCatalogModuleAsync(root, new RecordingProgress(), ct: cts.Token);
+            await prepared.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            installer.GetInstallationState(dependency.Id)!.IsDependency.Should().BeTrue();
+            (await installer.DiscoverAvailableModulesAsync()).Select(module => module.Id)
+                .Should().BeEquivalentTo([root.Id, dependency.Id]);
+            (await installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Select(module => module.Id)
+                .Should().BeEquivalentTo([root.Id, dependency.Id]);
+            install.IsCompleted.Should().BeFalse();
+            releaseRemoval.SetResult();
+            await removal.WaitAsync(TimeSpan.FromSeconds(5));
+            await FluentActions.Awaiting(() => install.WaitAsync(TimeSpan.FromSeconds(5)))
+                .Should().ThrowAsync<OperationCanceledException>();
+            reinstallReached.Should().BeTrue();
+            installer.GetRemovalState(dependency.Id).Should().BeNull();
+        }
+        finally
+        {
+            cts.Cancel();
+            releaseRemoval.TrySetResult();
+            await blocker;
+            if (removal != null) await removal;
+            if (install != null) try { await install; } catch (OperationCanceledException) { }
+        }
+    }
+
+    [Fact]
+    public async Task Already_queued_install_reserves_dependencies_against_new_uninstall_requests()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var dependency = await WriteCatalogModuleAsync(layout, "reserved-dependency");
+        var root = await WriteCatalogModuleAsync(layout, "queued-consumer", dependency.Id);
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        dependency.Status.Installed = dependency.Status.FirstRunCompleted = true;
+        await installer.SaveConfigAsync(dependency);
+        using var request = installer.BeginCatalogInstallation(root, [dependency, root]);
+        var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance), installer,
+            engines, runner, null!, null!, null!, null!, null!, null!, NullLogger<UpdateManager>.Instance, new DownloadQueue());
+
+        await FluentActions.Awaiting(() => manager.UninstallModuleAsync(dependency))
+            .Should().ThrowAsync<InvalidOperationException>();
+        installer.Registry.ReadIds().Should().Contain(dependency.Id);
+    }
+
+    [Fact]
+    public async Task Multiple_uninstalls_queue_and_complete_while_the_other_two_queues_are_busy()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var first = await WriteCatalogModuleAsync(layout, "remove-first");
+        var second = await WriteCatalogModuleAsync(layout, "remove-second");
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        var queue = new DownloadQueue();
+        var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance), installer,
+            engines, runner, null!, null!, null!, null!, null!, null!, NullLogger<UpdateManager>.Instance, queue);
+        foreach (var module in new[] { first, second })
+        {
+            module.Status.Installed = module.Status.FirstRunCompleted = true;
+            await installer.SaveConfigAsync(module);
+        }
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var jobs = new[] { DownloadQueueKind.Resources, DownloadQueueKind.Modules }
+            .Select(kind => queue.EnqueueAsync(kind.ToString(), async _ => { await release.Task; return true; }, kind: kind)).ToArray();
+        using var content = ModuleInstaller.BeginContentOperation(new ModuleConfig { Id = "unrelated-install" });
+        try
+        {
+            var firstRemoval = manager.UninstallModuleAsync(first);
+            var secondRemoval = manager.UninstallModuleAsync(second);
+            await Task.WhenAll(firstRemoval, secondRemoval).WaitAsync(TimeSpan.FromSeconds(5));
+            installer.Registry.ReadIds().Should().NotContain(first.Id).And.NotContain(second.Id);
+            installer.GetRemovalState(first.Id).Should().BeNull();
+            installer.GetRemovalState(second.Id).Should().BeNull();
+            jobs.Should().OnlyContain(job => !job.IsCompleted);
+        }
+        finally { release.TrySetResult(); await Task.WhenAll(jobs); }
     }
 
     private static async Task<ModuleConfig> WriteCatalogModuleAsync(AslmFileSystemLayout layout, string id, params string[] dependencies)
@@ -174,7 +350,7 @@ public sealed class ModuleLaunchEngineReconciliationTests
             new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
         var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
             installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
-            NullLogger<UpdateManager>.Instance);
+            NullLogger<UpdateManager>.Instance, new DownloadQueue());
         var module = (await installer.LoadModuleConfig(manifestPath))!;
         module.Status.Installed = true;
         module.Status.FirstRunCompleted = true;

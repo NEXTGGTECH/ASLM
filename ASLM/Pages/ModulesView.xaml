@@ -326,32 +326,9 @@
                                         </HorizontalStackLayout>
                                     </Border>
 
-                                    <Border Grid.Row="2"
-                                            BackgroundColor="#2032D74B"
-                                            Stroke="{DynamicResource SystemGreen}"
-                                            StrokeShape="RoundRectangle 4"
-                                            StrokeThickness="1"
-                                            StrokeDashArray="4,2"
-                                            Padding="0"
-                                            Margin="0"
-                                            IsVisible="{Binding ShowMaintenanceStatus}"
-                                            MinimumHeightRequest="44"
-                                            HorizontalOptions="Fill"
-                                            VerticalOptions="Fill">
-                                        <HorizontalStackLayout HorizontalOptions="Center"
-                                                               VerticalOptions="Center"
-                                                               Spacing="8">
-                                            <ActivityIndicator IsRunning="{Binding ShowMaintenanceStatus}"
-                                                               Color="{DynamicResource LabelPrimary}"
-                                                               WidthRequest="16"
-                                                               HeightRequest="16"
-                                                               VerticalOptions="Center" />
-                                            <Label Text="{Binding MaintenanceLabel}"
-                                                   TextColor="{DynamicResource LabelPrimary}"
-                                                   FontSize="13"
-                                                   VerticalOptions="Center" />
-                                        </HorizontalStackLayout>
-                                    </Border>
+                                    <ContentView Grid.Row="2"
+                                                 IsVisible="{Binding ShowMaintenanceStatus}"
+                                                 ControlTemplate="{StaticResource ModuleMaintenanceStatusTemplate}" />
 
                                     <Button Grid.Row="2"
                                             Text="{Binding LaunchLabel}"

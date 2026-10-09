@@ -70,6 +70,42 @@
         </HorizontalStackLayout>
     </ControlTemplate>
 
+    <!-- Shared installation/queue status on dashboard and download cards. -->
+    <ControlTemplate x:Key="ModuleMaintenanceStatusTemplate">
+        <Border BindingContext="{TemplateBinding BindingContext}"
+                BackgroundColor="#2032D74B"
+                Stroke="{DynamicResource SystemGreen}"
+                StrokeShape="RoundRectangle 4"
+                StrokeThickness="1"
+                StrokeDashArray="4,2"
+                Padding="0"
+                MinimumHeightRequest="44"
+                HorizontalOptions="Fill"
+                VerticalOptions="Fill">
+            <Border.Triggers>
+                <DataTrigger TargetType="Border"
+                             Binding="{Binding IsRemoving}"
+                             Value="True">
+                    <Setter Property="BackgroundColor" Value="Transparent" />
+                    <Setter Property="Stroke" Value="{DynamicResource ActionRed}" />
+                </DataTrigger>
+            </Border.Triggers>
+            <HorizontalStackLayout HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   Spacing="8">
+                <ActivityIndicator IsRunning="{Binding ShowMaintenanceStatus}"
+                                   Color="{DynamicResource LabelPrimary}"
+                                   WidthRequest="16"
+                                   HeightRequest="16"
+                                   VerticalOptions="Center" />
+                <Label Text="{Binding MaintenanceLabel}"
+                       TextColor="{DynamicResource LabelPrimary}"
+                       FontSize="13"
+                       VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </Border>
+    </ControlTemplate>
+
     <!-- Core controls -->
     <Style x:Key="AppScrollBarThumbStyle" TargetType="BoxView">
         <Setter Property="WidthRequest" Value="4" />

@@ -1349,4 +1349,19 @@
   <data name="Modules_Experimental" xml:space="preserve">
     <value>Deneysel</value>
   </data>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>Sırada</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>Bağımlılık olarak sırada</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>Bağımlılık olarak yükleniyor</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>{0} bağımlılığı olarak sırada</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>{0} bağımlılığı olarak yükleniyor</value>
+  </data>
 </root>

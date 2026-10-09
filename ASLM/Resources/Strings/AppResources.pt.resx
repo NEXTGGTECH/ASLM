@@ -1349,4 +1349,19 @@
   <data name="Modules_Experimental" xml:space="preserve">
     <value>Experimental</value>
   </data>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>Em fila</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>Em fila como dependência</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>A instalar como dependência</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>Em fila como dependência de {0}</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>A instalar como dependência de {0}</value>
+  </data>
 </root>

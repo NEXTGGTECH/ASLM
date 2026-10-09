@@ -25,7 +25,11 @@ namespace ASLM.Services.Modules
         private readonly EngineInstaller _engineInstaller;
         internal ModuleRegistry Registry { get; } = new();
         private readonly object _installationLock = new();
-        private readonly Dictionary<Guid, ModuleConfig[]> _catalogInstallations = [];
+        private readonly Dictionary<Guid, CatalogInstallation> _catalogInstallations = [];
+        private readonly HashSet<string> _manuallyRequested = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _temporaryDependencies = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, DownloadOperationState> _moduleRemovals = new(StringComparer.OrdinalIgnoreCase);
+        internal SemaphoreSlim CatalogPlanGate { get; } = new(1, 1);
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -119,34 +123,91 @@ namespace ASLM.Services.Modules
         {
             var catalog = await DiscoverModulesAsync().ConfigureAwait(false);
             var ids = Registry.ReadIds();
-            ids.UnionWith(GetInstallingModules().Select(module => module.Id));
+            var pending = GetInstallingModules();
+            ids.ExceptWith(pending.Select(module => module.Id));
             return catalog
                 .Where(module => module.IsSupportedOnCurrentPlatform && !ids.Contains(module.Id))
+                .Concat(pending)
                 .DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         internal bool IsInstalling(string moduleId)
         {
-            lock (_installationLock)
-                return _catalogInstallations.Values.SelectMany(modules => modules)
-                    .Any(module => string.Equals(module.Id, moduleId, StringComparison.OrdinalIgnoreCase));
+            return GetInstallationState(moduleId) != null;
         }
 
         private ModuleConfig[] GetInstallingModules()
         {
             lock (_installationLock)
-                return _catalogInstallations.Values.SelectMany(modules => modules).ToArray();
+                return _catalogInstallations.Values.SelectMany(request => request.Pending).ToArray();
         }
 
-        /// <summary>Publishes the entire validated plan at once; no installed flags or registry entries are written.</summary>
-        internal IDisposable BeginCatalogInstallation(IEnumerable<ModuleConfig> modules)
+        internal void RecordManualRequest(string id)
         {
-            var pending = modules.DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase).ToArray();
-            var token = Guid.NewGuid();
-            var activities = pending.Select(module =>
-                _moduleRunner.ConsoleStore.BeginActivity(module.SourcePath, ModuleActivity.Installing)).ToArray();
-            lock (_installationLock) _catalogInstallations.Add(token, pending);
-            var scope = new CatalogInstallation(this, token, activities);
+            lock (_installationLock) _manuallyRequested.Add(id);
+        }
+
+        internal DownloadOperationState? GetRemovalState(string id)
+        {
+            lock (_installationLock) return _moduleRemovals.TryGetValue(id, out var state) ? state : null;
+        }
+
+        internal void SetRemovalState(string id, DownloadOperationState? state)
+        {
+            lock (_installationLock)
+            {
+                if (state.HasValue) _moduleRemovals[id] = state.Value;
+                else _moduleRemovals.Remove(id);
+            }
+            RaiseModulesChanged();
+        }
+
+        internal string GetPendingConsumers(string id)
+        {
+            lock (_installationLock)
+                return string.Join(", ", _catalogInstallations.Values.Where(request => request.Plan.Any(module =>
+                    string.Equals(module.Id, id, StringComparison.OrdinalIgnoreCase))).Select(request => request.Root.Name).Distinct());
+        }
+
+        internal sealed record InstallationState(DownloadOperationState Phase, bool IsDependency, string RequestedBy)
+        {
+            public string Label => L.Get(Phase == DownloadOperationState.Removing ? LocalizationKeys.Modules_Removing
+                : Phase == DownloadOperationState.Queued
+                    ? IsDependency ? LocalizationKeys.Modules_QueuedDependency : LocalizationKeys.Downloads_Queued
+                    : IsDependency ? LocalizationKeys.Modules_InstallingDependency : LocalizationKeys.SetupWizard_Installing);
+
+            public string LabelWithRequester => IsDependency && Phase != DownloadOperationState.Removing && !string.IsNullOrWhiteSpace(RequestedBy)
+                ? L.Get(Phase == DownloadOperationState.Queued
+                    ? LocalizationKeys.Modules_QueuedDependencyFor : LocalizationKeys.Modules_InstallingDependencyFor, RequestedBy)
+                : Label;
+        }
+
+        internal InstallationState? GetInstallationState(string id)
+        {
+            lock (_installationLock)
+            {
+                var requests = _catalogInstallations.Values.Where(request => request.Pending.Any(module =>
+                    string.Equals(module.Id, id, StringComparison.OrdinalIgnoreCase))).ToList();
+                if (requests.Count == 0) return null;
+                var dependency = !requests.Any(request => string.Equals(request.Root.Id, id, StringComparison.OrdinalIgnoreCase));
+                return new(requests.Max(request => request.Phases.GetValueOrDefault(id, DownloadOperationState.Queued)),
+                    dependency, string.Join(", ", requests.Where(request => !string.Equals(request.Root.Id, id, StringComparison.OrdinalIgnoreCase))
+                        .Select(request => request.Root.Name).Distinct(StringComparer.OrdinalIgnoreCase)));
+            }
+        }
+
+        /// <summary>Publishes the requested module and dependencies while they are still queued.</summary>
+        internal CatalogInstallation BeginCatalogInstallation(ModuleConfig root, IReadOnlyList<ModuleConfig> plan)
+        {
+            var ids = Registry.ReadIds();
+            CatalogInstallation scope;
+            lock (_installationLock)
+            {
+                var pending = plan.Where(module => !ids.Contains(module.Id) || !module.Status.FirstRunCompleted ||
+                    IsInstalling(module.Id) || GetRemovalState(module.Id) != null).ToArray();
+                scope = new(this, root, plan, pending);
+                _catalogInstallations.Add(scope.Token, scope);
+            }
             try
             {
                 RaiseModulesChanged();
@@ -154,19 +215,41 @@ namespace ASLM.Services.Modules
             }
             catch
             {
-                scope.Dispose();
+                lock (_installationLock) _catalogInstallations.Remove(scope.Token);
                 throw;
             }
         }
 
-        private sealed class CatalogInstallation(ModuleInstaller installer, Guid token, IDisposable[] activities) : IDisposable
+        internal sealed class CatalogInstallation(ModuleInstaller installer, ModuleConfig root,
+            IReadOnlyList<ModuleConfig> plan, ModuleConfig[] pending) : IDisposable
         {
+            internal Guid Token { get; } = Guid.NewGuid();
+            internal ModuleConfig Root { get; } = root;
+            internal IReadOnlyList<ModuleConfig> Plan { get; } = plan;
+            internal ModuleConfig[] Pending { get; } = pending;
+            internal Dictionary<string, DownloadOperationState> Phases { get; } = new(StringComparer.OrdinalIgnoreCase);
+            internal HashSet<string> NewlyInstalled { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            internal void SetPhase(string id, DownloadOperationState phase)
+            {
+                lock (installer._installationLock) Phases[id] = phase;
+                installer.RaiseModulesChanged();
+            }
+
+            internal void TrackNewContent(ModuleConfig module)
+            {
+                lock (installer._installationLock)
+                {
+                    NewlyInstalled.Add(module.Id);
+                    if (!string.Equals(module.Id, Root.Id, StringComparison.OrdinalIgnoreCase))
+                        installer._temporaryDependencies.Add(module.Id);
+                }
+            }
+
             public void Dispose()
             {
                 lock (installer._installationLock)
-                    if (!installer._catalogInstallations.Remove(token)) return;
-                foreach (var activity in activities) activity.Dispose();
-                // On failure/cancellation only actually downloaded modules remain registered.
+                    if (!installer._catalogInstallations.Remove(Token)) return;
                 installer.RaiseModulesChanged();
             }
         }
@@ -244,7 +327,7 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress = null,
             CancellationToken ct = default)
         {
-            using var operation = BeginContentOperation();
+            using var operation = await BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             ResolvePlatformSupport(module);
             if (!module.IsSupportedOnCurrentPlatform)
             {
@@ -338,20 +421,22 @@ namespace ASLM.Services.Modules
         /// <summary>Records newly copied, validated content, including reinstalls in the same session.</summary>
         internal async Task SaveInstalledContentAsync(ModuleConfig config, bool raiseModulesChanged = true)
         {
-            using var operation = BeginContentOperation();
+            using var operation = await BeginContentOperationAsync(CancellationToken.None, config).ConfigureAwait(false);
             var wasRemoved = _removedModuleIds.TryRemove(config.Id, out _);
             try
             {
                 config.Status.Installed = true;
                 config.Status.InstalledVersion = config.Version;
                 config.Status.LastUpdated = DateTime.UtcNow.ToString("o");
-                await SaveConfigAsync(config, raiseModulesChanged);
+                await SaveConfigAsync(config, raiseModulesChanged: false);
             }
             catch
             {
                 if (wasRemoved) _removedModuleIds[config.Id] = 0;
                 throw;
             }
+            // Disk and registry are committed. A failing observer must not restore the removal guard.
+            if (raiseModulesChanged) RaiseModulesChanged();
         }
 
         /// <summary>
@@ -363,7 +448,7 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress = null,
             CancellationToken ct = default)
         {
-            using var operation = BeginContentOperation();
+            using var operation = await BeginContentOperationAsync(ct).ConfigureAwait(false);
             var baseDir = GetRootDirectory();
             var modulesRoot = Path.Combine(baseDir, "Modules");
             var tempZip = Path.GetTempFileName();
@@ -579,7 +664,7 @@ namespace ASLM.Services.Modules
         /// </param>
         public void SaveModuleConfig(ModuleConfig config, bool raiseModulesChanged = true)
         {
-            using var operation = BeginContentOperation();
+            using var operation = BeginContentOperation(config);
             EnsureNotRemoved(config);
             if (string.IsNullOrEmpty(config.SourcePath))
             {
@@ -601,7 +686,7 @@ namespace ASLM.Services.Modules
         /// </summary>
         internal void SaveModuleUpdatePreferences(ModuleConfig config)
         {
-            using var operation = BeginContentOperation();
+            using var operation = BeginContentOperation(config);
             var manifest = JsonNode.Parse(File.ReadAllText(config.SourcePath))?.AsObject()
                 ?? throw new JsonException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, config.Name));
             if (!string.Equals(manifest["id"]?.GetValue<string>(), config.Id, StringComparison.OrdinalIgnoreCase))
@@ -631,7 +716,7 @@ namespace ASLM.Services.Modules
         /// </param>
         public async Task SaveConfigAsync(ModuleConfig config, bool raiseModulesChanged = true)
         {
-            using var operation = BeginContentOperation();
+            using var operation = await BeginContentOperationAsync(CancellationToken.None, config).ConfigureAwait(false);
             EnsureNotRemoved(config);
             if (string.IsNullOrEmpty(config.SourcePath))
             {

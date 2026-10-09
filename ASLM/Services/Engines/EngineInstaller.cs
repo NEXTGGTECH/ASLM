@@ -376,10 +376,10 @@ namespace ASLM.Services.Engines
         /// <returns>The engine configuration, or null.</returns>
         public EngineConfig? GetEngineConfig(string engineId)
         {
-            DiscoverEngines();
-
             lock (_cacheLock)
             {
+                // Discovery and lookup share the same lock: invalidation must not split them.
+                DiscoverEngines();
                 return _cachedInstalledEnginesById != null &&
                        _cachedInstalledEnginesById.TryGetValue(engineId, out var engine)
                     ? engine
@@ -392,10 +392,9 @@ namespace ASLM.Services.Engines
         /// </summary>
         public bool HasEngine(string engineId)
         {
-            DiscoverEngines();
-
             lock (_cacheLock)
             {
+                DiscoverEngines();
                 return _cachedEnginesById?.ContainsKey(engineId) == true;
             }
         }

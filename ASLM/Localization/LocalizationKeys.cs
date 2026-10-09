@@ -3,6 +3,11 @@
 namespace ASLM.Localization;
 public static class LocalizationKeys
 {
+    public const string Downloads_Queued = "Downloads_Queued";
+    public const string Modules_QueuedDependency = "Modules_QueuedDependency";
+    public const string Modules_InstallingDependency = "Modules_InstallingDependency";
+    public const string Modules_QueuedDependencyFor = "Modules_QueuedDependencyFor";
+    public const string Modules_InstallingDependencyFor = "Modules_InstallingDependencyFor";
     public const string ModuleInfo_Version = "ModuleInfo_Version";
     public const string ModuleInfo_Author = "ModuleInfo_Author";
     public const string ModuleInfo_Id = "ModuleInfo_Id";

@@ -20,7 +20,7 @@ public sealed class GitHubUpdateClientTests : IDisposable
     {
         using var http = new HttpClient(new RepositoryHandler());
         var client = CreateClient(http);
-        var manager = new UpdateManager(null!, null!, null!, null!, null!, null!, null!, null!, client, null!, NullLogger<UpdateManager>.Instance);
+        var manager = new UpdateManager(null!, null!, null!, null!, null!, null!, null!, null!, client, null!, NullLogger<UpdateManager>.Instance, new DownloadQueue());
         var module = new ModuleConfig { Id = "module", Version = "0.1", Source = new() { Type = "github", Repo = "owner/repo" } };
         UpdateManager.ApplyCatalogDefaults(module, false, channel);
         var version = await manager.GetModuleCatalogVersionAsync(module, false);
@@ -214,7 +214,7 @@ public sealed class GitHubUpdateClientTests : IDisposable
     {
         using var http = new HttpClient(new RepositoryHandler(failIcon: true));
         var client = CreateClient(http);
-        var manager = new UpdateManager(null!, null!, null!, null!, null!, null!, null!, null!, client, null!, NullLogger<UpdateManager>.Instance);
+        var manager = new UpdateManager(null!, null!, null!, null!, null!, null!, null!, null!, client, null!, NullLogger<UpdateManager>.Instance, new DownloadQueue());
         var module = new ModuleConfig { Id = "module", Source = new() { Type = "github", Repo = "owner/repo" } };
         (await manager.GetModuleCatalogVersionAsync(module, false)).Should().Be("v1.0");
         (await manager.GetModuleCatalogArtworkAsync(module)).Should().BeNull();
@@ -237,7 +237,7 @@ public sealed class GitHubUpdateClientTests : IDisposable
             await release.Task.WaitAsync(ct);
         });
         using var http = new HttpClient(handler);
-        var manager = new UpdateManager(null!, null!, null!, null!, null!, null!, null!, null!, CreateClient(http), null!, NullLogger<UpdateManager>.Instance);
+        var manager = new UpdateManager(null!, null!, null!, null!, null!, null!, null!, null!, CreateClient(http), null!, NullLogger<UpdateManager>.Instance, new DownloadQueue());
         var modules = new[] { CreateModule("module", "owner/repo"), CreateModule("other", "owner/other") };
         var versions = modules.Select(module => manager.GetModuleCatalogVersionAsync(module, false, timeout.Token)).ToArray();
         try
@@ -270,7 +270,7 @@ public sealed class GitHubUpdateClientTests : IDisposable
             }
         });
         using var http = new HttpClient(handler);
-        var manager = new UpdateManager(null!, null!, null!, null!, null!, null!, null!, null!, CreateClient(http), null!, NullLogger<UpdateManager>.Instance);
+        var manager = new UpdateManager(null!, null!, null!, null!, null!, null!, null!, null!, CreateClient(http), null!, NullLogger<UpdateManager>.Instance, new DownloadQueue());
         var slow = CreateModule("module", "owner/repo");
         var cached = CreateModule("other", "owner/other");
         var icon = manager.GetModuleCatalogArtworkAsync(slow, canceled.Token);

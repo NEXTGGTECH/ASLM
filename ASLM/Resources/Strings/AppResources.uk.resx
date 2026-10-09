@@ -1349,4 +1349,19 @@
   <data name="Modules_Experimental" xml:space="preserve">
     <value>Експериментальний</value>
   </data>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>У черзі</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>У черзі як залежність</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>Установлюється як залежність</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>У черзі як залежність для {0}</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>Установлюється як залежність для {0}</value>
+  </data>
 </root>

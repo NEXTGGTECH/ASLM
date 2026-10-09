@@ -26,11 +26,10 @@ public partial class ModuleInfo : ContentView, ILocalizable
     private ModuleConfig? _module;
     private List<ModuleConfig> _catalog = [];
     private List<EngineConfig> _engineCatalog = [];
-    private CancellationTokenSource? _downloadCts;
+    private readonly Dictionary<string, ModuleInstallation> _downloads = new(StringComparer.OrdinalIgnoreCase);
     private int _openVersion;
     private bool _isLoading;
     private bool _registered;
-    private string? _activeDownloadPath;
     private bool _isOpen;
     private int _stateRefreshVersion;
     private CancellationTokenSource? _presentationCts;
@@ -77,18 +76,23 @@ public partial class ModuleInfo : ContentView, ILocalizable
         : !HasSourceLink && _module != null ? L.Get(LocalizationKeys.ModuleInfo_NoSource) : string.Empty;
     public bool HasConfigurationMessage => !string.IsNullOrEmpty(ConfigurationMessage);
     public string ModuleStateText => _isLoading ? L.Get(LocalizationKeys.ModuleInfo_Loading)
-        : L.Get(ResolveStateKey(_registered, _activity?.IsRunning == true, _activity?.Activity));
+        : (_module == null ? null : _installer.GetInstallationState(_module.Id)?.Label)
+            ?? L.Get(ResolveStateKey(_registered, _activity?.IsRunning == true, _activity?.Activity));
     public string LogText { get; private set; } = string.Empty;
     public bool HasLog => !string.IsNullOrWhiteSpace(LogText);
     public string LogSessionKey { get; private set; } = string.Empty;
-    public bool IsBusy => _downloadCts != null;
-    public bool IsCurrentInstallation => IsBusy && string.Equals(_activeDownloadPath, _module?.SourcePath, StringComparison.OrdinalIgnoreCase);
-    public bool ShowInstallButton => !IsCurrentInstallation && _activity?.Activity != ModuleActivity.Installing;
+    private ModuleInstallation? CurrentDownload => _module != null && _downloads.TryGetValue(_module.SourcePath, out var download)
+        ? download : null;
+    public bool IsBusy => CurrentDownload != null || (_module != null && (_updates.IsCatalogInstallPending(_module.Id) || _installer.IsInstalling(_module.Id)));
+    public bool IsCurrentInstallation => CurrentDownload != null;
+    public bool CanCancelInstallation => _module != null && _updates.IsCatalogInstallPending(_module.Id) &&
+        _installer.GetInstallationState(_module.Id) is not { IsDependency: true };
+    public bool ShowInstallButton => !IsBusy && _activity?.Activity != ModuleActivity.Installing;
     public bool CanInstall => !_isLoading && !IsBusy && _activity?.Activity == null && _module is { IsSupportedOnCurrentPlatform: true } &&
                                (!_registered || !_module.Status.FirstRunCompleted) &&
                                UpdateManager.CanDownloadModule(_module);
-    public double DownloadFraction { get; private set; }
-    public string TransferText { get; private set; } = string.Empty;
+    public double DownloadFraction => CurrentDownload?.Fraction ?? 0;
+    public string TransferText => CurrentDownload?.TransferText ?? string.Empty;
     public bool HasTransferText => !string.IsNullOrWhiteSpace(TransferText);
 
     public ModuleInfo(ModuleInstaller installer, UpdateManager updates, EngineInstaller engines,
@@ -152,7 +156,6 @@ public partial class ModuleInfo : ContentView, ILocalizable
         _isLoading = true;
         _registered = false;
         ResetConfigurationOptions();
-        if (!IsBusy) TransferText = string.Empty;
         RefreshContent();
         UpdateDialogSize();
         try
@@ -252,6 +255,8 @@ public partial class ModuleInfo : ContentView, ILocalizable
         OnPropertyChanged(nameof(ModuleStateText));
         OnPropertyChanged(nameof(CanInstall));
         OnPropertyChanged(nameof(ShowInstallButton));
+        OnPropertyChanged(nameof(CanCancelInstallation));
+        OnPropertyChanged(nameof(IsBusy));
         OnPropertyChanged(nameof(CanConfigure));
         OnPropertyChanged(nameof(CanSelectTarget));
         if (!IsStatusSelected) return;
@@ -604,30 +609,29 @@ public partial class ModuleInfo : ContentView, ILocalizable
         if (!CanInstall || _module == null) return;
         var selected = _module;
         using var cts = new CancellationTokenSource();
-        _downloadCts = cts;
-        _activeDownloadPath = selected.SourcePath;
+        var download = new ModuleInstallation(cts);
+        _downloads.Add(selected.SourcePath, download);
         var resultKey = LocalizationKeys.ModuleInfo_Installed;
         var resultDetail = string.Empty;
-        TransferText = string.Empty;
-        DownloadFraction = 0;
         CancelOptionsLoad();
         SelectSection(Section.Status);
         RefreshContent();
         var log = new Progress<string>(message => System.Diagnostics.Debug.WriteLine(message));
         var progress = new Progress<DownloadProgress>(value =>
         {
-            if (!ReferenceEquals(_downloadCts, cts)) return;
-            DownloadFraction = Math.Clamp(value.Fraction, 0, 1);
-            TransferText = value.TotalBytes > 0
-                ? $"{DownloadFraction:P0} · {DownloadsView.FormatDownloadSize(value.DownloadedBytes)} / {DownloadsView.FormatDownloadSize(value.TotalBytes)}"
+            if (!_downloads.TryGetValue(selected.SourcePath, out var pending) || !ReferenceEquals(pending, download)) return;
+            download.Fraction = Math.Clamp(value.Fraction, 0, 1);
+            download.TransferText = value.TotalBytes > 0
+                ? $"{download.Fraction:P0} · {DownloadsView.FormatDownloadSize(value.DownloadedBytes)} / {DownloadsView.FormatDownloadSize(value.TotalBytes)}"
                 : DownloadsView.FormatDownloadSize(value.DownloadedBytes);
+            if (!ReferenceEquals(CurrentDownload, download)) return;
             OnPropertyChanged(nameof(DownloadFraction));
             OnPropertyChanged(nameof(TransferText));
             OnPropertyChanged(nameof(HasTransferText));
         });
         try
         {
-            var launch = await Task.Run(() => _updates.InstallCatalogModuleAsync(selected, log, progress, cts.Token));
+            var launch = await _updates.InstallCatalogModuleAsync(selected, log, progress, cts.Token);
             if (launch.Status is not (ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning or ModuleLaunchStatus.NoRunCommands))
             {
                 // Installation remains recorded even if the subsequent launch fails.
@@ -648,25 +652,28 @@ public partial class ModuleInfo : ContentView, ILocalizable
         {
             _consoleStore.CreateMaintenanceLog(selected, null, reset: false).Report(
                 L.Get(resultKey, resultDetail));
-            _downloadCts = null;
-            TransferText = string.Empty;
-            // The user may close this dialog or inspect another module while the download runs.
-            var current = _module;
-            if (current != null)
+            _downloads.Remove(selected.SourcePath);
+            // Finishing one queued job must not reset another module's selection or progress.
+            if (_isOpen && _module is { } current &&
+                string.Equals(current.SourcePath, selected.SourcePath, StringComparison.OrdinalIgnoreCase))
             {
-                var wasOpen = _isOpen;
-                var refreshVersion = _openVersion + 1;
                 await OpenAsync(current);
-                if (refreshVersion == _openVersion)
-                {
-                    if (!wasOpen) _isOpen = false;
-                }
             }
-            RefreshContent();
         }
     }
 
-    private void OnCancelClicked(object? sender, EventArgs e) => _downloadCts?.Cancel();
+    private void OnCancelClicked(object? sender, EventArgs e)
+    {
+        if (CanCancelInstallation && _module != null) _updates.CancelCatalogInstall(_module.Id);
+    }
+
+    private sealed class ModuleInstallation(CancellationTokenSource cancellation)
+    {
+        public CancellationTokenSource Cancellation { get; } = cancellation;
+        public double Fraction { get; set; }
+        public string TransferText { get; set; } = string.Empty;
+    }
+
     private void OnCloseClicked(object? sender, EventArgs e) => RequestClose();
     private void OnDialogTapped(object? sender, EventArgs e) { }
     public void RequestClose()

@@ -1349,4 +1349,19 @@
   <data name="Modules_Experimental" xml:space="preserve">
     <value>प्रायोगिक</value>
   </data>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>कतार में</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>निर्भरता के रूप में कतार में</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>निर्भरता के रूप में इंस्टॉल हो रहा है</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>{0} की निर्भरता के रूप में कतार में</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>{0} की निर्भरता के रूप में इंस्टॉल हो रहा है</value>
+  </data>
 </root>

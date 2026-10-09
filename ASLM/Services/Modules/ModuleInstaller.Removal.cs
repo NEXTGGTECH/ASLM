@@ -10,32 +10,85 @@ namespace ASLM.Services.Modules;
 public partial class ModuleInstaller
 {
     private static readonly object OperationLock = new();
-    private static int _contentOperations;
-    private static bool _removingModule;
+    private static readonly HashSet<ContentOperation> ContentOperations = [];
+    private static ContentAccess? _removalAccess;
+    private static long _contentRevision;
     private readonly ConcurrentDictionary<string, byte> _removedModuleIds = new(StringComparer.OrdinalIgnoreCase);
 
-    // Removing shared runtimes must not race launches, updates, or bridge downloads, even for another module.
-    internal static IDisposable BeginContentOperation()
+    // Only overlapping module/runtime/storage operations exclude removal. Unknown ownership stays exclusive.
+    internal static IDisposable BeginContentOperation(params ModuleConfig[] modules)
     {
+        var access = ContentAccess.For(modules);
         lock (OperationLock)
         {
-            if (_removingModule) throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveBusy));
-            _contentOperations++;
-            return new ContentOperation();
+            if (_removalAccess?.Overlaps(access) == true)
+                throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveBusy));
+            var operation = new ContentOperation(access);
+            ContentOperations.Add(operation);
+            return operation;
         }
     }
 
-    private sealed class ContentOperation : IDisposable
+    internal static async Task<IDisposable> BeginContentOperationAsync(CancellationToken ct, params ModuleConfig[] modules)
     {
-        private bool _disposed;
+        var access = ContentAccess.For(modules);
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            lock (OperationLock)
+            {
+                if (_removalAccess?.Overlaps(access) != true)
+                {
+                    var operation = new ContentOperation(access);
+                    ContentOperations.Add(operation);
+                    return operation;
+                }
+            }
+            await Task.Delay(50, ct).ConfigureAwait(false);
+        }
+    }
+
+    private sealed record ContentAccess(HashSet<string> Modules, HashSet<string> Engines, string[] Paths, bool Exclusive)
+    {
+        public bool Overlaps(ContentAccess other) => Exclusive || other.Exclusive ||
+            Modules.Overlaps(other.Modules) || Engines.Overlaps(other.Engines) ||
+            Paths.Any(path => other.Paths.Any(otherPath => PathsOverlap(path, otherPath)));
+
+        public static ContentAccess For(ModuleConfig[] modules, IReadOnlyList<EngineConfig>? removalEngines = null)
+        {
+            var root = GetRootDirectory();
+            var engineIds = modules.SelectMany(GetEngineIds).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                return new(
+                    modules.Select(module => module.Id).Concat(modules.SelectMany(module =>
+                        module.Dependencies.Modules.Select(dependency => dependency.Id))).ToHashSet(StringComparer.OrdinalIgnoreCase),
+                    engineIds,
+                    modules.Select(module => Path.GetDirectoryName(module.SourcePath))
+                        .Concat((removalEngines ?? []).Where(engine => engineIds.Contains(engine.Id))
+                            .Select(engine => Path.GetDirectoryName(engine.SourcePath)))
+                        .Concat(modules.SelectMany(GetCustomPaths))
+                        .Concat(modules.SelectMany(module => GetModelDirectories(root, module)))
+                        .Concat(modules.SelectMany(module => GetBridgeDirectories(root, module)))
+                        .Where(path => !string.IsNullOrWhiteSpace(path)).Select(path => Path.GetFullPath(path!))
+                        .Distinct(PathComparer).ToArray(),
+                    modules.Length == 0);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or NotSupportedException)
+            {
+                // An unresolved/custom target cannot safely be treated as disjoint storage.
+                return new([], [], [], true);
+            }
+        }
+    }
+
+    private sealed class ContentOperation(ContentAccess access) : IDisposable
+    {
+        public ContentAccess Access { get; } = access;
         public void Dispose()
         {
             lock (OperationLock)
-            {
-                if (_disposed) return;
-                _disposed = true;
-                _contentOperations--;
-            }
+                if (ContentOperations.Remove(this)) _contentRevision++;
         }
     }
 
@@ -49,16 +102,37 @@ public partial class ModuleInstaller
     /// Removes installed content while retaining the manifest and artwork as the local catalog entry.
     /// Returns a cleanup directory only if Windows could not delete staged files after committing removal.
     /// </summary>
-    public async Task<string?> UninstallAsync(ModuleConfig selected, CancellationToken ct = default)
+    public Task<string?> UninstallAsync(ModuleConfig selected, CancellationToken ct = default) =>
+        UninstallCoreAsync(selected, [], waitForOperations: false, ct);
+
+    internal Task<string?> UninstallQueuedAsync(ModuleConfig selected, CancellationToken ct) =>
+        UninstallCoreAsync(selected, [], waitForOperations: true, ct, checkPendingInstallations: false);
+
+    private async Task<string?> UninstallCoreAsync(ModuleConfig selected, IReadOnlyList<ModuleConfig> consumers,
+        bool waitForOperations, CancellationToken ct, bool checkPendingInstallations = true)
     {
         // Required modules are not removable; leave their processes and files untouched.
         if (ModuleRegistry.IsRequired(selected.Id)) return null;
 
-        lock (OperationLock)
+        while (true)
         {
-            if (_removingModule || _contentOperations != 0)
-                throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveBusy));
-            _removingModule = true;
+            ct.ThrowIfCancellationRequested();
+            long revision;
+            lock (OperationLock) revision = _contentRevision;
+            var current = await LoadModuleConfig(selected.SourcePath).ConfigureAwait(false) ?? selected;
+            var access = ContentAccess.For([current], _engineInstaller.DiscoverEngines());
+            lock (OperationLock)
+            {
+                // A completed writer may have changed the target's engine/storage dependencies.
+                if (revision != _contentRevision) continue;
+                if (_removalAccess == null && !ContentOperations.Any(operation => operation.Access.Overlaps(access)))
+                {
+                    _removalAccess = access;
+                    break;
+                }
+                if (!waitForOperations) throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveBusy));
+            }
+            await Task.Delay(50, ct).ConfigureAwait(false);
         }
 
         var changed = false;
@@ -66,13 +140,21 @@ public partial class ModuleInstaller
         {
             var ids = Registry.ReadIds();
             if (!ids.Contains(selected.Id)) return null;
+            if (checkPendingInstallations)
+            {
+                var requestedBy = GetPendingConsumers(selected.Id);
+                if (!string.IsNullOrEmpty(requestedBy))
+                    throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveRequiredFormat, requestedBy));
+            }
             var catalog = await DiscoverModulesAsync().ConfigureAwait(false);
             var installed = catalog.Where(module => ids.Contains(module.Id)).ToList();
             if (ids.Any(id => installed.Count(module => string.Equals(module.Id, id, StringComparison.OrdinalIgnoreCase)) != 1))
                 throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveUnknownDependencies));
 
             var target = installed.Single(module => string.Equals(module.Id, selected.Id, StringComparison.OrdinalIgnoreCase));
-            var remaining = installed.Where(module => !ReferenceEquals(module, target)).ToList();
+            var remaining = installed.Where(module => !ReferenceEquals(module, target)).Concat(consumers)
+                .Where(module => !string.Equals(module.Id, target.Id, StringComparison.OrdinalIgnoreCase))
+                .DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase).ToList();
             var dependents = remaining.Where(module => module.Dependencies.Modules.Any(dependency =>
                 string.Equals(dependency.Id, target.Id, StringComparison.OrdinalIgnoreCase))).ToList();
             if (dependents.Count > 0)
@@ -112,9 +194,55 @@ public partial class ModuleInstaller
         finally
         {
             _engineInstaller.InvalidateCache();
-            lock (OperationLock) _removingModule = false;
+            lock (OperationLock)
+            {
+                _removalAccess = null;
+                _contentRevision++;
+            }
             if (changed) RaiseModulesChanged();
         }
+    }
+
+    /// <summary>Rolls back only fresh content owned exclusively by the canceled request.</summary>
+    internal async Task RollbackCatalogInstallationAsync(CatalogInstallation request, IProgress<string> log)
+    {
+        await CatalogPlanGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            // Parents first: never remove a dependency while a surviving module still requires it.
+            foreach (var candidate in request.Plan.Reverse())
+            {
+                ModuleConfig[] consumers;
+                lock (_installationLock)
+                {
+                    var root = string.Equals(candidate.Id, request.Root.Id, StringComparison.OrdinalIgnoreCase);
+                    var owned = root ? request.NewlyInstalled.Contains(candidate.Id)
+                        : _temporaryDependencies.Contains(candidate.Id) && !_manuallyRequested.Contains(candidate.Id);
+                    if (!owned || ModuleRegistry.IsRequired(candidate.Id)) continue;
+                    consumers = _catalogInstallations.Values.Where(other => other.Token != request.Token)
+                        .SelectMany(other => other.Plan).ToArray();
+                    if (consumers.Any(module => string.Equals(module.Id, candidate.Id, StringComparison.OrdinalIgnoreCase))) continue;
+                }
+                var installed = await DiscoverInstalledModulesAsync().ConfigureAwait(false);
+                if (!installed.Any(module => string.Equals(module.Id, candidate.Id, StringComparison.OrdinalIgnoreCase))) continue;
+                if (installed.Any(module => !string.Equals(module.Id, candidate.Id, StringComparison.OrdinalIgnoreCase) &&
+                    module.Dependencies.Modules.Any(dependency => string.Equals(dependency.Id, candidate.Id, StringComparison.OrdinalIgnoreCase)))) continue;
+                request.SetPhase(candidate.Id, DownloadOperationState.Removing);
+                try
+                {
+                    var retained = await UninstallCoreAsync(candidate, consumers, waitForOperations: true,
+                        CancellationToken.None, checkPendingInstallations: false).ConfigureAwait(false);
+                    if (retained != null) log.Report(L.Get(LocalizationKeys.Modules_RemoveCleanupFormat, retained));
+                    lock (_installationLock) _temporaryDependencies.Remove(candidate.Id);
+                }
+                catch (Exception ex)
+                {
+                    // Keep recoverable content and report cleanup errors; never broaden removal to force success.
+                    log.Report(L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
+                }
+            }
+        }
+        finally { CatalogPlanGate.Release(); }
     }
 
     internal sealed record RemovalPlan(List<string> Directories, List<EngineConfig> Engines);

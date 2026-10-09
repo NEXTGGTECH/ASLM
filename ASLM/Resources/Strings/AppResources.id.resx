@@ -1349,4 +1349,19 @@
   <data name="Modules_Experimental" xml:space="preserve">
     <value>Eksperimental</value>
   </data>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>Dalam antrean</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>Dalam antrean sebagai dependensi</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>Memasang sebagai dependensi</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>Dalam antrean sebagai dependensi {0}</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>Memasang sebagai dependensi {0}</value>
+  </data>
 </root>

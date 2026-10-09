@@ -72,7 +72,7 @@ namespace ASLM.Controls.Downloads
                 var modules = await Task.Run(_installer.DiscoverAvailableModulesAsync);
                 if (version != _refreshVersion || cts.IsCancellationRequested) return;
                 foreach (var module in modules) _updates!.ApplyCatalogDefaults(module, installed: false);
-                _catalog = modules.Select(module => new ModuleCard(module, _trust!.Resolve(module))).ToList();
+                _catalog = modules.Select(module => new ModuleCard(module, _trust!.Resolve(module), _installer)).ToList();
                 EmptyLabel.Text = L.Get(LocalizationKeys.Downloads_NoItems);
                 ApplySearch();
                 // Each card publishes its icon and version independently, as soon as either is ready.
@@ -119,7 +119,7 @@ namespace ASLM.Controls.Downloads
                 ModuleSelected?.Invoke(this, card.Module);
         }
 
-        public sealed class ModuleCard(ModuleConfig module, ModuleTrustLevel trust) : BindableObject
+        public sealed class ModuleCard(ModuleConfig module, ModuleTrustLevel trust, ModuleInstaller installer) : BindableObject
         {
             public ModuleConfig Module { get; } = module;
             private readonly ModuleTrustLevel Trust = trust;
@@ -138,11 +138,15 @@ namespace ASLM.Controls.Downloads
             public bool ShowVerifiedBadge => Trust == ModuleTrustLevel.Official;
             public bool ShowUnverifiedWarning => Trust == ModuleTrustLevel.Unreviewed;
             public string NotVerifiedLabel => L.Get(LocalizationKeys.Modules_NotVerified);
+            public bool ShowMaintenanceStatus => installer.GetInstallationState(Module.Id) != null;
+            public bool IsRemoving => installer.GetInstallationState(Module.Id)?.Phase == DownloadOperationState.Removing;
+            public string MaintenanceLabel => installer.GetInstallationState(Module.Id)?.LabelWithRequester ?? string.Empty;
             internal void RefreshLocalization()
             {
                 OnPropertyChanged(nameof(NotVerifiedLabel));
                 OnPropertyChanged(nameof(BetaLabel));
                 OnPropertyChanged(nameof(ExperimentalLabel));
+                OnPropertyChanged(nameof(MaintenanceLabel));
             }
 
             internal Task RefreshPresentationAsync(UpdateManager updates, CancellationToken ct)

@@ -51,9 +51,11 @@
                                     <TapGestureRecognizer Tapped="OnModuleTapped" />
                                 </Border.GestureRecognizers>
                                 <Grid ColumnDefinitions="Auto,*"
+                                      RowDefinitions="*,Auto"
                                       ColumnSpacing="8"
                                       MinimumHeightRequest="164">
                                     <Border IsVisible="{Binding HasIcon}"
+                                            Grid.RowSpan="2"
                                             StrokeThickness="0"
                                             StrokeShape="RoundRectangle 4"
                                             BackgroundColor="{DynamicResource BackgroundSecondary}"
@@ -113,6 +115,10 @@
                                                          Margin="4,0,0,0" />
                                         </Grid>
                                     </VerticalStackLayout>
+                                    <ContentView Grid.Column="1"
+                                                 Grid.Row="1"
+                                                 IsVisible="{Binding ShowMaintenanceStatus}"
+                                                 ControlTemplate="{StaticResource ModuleMaintenanceStatusTemplate}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>

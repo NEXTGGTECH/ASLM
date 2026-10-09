@@ -1349,4 +1349,19 @@
   <data name="Modules_Experimental" xml:space="preserve">
     <value>實驗性</value>
   </data>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>排隊中</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>作為相依模組排隊中</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>正在安裝相依模組</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>作為 {0} 的相依模組排隊中</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>正在安裝 {0} 的相依模組</value>
+  </data>
 </root>

@@ -22,6 +22,7 @@ namespace ASLM.Controls.Downloads
         public event EventHandler? InstallRequested;
         public event EventHandler? OpenRequested;
         public event EventHandler? RemoveRequested;
+        public event EventHandler? CancelRequested;
         public event EventHandler? VariantSelectorToggleRequested;
 
         public Entry SearchInput => SearchEntry;
@@ -33,6 +34,7 @@ namespace ASLM.Controls.Downloads
         public Button InstallAction => InstallButton;
         public ImageButton OpenAction => OpenButton;
         public Button RemoveAction => RemoveButton;
+        public Button CancelAction => CancelButton;
         public WebView InfoBlockBrowser => InfoBlockWebView;
 
         /// <summary>
@@ -184,5 +186,6 @@ namespace ASLM.Controls.Downloads
         /// Forwards a remove request to the page coordinator.
         /// </summary>
         private void OnDeleteClicked(object? sender, EventArgs e) => RemoveRequested?.Invoke(sender, e);
+        private void OnCancelClicked(object? sender, EventArgs e) => CancelRequested?.Invoke(sender, e);
     }
 }
