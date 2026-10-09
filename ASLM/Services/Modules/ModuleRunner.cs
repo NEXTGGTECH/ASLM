@@ -36,11 +36,20 @@ namespace ASLM.Services.Modules
         // Running processes
 
         /// <summary>
-        /// Tracks running processes by module source path.
+        /// Owns root and descendant process handles until a module is fully stopped.
         /// </summary>
         private readonly ConcurrentDictionary<string, List<Process>> _runningProcesses = new();
         private readonly ConcurrentDictionary<string, ModuleConfig> _runningModules = new();
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> _lifecycleGates = new();
+        private readonly Dictionary<string, ModuleRun> _runs = new();
         private readonly object _processLock = new();
+
+        private sealed class ModuleRun
+        {
+            public CancellationTokenSource Stop { get; } = new();
+            public List<Task> Commands { get; } = [];
+            public List<Task> Observers { get; } = [];
+        }
 
         // Initialization
 
@@ -81,7 +90,7 @@ namespace ASLM.Services.Modules
             _ports = ports;
             _processTracker = processTracker;
             _consoleStore = consoleStore;
-            _processSnapshots = processSnapshots;
+            _processSnapshots = processSnapshots ?? new ProcessSnapshotReader();
             _themePayloadBuilder = themePayloadBuilder;
             _localePayloadBuilder = localePayloadBuilder;
             _moduleTrustService = moduleTrustService;
@@ -169,67 +178,85 @@ namespace ASLM.Services.Modules
         /// <returns>True if commands were started successfully.</returns>
         public async Task<bool> ExecuteRunAsync(ModuleConfig module, IProgress<string> log, CancellationToken ct)
         {
+            // Content leases must precede lifecycle gates: uninstall holds an exclusive
+            // content lease while it calls StopModuleAsync.
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
-            _consoleStore.EnsureModule(module);
-            var moduleLog = CreateModuleLog(module, log);
-
-            if (module.Commands.Run.Count == 0)
-            {
-                moduleLog.Report($"No run commands for {module.Name}.");
-                return true;
-            }
-
-            _ports.GetOrAssignPorts(module);
-            _ports.EnsurePortsAvailable(module.Id);
-
-            await SynchronizeDeclaredModuleSettingsAsync(module, moduleLog, ct);
-
-            moduleLog.Report($"Starting {module.Name}...");
-
-            var processStartTasks = new List<Task<bool>>();
-
-            foreach (var cmd in module.Commands.Run)
-            {
-                if (ct.IsCancellationRequested) return false;
-
-                moduleLog.Report($"[Run] {cmd.Name}: {cmd.Description}");
-                // Run commands stay in the background, but launch callers receive a
-                // handshake only after each root process is created and tracked.
-                var processStarted = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                processStartTasks.Add(processStarted.Task);
-                _ = RunCommandAsync(
-                    module,
-                    cmd,
-                    moduleLog,
-                    ct,
-                    trackProcess: true,
-                    sessionStage: "Run",
-                    processStarted: processStarted);
-            }
-
-            bool[] startResults;
+            var gate = _lifecycleGates.GetOrAdd(module.SourcePath, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                startResults = await Task.WhenAll(processStartTasks).WaitAsync(ct);
-            }
-            catch (OperationCanceledException)
-            {
-                // Let every pending starter observe cancellation before cleanup,
-                // so none can register a late process after the stop pass.
-                await Task.WhenAll(processStartTasks);
-                await StopModuleAsync(module.SourcePath);
-                throw;
-            }
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                _consoleStore.EnsureModule(module);
+                var moduleLog = CreateModuleLog(module, log);
+                if (module.Commands.Run.Count == 0)
+                {
+                    moduleLog.Report($"No run commands for {module.Name}.");
+                    return true;
+                }
+                lock (_processLock)
+                {
+                    CaptureDescendants(module.SourcePath);
+                    if (_runs.TryGetValue(module.SourcePath, out var current) &&
+                        !current.Stop.IsCancellationRequested &&
+                        _runningProcesses.TryGetValue(module.SourcePath, out var processes) &&
+                        processes.Any(IsProcessRunning))
+                        return true;
+                }
 
-            if (startResults.All(started => started))
-            {
-                return true;
-            }
+                // Release handles from a previous, naturally completed run before
+                // replacing it. Failed stops keep their ownership information for retry.
+                await StopModuleCoreAsync(module.SourcePath).ConfigureAwait(false);
+                var run = new ModuleRun();
+                lock (_processLock)
+                    _runs.Add(module.SourcePath, run);
+                using var startup = CancellationTokenSource.CreateLinkedTokenSource(ct, run.Stop.Token);
+                var startTasks = new List<Task<bool>>();
 
-            moduleLog.Report($"One or more run commands for {module.Name} failed to start.");
-            await StopModuleAsync(module.SourcePath);
-            return false;
+                try
+                {
+                    _ports.GetOrAssignPorts(module);
+                    _ports.EnsurePortsAvailable(module.Id);
+                    await SynchronizeDeclaredModuleSettingsAsync(module, moduleLog, startup.Token).ConfigureAwait(false);
+                    moduleLog.Report($"Starting {module.Name}...");
+
+                    foreach (var cmd in module.Commands.Run)
+                    {
+                        startup.Token.ThrowIfCancellationRequested();
+                        moduleLog.Report($"[Run] {cmd.Name}: {cmd.Description}");
+                        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        startTasks.Add(started.Task);
+                        run.Commands.Add(RunCommandAsync(module, cmd, moduleLog, startup.Token,
+                            trackProcess: true, sessionStage: "Run", processStarted: started));
+                    }
+
+                    var results = await Task.WhenAll(startTasks).WaitAsync(startup.Token).ConfigureAwait(false);
+                    startup.Token.ThrowIfCancellationRequested();
+                    if (results.All(started => started))
+                        return true;
+                    moduleLog.Report($"One or more run commands for {module.Name} failed to start.");
+                }
+                catch (OperationCanceledException) when (startup.IsCancellationRequested)
+                {
+                    // Stop cancels pending command creation as well as existing processes.
+                }
+                catch
+                {
+                    run.Stop.Cancel();
+                    await Task.WhenAll(startTasks).ConfigureAwait(false);
+                    await StopModuleCoreAsync(module.SourcePath).ConfigureAwait(false);
+                    throw;
+                }
+
+                run.Stop.Cancel();
+                await Task.WhenAll(startTasks).ConfigureAwait(false);
+                await StopModuleCoreAsync(module.SourcePath).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                return false;
+            }
+            finally
+            {
+                gate.Release();
+            }
         }
 
         /// <summary>
@@ -322,25 +349,25 @@ namespace ASLM.Services.Modules
         {
             using var activity = _consoleStore.BeginActivity(moduleSourcePath, ModuleActivity.Stopping);
             _consoleStore.AppendOverviewLine(moduleSourcePath, "Stopping module processes...");
-            _consoleStore.UpdateModuleEnabledState(moduleSourcePath, false);
-
-            List<Process> processes;
+            // Signal before waiting for the start gate, otherwise an unfinished
+            // environment/settings command could keep stop waiting indefinitely.
             lock (_processLock)
             {
-                if (!_runningProcesses.TryRemove(moduleSourcePath, out processes!))
-                    return;
-
-                _runningModules.TryRemove(moduleSourcePath, out _);
+                if (_runs.TryGetValue(moduleSourcePath, out var run))
+                    run.Stop.Cancel();
             }
-
-            _logger.LogInformation("Stopping {Count} process(es) for module '{ModulePath}'", processes.Count, moduleSourcePath);
-
-            foreach (var process in processes)
+            var gate = _lifecycleGates.GetOrAdd(moduleSourcePath, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync().ConfigureAwait(false);
+            try
             {
-                await KillProcessSafeAsync(process);
+                await StopModuleCoreAsync(moduleSourcePath).ConfigureAwait(false);
+                _consoleStore.UpdateModuleEnabledState(moduleSourcePath, false);
+                _consoleStore.AppendOverviewLine(moduleSourcePath, "Module processes stopped.");
             }
-
-            _consoleStore.AppendOverviewLine(moduleSourcePath, "Module processes stopped.");
+            finally
+            {
+                gate.Release();
+            }
         }
 
         /// <summary>
@@ -354,6 +381,12 @@ namespace ASLM.Services.Modules
 
                 foreach (var pair in _runningProcesses)
                 {
+                    // A launch request must wait for a stopping run and start afresh,
+                    // not return AlreadyRunning for processes that are being killed.
+                    if (_runs.TryGetValue(pair.Key, out var run) && run.Stop.IsCancellationRequested)
+                        continue;
+                    if (!pair.Value.Any(IsProcessRunning))
+                        CaptureDescendants(pair.Key);
                     var hasLiveProcess = pair.Value.Any(static process =>
                     {
                         try
@@ -484,7 +517,7 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Returns tracked module configs that still have live process roots.
+        /// Returns tracked module configs that still have live owned processes.
         /// </summary>
         private List<ModuleConfig> GetRunningModuleSnapshots()
         {
@@ -516,29 +549,11 @@ namespace ASLM.Services.Modules
         /// </summary>
         public async Task StopAllModulesAsync()
         {
-            List<KeyValuePair<string, List<Process>>> allEntries;
+            string[] paths;
             lock (_processLock)
-            {
-                allEntries = _runningProcesses.ToList();
-                _runningProcesses.Clear();
-                _runningModules.Clear();
-            }
-
-            _logger.LogInformation("Stopping all module processes ({Count} modules)...", allEntries.Count);
-
-            var tasks = new List<Task>();
-            foreach (var (moduleId, processes) in allEntries)
-            {
-                _consoleStore.AppendOverviewLine(moduleId, "Stopping all module processes...");
-                _consoleStore.UpdateModuleEnabledState(moduleId, false);
-
-                foreach (var process in processes)
-                {
-                    tasks.Add(KillProcessSafeAsync(process));
-                }
-            }
-
-            await Task.WhenAll(tasks);
+                paths = _runs.Keys.Union(_runningProcesses.Keys).ToArray();
+            _logger.LogInformation("Stopping all module processes ({Count} modules)...", paths.Length);
+            await Task.WhenAll(paths.Select(StopModuleAsync)).ConfigureAwait(false);
             _logger.LogInformation("All module processes stopped.");
         }
 
@@ -833,6 +848,10 @@ namespace ASLM.Services.Modules
             string sessionStage = "Command",
             TaskCompletionSource<bool>? processStarted = null)
         {
+            Process? process = null;
+            ModuleConsoleSessionHandle? session = null;
+            bool registered = false;
+            int? exitCode = null;
             try
             {
                 var moduleDir = Path.GetDirectoryName(module.SourcePath);
@@ -910,15 +929,32 @@ namespace ASLM.Services.Modules
                 var execMessage = $"Exec: {Path.GetFileName(fileName)} {arguments}";
                 log.Report(execMessage);
 
-                using var process = new Process { StartInfo = psi };
+                process = new Process { StartInfo = psi };
 
-                // 4. Start & Wait
-                ct.ThrowIfCancellationRequested();
-                if (!process.Start())
+                // Register atomically with process creation, before console/UI events
+                // can announce a running module. Stop cannot miss a late root.
+                ModuleRun? run = null;
+                lock (_processLock)
                 {
-                    log.Report("Failed to start process.");
-                    process.Dispose();
-                    return false;
+                    ct.ThrowIfCancellationRequested();
+                    ObjectDisposedException.ThrowIf(_disposed, this);
+                    if (trackProcess && _runs.TryGetValue(module.SourcePath, out run))
+                        run.Stop.Token.ThrowIfCancellationRequested();
+                    if (!process.Start())
+                    {
+                        log.Report("Failed to start process.");
+                        return false;
+                    }
+                    if (trackProcess)
+                    {
+                        // Keep the handle (including after root exit) until stop has
+                        // reaped descendants. A PID alone is not process ownership.
+                        _runningProcesses.GetOrAdd(module.SourcePath, _ => []).Add(process);
+                        _runningModules[module.SourcePath] = module;
+                        registered = true;
+                        _ = process.Handle;
+                        _ = process.StartTime;
+                    }
                 }
                 process.StandardInput.Close();
 
@@ -929,6 +965,7 @@ namespace ASLM.Services.Modules
                     execMessage,
                     process,
                     isTrackedProcess: trackProcess);
+                session = sessionHandle;
 
                 process.OutputDataReceived += (s, e) =>
                 {
@@ -952,17 +989,9 @@ namespace ASLM.Services.Modules
                 // Assign to the job object so launched processes stay grouped under ASLM.
                 _processTracker?.AddProcess(process);
 
-                // Track the process for module stop functionality
-                if (trackProcess)
+                if (run != null)
                 {
-                    lock (_processLock)
-                    {
-                        var list = _runningProcesses.GetOrAdd(module.SourcePath, _ => new List<Process>());
-                        list.Add(process);
-                        _runningModules[module.SourcePath] = module;
-                    }
-
-                    _ = MonitorObservedProcessesAsync(module, sessionHandle, process.Id, ct);
+                    run.Observers.Add(MonitorObservedProcessesAsync(module, sessionHandle, process.Id, run.Stop.Token));
                 }
 
                 process.BeginOutputReadLine();
@@ -975,26 +1004,18 @@ namespace ASLM.Services.Modules
                 using var cancellationRegistration = lifetimeToken.Register(
                     static state => TerminateCanceledProcess((Process)state!),
                     process);
-                await process.WaitForExitAsync(lifetimeToken);
-                _consoleStore.CompleteProcessSession(sessionHandle, process.ExitCode);
-
-                // Remove from tracking after process exits naturally
-                if (trackProcess)
+                await process.WaitForExitAsync(lifetimeToken).ConfigureAwait(false);
+                exitCode = process.ExitCode;
+                if (registered)
                 {
-                    RemoveProcess(module.SourcePath, process);
+                    lock (_processLock)
+                        CaptureDescendants(module.SourcePath);
                 }
 
-                if (process.ExitCode == 0)
-                {
-                    process.Dispose();
+                if (exitCode == 0)
                     return true;
-                }
-                else
-                {
-                    log.Report($"Process exited with code {process.ExitCode}");
-                    process.Dispose();
-                    return false;
-                }
+                log.Report($"Process exited with code {exitCode}");
+                return false;
             }
             catch (OperationCanceledException)
             {
@@ -1009,6 +1030,12 @@ namespace ASLM.Services.Modules
             }
             finally
             {
+                if (session is { } handle)
+                    _consoleStore.CompleteProcessSession(handle, exitCode);
+                // Tracked process handles belong to StopModuleCoreAsync, not the
+                // command task: disposing here races stop and loses exited parents.
+                if (!registered)
+                    process?.Dispose();
                 // Every failure path must release launch callers waiting for the
                 // process-start handshake. TrySet is harmless after success.
                 processStarted?.TrySetResult(false);
@@ -1251,6 +1278,8 @@ namespace ASLM.Services.Modules
             {
                 try
                 {
+                    lock (_processLock)
+                        CaptureDescendants(module.SourcePath);
                     var observedProcesses = GetDescendantProcesses(rootProcessId);
                     _consoleStore.SyncObservedProcesses(module, ownerHandle, observedProcesses);
 
@@ -1274,7 +1303,7 @@ namespace ASLM.Services.Modules
 
                 try
                 {
-                    await Task.Delay(1000, ct);
+                    await Task.Delay(1000, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -1371,65 +1400,130 @@ namespace ASLM.Services.Modules
         // Process shutdown
 
         /// <summary>
-        /// Safely kills a process and its child tree.
+        /// Captures and retains descendant handles while their ancestry is still known.
+        /// Call with _processLock held. Exited parents remain anchors until cleanup.
         /// </summary>
-        private async Task KillProcessSafeAsync(Process process)
+        private void CaptureDescendants(string moduleSourcePath)
         {
-            try
-            {
-                if (process.HasExited)
-                {
-                    process.Dispose();
-                    return;
-                }
+            if (!_runningProcesses.TryGetValue(moduleSourcePath, out var processes) || processes.Count == 0)
+                return;
 
-                // Kill the entire process tree
-                process.Kill(entireProcessTree: true);
-                
-                // Wait a short time for the process to exit
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                try
+            var snapshotStartedUtc = DateTime.UtcNow;
+            var childrenByParent = _processSnapshots.GetSnapshot(TimeSpan.Zero)
+                .GroupBy(entry => entry.ParentProcessId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+            var known = processes.Select(process => process.Id).ToHashSet();
+            for (var index = 0; index < processes.Count; index++)
+            {
+                var parent = processes[index];
+                if (!childrenByParent.TryGetValue(parent.Id, out var children))
+                    continue;
+                foreach (var child in children)
                 {
-                    await process.WaitForExitAsync(cts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    _logger.LogWarning("Process {PID} did not exit within timeout after Kill.", process.Id);
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // Process already exited
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error killing process.");
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
-
-        // Tracking cleanup
-
-        /// <summary>
-        /// Removes one process from the tracking dictionary.
-        /// </summary>
-        private void RemoveProcess(string moduleSourcePath, Process process)
-        {
-            lock (_processLock)
-            {
-                if (_runningProcesses.TryGetValue(moduleSourcePath, out var list))
-                {
-                    list.Remove(process);
-                    if (list.Count == 0)
+                    if (known.Contains(child.ProcessId))
+                        continue;
+                    Process? candidate = null;
+                    try
                     {
-                        _runningProcesses.TryRemove(moduleSourcePath, out _);
-                        _runningModules.TryRemove(moduleSourcePath, out _);
+                        candidate = Process.GetProcessById(child.ProcessId);
+                        _ = candidate.Handle;
+                        // An old parent PID may have been reused (especially on Unix).
+                        // Only adopt children created within the known parent's lifetime.
+                        if (candidate.StartTime.ToUniversalTime() > snapshotStartedUtc ||
+                            candidate.StartTime < parent.StartTime ||
+                            (parent.HasExited && candidate.StartTime > parent.ExitTime))
+                            continue;
+                        known.Add(candidate.Id);
+                        processes.Add(candidate);
+                        candidate = null; // ownership transferred to the module
+                    }
+                    catch (ArgumentException) { /* exited during the snapshot */ }
+                    catch (InvalidOperationException) { /* exited during the snapshot */ }
+                    catch (System.ComponentModel.Win32Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Could not inspect descendant process {PID}.", child.ProcessId);
+                    }
+                    finally
+                    {
+                        candidate?.Dispose();
                     }
                 }
             }
+        }
+
+        private static bool IsProcessRunning(Process process)
+        {
+            try { return !process.HasExited; }
+            catch (InvalidOperationException) { return false; }
+        }
+
+        /// <summary>
+        /// Runs under the module's lifecycle gate. Do not remove ownership or report
+        /// stopped until both command creation and every captured descendant have ended.
+        /// </summary>
+        private async Task StopModuleCoreAsync(string moduleSourcePath)
+        {
+            ModuleRun? run;
+            lock (_processLock)
+            {
+                _runs.TryGetValue(moduleSourcePath, out run);
+                run?.Stop.Cancel();
+            }
+            if (run != null)
+                await Task.WhenAll(run.Observers).ConfigureAwait(false);
+
+            var processes = await TerminateModuleProcessesAsync(moduleSourcePath).ConfigureAwait(false);
+            if (run != null)
+            {
+                await Task.WhenAll(run.Commands).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                // A command finishing its output drain can discover descendants of
+                // an exited launcher. Verify that final set before releasing ownership.
+                processes = await TerminateModuleProcessesAsync(moduleSourcePath).ConfigureAwait(false);
+            }
+            lock (_processLock)
+            {
+                _runningProcesses.TryRemove(moduleSourcePath, out _);
+                _runningModules.TryRemove(moduleSourcePath, out _);
+                _runs.Remove(moduleSourcePath);
+                foreach (var process in processes)
+                    process.Dispose();
+                run?.Stop.Dispose();
+            }
+        }
+
+        private async Task<List<Process>> TerminateModuleProcessesAsync(string moduleSourcePath)
+        {
+            var timeout = Stopwatch.StartNew();
+            List<Process> processes;
+            while (true)
+            {
+                lock (_processLock)
+                {
+                    CaptureDescendants(moduleSourcePath);
+                    processes = _runningProcesses.TryGetValue(moduleSourcePath, out var owned) ? [.. owned] : [];
+                }
+                var alive = processes.Where(IsProcessRunning).ToList();
+                if (alive.Count == 0)
+                    break;
+                if (timeout.Elapsed >= TimeSpan.FromSeconds(10))
+                    throw new TimeoutException($"Module processes did not stop: {string.Join(", ", alive.Select(p => p.Id))}.");
+
+                foreach (var process in alive)
+                {
+                    try { process.Kill(entireProcessTree: true); }
+                    catch (InvalidOperationException) when (!IsProcessRunning(process)) { }
+                    catch (Exception ex)
+                    {
+                        // Keep all handles on failure so a later stop can retry.
+                        _logger.LogWarning(ex, "Could not terminate module process {PID}.", process.Id);
+                    }
+                }
+                // WaitForExit on a launcher only waits for that launcher, not its
+                // children. Re-snapshot after killing it and check every owned handle.
+                await Task.Delay(25).ConfigureAwait(false);
+            }
+
+            return processes;
         }
 
         // Disposal
@@ -1441,28 +1535,29 @@ namespace ASLM.Services.Modules
             _disposed = true;
             _ports.PortsRedistributed -= OnPortsRedistributed;
 
-            // Kill all tracked processes before the runner is disposed.
+            string[] paths;
             lock (_processLock)
             {
-                foreach (var (_, processes) in _runningProcesses)
-                {
-                    foreach (var process in processes)
-                    {
-                        try
-                        {
-                            if (!process.HasExited)
-                                process.Kill(entireProcessTree: true);
-                        }
-                        catch { /* best effort */ }
-                        finally
-                        {
-                            process.Dispose();
-                        }
-                    }
-                }
-                _runningProcesses.Clear();
-                _runningModules.Clear();
+                foreach (var run in _runs.Values)
+                    run.Stop.Cancel();
+                paths = _runningProcesses.Keys.ToArray();
             }
+            // Reap the OS processes synchronously, without waiting on commands that
+            // may still need the UI context. They can finish draining output later.
+            foreach (var path in paths)
+            {
+                try { TerminateModuleProcessesAsync(path).GetAwaiter().GetResult(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Could not terminate module '{ModulePath}' during disposal.", path); }
+            }
+            // Do not dispose handles underneath commands still draining their output.
+            // Shutdown normally awaits StopAllModulesAsync before disposing services.
+            _ = StopOnDisposeAsync();
+        }
+
+        private async Task StopOnDisposeAsync()
+        {
+            try { await StopAllModulesAsync().ConfigureAwait(false); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Could not stop module processes during disposal."); }
         }
 
         // Command parsing
