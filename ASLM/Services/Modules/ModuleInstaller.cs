@@ -19,6 +19,7 @@ namespace ASLM.Services.Modules
         private static readonly TimeSpan ManifestWriteRetryDelay = TimeSpan.FromMilliseconds(50);
 
         private readonly HttpClient _httpClient = new();
+        private readonly GitHubUpdateClient? _github;
         private readonly ModuleRunner _moduleRunner;
         private readonly ModuleTrustService _moduleTrustService;
         private readonly ModuleEngineReconciler _moduleEngineReconciler;
@@ -51,9 +52,11 @@ namespace ASLM.Services.Modules
             ModuleRunner moduleRunner,
             ModuleTrustService moduleTrustService,
             ModuleEngineReconciler moduleEngineReconciler,
-            EngineInstaller? engineInstaller = null)
+            EngineInstaller? engineInstaller = null,
+            GitHubUpdateClient? github = null)
         {
             _moduleRunner = moduleRunner;
+            _github = github;
             _moduleTrustService = moduleTrustService;
             _moduleEngineReconciler = moduleEngineReconciler;
             _engineInstaller = engineInstaller ?? new EngineInstaller();
@@ -595,7 +598,10 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress,
             CancellationToken ct)
         {
-            using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            _github?.PrepareApiRequest(request);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            _github?.TrackApiResponse(request, response);
             response.EnsureSuccessStatusCode();
 
             var totalBytes = response.Content.Headers.ContentLength ?? 0;

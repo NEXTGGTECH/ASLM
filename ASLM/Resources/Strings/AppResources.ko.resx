@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>{0}의 의존 모듈로 설치 중</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>GitHub 요청 한도에 도달했습니다</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM이 GitHub API의 시간당 요청 한도에 도달했습니다. 한도가 초기화될 때까지 모듈 검색 및 다운로드, 모듈 업데이트, ASLM 업데이트, 엔진 업데이트가 정상적으로 작동하지 않을 수 있습니다.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>GitHub 계정을 연결하면 시간당 요청 한도를 늘릴 수 있습니다.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>GitHub 계정 연결</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>나중에 다시 알림</value>
+  </data>
 </root>

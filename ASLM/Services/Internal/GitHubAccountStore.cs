@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using ASLM.Models;
@@ -49,11 +50,17 @@ namespace ASLM.Services.Internal
             AppDataStore appData,
             GitHubRateLimitStore rateLimitStore,
             ILogger<GitHubAccountStore> logger)
+            : this(appData, rateLimitStore, logger, new HttpClient())
+        {
+        }
+
+        internal GitHubAccountStore(AppDataStore appData, GitHubRateLimitStore rateLimitStore,
+            ILogger<GitHubAccountStore> logger, HttpClient httpClient)
         {
             _appData = appData ?? throw new ArgumentNullException(nameof(appData));
             _rateLimitStore = rateLimitStore ?? throw new ArgumentNullException(nameof(rateLimitStore));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _httpClient = new HttpClient();
+            _httpClient = httpClient;
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ASLM-Updater");
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             _httpClient.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
@@ -93,6 +100,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            _rateLimitStore.ApplyAuthenticatedLimitHint(isAuthenticated: true);
             try
             {
                 var state = await VerifyTokenAsync(token, ct);
@@ -100,11 +108,23 @@ namespace ASLM.Services.Internal
                 _appData.Data.GitHub.UserName = state.UserName;
                 _rateLimitStore.ApplyAuthenticatedLimitHint(isAuthenticated: true);
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
             {
                 _logger.LogWarning(ex, "Stored GitHub token verification failed during startup; clearing persisted credentials.");
                 await ClearInvalidStoredCredentialsAsync();
                 SetState(new GitHubAccountState());
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                // Exhausted quota, network errors and server failures do not invalidate a token.
+                _logger.LogWarning(ex, "GitHub account verification is temporarily unavailable; retaining stored credentials.");
+                SetState(new GitHubAccountState
+                {
+                    IsConnected = true,
+                    UserName = _appData.Data.GitHub.UserName ?? string.Empty,
+                    ErrorMessage = ex.Message
+                });
             }
         }
 
@@ -202,13 +222,17 @@ namespace ASLM.Services.Internal
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             using var response = await _httpClient.SendAsync(request, ct);
+            // Only the saved account belongs to the application's current quota.
+            // Verifying a new token must not overwrite the anonymous quota before connection succeeds.
+            if (string.Equals(token, GetPersonalAccessToken(), StringComparison.Ordinal))
+                _rateLimitStore.UpdateFromResponse(response, authenticated: true);
             if (!response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync(ct);
-                throw new InvalidOperationException(
+                throw new HttpRequestException(
                     string.IsNullOrWhiteSpace(body)
                         ? $"GitHub API returned {(int)response.StatusCode}."
-                        : body);
+                        : body, null, response.StatusCode);
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(ct);

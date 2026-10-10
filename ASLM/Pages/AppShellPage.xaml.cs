@@ -103,6 +103,9 @@ namespace ASLM.Pages
             _services = services;
 
             InitializeComponent();
+            GitHubLimitNotice.Initialize(_services, ShellSurface,
+                () => OpenSettingsOverlay(SettingsCategoryKind.Accounts),
+                () => !_legalAcceptance.ManualAcceptanceRequired);
             LocalizableAttach.Hook(this, _localization, this);
             BindingContext = this;
             Loaded += OnPageLoaded;
@@ -172,7 +175,7 @@ namespace ASLM.Pages
             }
 
             _hasLoaded = true;
-            _ = LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
+            _ = PresentStartupOverlaysAsync();
             ScheduleSidebarButtonLayoutRefresh();
             await RefreshModulesAsync();
             ApplyAslmApiNavigationState();
@@ -181,6 +184,12 @@ namespace ASLM.Pages
             ScheduleEnsureModuleBrowserLeftToRight();
             RestoreInitialPage();
             _ = StartEnabledModulesAsync();
+        }
+
+        private async Task PresentStartupOverlaysAsync()
+        {
+            await LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
+            GitHubLimitNotice.Refresh();
         }
 
         /// <summary>
@@ -495,7 +504,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Opens the shared settings overlay and refreshes it before showing.
         /// </summary>
-        private void OpenSettingsOverlay()
+        private void OpenSettingsOverlay(SettingsCategoryKind? category = null)
         {
             _settingsView ??= _services.GetRequiredService<SettingsView>();
             if (_settingsView is SettingsView settingsView)
@@ -511,7 +520,10 @@ namespace ASLM.Pages
 
             if (_settingsView is SettingsView visibleSettingsView)
             {
-                _ = visibleSettingsView.RefreshAsync();
+                if (category.HasValue)
+                    visibleSettingsView.SelectCategory(category.Value);
+                else
+                    _ = visibleSettingsView.RefreshAsync();
             }
         }
 

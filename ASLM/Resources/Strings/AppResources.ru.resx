@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>Устанавливается как зависимость для {0}</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>Исчерпан лимит запросов к GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM исчерпал часовой лимит запросов к API GitHub. До обновления квоты поиск и загрузка модулей, обновление модулей, ASLM и движков могут работать некорректно.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Подключите учётную запись GitHub, чтобы увеличить часовой лимит запросов.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>Подключить учётную запись GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Напомнить позже</value>
+  </data>
 </root>

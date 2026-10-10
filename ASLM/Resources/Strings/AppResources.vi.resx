@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>Đang cài đặt thành phần phụ thuộc của {0}</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>Đã đạt giới hạn yêu cầu GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM đã đạt giới hạn yêu cầu API GitHub mỗi giờ. Việc tìm kiếm và tải mô-đun, cũng như cập nhật mô-đun, ASLM và engine có thể không hoạt động đúng cho đến khi giới hạn được đặt lại.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Kết nối tài khoản GitHub của bạn để tăng giới hạn yêu cầu mỗi giờ.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>Kết nối tài khoản GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Nhắc tôi sau</value>
+  </data>
 </root>

@@ -4,12 +4,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:services="clr-namespace:ASLM.Services.Internal"
              xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:github="clr-namespace:ASLM.Controls.GitHub"
              x:Class="ASLM.Pages.SetupWizardPage"
              x:Name="RootView"
              Title="ASLM Setup"
              BackgroundColor="{DynamicResource BackgroundPrimary}">
 
     <Grid>
+        <Grid x:Name="SetupSurface">
         <Grid RowDefinitions="Auto, *, Auto" Padding="16">
 
         <!-- Header (hidden on welcome step) -->
@@ -316,6 +318,8 @@
         <ContentView x:Name="OverlayContainer"
                      IsVisible="False"
                      BackgroundColor="Transparent" />
+        <ContentView x:Name="GitHubAccountsOverlay" IsVisible="False" />
+        </Grid>
+        <github:GitHubRateLimitNoticeView x:Name="GitHubLimitNotice" />
     </Grid>
-
 </ContentPage>

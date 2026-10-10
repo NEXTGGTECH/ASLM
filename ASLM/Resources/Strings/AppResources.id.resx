@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>Memasang sebagai dependensi {0}</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>Batas permintaan GitHub tercapai</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM telah mencapai batas permintaan API GitHub per jam. Pencarian dan pengunduhan modul, serta pembaruan modul, ASLM, dan mesin mungkin tidak berfungsi dengan baik hingga batas tersebut direset.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Hubungkan akun GitHub Anda untuk meningkatkan batas permintaan per jam.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>Hubungkan akun GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Ingatkan saya nanti</value>
+  </data>
 </root>

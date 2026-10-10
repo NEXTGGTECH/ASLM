@@ -15,6 +15,9 @@ namespace ASLM.Services.Engines
     public class EngineInstaller
     {
         private readonly HttpClient _httpClient = new();
+        private readonly GitHubUpdateClient? _github;
+
+        public EngineInstaller(GitHubUpdateClient? github = null) => _github = github;
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -586,7 +589,8 @@ namespace ASLM.Services.Engines
 
                 try
                 {
-                    var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    _github?.PrepareApiRequest(request);
 
                     // Resume from where we left off (if previous attempt made progress).
                     if (downloaded > 0)
@@ -596,6 +600,7 @@ namespace ASLM.Services.Engines
                     }
 
                     using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+                    _github?.TrackApiResponse(request, response);
                     response.EnsureSuccessStatusCode();
 
                     // On first request (or if server doesn't support Range) get total size.

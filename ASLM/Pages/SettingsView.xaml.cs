@@ -56,6 +56,7 @@ namespace ASLM.Pages
         private List<ModuleConfig> _loadedModules = [];
         private List<SettingsCategory> _categories = [];
         private SettingsCategory? _activeCategory;
+        private SettingsCategoryKind? _requestedCategory;
         private OllamaPersistentSettings _ollamaDraft = new();
         private GitHubAccountState _githubDraft = new();
         private bool _hasLoaded;
@@ -434,6 +435,22 @@ namespace ASLM.Pages
         }
 
 
+        /// <summary>Opens a built-in category, including before the first asynchronous load completes.</summary>
+        internal void SelectCategory(SettingsCategoryKind kind)
+        {
+            _requestedCategory = kind;
+            ApplyRequestedCategory();
+        }
+
+        private void ApplyRequestedCategory()
+        {
+            if (_isLoading || _isSaving || _isSwitchingCategory || !_requestedCategory.HasValue) return;
+            var category = _categories.FirstOrDefault(c => c.Kind == _requestedCategory.Value);
+            if (category == null) return;
+            TrySelectCategory(category);
+            _requestedCategory = null;
+        }
+
         // Overlay Events
 
         /// <summary>
@@ -499,7 +516,9 @@ namespace ASLM.Pages
 
             _categories = SettingsPresentationBuilder.BuildCategories(_loadedModules).ToList();
 
-            var targetCategory = ResolveCategory(previousCategoryId) ?? _categories.FirstOrDefault();
+            var targetCategory = (_requestedCategory.HasValue
+                ? _categories.FirstOrDefault(c => c.Kind == _requestedCategory.Value) : null)
+                ?? ResolveCategory(previousCategoryId) ?? _categories.FirstOrDefault();
             if (targetCategory == null)
             {
                 _activeCategory = null;
@@ -510,6 +529,7 @@ namespace ASLM.Pages
 
             BuildCategorySelectors();
             ActivateCategory(targetCategory);
+            _requestedCategory = null;
         }
 
         /// <summary>

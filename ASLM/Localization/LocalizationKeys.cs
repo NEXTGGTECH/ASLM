@@ -3,6 +3,11 @@
 namespace ASLM.Localization;
 public static class LocalizationKeys
 {
+    public const string GitHubRateLimit_Title = "GitHubRateLimit_Title";
+    public const string GitHubRateLimit_Message = "GitHubRateLimit_Message";
+    public const string GitHubRateLimit_ConnectHint = "GitHubRateLimit_ConnectHint";
+    public const string GitHubRateLimit_ConnectAccount = "GitHubRateLimit_ConnectAccount";
+    public const string GitHubRateLimit_RemindLater = "GitHubRateLimit_RemindLater";
     public const string Downloads_Queued = "Downloads_Queued";
     public const string Modules_QueuedDependency = "Modules_QueuedDependency";
     public const string Modules_InstallingDependency = "Modules_InstallingDependency";

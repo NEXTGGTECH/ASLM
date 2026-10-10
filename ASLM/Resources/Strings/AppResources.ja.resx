@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>{0} の依存モジュールとしてインストール中</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>GitHub のリクエスト上限に達しました</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM は GitHub API の1時間あたりのリクエスト上限に達しました。上限がリセットされるまで、モジュールの検索・ダウンロード・更新、ASLM の更新、エンジンの更新が正常に動作しない場合があります。</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>GitHub アカウントを接続すると、1時間あたりのリクエスト上限を増やせます。</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>GitHub アカウントを接続</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>後で通知する</value>
+  </data>
 </root>

@@ -575,6 +575,7 @@ namespace ASLM.Pages
             finally
             {
                 _isSaving = false;
+                ApplyRequestedCategory();
                 UpdateSelectorButtonStates();
                 UpdateActionButtons();
             }

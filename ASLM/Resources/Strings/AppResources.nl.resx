@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>Wordt als afhankelijkheid van {0} geïnstalleerd</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>GitHub-verzoeklimiet bereikt</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM heeft de limiet voor GitHub-API-verzoeken per uur bereikt. Het zoeken naar en downloaden van modules, en updates voor modules, ASLM en engines werken mogelijk niet goed totdat de limiet wordt gereset.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Koppel uw GitHub-account om de verzoeklimiet per uur te verhogen.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>GitHub-account koppelen</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Later herinneren</value>
+  </data>
 </root>

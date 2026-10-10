@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>{0} bağımlılığı olarak yükleniyor</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>GitHub istek sınırına ulaşıldı</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM, GitHub API'sinin saatlik istek sınırına ulaştı. Sınır sıfırlanana kadar modül arama ve indirme işlemleri ile modül, ASLM ve motor güncellemeleri düzgün çalışmayabilir.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Saatlik istek sınırını artırmak için GitHub hesabınızı bağlayın.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>GitHub hesabını bağla</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Daha sonra hatırlat</value>
+  </data>
 </root>

@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>正在安裝 {0} 的相依模組</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>已達 GitHub 請求上限</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM 已達 GitHub API 每小時的請求上限。在配額重設之前，模組搜尋、下載與更新，以及 ASLM 和引擎更新可能無法正常進行。</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>連結您的 GitHub 帳戶以提高每小時的請求上限。</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>連結 GitHub 帳戶</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>稍後提醒我</value>
+  </data>
 </root>

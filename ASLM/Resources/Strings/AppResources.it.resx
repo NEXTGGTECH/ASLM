@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>Installazione come dipendenza di {0}</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>Limite di richieste GitHub raggiunto</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM ha raggiunto il limite orario di richieste all’API di GitHub. La ricerca e il download dei moduli, così come gli aggiornamenti dei moduli, di ASLM e dei motori, potrebbero non funzionare correttamente fino al ripristino del limite.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Collega il tuo account GitHub per aumentare il limite di richieste all’ora.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>Collega account GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Ricordamelo più tardi</value>
+  </data>
 </root>

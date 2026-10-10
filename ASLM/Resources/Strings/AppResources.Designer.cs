@@ -880,6 +880,51 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Connect GitHub account.
+        /// </summary>
+        public static string GitHubRateLimit_ConnectAccount {
+            get {
+                return ResourceManager.GetString("GitHubRateLimit_ConnectAccount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Connect your GitHub account to increase the hourly request limit..
+        /// </summary>
+        public static string GitHubRateLimit_ConnectHint {
+            get {
+                return ResourceManager.GetString("GitHubRateLimit_ConnectHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на ASLM has reached GitHub&apos;s hourly API request limit. Module search and downloads, module updates, ASLM updates, and engine updates may not work correctly until the limit resets..
+        /// </summary>
+        public static string GitHubRateLimit_Message {
+            get {
+                return ResourceManager.GetString("GitHubRateLimit_Message", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Remind me later.
+        /// </summary>
+        public static string GitHubRateLimit_RemindLater {
+            get {
+                return ResourceManager.GetString("GitHubRateLimit_RemindLater", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на GitHub request limit reached.
+        /// </summary>
+        public static string GitHubRateLimit_Title {
+            get {
+                return ResourceManager.GetString("GitHubRateLimit_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Disk {0}.
         /// </summary>
         public static string Home_Badge_DiskFormat {

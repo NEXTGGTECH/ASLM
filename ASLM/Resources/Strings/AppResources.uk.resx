@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>Установлюється як залежність для {0}</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>Вичерпано ліміт запитів до GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM вичерпав погодинний ліміт запитів до API GitHub. До поновлення ліміту пошук і завантаження модулів, оновлення модулів, ASLM і рушіїв можуть працювати некоректно.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Підключіть обліковий запис GitHub, щоб збільшити погодинний ліміт запитів.</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>Підключити обліковий запис GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Нагадати пізніше</value>
+  </data>
 </root>

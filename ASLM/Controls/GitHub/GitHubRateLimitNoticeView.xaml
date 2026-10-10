@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ASLM.Controls.GitHub.GitHubRateLimitNoticeView"
+             InputTransparent="True">
+    <Grid x:Name="DialogLayer" IsVisible="False">
+        <Grid BackgroundColor="{DynamicResource OverlayBackground}" />
+        <Border x:Name="DialogBorder"
+                Background="{DynamicResource BackgroundPrimary}"
+                Stroke="{DynamicResource Separator}"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 10"
+                Padding="12"
+                HorizontalOptions="Center"
+                VerticalOptions="Center">
+            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+                <Label x:Name="TitleLabel"
+                       Style="{StaticResource DownloadsColumnTitleLabelStyle}"
+                       VerticalOptions="Center" />
+                <ScrollView Grid.Row="1" MaximumHeightRequest="360">
+                    <Label x:Name="MessageLabel"
+                           FontSize="14"
+                           TextColor="{DynamicResource LabelPrimary}"
+                           LineBreakMode="WordWrap" />
+                </ScrollView>
+                <HorizontalStackLayout x:Name="Buttons" Grid.Row="2" Spacing="8" HorizontalOptions="End">
+                    <Button x:Name="LaterButton"
+                            Style="{StaticResource SettingsFooterButtonStyle}"
+                            Clicked="OnLaterClicked" />
+                    <Button x:Name="ConnectButton"
+                            Style="{StaticResource SettingsFooterPrimaryButtonStyle}"
+                            Clicked="OnConnectClicked" />
+                    <Button x:Name="OkButton"
+                            Style="{StaticResource SettingsFooterPrimaryButtonStyle}"
+                            Clicked="OnLaterClicked" />
+                </HorizontalStackLayout>
+            </Grid>
+        </Border>
+    </Grid>
+</ContentView>

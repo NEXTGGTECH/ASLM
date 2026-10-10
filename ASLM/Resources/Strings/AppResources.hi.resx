@@ -1364,4 +1364,19 @@
   <data name="Modules_InstallingDependencyFor" xml:space="preserve">
     <value>{0} की निर्भरता के रूप में इंस्टॉल हो रहा है</value>
   </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>GitHub अनुरोध सीमा पूरी हो गई</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM ने GitHub API के लिए प्रति घंटे की अनुरोध सीमा पूरी कर ली है। सीमा रीसेट होने तक मॉड्यूल खोजने, डाउनलोड करने और अपडेट करने, साथ ही ASLM और इंजन अपडेट करने की सुविधाएँ ठीक से काम नहीं कर सकती हैं।</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>प्रति घंटे की अनुरोध सीमा बढ़ाने के लिए अपना GitHub खाता कनेक्ट करें।</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>GitHub खाता कनेक्ट करें</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>मुझे बाद में याद दिलाएँ</value>
+  </data>
 </root>

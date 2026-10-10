@@ -34,7 +34,7 @@
 
     <!-- Footer actions -->
     <Style x:Key="SettingsFooterButtonStyle" TargetType="Button">
-        <Setter Property="TextColor" Value="{DynamicResource LabelSecondary}" />
+        <Setter Property="TextColor" Value="{DynamicResource White}" />
         <Setter Property="BackgroundColor" Value="{DynamicResource BackgroundTertiary}" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
         <Setter Property="FontSize" Value="14" />

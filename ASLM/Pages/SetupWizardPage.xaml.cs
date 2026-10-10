@@ -78,6 +78,8 @@ namespace ASLM.Pages
             _services = services;
 
             InitializeComponent();
+            GitHubLimitNotice.Initialize(_services, SetupSurface, OpenGitHubAccounts,
+                () => !_legalAcceptance.ManualAcceptanceRequired);
             BindingContext = this;
             LocalizableAttach.Hook(this, _localization, this);
 
@@ -108,6 +110,23 @@ namespace ASLM.Pages
 
 
         // Initial load
+
+        private void OpenGitHubAccounts()
+        {
+            // Keep setup and any installation progress intact underneath settings.
+            var settings = _services.GetRequiredService<SettingsView>();
+            settings.SelectCategory(SettingsCategoryKind.Accounts);
+            settings.CloseRequested += OnClose;
+            GitHubAccountsOverlay.Content = settings;
+            GitHubAccountsOverlay.IsVisible = true;
+
+            void OnClose(object? sender, EventArgs e)
+            {
+                settings.CloseRequested -= OnClose;
+                GitHubAccountsOverlay.IsVisible = false;
+                GitHubAccountsOverlay.Content = null;
+            }
+        }
 
         /// <summary>
         /// Populates the module selection list once after the page is ready.
@@ -153,6 +172,7 @@ namespace ASLM.Pages
             try
             {
                 await LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
+                GitHubLimitNotice.Refresh();
 
                 if (fastSetup)
                 {
