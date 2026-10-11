@@ -375,8 +375,6 @@ public static class LocalizationKeys
     public const string Settings_Personalization_Export = "Settings_Personalization_Export";
     public const string Settings_Personalization_Import = "Settings_Personalization_Import";
     public const string Settings_Personalization_ImportPickerTitle = "Settings_Personalization_ImportPickerTitle";
-    public const string Settings_Personalization_InheritDark = "Settings_Personalization_InheritDark";
-    public const string Settings_Personalization_InheritLight = "Settings_Personalization_InheritLight";
     public const string Settings_Personalization_Language = "Settings_Personalization_Language";
     public const string Settings_Personalization_Mode = "Settings_Personalization_Mode";
     public const string Settings_Personalization_New = "Settings_Personalization_New";

@@ -121,13 +121,13 @@
     <value>सभी मॉड्यूल / एकीकृत कंसोल</value>
   </data>
   <data name="Consoles_EmptySelectionDescription" xml:space="preserve">
-    <value>मॉड्यूल स्टार्टअप, सेटअप, सेटिंग सिंक, सेवाओं और रन सबप्रोसेस से कंसोल आउटपुट यहाँ दिखाई देगा।</value>
+    <value>मॉड्यूल स्टार्टअप, सेटअप, सेटिंग सिंक, सेवाओं और रन सबप्रोसेस से कंसोल आउटपुट यहाँ दिखाई देगा</value>
   </data>
   <data name="Consoles_EmptySelectionFooter" xml:space="preserve">
-    <value>मॉड्यूल गतिविधि की प्रतीक्षा में।</value>
+    <value>मॉड्यूल गतिविधि की प्रतीक्षा में</value>
   </data>
   <data name="Consoles_EmptySelectionStatus" xml:space="preserve">
-    <value>कंसोल गतिविधि देखने के लिए कोई मॉड्यूल शुरू करें या चुनें।</value>
+    <value>कंसोल गतिविधि देखने के लिए कोई मॉड्यूल शुरू करें या चुनें</value>
   </data>
   <data name="Consoles_EmptySelectionTitle" xml:space="preserve">
     <value>कोई कंसोल नहीं चुना गया</value>
@@ -166,7 +166,7 @@
     <value>कोई कंसोल नहीं</value>
   </data>
   <data name="Consoles_NoOutputYet" xml:space="preserve">
-    <value>अभी तक कोई आउटपुट नहीं।</value>
+    <value>अभी तक कोई आउटपुट नहीं</value>
   </data>
   <data name="Consoles_PidFormat" xml:space="preserve">
     <value> – PID {0}</value>
@@ -190,10 +190,10 @@
     <value>{0} सत्र चल रहा है{1}</value>
   </data>
   <data name="Consoles_SessionObservedDescription" xml:space="preserve">
-    <value>मॉड्यूल द्वारा शुरू की गई देखी गई चाइल्ड प्रक्रिया। ASLM इसे एक सेवा के रूप में दृश्यमान रख सकता है, लेकिन तृतीय-पक्ष एक्ज़ीक्यूटेबल के लिए stdout/stderr का सीधा कैप्चर उपलब्ध नहीं हो सकता।</value>
+    <value>मॉड्यूल द्वारा शुरू की गई देखी गई चाइल्ड प्रक्रिया। ASLM इसे एक सेवा के रूप में दृश्यमान रख सकता है, लेकिन तृतीय-पक्ष एक्ज़ीक्यूटेबल के लिए stdout/stderr का सीधा कैप्चर उपलब्ध नहीं हो सकता</value>
   </data>
   <data name="Consoles_SessionObservedPreview" xml:space="preserve">
-    <value>देखी गई चाइल्ड प्रक्रिया। stdout/stderr का सीधा कैप्चर उपलब्ध नहीं हो सकता।</value>
+    <value>देखी गई चाइल्ड प्रक्रिया। stdout/stderr का सीधा कैप्चर उपलब्ध नहीं हो सकता</value>
   </data>
   <data name="Consoles_SessionStageFormat" xml:space="preserve">
     <value>{0} सत्र</value>
@@ -241,7 +241,7 @@
     <value>सभी सक्रिय मॉड्यूलों के लिए एकीकृत कंसोल</value>
   </data>
   <data name="Consoles_UnifiedPreview" xml:space="preserve">
-    <value>सक्रिय मॉड्यूलों से एकीकृत लॉग और पूर्ण प्रक्रिया इतिहास शामिल है।</value>
+    <value>सक्रिय मॉड्यूलों से एकीकृत लॉग और पूर्ण प्रक्रिया इतिहास शामिल है</value>
   </data>
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} दृश्य लाइनें</value>
@@ -250,10 +250,10 @@
     <value>कार्रवाई पूरी नहीं हो सकी: {0}</value>
   </data>
   <data name="Dialog_InvalidValue" xml:space="preserve">
-    <value>मान्य मान दर्ज करें।</value>
+    <value>मान्य मान दर्ज करें</value>
   </data>
   <data name="Dialog_Required" xml:space="preserve">
-    <value>यह फ़ील्ड भरना आवश्यक है।</value>
+    <value>यह फ़ील्ड भरना आवश्यक है</value>
   </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>कैटलॉग</value>
@@ -301,10 +301,10 @@
     <value>GitHub खाता कनेक्ट करें</value>
   </data>
   <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>प्रति घंटे की अनुरोध सीमा बढ़ाने के लिए अपना GitHub खाता कनेक्ट करें।</value>
+    <value>प्रति घंटे की अनुरोध सीमा बढ़ाने के लिए अपना GitHub खाता कनेक्ट करें</value>
   </data>
   <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM ने GitHub API के लिए प्रति घंटे की अनुरोध सीमा पूरी कर ली है। सीमा रीसेट होने तक मॉड्यूल खोजने, डाउनलोड करने और अपडेट करने, साथ ही ASLM और इंजन अपडेट करने की सुविधाएँ ठीक से काम नहीं कर सकती हैं।</value>
+    <value>ASLM ने GitHub API के लिए प्रति घंटे की अनुरोध सीमा पूरी कर ली है। सीमा रीसेट होने तक मॉड्यूल खोजने, डाउनलोड करने और अपडेट करने, साथ ही ASLM और इंजन अपडेट करने की सुविधाएँ ठीक से काम नहीं कर सकती हैं</value>
   </data>
   <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
     <value>मुझे बाद में याद दिलाएँ</value>
@@ -502,22 +502,22 @@
     <value>स्वीकार करें और जारी रखें</value>
   </data>
   <data name="Legal_AcceptDocumentFormat" xml:space="preserve">
-    <value>मैंने {0} पढ़ लिया है और स्वीकार करता/करती हूँ।</value>
+    <value>मैंने {0} पढ़ लिया है और स्वीकार करता/करती हूँ</value>
   </data>
   <data name="Legal_AcceptRequired" xml:space="preserve">
-    <value>जारी रखने के लिए इस समझौते को स्वीकार करें।</value>
+    <value>जारी रखने के लिए इस समझौते को स्वीकार करें</value>
   </data>
   <data name="Legal_Decline" xml:space="preserve">
     <value>अस्वीकार करें</value>
   </data>
   <data name="Legal_DocumentsUpdated" xml:space="preserve">
-    <value>शर्तें अपडेट की गईं। फिर से पढ़ें और स्वीकार करें।</value>
+    <value>शर्तें अपडेट की गईं। फिर से पढ़ें और स्वीकार करें</value>
   </data>
   <data name="Legal_StepFormat" xml:space="preserve">
     <value>शर्तें {0} / {1}</value>
   </data>
   <data name="Legal_Subtitle" xml:space="preserve">
-    <value>ASLM का उपयोग करने के लिए आवश्यक शर्तें स्वीकार करें।</value>
+    <value>ASLM का उपयोग करने के लिए आवश्यक शर्तें स्वीकार करें</value>
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>शर्तें और लाइसेंस</value>
@@ -529,7 +529,7 @@
     <value>लेखक</value>
   </data>
   <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>इंस्टॉलेशन रद्द कर दिया गया।</value>
+    <value>इंस्टॉलेशन रद्द कर दिया गया</value>
   </data>
   <data name="ModuleInfo_Categories" xml:space="preserve">
     <value>श्रेणियाँ</value>
@@ -541,7 +541,7 @@
     <value>कॉन्फ़िगरेशन</value>
   </data>
   <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>{0} को शामिल करने वाली चक्रीय मॉड्यूल निर्भरता मिली है। इंस्टॉलेशन रद्द कर दिया गया।</value>
+    <value>{0} को शामिल करने वाली चक्रीय मॉड्यूल निर्भरता मिली है। इंस्टॉलेशन रद्द कर दिया गया</value>
   </data>
   <data name="ModuleInfo_Downloading" xml:space="preserve">
     <value>{0} डाउनलोड और सेटअप हो रहा है…</value>
@@ -559,7 +559,7 @@
     <value>जानकारी</value>
   </data>
   <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>{0} का इंस्टॉलेशन पूरा नहीं हो सका। विवरण के लिए सूचनाएँ या मॉड्यूल कंसोल देखें।</value>
+    <value>{0} का इंस्टॉलेशन पूरा नहीं हो सका। विवरण के लिए सूचनाएँ या मॉड्यूल कंसोल देखें</value>
   </data>
   <data name="ModuleInfo_Installed" xml:space="preserve">
     <value>इंस्टॉल है</value>
@@ -568,7 +568,7 @@
     <value>मॉड्यूल की जानकारी लोड हो रही है…</value>
   </data>
   <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>आवश्यक मॉड्यूल {0} स्थानीय कैटलॉग में नहीं है।</value>
+    <value>आवश्यक मॉड्यूल {0} स्थानीय कैटलॉग में नहीं है</value>
   </data>
   <data name="ModuleInfo_Models" xml:space="preserve">
     <value>आवश्यक मॉडल श्रेणियाँ</value>
@@ -577,10 +577,10 @@
     <value>आवश्यक मॉड्यूल</value>
   </data>
   <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>इस मॉड्यूल के लिए कोई समर्थित डाउनलोड स्रोत उपलब्ध नहीं है।</value>
+    <value>इस मॉड्यूल के लिए कोई समर्थित डाउनलोड स्रोत उपलब्ध नहीं है</value>
   </data>
   <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>मॉड्यूल {0} अब स्थानीय कैटलॉग में उपलब्ध नहीं है।</value>
+    <value>मॉड्यूल {0} अब स्थानीय कैटलॉग में उपलब्ध नहीं है</value>
   </data>
   <data name="ModuleInfo_NotInstalled" xml:space="preserve">
     <value>इंस्टॉल नहीं है</value>
@@ -589,7 +589,7 @@
     <value>समर्थित प्लेटफ़ॉर्म</value>
   </data>
   <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>{0} के लिए डाउनलोड स्रोत निर्धारित नहीं हो सका।</value>
+    <value>{0} के लिए डाउनलोड स्रोत निर्धारित नहीं हो सका</value>
   </data>
   <data name="ModuleInfo_StateTitle" xml:space="preserve">
     <value>मॉड्यूल की स्थिति</value>
@@ -610,10 +610,10 @@
     <value>अपडेट स्थिति</value>
   </data>
   <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>{0} अपडेट विफल।</value>
+    <value>{0} अपडेट विफल</value>
   </data>
   <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} सफलतापूर्वक अपडेट हुआ।</value>
+    <value>{0} सफलतापूर्वक अपडेट हुआ</value>
   </data>
   <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
     <value>अपडेट जाँचें</value>
@@ -634,16 +634,16 @@
     <value>{0} के लिए अपडेट जांचे जा रहे हैं...</value>
   </data>
   <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>अपडेट सफलतापूर्वक पूर्ण नहीं हुआ।</value>
+    <value>अपडेट सफलतापूर्वक पूर्ण नहीं हुआ</value>
   </data>
   <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
     <value>{0} के लिए अपडेट इंस्टॉल हो रहा है...</value>
   </data>
   <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>{0} के लिए अपडेट शुरू हो रहा है।</value>
+    <value>{0} के लिए अपडेट शुरू हो रहा है</value>
   </data>
   <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>अपडेट पूर्ण। {0} इंस्टॉल किया गया।</value>
+    <value>अपडेट पूर्ण। {0} इंस्टॉल किया गया</value>
   </data>
   <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
     <value>कोई मॉड्यूल चयनित नहीं</value>
@@ -658,7 +658,7 @@
     <value>प्राथमिकताएँ स्वचालित रूप से सहेजी जाती हैं</value>
   </data>
   <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>तैयार।</value>
+    <value>तैयार</value>
   </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>रिलीज़ संस्करण</value>
@@ -670,7 +670,7 @@
     <value>खोज मोड</value>
   </data>
   <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>अपडेट जांचने से पहले एक रिपॉज़िटरी ब्रांच चुनें।</value>
+    <value>अपडेट जांचने से पहले एक रिपॉज़िटरी ब्रांच चुनें</value>
   </data>
   <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
     <value>चयनित लक्ष्य</value>
@@ -682,7 +682,7 @@
     <value>अपडेट जांचे जा रहे हैं...</value>
   </data>
   <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>जांचने के लिए तैयार।</value>
+    <value>जांचने के लिए तैयार</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>अद्यतन</value>
@@ -715,7 +715,7 @@
     <value>मॉड्यूल की जानकारी बंद करें</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>मॉड्यूल कैटलॉग लोड नहीं हो सका।</value>
+    <value>मॉड्यूल कैटलॉग लोड नहीं हो सका</value>
   </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>उपलब्ध मॉड्यूल खोजें</value>
@@ -757,7 +757,7 @@
     <value>अनइंस्टॉल करें</value>
   </data>
   <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>मॉड्यूल हटाने से पहले मॉड्यूल का सेटअप, शुरू होने की प्रक्रिया, अपडेट या डाउनलोड पूरा होने की प्रतीक्षा करें।</value>
+    <value>मॉड्यूल हटाने से पहले मॉड्यूल का सेटअप, शुरू होने की प्रक्रिया, अपडेट या डाउनलोड पूरा होने की प्रतीक्षा करें</value>
   </data>
   <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
     <value>मॉड्यूल को इंस्टॉल किए गए मॉड्यूल की सूची से हटा दिया गया, लेकिन कुछ फ़ाइलें हटाई नहीं जा सकीं। वे अभी भी यहाँ हैं: {0}</value>
@@ -766,7 +766,7 @@
     <value>मॉड्यूल हटा दिया गया</value>
   </data>
   <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>क्या {0} और उसका स्थानीय डेटा हटाना है? केवल इस मॉड्यूल द्वारा उपयोग किए जाने वाले इंजन, परिवेश और मॉडल भी हटा दिए जाएँगे। साझा निर्भरताएँ बनी रहेंगी।</value>
+    <value>{0} से जुड़ा सारा डेटा हटा दिया जाएगा</value>
   </data>
   <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
     <value>{0} अनइंस्टॉल करें?</value>
@@ -775,19 +775,19 @@
     <value>मॉड्यूल हटाया नहीं जा सका</value>
   </data>
   <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>इन मॉड्यूल को इस मॉड्यूल की आवश्यकता है: {0}। पहले इन्हें हटाएँ।</value>
+    <value>इन मॉड्यूल को इस मॉड्यूल की आवश्यकता है: {0}। पहले इन्हें हटाएँ</value>
   </data>
   <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>इंस्टॉल किया गया कोई दूसरा मॉड्यूल इस मॉड्यूल की डायरेक्टरी में मौजूद फ़ाइलों का उपयोग करता है। उन फ़ाइलों की सुरक्षा के लिए हटाने की प्रक्रिया रद्द कर दी गई।</value>
+    <value>इंस्टॉल किया गया कोई दूसरा मॉड्यूल इस मॉड्यूल की डायरेक्टरी में मौजूद फ़ाइलों का उपयोग करता है। उन फ़ाइलों की सुरक्षा के लिए हटाने की प्रक्रिया रद्द कर दी गई</value>
   </data>
   <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>यह मॉड्यूल हटा दिया गया है। आगे बढ़ने से पहले मॉड्यूल सूची रीफ़्रेश करें।</value>
+    <value>यह मॉड्यूल हटा दिया गया है। आगे बढ़ने से पहले मॉड्यूल सूची रीफ़्रेश करें</value>
   </data>
   <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>इंस्टॉल किए गए कुछ मॉड्यूल की मैनिफ़ेस्ट फ़ाइलें गायब हैं, पढ़ी नहीं जा सकतीं या उनमें एक जैसे आईडी हैं। साझा निर्भरताओं की सुरक्षित जाँच नहीं हो सकी, इसलिए हटाने की प्रक्रिया रद्द कर दी गई।</value>
+    <value>इंस्टॉल किए गए कुछ मॉड्यूल की मैनिफ़ेस्ट फ़ाइलें गायब हैं, पढ़ी नहीं जा सकतीं या उनमें एक जैसे आईडी हैं। साझा निर्भरताओं की सुरक्षित जाँच नहीं हो सकी, इसलिए हटाने की प्रक्रिया रद्द कर दी गई</value>
   </data>
   <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>हटाने की प्रक्रिया रद्द कर दी गई क्योंकि कोई पथ प्रबंधित डायरेक्टरी के बाहर है या उसमें प्रतीकात्मक लिंक है।</value>
+    <value>हटाने की प्रक्रिया रद्द कर दी गई क्योंकि कोई पथ प्रबंधित डायरेक्टरी के बाहर है या उसमें प्रतीकात्मक लिंक है</value>
   </data>
   <data name="Modules_Removing" xml:space="preserve">
     <value>अनइंस्टॉल हो रहा है</value>
@@ -820,10 +820,10 @@
     <value>ASLM अपडेट उपलब्ध</value>
   </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
-    <value>अभी कोई ASLM अपडेट उपलब्ध नहीं है।</value>
+    <value>अभी कोई ASLM अपडेट उपलब्ध नहीं है</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailed" xml:space="preserve">
-    <value>ASLM अपडेट डाउनलोड नहीं हो सका।</value>
+    <value>ASLM अपडेट डाउनलोड नहीं हो सका</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailedStatus" xml:space="preserve">
     <value>तैयारी विफल</value>
@@ -847,10 +847,10 @@
     <value>इंजन अपडेट उपलब्ध है</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
-    <value>इंजन अपडेट लागू नहीं किया जा सका।</value>
+    <value>इंजन अपडेट लागू नहीं किया जा सका</value>
   </data>
   <data name="Notifications_EngineUpdateNotAvailable" xml:space="preserve">
-    <value>अभी कोई इंजन अपडेट उपलब्ध नहीं है।</value>
+    <value>अभी कोई इंजन अपडेट उपलब्ध नहीं है</value>
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>इंजन अपडेट</value>
@@ -859,7 +859,7 @@
     <value>इंस्टॉल किया गया संस्करण</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>वह मॉड्यूल अब इंस्टॉल नहीं है।</value>
+    <value>वह मॉड्यूल अब इंस्टॉल नहीं है</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>मॉड्यूल अपडेट उपलब्ध</value>
@@ -910,7 +910,7 @@
     <value>आपके ब्राउज़र में साइन-इन की प्रतीक्षा हो रही है...</value>
   </data>
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>स्थानीय खाता। प्रोफ़ाइल डेटा केवल इस डिवाइस पर संग्रहीत होता है।</value>
+    <value>स्थानीय खाता। प्रोफ़ाइल डेटा केवल इस डिवाइस पर संग्रहीत होता है</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>क्लाउड खाते का उपयोग करें</value>
@@ -922,10 +922,10 @@
     <value>स्थानीय खाता उपयोग करें</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>SUNRISE क्रेडेंशियल इस डिवाइस से हटा दिए जाएंगे। आपकी स्थानीय ASLM प्रोफ़ाइल उपलब्ध रहेगी।</value>
+    <value>आप अपने SUNRISE क्लाउड खाते से साइन आउट हो जाएँगे</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>स्थानीय खाते पर स्विच करें?</value>
+    <value>SUNRISE से साइन आउट करें?</value>
   </data>
   <data name="Settings_AslmAccount_Title" xml:space="preserve">
     <value>ASLM खाता</value>
@@ -976,7 +976,7 @@
     <value>बदलाव छोड़ें</value>
   </data>
   <data name="Settings_DiscardDialog_Message" xml:space="preserve">
-    <value>इस अनुभाग में असहेजे बदलाव हैं। क्या उन्हें छोड़कर स्विच करें?</value>
+    <value>बिना सहेजे गए बदलाव खो जाएँगे</value>
   </data>
   <data name="Settings_DiscardDialog_Title" xml:space="preserve">
     <value>असहेजे बदलाव</value>
@@ -1006,10 +1006,10 @@
     <value>कनेक्शन विफल: {0}</value>
   </data>
   <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub एक वर्ष की समाप्ति के साथ खुलना चाहिए था। सार्वजनिक अपडेट जाँच के लिए अनुमतियाँ डिफ़ॉल्ट रखें, टोकन बनाएँ और यहाँ चिपकाएँ।</value>
+    <value>GitHub पर व्यक्तिगत एक्सेस टोकन बनाएँ और यहाँ चिपकाएँ</value>
   </data>
   <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>GitHub टोकन चिपकाएँ</value>
+    <value>GitHub टोकन</value>
   </data>
   <data name="Settings_GitHub_Connecting" xml:space="preserve">
     <value>कनेक्ट हो रहा है…</value>
@@ -1018,10 +1018,10 @@
     <value>डिस्कनेक्ट करें</value>
   </data>
   <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
-    <value>क्या आप अपने GitHub खाते को ASLM से अनलिंक करना चाहते हैं? सहेजा गया टोकन ऐप से हटा दिया जाएगा।</value>
+    <value>आपका GitHub खाता ASLM से अनलिंक कर दिया जाएगा</value>
   </data>
   <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
-    <value>GitHub खाता अनलिंक करें?</value>
+    <value>GitHub को अनलिंक करें?</value>
   </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>API सीमा प्रति घंटे 60 से 5,000 अनुरोध तक बढ़ाने के लिए कनेक्ट करें</value>
@@ -1069,10 +1069,10 @@
     <value>साइन आउट</value>
   </data>
   <data name="Settings_OllamaSignOut_Message" xml:space="preserve">
-    <value>यह इस Windows प्रोफ़ाइल के लिए वर्तमान ollama.com सत्र हटा देगा। जारी रखें?</value>
+    <value>आप Ollama से साइन आउट हो जाएँगे</value>
   </data>
   <data name="Settings_OllamaSignOut_Title" xml:space="preserve">
-    <value>Ollama से साइन आउट</value>
+    <value>Ollama से साइन आउट करें?</value>
   </data>
   <data name="Settings_Ollama_CheckingAccount" xml:space="preserve">
     <value>खाता जाँच रहा है</value>
@@ -1128,12 +1128,6 @@
   <data name="Settings_Personalization_ImportPickerTitle" xml:space="preserve">
     <value>थीम आयात करें</value>
   </data>
-  <data name="Settings_Personalization_InheritDark" xml:space="preserve">
-    <value>डार्क (अंतर्निहित)</value>
-  </data>
-  <data name="Settings_Personalization_InheritLight" xml:space="preserve">
-    <value>लाइट (अंतर्निहित)</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>भाषा</value>
   </data>
@@ -1173,7 +1167,7 @@
     <value>सहेजने के लिए कोई बदलाव नहीं</value>
   </data>
   <data name="Settings_SaveMessage_Saved" xml:space="preserve">
-    <value>सेटिंग्स सहेजी और लागू की गईं।</value>
+    <value>सेटिंग्स सहेजी और लागू की गईं</value>
   </data>
   <data name="Settings_SavedTitle" xml:space="preserve">
     <value>सेटिंग्स सहेजी गईं</value>
@@ -1263,7 +1257,7 @@
     <value>खाते का प्रकार चुनें</value>
   </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
-    <value>इंस्टॉलेशन रद्द किया गया।</value>
+    <value>इंस्टॉलेशन रद्द किया गया</value>
   </data>
   <data name="SetupWizard_CloudAccount" xml:space="preserve">
     <value>क्लाउड खाता</value>
@@ -1281,13 +1275,13 @@
     <value>आपके ब्राउज़र में साइन-इन की प्रतीक्षा हो रही है...</value>
   </data>
   <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>SUNRISE से साइन इन करें और अपनी ASLM प्रोफ़ाइल सिंक करें।</value>
+    <value>SUNRISE से साइन इन करें और अपनी ASLM प्रोफ़ाइल सिंक करें</value>
   </data>
   <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>जारी रखने के लिए अपने ब्राउज़र में साइन इन करें।</value>
+    <value>जारी रखने के लिए अपने ब्राउज़र में साइन इन करें</value>
   </data>
   <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>जारी रखने से पहले SUNRISE साइन-इन पूरा करें।</value>
+    <value>जारी रखने से पहले SUNRISE साइन-इन पूरा करें</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>आपका नाम</value>
@@ -1302,7 +1296,7 @@
     <value>त्वरित सेटअप</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>त्वरित सेटअप डिफ़ॉल्ट सेटिंग का उपयोग करता है।</value>
+    <value>त्वरित सेटअप डिफ़ॉल्ट सेटिंग का उपयोग करता है</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>समाप्त</value>
@@ -1320,7 +1314,7 @@
     <value>स्थानीय खाता</value>
   </data>
   <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>अपनी ASLM प्रोफ़ाइल केवल इस डिवाइस पर रखें।</value>
+    <value>अपनी ASLM प्रोफ़ाइल केवल इस डिवाइस पर रखें</value>
   </data>
   <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
     <value>{0} पर समर्थित नहीं है</value>

@@ -121,13 +121,13 @@
     <value>Tất cả các mô-đun / Bảng điều khiển thống nhất</value>
   </data>
   <data name="Consoles_EmptySelectionDescription" xml:space="preserve">
-    <value>Đầu ra bảng điều khiển từ quá trình khởi động mô-đun, thiết lập, đồng bộ cài đặt, dịch vụ và tiến trình con sẽ xuất hiện ở đây.</value>
+    <value>Đầu ra bảng điều khiển từ quá trình khởi động mô-đun, thiết lập, đồng bộ cài đặt, dịch vụ và tiến trình con sẽ xuất hiện ở đây</value>
   </data>
   <data name="Consoles_EmptySelectionFooter" xml:space="preserve">
-    <value>Đang chờ hoạt động của mô-đun.</value>
+    <value>Đang chờ hoạt động của mô-đun</value>
   </data>
   <data name="Consoles_EmptySelectionStatus" xml:space="preserve">
-    <value>Khởi động hoặc chọn mô-đun để xem hoạt động bảng điều khiển.</value>
+    <value>Khởi động hoặc chọn mô-đun để xem hoạt động bảng điều khiển</value>
   </data>
   <data name="Consoles_EmptySelectionTitle" xml:space="preserve">
     <value>Chưa chọn bảng điều khiển</value>
@@ -166,7 +166,7 @@
     <value>Không có bảng điều khiển</value>
   </data>
   <data name="Consoles_NoOutputYet" xml:space="preserve">
-    <value>Chưa có đầu ra.</value>
+    <value>Chưa có đầu ra</value>
   </data>
   <data name="Consoles_PidFormat" xml:space="preserve">
     <value> – PID {0}</value>
@@ -190,10 +190,10 @@
     <value>Phiên {0} đang chạy{1}</value>
   </data>
   <data name="Consoles_SessionObservedDescription" xml:space="preserve">
-    <value>Tiến trình con được theo dõi do mô-đun khởi động. ASLM có thể giữ nó hiển thị như một dịch vụ, nhưng chụp trực tiếp stdout/stderr có thể không khả dụng cho các tệp thực thi của bên thứ ba.</value>
+    <value>Tiến trình con được theo dõi do mô-đun khởi động. ASLM có thể giữ nó hiển thị như một dịch vụ, nhưng chụp trực tiếp stdout/stderr có thể không khả dụng cho các tệp thực thi của bên thứ ba</value>
   </data>
   <data name="Consoles_SessionObservedPreview" xml:space="preserve">
-    <value>Tiến trình con được theo dõi. Chụp trực tiếp stdout/stderr có thể không khả dụng.</value>
+    <value>Tiến trình con được theo dõi. Chụp trực tiếp stdout/stderr có thể không khả dụng</value>
   </data>
   <data name="Consoles_SessionStageFormat" xml:space="preserve">
     <value>Phiên {0}</value>
@@ -241,7 +241,7 @@
     <value>Bảng điều khiển thống nhất cho tất cả các mô-đun đang hoạt động</value>
   </data>
   <data name="Consoles_UnifiedPreview" xml:space="preserve">
-    <value>Bao gồm nhật ký thống nhất và lịch sử tiến trình đã hoàn thành từ các mô-đun đang hoạt động.</value>
+    <value>Bao gồm nhật ký thống nhất và lịch sử tiến trình đã hoàn thành từ các mô-đun đang hoạt động</value>
   </data>
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} dòng hiển thị</value>
@@ -250,10 +250,10 @@
     <value>Không thể hoàn tất thao tác: {0}</value>
   </data>
   <data name="Dialog_InvalidValue" xml:space="preserve">
-    <value>Nhập giá trị hợp lệ.</value>
+    <value>Nhập giá trị hợp lệ</value>
   </data>
   <data name="Dialog_Required" xml:space="preserve">
-    <value>Vui lòng điền vào trường này.</value>
+    <value>Vui lòng điền vào trường này</value>
   </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Danh mục</value>
@@ -301,10 +301,10 @@
     <value>Kết nối tài khoản GitHub</value>
   </data>
   <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>Kết nối tài khoản GitHub của bạn để tăng giới hạn yêu cầu mỗi giờ.</value>
+    <value>Kết nối tài khoản GitHub của bạn để tăng giới hạn yêu cầu mỗi giờ</value>
   </data>
   <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM đã đạt giới hạn yêu cầu API GitHub mỗi giờ. Việc tìm kiếm và tải mô-đun, cũng như cập nhật mô-đun, ASLM và engine có thể không hoạt động đúng cho đến khi giới hạn được đặt lại.</value>
+    <value>ASLM đã đạt giới hạn yêu cầu API GitHub mỗi giờ. Việc tìm kiếm và tải mô-đun, cũng như cập nhật mô-đun, ASLM và engine có thể không hoạt động đúng cho đến khi giới hạn được đặt lại</value>
   </data>
   <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
     <value>Nhắc tôi sau</value>
@@ -502,22 +502,22 @@
     <value>Chấp nhận và tiếp tục</value>
   </data>
   <data name="Legal_AcceptDocumentFormat" xml:space="preserve">
-    <value>Tôi đã đọc và chấp nhận {0}.</value>
+    <value>Tôi đã đọc và chấp nhận {0}</value>
   </data>
   <data name="Legal_AcceptRequired" xml:space="preserve">
-    <value>Hãy chấp nhận thỏa thuận này để tiếp tục.</value>
+    <value>Hãy chấp nhận thỏa thuận này để tiếp tục</value>
   </data>
   <data name="Legal_Decline" xml:space="preserve">
     <value>Từ chối</value>
   </data>
   <data name="Legal_DocumentsUpdated" xml:space="preserve">
-    <value>Điều khoản đã được cập nhật. Vui lòng xem lại và chấp nhận.</value>
+    <value>Điều khoản đã được cập nhật. Vui lòng xem lại và chấp nhận</value>
   </data>
   <data name="Legal_StepFormat" xml:space="preserve">
     <value>Điều khoản {0} / {1}</value>
   </data>
   <data name="Legal_Subtitle" xml:space="preserve">
-    <value>Chấp nhận các điều khoản bắt buộc để sử dụng ASLM.</value>
+    <value>Chấp nhận các điều khoản bắt buộc để sử dụng ASLM</value>
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Điều khoản và giấy phép</value>
@@ -529,7 +529,7 @@
     <value>Tác giả</value>
   </data>
   <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>Đã hủy cài đặt.</value>
+    <value>Đã hủy cài đặt</value>
   </data>
   <data name="ModuleInfo_Categories" xml:space="preserve">
     <value>Danh mục</value>
@@ -541,7 +541,7 @@
     <value>Cấu hình</value>
   </data>
   <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>Phát hiện chu trình phụ thuộc giữa các mô-đun có chứa {0}. Đã hủy cài đặt.</value>
+    <value>Phát hiện chu trình phụ thuộc giữa các mô-đun có chứa {0}. Đã hủy cài đặt</value>
   </data>
   <data name="ModuleInfo_Downloading" xml:space="preserve">
     <value>Đang tải xuống và thiết lập {0}…</value>
@@ -559,7 +559,7 @@
     <value>Thông tin</value>
   </data>
   <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>Không thể hoàn tất cài đặt {0}. Xem thông báo hoặc bảng điều khiển của mô-đun để biết chi tiết.</value>
+    <value>Không thể hoàn tất cài đặt {0}. Xem thông báo hoặc bảng điều khiển của mô-đun để biết chi tiết</value>
   </data>
   <data name="ModuleInfo_Installed" xml:space="preserve">
     <value>Đã cài đặt</value>
@@ -568,7 +568,7 @@
     <value>Đang tải thông tin mô-đun…</value>
   </data>
   <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>Không tìm thấy mô-đun bắt buộc {0} trong danh mục cục bộ.</value>
+    <value>Không tìm thấy mô-đun bắt buộc {0} trong danh mục cục bộ</value>
   </data>
   <data name="ModuleInfo_Models" xml:space="preserve">
     <value>Danh mục mô hình bắt buộc</value>
@@ -577,10 +577,10 @@
     <value>Mô-đun bắt buộc</value>
   </data>
   <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>Không có nguồn tải xuống được hỗ trợ cho mô-đun này.</value>
+    <value>Không có nguồn tải xuống được hỗ trợ cho mô-đun này</value>
   </data>
   <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>Mô-đun {0} không còn có trong danh mục cục bộ.</value>
+    <value>Mô-đun {0} không còn có trong danh mục cục bộ</value>
   </data>
   <data name="ModuleInfo_NotInstalled" xml:space="preserve">
     <value>Chưa cài đặt</value>
@@ -589,7 +589,7 @@
     <value>Nền tảng được hỗ trợ</value>
   </data>
   <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>Không thể xác định nguồn tải xuống cho {0}.</value>
+    <value>Không thể xác định nguồn tải xuống cho {0}</value>
   </data>
   <data name="ModuleInfo_StateTitle" xml:space="preserve">
     <value>Trạng thái mô-đun</value>
@@ -610,10 +610,10 @@
     <value>Trạng thái cập nhật</value>
   </data>
   <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>Cập nhật {0} thất bại.</value>
+    <value>Cập nhật {0} thất bại</value>
   </data>
   <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} đã được cập nhật thành công.</value>
+    <value>{0} đã được cập nhật thành công</value>
   </data>
   <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
     <value>Kiểm tra cập nhật</value>
@@ -634,16 +634,16 @@
     <value>Đang kiểm tra cập nhật cho {0}...</value>
   </data>
   <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>Cập nhật không hoàn thành thành công.</value>
+    <value>Cập nhật không hoàn thành thành công</value>
   </data>
   <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
     <value>Đang cài đặt bản cập nhật cho {0}...</value>
   </data>
   <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>Đang bắt đầu cập nhật cho {0}.</value>
+    <value>Đang bắt đầu cập nhật cho {0}</value>
   </data>
   <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>Cập nhật hoàn tất. Đã cài đặt {0}.</value>
+    <value>Cập nhật hoàn tất. Đã cài đặt {0}</value>
   </data>
   <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
     <value>Chưa chọn mô-đun</value>
@@ -658,7 +658,7 @@
     <value>Tùy chọn được lưu tự động</value>
   </data>
   <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>Sẵn sàng.</value>
+    <value>Sẵn sàng</value>
   </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>Phiên bản phát hành</value>
@@ -670,7 +670,7 @@
     <value>Chế độ tìm kiếm</value>
   </data>
   <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>Chọn nhánh kho lưu trữ trước khi kiểm tra cập nhật.</value>
+    <value>Chọn nhánh kho lưu trữ trước khi kiểm tra cập nhật</value>
   </data>
   <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
     <value>Mục tiêu đã chọn</value>
@@ -682,7 +682,7 @@
     <value>Đang kiểm tra cập nhật...</value>
   </data>
   <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>Sẵn sàng kiểm tra.</value>
+    <value>Sẵn sàng kiểm tra</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>Đã cập nhật</value>
@@ -715,7 +715,7 @@
     <value>Đóng thông tin mô-đun</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>Không thể tải danh mục mô-đun.</value>
+    <value>Không thể tải danh mục mô-đun</value>
   </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Tìm mô-đun có sẵn</value>
@@ -757,7 +757,7 @@
     <value>Gỡ cài đặt</value>
   </data>
   <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>Trước khi xóa mô-đun, hãy đợi quá trình thiết lập, khởi chạy, cập nhật hoặc tải xuống mô-đun hoàn tất.</value>
+    <value>Trước khi xóa mô-đun, hãy đợi quá trình thiết lập, khởi chạy, cập nhật hoặc tải xuống mô-đun hoàn tất</value>
   </data>
   <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
     <value>Mô-đun đã được xóa khỏi danh sách đã cài đặt, nhưng không thể xóa một số tệp. Các tệp đó vẫn ở: {0}</value>
@@ -766,7 +766,7 @@
     <value>Đã xóa mô-đun</value>
   </data>
   <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>Xóa {0} và dữ liệu cục bộ của mô-đun này? Các engine, môi trường và mô hình chỉ được mô-đun này sử dụng cũng sẽ bị xóa. Các thành phần phụ thuộc dùng chung sẽ được giữ lại.</value>
+    <value>Tất cả dữ liệu liên quan đến {0} sẽ bị xóa</value>
   </data>
   <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
     <value>Gỡ cài đặt {0}?</value>
@@ -775,19 +775,19 @@
     <value>Không thể xóa mô-đun</value>
   </data>
   <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>Các mô-đun sau cần mô-đun này: {0}. Hãy xóa các mô-đun đó trước.</value>
+    <value>Các mô-đun sau cần mô-đun này: {0}. Hãy xóa các mô-đun đó trước</value>
   </data>
   <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>Một mô-đun đã cài đặt khác đang sử dụng các tệp trong thư mục của mô-đun này. Đã hủy việc xóa để bảo vệ các tệp đó.</value>
+    <value>Một mô-đun đã cài đặt khác đang sử dụng các tệp trong thư mục của mô-đun này. Đã hủy việc xóa để bảo vệ các tệp đó</value>
   </data>
   <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>Mô-đun này đã bị xóa. Hãy làm mới danh sách mô-đun trước khi tiếp tục.</value>
+    <value>Mô-đun này đã bị xóa. Hãy làm mới danh sách mô-đun trước khi tiếp tục</value>
   </data>
   <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>Một số tệp kê khai của các mô-đun đã cài đặt bị thiếu, không đọc được hoặc có ID trùng lặp. Đã hủy việc xóa vì không thể kiểm tra an toàn các thành phần phụ thuộc dùng chung.</value>
+    <value>Một số tệp kê khai của các mô-đun đã cài đặt bị thiếu, không đọc được hoặc có ID trùng lặp. Đã hủy việc xóa vì không thể kiểm tra an toàn các thành phần phụ thuộc dùng chung</value>
   </data>
   <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>Đã hủy việc xóa vì có đường dẫn nằm ngoài thư mục được quản lý hoặc chứa liên kết tượng trưng.</value>
+    <value>Đã hủy việc xóa vì có đường dẫn nằm ngoài thư mục được quản lý hoặc chứa liên kết tượng trưng</value>
   </data>
   <data name="Modules_Removing" xml:space="preserve">
     <value>Đang gỡ cài đặt</value>
@@ -820,10 +820,10 @@
     <value>Có bản cập nhật ASLM</value>
   </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
-    <value>Không có bản cập nhật ASLM nào hiện tại.</value>
+    <value>Không có bản cập nhật ASLM nào hiện tại</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailed" xml:space="preserve">
-    <value>Không thể tải xuống bản cập nhật ASLM.</value>
+    <value>Không thể tải xuống bản cập nhật ASLM</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailedStatus" xml:space="preserve">
     <value>Chuẩn bị thất bại</value>
@@ -847,10 +847,10 @@
     <value>Có bản cập nhật engine</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
-    <value>Không thể áp dụng bản cập nhật engine.</value>
+    <value>Không thể áp dụng bản cập nhật engine</value>
   </data>
   <data name="Notifications_EngineUpdateNotAvailable" xml:space="preserve">
-    <value>Hiện không có bản cập nhật engine nào.</value>
+    <value>Hiện không có bản cập nhật engine nào</value>
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Cập nhật engine</value>
@@ -859,7 +859,7 @@
     <value>phiên bản đã cài đặt</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>Mô-đun đó không còn được cài đặt nữa.</value>
+    <value>Mô-đun đó không còn được cài đặt nữa</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>Có bản cập nhật mô-đun</value>
@@ -910,7 +910,7 @@
     <value>Đang chờ bạn đăng nhập qua trình duyệt...</value>
   </data>
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>Tài khoản cục bộ. Dữ liệu hồ sơ chỉ được lưu trữ trên thiết bị này.</value>
+    <value>Tài khoản cục bộ. Dữ liệu hồ sơ chỉ được lưu trữ trên thiết bị này</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Sử dụng tài khoản đám mây</value>
@@ -922,10 +922,10 @@
     <value>Sử dụng tài khoản cục bộ</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>Thông tin đăng nhập SUNRISE sẽ bị xóa khỏi thiết bị này. Hồ sơ ASLM cục bộ của bạn vẫn sẽ khả dụng.</value>
+    <value>Bạn sẽ đăng xuất khỏi tài khoản đám mây SUNRISE</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>Chuyển sang tài khoản cục bộ?</value>
+    <value>Đăng xuất khỏi SUNRISE?</value>
   </data>
   <data name="Settings_AslmAccount_Title" xml:space="preserve">
     <value>Tài khoản ASLM</value>
@@ -976,7 +976,7 @@
     <value>Bỏ thay đổi</value>
   </data>
   <data name="Settings_DiscardDialog_Message" xml:space="preserve">
-    <value>Bạn có thay đổi chưa lưu trong mục này. Bỏ chúng và chuyển mục?</value>
+    <value>Các thay đổi chưa lưu sẽ bị mất</value>
   </data>
   <data name="Settings_DiscardDialog_Title" xml:space="preserve">
     <value>Thay đổi chưa lưu</value>
@@ -1006,10 +1006,10 @@
     <value>Kết nối thất bại: {0}</value>
   </data>
   <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub lẽ ra đã mở với thời hạn hiệu lực 1 năm được điền sẵn. Giữ quyền mặc định để kiểm tra cập nhật công khai, tạo token rồi dán vào đây.</value>
+    <value>Tạo mã truy cập cá nhân trên GitHub rồi dán vào đây</value>
   </data>
   <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>Dán token GitHub</value>
+    <value>Mã truy cập GitHub</value>
   </data>
   <data name="Settings_GitHub_Connecting" xml:space="preserve">
     <value>Đang kết nối…</value>
@@ -1018,10 +1018,10 @@
     <value>Ngắt kết nối</value>
   </data>
   <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
-    <value>Bạn có muốn ngắt liên kết tài khoản GitHub khỏi ASLM không? Mã truy cập đã lưu sẽ bị xóa khỏi ứng dụng.</value>
+    <value>Tài khoản GitHub của bạn sẽ được ngắt liên kết khỏi ASLM</value>
   </data>
   <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
-    <value>Ngắt liên kết tài khoản GitHub?</value>
+    <value>Ngắt liên kết GitHub?</value>
   </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>Kết nối để tăng giới hạn API từ 60 lên 5.000 yêu cầu mỗi giờ</value>
@@ -1069,10 +1069,10 @@
     <value>Đăng xuất</value>
   </data>
   <data name="Settings_OllamaSignOut_Message" xml:space="preserve">
-    <value>Thao tác này xóa phiên ollama.com hiện tại cho hồ sơ Windows này. Tiếp tục?</value>
+    <value>Bạn sẽ đăng xuất khỏi Ollama</value>
   </data>
   <data name="Settings_OllamaSignOut_Title" xml:space="preserve">
-    <value>Đăng xuất khỏi Ollama</value>
+    <value>Đăng xuất khỏi Ollama?</value>
   </data>
   <data name="Settings_Ollama_CheckingAccount" xml:space="preserve">
     <value>Đang kiểm tra tài khoản</value>
@@ -1128,12 +1128,6 @@
   <data name="Settings_Personalization_ImportPickerTitle" xml:space="preserve">
     <value>Nhập chủ đề</value>
   </data>
-  <data name="Settings_Personalization_InheritDark" xml:space="preserve">
-    <value>Tối (tích hợp)</value>
-  </data>
-  <data name="Settings_Personalization_InheritLight" xml:space="preserve">
-    <value>Sáng (tích hợp)</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Ngôn ngữ</value>
   </data>
@@ -1173,7 +1167,7 @@
     <value>Không có thay đổi để lưu</value>
   </data>
   <data name="Settings_SaveMessage_Saved" xml:space="preserve">
-    <value>Đã lưu và áp dụng cài đặt.</value>
+    <value>Đã lưu và áp dụng cài đặt</value>
   </data>
   <data name="Settings_SavedTitle" xml:space="preserve">
     <value>Đã lưu cài đặt</value>
@@ -1263,7 +1257,7 @@
     <value>Chọn loại tài khoản</value>
   </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
-    <value>Đã hủy cài đặt.</value>
+    <value>Đã hủy cài đặt</value>
   </data>
   <data name="SetupWizard_CloudAccount" xml:space="preserve">
     <value>Tài khoản đám mây</value>
@@ -1281,13 +1275,13 @@
     <value>Đang chờ bạn đăng nhập qua trình duyệt...</value>
   </data>
   <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>Đăng nhập bằng SUNRISE và đồng bộ hóa hồ sơ ASLM của bạn.</value>
+    <value>Đăng nhập bằng SUNRISE và đồng bộ hóa hồ sơ ASLM của bạn</value>
   </data>
   <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>Hãy đăng nhập qua trình duyệt để tiếp tục.</value>
+    <value>Hãy đăng nhập qua trình duyệt để tiếp tục</value>
   </data>
   <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>Hoàn tất đăng nhập SUNRISE trước khi tiếp tục.</value>
+    <value>Hoàn tất đăng nhập SUNRISE trước khi tiếp tục</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>Tên của bạn</value>
@@ -1302,7 +1296,7 @@
     <value>Thiết lập nhanh</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Thiết lập nhanh sử dụng các cài đặt mặc định.</value>
+    <value>Thiết lập nhanh sử dụng các cài đặt mặc định</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Hoàn tất</value>
@@ -1320,7 +1314,7 @@
     <value>Tài khoản cục bộ</value>
   </data>
   <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>Chỉ lưu hồ sơ ASLM của bạn trên thiết bị này.</value>
+    <value>Chỉ lưu hồ sơ ASLM của bạn trên thiết bị này</value>
   </data>
   <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
     <value>Không được hỗ trợ trên {0}</value>

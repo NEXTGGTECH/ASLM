@@ -121,13 +121,13 @@
     <value>Всі модулі / Єдина консоль</value>
   </data>
   <data name="Consoles_EmptySelectionDescription" xml:space="preserve">
-    <value>Тут з'явиться вивід консолі під час запуску модуля, налаштування, синхронізації параметрів, служб і підпроцесів.</value>
+    <value>Тут з'явиться вивід консолі під час запуску модуля, налаштування, синхронізації параметрів, служб і підпроцесів</value>
   </data>
   <data name="Consoles_EmptySelectionFooter" xml:space="preserve">
-    <value>Очікування активності модуля.</value>
+    <value>Очікування активності модуля</value>
   </data>
   <data name="Consoles_EmptySelectionStatus" xml:space="preserve">
-    <value>Запустіть або виберіть модуль для перегляду консолі.</value>
+    <value>Запустіть або виберіть модуль для перегляду консолі</value>
   </data>
   <data name="Consoles_EmptySelectionTitle" xml:space="preserve">
     <value>Консоль не вибрана</value>
@@ -166,7 +166,7 @@
     <value>Немає консолей</value>
   </data>
   <data name="Consoles_NoOutputYet" xml:space="preserve">
-    <value>Виводу ще немає.</value>
+    <value>Виводу ще немає</value>
   </data>
   <data name="Consoles_PidFormat" xml:space="preserve">
     <value> — PID {0}</value>
@@ -190,10 +190,10 @@
     <value>Сеанс {0} виконується{1}</value>
   </data>
   <data name="Consoles_SessionObservedDescription" xml:space="preserve">
-    <value>Дочірній процес, що спостерігається, запущений модулем. ASLM може зберігати його видимим як службу, але пряме захоплення stdout/stderr може бути недоступним для сторонніх виконуваних файлів.</value>
+    <value>Дочірній процес, що спостерігається, запущений модулем. ASLM може зберігати його видимим як службу, але пряме захоплення stdout/stderr може бути недоступним для сторонніх виконуваних файлів</value>
   </data>
   <data name="Consoles_SessionObservedPreview" xml:space="preserve">
-    <value>Дочірній процес, що спостерігається. Пряме захоплення stdout/stderr може бути недоступним.</value>
+    <value>Дочірній процес, що спостерігається. Пряме захоплення stdout/stderr може бути недоступним</value>
   </data>
   <data name="Consoles_SessionStageFormat" xml:space="preserve">
     <value>Сеанс {0}</value>
@@ -241,7 +241,7 @@
     <value>Єдина консоль для всіх активних модулів</value>
   </data>
   <data name="Consoles_UnifiedPreview" xml:space="preserve">
-    <value>Містить об'єднані журнали та історію завершених процесів активних модулів.</value>
+    <value>Містить об'єднані журнали та історію завершених процесів активних модулів</value>
   </data>
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} видимих рядків</value>
@@ -250,10 +250,10 @@
     <value>Не вдалося виконати дію: {0}</value>
   </data>
   <data name="Dialog_InvalidValue" xml:space="preserve">
-    <value>Введіть коректне значення.</value>
+    <value>Введіть коректне значення</value>
   </data>
   <data name="Dialog_Required" xml:space="preserve">
-    <value>Заповніть це поле.</value>
+    <value>Заповніть це поле</value>
   </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Каталог</value>
@@ -301,10 +301,10 @@
     <value>Підключити обліковий запис GitHub</value>
   </data>
   <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>Підключіть обліковий запис GitHub, щоб збільшити погодинний ліміт запитів.</value>
+    <value>Підключіть обліковий запис GitHub, щоб збільшити погодинний ліміт запитів</value>
   </data>
   <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM вичерпав погодинний ліміт запитів до API GitHub. До поновлення ліміту пошук і завантаження модулів, оновлення модулів, ASLM і рушіїв можуть працювати некоректно.</value>
+    <value>ASLM вичерпав погодинний ліміт запитів до API GitHub. До поновлення ліміту пошук і завантаження модулів, оновлення модулів, ASLM і рушіїв можуть працювати некоректно</value>
   </data>
   <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
     <value>Нагадати пізніше</value>
@@ -502,22 +502,22 @@
     <value>Прийняти й продовжити</value>
   </data>
   <data name="Legal_AcceptDocumentFormat" xml:space="preserve">
-    <value>Я прочитав(ла) й приймаю документ «{0}».</value>
+    <value>Я прочитав(ла) й приймаю документ «{0}»</value>
   </data>
   <data name="Legal_AcceptRequired" xml:space="preserve">
-    <value>Прийміть цю угоду, щоб продовжити.</value>
+    <value>Прийміть цю угоду, щоб продовжити</value>
   </data>
   <data name="Legal_Decline" xml:space="preserve">
     <value>Відхилити</value>
   </data>
   <data name="Legal_DocumentsUpdated" xml:space="preserve">
-    <value>Умови оновлено. Перегляньте й прийміть їх знову.</value>
+    <value>Умови оновлено. Перегляньте й прийміть їх знову</value>
   </data>
   <data name="Legal_StepFormat" xml:space="preserve">
     <value>Умова {0} з {1}</value>
   </data>
   <data name="Legal_Subtitle" xml:space="preserve">
-    <value>Прийміть обов'язкові умови для використання ASLM.</value>
+    <value>Прийміть обов'язкові умови для використання ASLM</value>
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Умови та ліцензії</value>
@@ -529,7 +529,7 @@
     <value>Автор</value>
   </data>
   <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>Установлення скасовано.</value>
+    <value>Установлення скасовано</value>
   </data>
   <data name="ModuleInfo_Categories" xml:space="preserve">
     <value>Категорії</value>
@@ -541,7 +541,7 @@
     <value>Конфігурація</value>
   </data>
   <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>Виявлено циклічну залежність модулів, до якої входить {0}. Установлення скасовано.</value>
+    <value>Виявлено циклічну залежність модулів, до якої входить {0}. Установлення скасовано</value>
   </data>
   <data name="ModuleInfo_Downloading" xml:space="preserve">
     <value>Завантаження та налаштування {0}…</value>
@@ -559,7 +559,7 @@
     <value>Інформація</value>
   </data>
   <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>Не вдалося завершити встановлення {0}. Докладніше — у сповіщеннях або консолі модуля.</value>
+    <value>Не вдалося завершити встановлення {0}. Докладніше — у сповіщеннях або консолі модуля</value>
   </data>
   <data name="ModuleInfo_Installed" xml:space="preserve">
     <value>Установлено</value>
@@ -568,7 +568,7 @@
     <value>Завантаження інформації про модуль…</value>
   </data>
   <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>Потрібний модуль {0} відсутній у локальному каталозі.</value>
+    <value>Потрібний модуль {0} відсутній у локальному каталозі</value>
   </data>
   <data name="ModuleInfo_Models" xml:space="preserve">
     <value>Потрібні категорії моделей</value>
@@ -577,10 +577,10 @@
     <value>Потрібні модулі</value>
   </data>
   <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>Для цього модуля немає підтримуваного джерела завантаження.</value>
+    <value>Для цього модуля немає підтримуваного джерела завантаження</value>
   </data>
   <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>Модуль {0} більше не доступний у локальному каталозі.</value>
+    <value>Модуль {0} більше не доступний у локальному каталозі</value>
   </data>
   <data name="ModuleInfo_NotInstalled" xml:space="preserve">
     <value>Не встановлено</value>
@@ -589,7 +589,7 @@
     <value>Підтримувані платформи</value>
   </data>
   <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>Не вдалося визначити джерело завантаження для {0}.</value>
+    <value>Не вдалося визначити джерело завантаження для {0}</value>
   </data>
   <data name="ModuleInfo_StateTitle" xml:space="preserve">
     <value>Стан модуля</value>
@@ -610,10 +610,10 @@
     <value>Статус оновлення</value>
   </data>
   <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>Оновлення {0} не виконано.</value>
+    <value>Оновлення {0} не виконано</value>
   </data>
   <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} успішно оновлено.</value>
+    <value>{0} успішно оновлено</value>
   </data>
   <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
     <value>Перевірити оновлення</value>
@@ -634,16 +634,16 @@
     <value>Перевірка оновлень для {0}...</value>
   </data>
   <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>Оновлення завершилося з помилкою.</value>
+    <value>Оновлення завершилося з помилкою</value>
   </data>
   <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
     <value>Встановлення оновлення для {0}...</value>
   </data>
   <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>Запуск оновлення для {0}.</value>
+    <value>Запуск оновлення для {0}</value>
   </data>
   <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>Оновлення завершено. Встановлено {0}.</value>
+    <value>Оновлення завершено. Встановлено {0}</value>
   </data>
   <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
     <value>Модуль не обрано</value>
@@ -658,7 +658,7 @@
     <value>Налаштування зберігаються автоматично</value>
   </data>
   <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>Готово.</value>
+    <value>Готово</value>
   </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>Версія випуску</value>
@@ -670,7 +670,7 @@
     <value>Режим пошуку</value>
   </data>
   <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>Виберіть гілку репозиторію перед перевіркою оновлень.</value>
+    <value>Виберіть гілку репозиторію перед перевіркою оновлень</value>
   </data>
   <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
     <value>Обрана ціль</value>
@@ -682,7 +682,7 @@
     <value>Перевірка оновлень...</value>
   </data>
   <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>Готово до перевірки.</value>
+    <value>Готово до перевірки</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>Актуально</value>
@@ -715,7 +715,7 @@
     <value>Закрити інформацію про модуль</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>Не вдалося завантажити каталог модулів.</value>
+    <value>Не вдалося завантажити каталог модулів</value>
   </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Пошук доступних модулів</value>
@@ -757,7 +757,7 @@
     <value>Видалити</value>
   </data>
   <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>Перш ніж видаляти модуль, дочекайтеся завершення налаштування, запуску, оновлень або завантажень модулів.</value>
+    <value>Перш ніж видаляти модуль, дочекайтеся завершення налаштування, запуску, оновлень або завантажень модулів</value>
   </data>
   <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
     <value>Модуль видалено зі списку встановлених, але деякі файли видалити не вдалося. Вони залишилися в: {0}</value>
@@ -766,7 +766,7 @@
     <value>Модуль видалено</value>
   </data>
   <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>Видалити {0} і його локальні дані? Рушії, середовища та моделі, які використовує лише цей модуль, також буде видалено. Спільні залежності буде збережено.</value>
+    <value>Усі дані, пов’язані з модулем {0}, буде видалено</value>
   </data>
   <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
     <value>Видалити {0}?</value>
@@ -775,19 +775,19 @@
     <value>Не вдалося видалити модуль</value>
   </data>
   <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>Від цього модуля залежать: {0}. Спочатку видаліть ці модулі.</value>
+    <value>Від цього модуля залежать: {0}. Спочатку видаліть ці модулі</value>
   </data>
   <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>Інший установлений модуль використовує файли в каталозі цього модуля. Видалення скасовано, щоб зберегти ці файли.</value>
+    <value>Інший установлений модуль використовує файли в каталозі цього модуля. Видалення скасовано, щоб зберегти ці файли</value>
   </data>
   <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>Цей модуль уже видалено. Оновіть список модулів, перш ніж продовжити.</value>
+    <value>Цей модуль уже видалено. Оновіть список модулів, перш ніж продовжити</value>
   </data>
   <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>Деякі маніфести встановлених модулів відсутні, недоступні для читання або містять повторювані ідентифікатори. Видалення скасовано, оскільки не вдалося безпечно перевірити спільні залежності.</value>
+    <value>Деякі маніфести встановлених модулів відсутні, недоступні для читання або містять повторювані ідентифікатори. Видалення скасовано, оскільки не вдалося безпечно перевірити спільні залежності</value>
   </data>
   <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>Видалення скасовано: шлях виходить за межі керованого каталогу або містить символічне посилання.</value>
+    <value>Видалення скасовано: шлях виходить за межі керованого каталогу або містить символічне посилання</value>
   </data>
   <data name="Modules_Removing" xml:space="preserve">
     <value>Видалення</value>
@@ -820,10 +820,10 @@
     <value>Доступне оновлення ASLM</value>
   </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
-    <value>Зараз немає доступних оновлень ASLM.</value>
+    <value>Зараз немає доступних оновлень ASLM</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailed" xml:space="preserve">
-    <value>Не вдалося завантажити оновлення ASLM.</value>
+    <value>Не вдалося завантажити оновлення ASLM</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailedStatus" xml:space="preserve">
     <value>Підготовка не вдалася</value>
@@ -847,10 +847,10 @@
     <value>Доступне оновлення рушія</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
-    <value>Не вдалося застосувати оновлення рушія.</value>
+    <value>Не вдалося застосувати оновлення рушія</value>
   </data>
   <data name="Notifications_EngineUpdateNotAvailable" xml:space="preserve">
-    <value>Зараз оновлень рушія немає.</value>
+    <value>Зараз оновлень рушія немає</value>
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Оновлення рушія</value>
@@ -859,7 +859,7 @@
     <value>встановлена версія</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>Цей модуль більше не встановлено.</value>
+    <value>Цей модуль більше не встановлено</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>Доступне оновлення модуля</value>
@@ -910,7 +910,7 @@
     <value>Очікування входу через браузер...</value>
   </data>
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>Локальний обліковий запис. Дані профілю зберігаються лише на цьому пристрої.</value>
+    <value>Локальний обліковий запис. Дані профілю зберігаються лише на цьому пристрої</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Використовувати хмарний обліковий запис</value>
@@ -922,10 +922,10 @@
     <value>Використовувати локальний обліковий запис</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>Облікові дані SUNRISE буде видалено з цього пристрою. Ваш локальний профіль ASLM залишиться доступним.</value>
+    <value>Буде виконано вихід із хмарного облікового запису SUNRISE</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>Перейти на локальний обліковий запис?</value>
+    <value>Вийти із SUNRISE?</value>
   </data>
   <data name="Settings_AslmAccount_Title" xml:space="preserve">
     <value>Обліковий запис ASLM</value>
@@ -976,7 +976,7 @@
     <value>Відхилити зміни</value>
   </data>
   <data name="Settings_DiscardDialog_Message" xml:space="preserve">
-    <value>У цьому розділі є незбережені зміни. Відхилити їх і перейти?</value>
+    <value>Незбережені зміни буде втрачено</value>
   </data>
   <data name="Settings_DiscardDialog_Title" xml:space="preserve">
     <value>Незбережені зміни</value>
@@ -1006,10 +1006,10 @@
     <value>Не вдалося підключитися: {0}</value>
   </data>
   <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>Мала відкритися сторінка GitHub із терміном дії токена 1 рік. Для перевірки публічних оновлень залиште права за замовчуванням, створіть токен і вставте його сюди.</value>
+    <value>Створіть особистий токен доступу GitHub і вставте його сюди</value>
   </data>
   <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>Вставте токен GitHub</value>
+    <value>Токен GitHub</value>
   </data>
   <data name="Settings_GitHub_Connecting" xml:space="preserve">
     <value>Підключення…</value>
@@ -1018,10 +1018,10 @@
     <value>Відключити</value>
   </data>
   <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
-    <value>Від’єднати обліковий запис GitHub від ASLM? Збережений токен буде видалено із застосунку.</value>
+    <value>Обліковий запис GitHub буде від’єднано від ASLM</value>
   </data>
   <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
-    <value>Від’єднати обліковий запис GitHub?</value>
+    <value>Від’єднати GitHub?</value>
   </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>Підключіться, щоб підвищити ліміт API з 60 до 5 000 запитів на годину</value>
@@ -1069,10 +1069,10 @@
     <value>Вийти</value>
   </data>
   <data name="Settings_OllamaSignOut_Message" xml:space="preserve">
-    <value>Це видалить поточний сеанс ollama.com для цього профілю Windows. Продовжити?</value>
+    <value>Буде виконано вихід з облікового запису Ollama</value>
   </data>
   <data name="Settings_OllamaSignOut_Title" xml:space="preserve">
-    <value>Вийти з Ollama</value>
+    <value>Вийти з Ollama?</value>
   </data>
   <data name="Settings_Ollama_CheckingAccount" xml:space="preserve">
     <value>Перевірка облікового запису</value>
@@ -1128,12 +1128,6 @@
   <data name="Settings_Personalization_ImportPickerTitle" xml:space="preserve">
     <value>Імпорт теми</value>
   </data>
-  <data name="Settings_Personalization_InheritDark" xml:space="preserve">
-    <value>Темна (вбудована)</value>
-  </data>
-  <data name="Settings_Personalization_InheritLight" xml:space="preserve">
-    <value>Світла (вбудована)</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Мова</value>
   </data>
@@ -1173,7 +1167,7 @@
     <value>Немає змін для збереження</value>
   </data>
   <data name="Settings_SaveMessage_Saved" xml:space="preserve">
-    <value>Налаштування збережено та застосовано.</value>
+    <value>Налаштування збережено та застосовано</value>
   </data>
   <data name="Settings_SavedTitle" xml:space="preserve">
     <value>Налаштування збережено</value>
@@ -1263,7 +1257,7 @@
     <value>Виберіть тип облікового запису</value>
   </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
-    <value>Встановлення скасовано.</value>
+    <value>Встановлення скасовано</value>
   </data>
   <data name="SetupWizard_CloudAccount" xml:space="preserve">
     <value>Хмарний обліковий запис</value>
@@ -1281,13 +1275,13 @@
     <value>Очікування входу через браузер...</value>
   </data>
   <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>Увійдіть через SUNRISE та синхронізуйте свій профіль ASLM.</value>
+    <value>Увійдіть через SUNRISE та синхронізуйте свій профіль ASLM</value>
   </data>
   <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>Щоб продовжити, увійдіть через браузер.</value>
+    <value>Щоб продовжити, увійдіть через браузер</value>
   </data>
   <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>Перш ніж продовжити, завершіть вхід через SUNRISE.</value>
+    <value>Перш ніж продовжити, завершіть вхід через SUNRISE</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>Ваше ім’я</value>
@@ -1302,7 +1296,7 @@
     <value>Швидке налаштування</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Швидке налаштування використовує типові параметри.</value>
+    <value>Швидке налаштування використовує типові параметри</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Завершити</value>
@@ -1320,7 +1314,7 @@
     <value>Локальний обліковий запис</value>
   </data>
   <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>Зберігайте свій профіль ASLM лише на цьому пристрої.</value>
+    <value>Зберігайте свій профіль ASLM лише на цьому пристрої</value>
   </data>
   <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
     <value>Не підтримується на {0}</value>

@@ -21,8 +21,8 @@ internal sealed class ThemeCreationForm
             Value = L.Get(LocalizationKeys.Settings_ThemeNew_DefaultName), Required = true };
         var appearance = new DialogField { Id = "baseAppearance", Label = DialogText.Localized(LocalizationKeys.Settings_ThemeEditor_Base),
             Kind = DialogFieldKind.Choice, Value = "dark", Required = true,
-            Choices = [new("dark", DialogText.Localized(LocalizationKeys.Settings_Personalization_InheritDark)),
-                new("light", DialogText.Localized(LocalizationKeys.Settings_Personalization_InheritLight))] };
+            Choices = [new("dark", DialogText.Localized(LocalizationKeys.Settings_Personalization_Appearance_Dark)),
+                new("light", DialogText.Localized(LocalizationKeys.Settings_Personalization_Appearance_Light))] };
         Fields = [name, appearance];
     }
 

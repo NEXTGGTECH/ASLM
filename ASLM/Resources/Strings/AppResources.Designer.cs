@@ -385,7 +385,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Console output from module startup, setup, settings sync, services, and run subprocesses will appear here..
+        ///   Ищет локализованную строку, похожую на Console output from module startup, setup, settings sync, services, and run subprocesses will appear here.
         /// </summary>
         public static string Consoles_EmptySelectionDescription {
             get {
@@ -394,7 +394,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Waiting for module activity..
+        ///   Ищет локализованную строку, похожую на Waiting for module activity.
         /// </summary>
         public static string Consoles_EmptySelectionFooter {
             get {
@@ -403,7 +403,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Start or select a module to see console activity..
+        ///   Ищет локализованную строку, похожую на Start or select a module to see console activity.
         /// </summary>
         public static string Consoles_EmptySelectionStatus {
             get {
@@ -520,7 +520,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на No output yet..
+        ///   Ищет локализованную строку, похожую на No output yet.
         /// </summary>
         public static string Consoles_NoOutputYet {
             get {
@@ -592,7 +592,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Observed child process started by the module. ASLM can keep it visible as a service, but direct stdout/stderr capture may be unavailable for third-party executables..
+        ///   Ищет локализованную строку, похожую на Observed child process started by the module. ASLM can keep it visible as a service, but direct stdout/stderr capture may be unavailable for third-party executables.
         /// </summary>
         public static string Consoles_SessionObservedDescription {
             get {
@@ -601,7 +601,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Observed child process. Direct stdout/stderr capture may be unavailable..
+        ///   Ищет локализованную строку, похожую на Observed child process. Direct stdout/stderr capture may be unavailable.
         /// </summary>
         public static string Consoles_SessionObservedPreview {
             get {
@@ -745,7 +745,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Includes unified logs and completed process history from active modules..
+        ///   Ищет локализованную строку, похожую на Includes unified logs and completed process history from active modules.
         /// </summary>
         public static string Consoles_UnifiedPreview {
             get {
@@ -772,7 +772,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Enter a valid value..
+        ///   Ищет локализованную строку, похожую на Enter a valid value.
         /// </summary>
         public static string Dialog_InvalidValue {
             get {
@@ -781,7 +781,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на This field is required..
+        ///   Ищет локализованную строку, похожую на This field is required.
         /// </summary>
         public static string Dialog_Required {
             get {
@@ -925,7 +925,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Connect your GitHub account to increase the hourly request limit..
+        ///   Ищет локализованную строку, похожую на Connect your GitHub account to increase the hourly request limit.
         /// </summary>
         public static string GitHubRateLimit_ConnectHint {
             get {
@@ -934,7 +934,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на ASLM has reached GitHub&apos;s hourly API request limit. Module search and downloads, module updates, ASLM updates, and engine updates may not work correctly until the limit resets..
+        ///   Ищет локализованную строку, похожую на ASLM has reached GitHub&apos;s hourly API request limit. Module search and downloads, module updates, ASLM updates, and engine updates may not work correctly until the limit resets.
         /// </summary>
         public static string GitHubRateLimit_Message {
             get {
@@ -1528,7 +1528,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на I have read and accept {0}..
+        ///   Ищет локализованную строку, похожую на I have read and accept {0}.
         /// </summary>
         public static string Legal_AcceptDocumentFormat {
             get {
@@ -1537,7 +1537,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Accept this agreement to continue..
+        ///   Ищет локализованную строку, похожую на Accept this agreement to continue.
         /// </summary>
         public static string Legal_AcceptRequired {
             get {
@@ -1555,7 +1555,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Terms were updated. Review and accept again..
+        ///   Ищет локализованную строку, похожую на Terms were updated. Review and accept again.
         /// </summary>
         public static string Legal_DocumentsUpdated {
             get {
@@ -1573,7 +1573,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Accept the required terms to use ASLM..
+        ///   Ищет локализованную строку, похожую на Accept the required terms to use ASLM.
         /// </summary>
         public static string Legal_Subtitle {
             get {
@@ -1609,7 +1609,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Installation canceled..
+        ///   Ищет локализованную строку, похожую на Installation canceled.
         /// </summary>
         public static string ModuleInfo_Canceled {
             get {
@@ -1645,7 +1645,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на A circular module dependency includes {0}. Installation was canceled..
+        ///   Ищет локализованную строку, похожую на A circular module dependency includes {0}. Installation was canceled.
         /// </summary>
         public static string ModuleInfo_DependencyCycle {
             get {
@@ -1708,7 +1708,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Could not finish installing {0}. See Notifications or the module console for details..
+        ///   Ищет локализованную строку, похожую на Could not finish installing {0}. See Notifications or the module console for details.
         /// </summary>
         public static string ModuleInfo_InstallFailed {
             get {
@@ -1726,7 +1726,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Required module {0} is missing from the local catalog..
+        ///   Ищет локализованную строку, похожую на Required module {0} is missing from the local catalog.
         /// </summary>
         public static string ModuleInfo_MissingDependency {
             get {
@@ -1753,7 +1753,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на No supported download source is available for this module..
+        ///   Ищет локализованную строку, похожую на No supported download source is available for this module.
         /// </summary>
         public static string ModuleInfo_NoSource {
             get {
@@ -1762,7 +1762,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Module {0} is no longer available in the local catalog..
+        ///   Ищет локализованную строку, похожую на Module {0} is no longer available in the local catalog.
         /// </summary>
         public static string ModuleInfo_NotAvailable {
             get {
@@ -1789,7 +1789,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Could not resolve a download source for {0}..
+        ///   Ищет локализованную строку, похожую на Could not resolve a download source for {0}.
         /// </summary>
         public static string ModuleInfo_SourceUnavailable {
             get {
@@ -1942,7 +1942,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Wait for module setup, launch, updates, or downloads to finish before removing a module..
+        ///   Ищет локализованную строку, похожую на Wait for module setup, launch, updates, or downloads to finish before removing a module.
         /// </summary>
         public static string Modules_RemoveBusy {
             get {
@@ -1969,7 +1969,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Remove {0} and its local data? Engines, environments, and models used only by this module will also be removed. Shared dependencies will be kept..
+        ///   Ищет локализованную строку, похожую на All data associated with {0} will be deleted.
         /// </summary>
         public static string Modules_RemoveConfirmFormat {
             get {
@@ -1996,7 +1996,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на This module is required by: {0}. Remove these modules first..
+        ///   Ищет локализованную строку, похожую на This module is required by: {0}. Remove these modules first.
         /// </summary>
         public static string Modules_RemoveRequiredFormat {
             get {
@@ -2005,7 +2005,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Another installed module uses files inside this module&apos;s directory. Removal was canceled to protect those files..
+        ///   Ищет локализованную строку, похожую на Another installed module uses files inside this module&apos;s directory. Removal was canceled to protect those files.
         /// </summary>
         public static string Modules_RemoveSharedFiles {
             get {
@@ -2014,7 +2014,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на This module has been removed. Refresh the module list before continuing..
+        ///   Ищет локализованную строку, похожую на This module has been removed. Refresh the module list before continuing.
         /// </summary>
         public static string Modules_RemoveStale {
             get {
@@ -2023,7 +2023,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Some installed module manifests are missing, unreadable, or have duplicate IDs. Removal was canceled because shared dependencies could not be checked safely..
+        ///   Ищет локализованную строку, похожую на Some installed module manifests are missing, unreadable, or have duplicate IDs. Removal was canceled because shared dependencies could not be checked safely.
         /// </summary>
         public static string Modules_RemoveUnknownDependencies {
             get {
@@ -2032,7 +2032,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Removal was canceled because a path is outside its managed directory or contains a symbolic link..
+        ///   Ищет локализованную строку, похожую на Removal was canceled because a path is outside its managed directory or contains a symbolic link.
         /// </summary>
         public static string Modules_RemoveUnsafePath {
             get {
@@ -2122,7 +2122,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Could not load the module catalog..
+        ///   Ищет локализованную строку, похожую на Could not load the module catalog.
         /// </summary>
         public static string ModulesDownloads_LoadFailed {
             get {
@@ -2140,7 +2140,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} update failed..
+        ///   Ищет локализованную строку, похожую на {0} update failed.
         /// </summary>
         public static string ModuleUpdate_Activity_FailedFormat {
             get {
@@ -2149,7 +2149,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} updated successfully..
+        ///   Ищет локализованную строку, похожую на {0} updated successfully.
         /// </summary>
         public static string ModuleUpdate_Activity_SuccessFormat {
             get {
@@ -2230,7 +2230,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Update did not complete successfully..
+        ///   Ищет локализованную строку, похожую на Update did not complete successfully.
         /// </summary>
         public static string ModuleUpdate_Log_Failed {
             get {
@@ -2248,7 +2248,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Starting update for {0}..
+        ///   Ищет локализованную строку, похожую на Starting update for {0}.
         /// </summary>
         public static string ModuleUpdate_Log_StartingFormat {
             get {
@@ -2257,7 +2257,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Update finished. Installed {0}..
+        ///   Ищет локализованную строку, похожую на Update finished. Installed {0}.
         /// </summary>
         public static string ModuleUpdate_Log_SuccessFormat {
             get {
@@ -2302,7 +2302,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Ready..
+        ///   Ищет локализованную строку, похожую на Ready.
         /// </summary>
         public static string ModuleUpdate_ReadyDefault {
             get {
@@ -2338,7 +2338,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Select a repository branch before checking updates..
+        ///   Ищет локализованную строку, похожую на Select a repository branch before checking updates.
         /// </summary>
         public static string ModuleUpdate_SelectBranchRequired {
             get {
@@ -2374,7 +2374,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Ready to check..
+        ///   Ищет локализованную строку, похожую на Ready to check.
         /// </summary>
         public static string ModuleUpdate_Status_ReadyToCheck {
             get {
@@ -2482,7 +2482,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на No ASLM update is available right now..
+        ///   Ищет локализованную строку, похожую на No ASLM update is available right now.
         /// </summary>
         public static string Notifications_AslmUpdateNotAvailable {
             get {
@@ -2491,7 +2491,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на The ASLM update could not be downloaded..
+        ///   Ищет локализованную строку, похожую на The ASLM update could not be downloaded.
         /// </summary>
         public static string Notifications_AslmUpdatePrepareFailed {
             get {
@@ -2563,7 +2563,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на The engine update could not be applied..
+        ///   Ищет локализованную строку, похожую на The engine update could not be applied.
         /// </summary>
         public static string Notifications_EngineUpdateFailed {
             get {
@@ -2572,7 +2572,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на No engine update is available right now..
+        ///   Ищет локализованную строку, похожую на No engine update is available right now.
         /// </summary>
         public static string Notifications_EngineUpdateNotAvailable {
             get {
@@ -2599,7 +2599,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на That module is no longer installed..
+        ///   Ищет локализованную строку, похожую на That module is no longer installed.
         /// </summary>
         public static string Notifications_ModuleNotInstalledMessage {
             get {
@@ -2752,7 +2752,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Local account. Profile data is stored only on this device..
+        ///   Ищет локализованную строку, похожую на Local account. Profile data is stored only on this device.
         /// </summary>
         public static string Settings_AslmAccount_LocalStatus {
             get {
@@ -2788,7 +2788,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на SUNRISE credentials will be removed from this device. Your local ASLM profile will remain available..
+        ///   Ищет локализованную строку, похожую на You will be signed out of your SUNRISE cloud account.
         /// </summary>
         public static string Settings_AslmAccount_SwitchToLocalMessage {
             get {
@@ -2797,7 +2797,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Switch to local account?.
+        ///   Ищет локализованную строку, похожую на Sign out of SUNRISE?.
         /// </summary>
         public static string Settings_AslmAccount_SwitchToLocalTitle {
             get {
@@ -2950,7 +2950,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на You have unsaved changes in this section. Discard them and switch?.
+        ///   Ищет локализованную строку, похожую на Unsaved changes will be lost.
         /// </summary>
         public static string Settings_DiscardDialog_Message {
             get {
@@ -3049,7 +3049,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на GitHub should have opened with a 1-year expiration prefilled. Leave permissions at defaults for public update checks, click Generate token, then paste it here..
+        ///   Ищет локализованную строку, похожую на Create a GitHub personal access token and paste it here.
         /// </summary>
         public static string Settings_GitHub_ConnectPrompt_Message {
             get {
@@ -3058,7 +3058,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Paste GitHub token.
+        ///   Ищет локализованную строку, похожую на GitHub token.
         /// </summary>
         public static string Settings_GitHub_ConnectPrompt_Title {
             get {
@@ -3076,7 +3076,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Disconnect your GitHub account from ASLM? The saved token will be removed from the application..
+        ///   Ищет локализованную строку, похожую на Your GitHub account will be disconnected from ASLM.
         /// </summary>
         public static string Settings_GitHub_DisconnectMessage {
             get {
@@ -3085,7 +3085,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Disconnect GitHub account?.
+        ///   Ищет локализованную строку, похожую на Disconnect GitHub?.
         /// </summary>
         public static string Settings_GitHub_DisconnectTitle {
             get {
@@ -3310,7 +3310,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на This removes the current ollama.com session for this Windows profile. Continue?.
+        ///   Ищет локализованную строку, похожую на You will be signed out of Ollama.
         /// </summary>
         public static string Settings_OllamaSignOut_Message {
             get {
@@ -3319,7 +3319,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Sign out from Ollama.
+        ///   Ищет локализованную строку, похожую на Sign out of Ollama?.
         /// </summary>
         public static string Settings_OllamaSignOut_Title {
             get {
@@ -3405,24 +3405,6 @@ namespace ASLM.Resources.Strings {
         public static string Settings_Personalization_ImportPickerTitle {
             get {
                 return ResourceManager.GetString("Settings_Personalization_ImportPickerTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Dark (built-in).
-        /// </summary>
-        public static string Settings_Personalization_InheritDark {
-            get {
-                return ResourceManager.GetString("Settings_Personalization_InheritDark", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Light (built-in).
-        /// </summary>
-        public static string Settings_Personalization_InheritLight {
-            get {
-                return ResourceManager.GetString("Settings_Personalization_InheritLight", resourceCulture);
             }
         }
         
@@ -3546,7 +3528,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Settings saved and applied..
+        ///   Ищет локализованную строку, похожую на Settings saved and applied.
         /// </summary>
         public static string Settings_SaveMessage_Saved {
             get {
@@ -3807,7 +3789,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Installation canceled..
+        ///   Ищет локализованную строку, похожую на Installation canceled.
         /// </summary>
         public static string SetupWizard_Canceled {
             get {
@@ -3861,7 +3843,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Sign in with SUNRISE and synchronize your ASLM profile..
+        ///   Ищет локализованную строку, похожую на Sign in with SUNRISE and synchronize your ASLM profile.
         /// </summary>
         public static string SetupWizard_CloudAccountDescription {
             get {
@@ -3870,7 +3852,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Sign in through your browser to continue..
+        ///   Ищет локализованную строку, похожую на Sign in through your browser to continue.
         /// </summary>
         public static string SetupWizard_CloudAccountNotConnected {
             get {
@@ -3879,7 +3861,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Complete SUNRISE sign-in before continuing..
+        ///   Ищет локализованную строку, похожую на Complete SUNRISE sign-in before continuing.
         /// </summary>
         public static string SetupWizard_CloudAccountRequired {
             get {
@@ -3924,7 +3906,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Fast Setup uses the default settings..
+        ///   Ищет локализованную строку, похожую на Fast Setup uses the default settings.
         /// </summary>
         public static string SetupWizard_FastSetupHint {
             get {
@@ -3978,7 +3960,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Keep your ASLM profile only on this device..
+        ///   Ищет локализованную строку, похожую на Keep your ASLM profile only on this device.
         /// </summary>
         public static string SetupWizard_LocalAccountDescription {
             get {

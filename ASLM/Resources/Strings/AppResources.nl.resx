@@ -121,13 +121,13 @@
     <value>Alle modules / Geïntegreerde console</value>
   </data>
   <data name="Consoles_EmptySelectionDescription" xml:space="preserve">
-    <value>Console-uitvoer van het opstarten, instellen, synchroniseren van instellingen, services en subprocessen van modules wordt hier weergegeven.</value>
+    <value>Console-uitvoer van het opstarten, instellen, synchroniseren van instellingen, services en subprocessen van modules wordt hier weergegeven</value>
   </data>
   <data name="Consoles_EmptySelectionFooter" xml:space="preserve">
-    <value>Wachten op moduleactiviteit.</value>
+    <value>Wachten op moduleactiviteit</value>
   </data>
   <data name="Consoles_EmptySelectionStatus" xml:space="preserve">
-    <value>Start of selecteer een module om console-activiteit te zien.</value>
+    <value>Start of selecteer een module om console-activiteit te zien</value>
   </data>
   <data name="Consoles_EmptySelectionTitle" xml:space="preserve">
     <value>Geen console geselecteerd</value>
@@ -166,7 +166,7 @@
     <value>Geen consoles</value>
   </data>
   <data name="Consoles_NoOutputYet" xml:space="preserve">
-    <value>Nog geen uitvoer.</value>
+    <value>Nog geen uitvoer</value>
   </data>
   <data name="Consoles_PidFormat" xml:space="preserve">
     <value> – PID {0}</value>
@@ -190,10 +190,10 @@
     <value>{0}-sessie wordt uitgevoerd{1}</value>
   </data>
   <data name="Consoles_SessionObservedDescription" xml:space="preserve">
-    <value>Geobserveerd kindproces gestart door de module. ASLM kan het zichtbaar houden als service, maar directe stdout/stderr-opname is mogelijk niet beschikbaar voor uitvoerbare bestanden van derden.</value>
+    <value>Geobserveerd kindproces gestart door de module. ASLM kan het zichtbaar houden als service, maar directe stdout/stderr-opname is mogelijk niet beschikbaar voor uitvoerbare bestanden van derden</value>
   </data>
   <data name="Consoles_SessionObservedPreview" xml:space="preserve">
-    <value>Geobserveerd kindproces. Directe stdout/stderr-opname is mogelijk niet beschikbaar.</value>
+    <value>Geobserveerd kindproces. Directe stdout/stderr-opname is mogelijk niet beschikbaar</value>
   </data>
   <data name="Consoles_SessionStageFormat" xml:space="preserve">
     <value>{0}-sessie</value>
@@ -241,7 +241,7 @@
     <value>Geïntegreerde console voor alle actieve modules</value>
   </data>
   <data name="Consoles_UnifiedPreview" xml:space="preserve">
-    <value>Bevat geïntegreerde logboeken en voltooide procesgeschiedenis van actieve modules.</value>
+    <value>Bevat geïntegreerde logboeken en voltooide procesgeschiedenis van actieve modules</value>
   </data>
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} zichtbare regels</value>
@@ -250,10 +250,10 @@
     <value>De actie kon niet worden voltooid: {0}</value>
   </data>
   <data name="Dialog_InvalidValue" xml:space="preserve">
-    <value>Voer een geldige waarde in.</value>
+    <value>Voer een geldige waarde in</value>
   </data>
   <data name="Dialog_Required" xml:space="preserve">
-    <value>Dit veld is verplicht.</value>
+    <value>Dit veld is verplicht</value>
   </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Catalogus</value>
@@ -301,10 +301,10 @@
     <value>GitHub-account koppelen</value>
   </data>
   <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>Koppel uw GitHub-account om de verzoeklimiet per uur te verhogen.</value>
+    <value>Koppel uw GitHub-account om de verzoeklimiet per uur te verhogen</value>
   </data>
   <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM heeft de limiet voor GitHub-API-verzoeken per uur bereikt. Het zoeken naar en downloaden van modules, en updates voor modules, ASLM en engines werken mogelijk niet goed totdat de limiet wordt gereset.</value>
+    <value>ASLM heeft de limiet voor GitHub-API-verzoeken per uur bereikt. Het zoeken naar en downloaden van modules, en updates voor modules, ASLM en engines werken mogelijk niet goed totdat de limiet wordt gereset</value>
   </data>
   <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
     <value>Later herinneren</value>
@@ -502,22 +502,22 @@
     <value>Accepteren en doorgaan</value>
   </data>
   <data name="Legal_AcceptDocumentFormat" xml:space="preserve">
-    <value>Ik heb {0} gelezen en accepteer dit.</value>
+    <value>Ik heb {0} gelezen en accepteer dit</value>
   </data>
   <data name="Legal_AcceptRequired" xml:space="preserve">
-    <value>Accepteer deze overeenkomst om door te gaan.</value>
+    <value>Accepteer deze overeenkomst om door te gaan</value>
   </data>
   <data name="Legal_Decline" xml:space="preserve">
     <value>Weigeren</value>
   </data>
   <data name="Legal_DocumentsUpdated" xml:space="preserve">
-    <value>Voorwaarden zijn bijgewerkt. Bekijk en accepteer opnieuw.</value>
+    <value>Voorwaarden zijn bijgewerkt. Bekijk en accepteer opnieuw</value>
   </data>
   <data name="Legal_StepFormat" xml:space="preserve">
     <value>Voorwaarden {0} van {1}</value>
   </data>
   <data name="Legal_Subtitle" xml:space="preserve">
-    <value>Accepteer de vereiste voorwaarden om ASLM te gebruiken.</value>
+    <value>Accepteer de vereiste voorwaarden om ASLM te gebruiken</value>
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Voorwaarden en licenties</value>
@@ -529,7 +529,7 @@
     <value>Auteur</value>
   </data>
   <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>Installatie geannuleerd.</value>
+    <value>Installatie geannuleerd</value>
   </data>
   <data name="ModuleInfo_Categories" xml:space="preserve">
     <value>Categorieën</value>
@@ -541,7 +541,7 @@
     <value>Configuratie</value>
   </data>
   <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>Er is een cyclische afhankelijkheid tussen modules gevonden waarbij {0} betrokken is. De installatie is geannuleerd.</value>
+    <value>Er is een cyclische afhankelijkheid tussen modules gevonden waarbij {0} betrokken is. De installatie is geannuleerd</value>
   </data>
   <data name="ModuleInfo_Downloading" xml:space="preserve">
     <value>{0} downloaden en instellen…</value>
@@ -559,7 +559,7 @@
     <value>Informatie</value>
   </data>
   <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>De installatie van {0} kon niet worden voltooid. Raadpleeg de meldingen of de moduleconsole voor meer informatie.</value>
+    <value>De installatie van {0} kon niet worden voltooid. Raadpleeg de meldingen of de moduleconsole voor meer informatie</value>
   </data>
   <data name="ModuleInfo_Installed" xml:space="preserve">
     <value>Geïnstalleerd</value>
@@ -568,7 +568,7 @@
     <value>Module-informatie laden…</value>
   </data>
   <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>De vereiste module {0} ontbreekt in de lokale catalogus.</value>
+    <value>De vereiste module {0} ontbreekt in de lokale catalogus</value>
   </data>
   <data name="ModuleInfo_Models" xml:space="preserve">
     <value>Vereiste modelcategorieën</value>
@@ -577,10 +577,10 @@
     <value>Vereiste modules</value>
   </data>
   <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>Er is geen ondersteunde downloadbron beschikbaar voor deze module.</value>
+    <value>Er is geen ondersteunde downloadbron beschikbaar voor deze module</value>
   </data>
   <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>Module {0} is niet meer beschikbaar in de lokale catalogus.</value>
+    <value>Module {0} is niet meer beschikbaar in de lokale catalogus</value>
   </data>
   <data name="ModuleInfo_NotInstalled" xml:space="preserve">
     <value>Niet geïnstalleerd</value>
@@ -589,7 +589,7 @@
     <value>Ondersteunde platforms</value>
   </data>
   <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>Er kon geen downloadbron voor {0} worden bepaald.</value>
+    <value>Er kon geen downloadbron voor {0} worden bepaald</value>
   </data>
   <data name="ModuleInfo_StateTitle" xml:space="preserve">
     <value>Modulestatus</value>
@@ -610,10 +610,10 @@
     <value>Updatestatus</value>
   </data>
   <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>Update van {0} mislukt.</value>
+    <value>Update van {0} mislukt</value>
   </data>
   <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} succesvol bijgewerkt.</value>
+    <value>{0} succesvol bijgewerkt</value>
   </data>
   <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
     <value>Updates controleren</value>
@@ -634,16 +634,16 @@
     <value>Updates controleren voor {0}...</value>
   </data>
   <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>Update is niet succesvol voltooid.</value>
+    <value>Update is niet succesvol voltooid</value>
   </data>
   <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
     <value>Update voor {0} installeren...</value>
   </data>
   <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>Update voor {0} starten.</value>
+    <value>Update voor {0} starten</value>
   </data>
   <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>Update voltooid. {0} geïnstalleerd.</value>
+    <value>Update voltooid. {0} geïnstalleerd</value>
   </data>
   <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
     <value>Geen module geselecteerd</value>
@@ -658,7 +658,7 @@
     <value>Voorkeuren worden automatisch opgeslagen</value>
   </data>
   <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>Gereed.</value>
+    <value>Gereed</value>
   </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>Releaseversie</value>
@@ -670,7 +670,7 @@
     <value>Zoekmodus</value>
   </data>
   <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>Selecteer een repository-branch voordat u updates controleert.</value>
+    <value>Selecteer een repository-branch voordat u updates controleert</value>
   </data>
   <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
     <value>Geselecteerd doel</value>
@@ -682,7 +682,7 @@
     <value>Updates controleren...</value>
   </data>
   <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>Klaar om te controleren.</value>
+    <value>Klaar om te controleren</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>Up-to-date</value>
@@ -715,7 +715,7 @@
     <value>Module-informatie sluiten</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>De modulecatalogus kon niet worden geladen.</value>
+    <value>De modulecatalogus kon niet worden geladen</value>
   </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Beschikbare modules zoeken</value>
@@ -757,7 +757,7 @@
     <value>Verwijderen</value>
   </data>
   <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>Wacht met het verwijderen van een module totdat het instellen, starten, bijwerken of downloaden van modules is voltooid.</value>
+    <value>Wacht met het verwijderen van een module totdat het instellen, starten, bijwerken of downloaden van modules is voltooid</value>
   </data>
   <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
     <value>De module is uit de lijst met geïnstalleerde modules verwijderd, maar sommige bestanden konden niet worden verwijderd. Ze staan nog in: {0}</value>
@@ -766,7 +766,7 @@
     <value>Module verwijderd</value>
   </data>
   <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>{0} en de lokale gegevens verwijderen? Engines, omgevingen en modellen die alleen door deze module worden gebruikt, worden ook verwijderd. Gedeelde afhankelijkheden blijven behouden.</value>
+    <value>Alle gegevens die bij {0} horen, worden verwijderd</value>
   </data>
   <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
     <value>{0} verwijderen?</value>
@@ -775,19 +775,19 @@
     <value>De module kon niet worden verwijderd</value>
   </data>
   <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>Deze module is vereist voor: {0}. Verwijder eerst deze modules.</value>
+    <value>Deze module is vereist voor: {0}. Verwijder eerst deze modules</value>
   </data>
   <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>Een andere geïnstalleerde module gebruikt bestanden in de map van deze module. Het verwijderen is geannuleerd om die bestanden te beschermen.</value>
+    <value>Een andere geïnstalleerde module gebruikt bestanden in de map van deze module. Het verwijderen is geannuleerd om die bestanden te beschermen</value>
   </data>
   <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>Deze module is verwijderd. Vernieuw de modulelijst voordat u doorgaat.</value>
+    <value>Deze module is verwijderd. Vernieuw de modulelijst voordat u doorgaat</value>
   </data>
   <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>Sommige manifesten van geïnstalleerde modules ontbreken, zijn onleesbaar of bevatten dubbele ID’s. Het verwijderen is geannuleerd omdat gedeelde afhankelijkheden niet veilig konden worden gecontroleerd.</value>
+    <value>Sommige manifesten van geïnstalleerde modules ontbreken, zijn onleesbaar of bevatten dubbele ID’s. Het verwijderen is geannuleerd omdat gedeelde afhankelijkheden niet veilig konden worden gecontroleerd</value>
   </data>
   <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>Het verwijderen is geannuleerd omdat een pad buiten de beheerde map ligt of een symbolische koppeling bevat.</value>
+    <value>Het verwijderen is geannuleerd omdat een pad buiten de beheerde map ligt of een symbolische koppeling bevat</value>
   </data>
   <data name="Modules_Removing" xml:space="preserve">
     <value>Bezig met verwijderen</value>
@@ -820,10 +820,10 @@
     <value>ASLM-update beschikbaar</value>
   </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
-    <value>Er is momenteel geen ASLM-update beschikbaar.</value>
+    <value>Er is momenteel geen ASLM-update beschikbaar</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailed" xml:space="preserve">
-    <value>De ASLM-update kon niet worden gedownload.</value>
+    <value>De ASLM-update kon niet worden gedownload</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailedStatus" xml:space="preserve">
     <value>Voorbereiding mislukt</value>
@@ -847,10 +847,10 @@
     <value>Engine-update beschikbaar</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
-    <value>De engine-update kon niet worden toegepast.</value>
+    <value>De engine-update kon niet worden toegepast</value>
   </data>
   <data name="Notifications_EngineUpdateNotAvailable" xml:space="preserve">
-    <value>Er is momenteel geen engine-update beschikbaar.</value>
+    <value>Er is momenteel geen engine-update beschikbaar</value>
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Engine-update</value>
@@ -859,7 +859,7 @@
     <value>geïnstalleerde versie</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>Die module is niet meer geïnstalleerd.</value>
+    <value>Die module is niet meer geïnstalleerd</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>Module-update beschikbaar</value>
@@ -910,7 +910,7 @@
     <value>Wachten totdat u zich via uw browser aanmeldt...</value>
   </data>
   <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>Lokaal account. Profielgegevens worden alleen op dit apparaat opgeslagen.</value>
+    <value>Lokaal account. Profielgegevens worden alleen op dit apparaat opgeslagen</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
     <value>Cloudaccount gebruiken</value>
@@ -922,10 +922,10 @@
     <value>Lokaal account gebruiken</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>De SUNRISE-aanmeldgegevens worden van dit apparaat verwijderd. Uw lokale ASLM-profiel blijft beschikbaar.</value>
+    <value>U wordt afgemeld bij uw SUNRISE-cloudaccount</value>
   </data>
   <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>Overschakelen naar een lokaal account?</value>
+    <value>Afmelden bij SUNRISE?</value>
   </data>
   <data name="Settings_AslmAccount_Title" xml:space="preserve">
     <value>ASLM-account</value>
@@ -976,7 +976,7 @@
     <value>Wijzigingen verwerpen</value>
   </data>
   <data name="Settings_DiscardDialog_Message" xml:space="preserve">
-    <value>Er zijn niet-opgeslagen wijzigingen in dit gedeelte. Verwerpen en overschakelen?</value>
+    <value>Niet-opgeslagen wijzigingen gaan verloren</value>
   </data>
   <data name="Settings_DiscardDialog_Title" xml:space="preserve">
     <value>Niet-opgeslagen wijzigingen</value>
@@ -1006,10 +1006,10 @@
     <value>Verbinding mislukt: {0}</value>
   </data>
   <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub zou moeten openen met een vooraf ingevulde vervaldatum van één jaar. Laat de machtigingen standaard voor openbare updatecontroles, maak het token aan en plak het hier.</value>
+    <value>Maak een persoonlijk toegangstoken aan op GitHub en plak het hier</value>
   </data>
   <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>GitHub-token plakken</value>
+    <value>GitHub-token</value>
   </data>
   <data name="Settings_GitHub_Connecting" xml:space="preserve">
     <value>Verbinden…</value>
@@ -1018,10 +1018,10 @@
     <value>Verbinding verbreken</value>
   </data>
   <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
-    <value>Wil je je GitHub-account van ASLM ontkoppelen? Het opgeslagen token wordt uit de toepassing verwijderd.</value>
+    <value>Uw GitHub-account wordt ontkoppeld van ASLM</value>
   </data>
   <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
-    <value>GitHub-account ontkoppelen?</value>
+    <value>GitHub ontkoppelen?</value>
   </data>
   <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
     <value>Maak verbinding om de API-limiet te verhogen van 60 naar 5.000 verzoeken per uur</value>
@@ -1069,10 +1069,10 @@
     <value>Afmelden</value>
   </data>
   <data name="Settings_OllamaSignOut_Message" xml:space="preserve">
-    <value>Dit verwijdert de huidige ollama.com-sessie voor dit Windows-profiel. Doorgaan?</value>
+    <value>U wordt afgemeld bij Ollama</value>
   </data>
   <data name="Settings_OllamaSignOut_Title" xml:space="preserve">
-    <value>Afmelden bij Ollama</value>
+    <value>Afmelden bij Ollama?</value>
   </data>
   <data name="Settings_Ollama_CheckingAccount" xml:space="preserve">
     <value>Account controleren</value>
@@ -1128,12 +1128,6 @@
   <data name="Settings_Personalization_ImportPickerTitle" xml:space="preserve">
     <value>Thema importeren</value>
   </data>
-  <data name="Settings_Personalization_InheritDark" xml:space="preserve">
-    <value>Donker (ingebouwd)</value>
-  </data>
-  <data name="Settings_Personalization_InheritLight" xml:space="preserve">
-    <value>Licht (ingebouwd)</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Taal</value>
   </data>
@@ -1173,7 +1167,7 @@
     <value>Geen wijzigingen om op te slaan</value>
   </data>
   <data name="Settings_SaveMessage_Saved" xml:space="preserve">
-    <value>Instellingen opgeslagen en toegepast.</value>
+    <value>Instellingen opgeslagen en toegepast</value>
   </data>
   <data name="Settings_SavedTitle" xml:space="preserve">
     <value>Instellingen opgeslagen</value>
@@ -1263,7 +1257,7 @@
     <value>Kies een accounttype</value>
   </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
-    <value>Installatie geannuleerd.</value>
+    <value>Installatie geannuleerd</value>
   </data>
   <data name="SetupWizard_CloudAccount" xml:space="preserve">
     <value>Cloudaccount</value>
@@ -1281,13 +1275,13 @@
     <value>Wachten totdat u zich via uw browser aanmeldt...</value>
   </data>
   <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>Meld u aan met SUNRISE en synchroniseer uw ASLM-profiel.</value>
+    <value>Meld u aan met SUNRISE en synchroniseer uw ASLM-profiel</value>
   </data>
   <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>Meld u via uw browser aan om door te gaan.</value>
+    <value>Meld u via uw browser aan om door te gaan</value>
   </data>
   <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>Voltooi de aanmelding bij SUNRISE voordat u doorgaat.</value>
+    <value>Voltooi de aanmelding bij SUNRISE voordat u doorgaat</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>Uw naam</value>
@@ -1302,7 +1296,7 @@
     <value>Snelle installatie</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>De snelle installatie gebruikt de standaardinstellingen.</value>
+    <value>De snelle installatie gebruikt de standaardinstellingen</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Voltooien</value>
@@ -1320,7 +1314,7 @@
     <value>Lokaal account</value>
   </data>
   <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>Bewaar uw ASLM-profiel alleen op dit apparaat.</value>
+    <value>Bewaar uw ASLM-profiel alleen op dit apparaat</value>
   </data>
   <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
     <value>Niet ondersteund op {0}</value>
