@@ -76,7 +76,7 @@ namespace ASLM.Pages
                 L.Get(LocalizationKeys.Settings_DiscardDialog_Title),
                 L.Get(LocalizationKeys.Settings_DiscardDialog_Message),
                 L.Get(LocalizationKeys.Common_Discard),
-                L.Get(LocalizationKeys.Common_Stay));
+                L.Get(LocalizationKeys.Common_Stay), danger: true);
 
             if (!discardChanges)
             {
@@ -250,10 +250,10 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Shows a confirmation dialog on the current shell page.
+        /// Shows a confirmation dialog, optionally marking its accepting action as destructive.
         /// </summary>
-        private Task<bool> ShowAlertAsync(string title, string message, string accept, string cancel) =>
-            DialogService.For(this).ConfirmAsync(this, title, message, accept, cancel);
+        private Task<bool> ShowAlertAsync(string title, string message, string accept, string cancel, bool danger = false) =>
+            DialogService.For(this).ConfirmAsync(this, title, message, accept, cancel, danger: danger);
 
         /// <summary>
         /// Finds one keyed XAML style used by selector and footer state updates.

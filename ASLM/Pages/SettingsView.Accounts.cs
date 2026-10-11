@@ -27,7 +27,7 @@ namespace ASLM.Pages
                     L.Get(LocalizationKeys.Settings_AslmAccount_SwitchToLocalTitle),
                     L.Get(LocalizationKeys.Settings_AslmAccount_SwitchToLocalMessage),
                     L.Get(LocalizationKeys.Settings_AslmAccount_SwitchToLocalConfirm),
-                    L.Get(LocalizationKeys.Common_Cancel));
+                    L.Get(LocalizationKeys.Common_Cancel), danger: true);
                 if (!confirmed)
                 {
                     return;
@@ -378,7 +378,7 @@ namespace ASLM.Pages
                     L.Get(LocalizationKeys.Settings_OllamaSignOut_Title),
                     L.Get(LocalizationKeys.Settings_OllamaSignOut_Message),
                     L.Get(LocalizationKeys.Settings_OllamaSignOut_Confirm),
-                    L.Get(LocalizationKeys.Common_Cancel));
+                    L.Get(LocalizationKeys.Common_Cancel), danger: true);
 
                 if (!confirmed)
                 {

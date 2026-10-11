@@ -569,7 +569,7 @@ namespace ASLM.Pages
                 L.Get(LocalizationKeys.Settings_ThemeDelete_Title),
                 L.Get(LocalizationKeys.Settings_ThemeDelete_Message),
                 L.Get(LocalizationKeys.Settings_ThemeDelete_Accept),
-                L.Get(LocalizationKeys.Common_Cancel));
+                L.Get(LocalizationKeys.Common_Cancel), danger: true);
 
             if (!confirmed)
             {
