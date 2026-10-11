@@ -252,10 +252,8 @@ namespace ASLM.Pages
         /// <summary>
         /// Shows a confirmation dialog on the current shell page.
         /// </summary>
-        private static Task<bool> ShowAlertAsync(string title, string message, string accept, string cancel) =>
-            Application.Current?.Windows.Count > 0
-                ? Application.Current.Windows[0].Page!.DisplayAlertAsync(title, message, accept, cancel)
-                : Task.FromResult(false);
+        private Task<bool> ShowAlertAsync(string title, string message, string accept, string cancel) =>
+            DialogService.For(this).ConfirmAsync(this, title, message, accept, cancel);
 
         /// <summary>
         /// Finds one keyed XAML style used by selector and footer state updates.
@@ -281,13 +279,8 @@ namespace ASLM.Pages
         /// <summary>
         /// Shows an error dialog on the current shell page.
         /// </summary>
-        private static Task ShowErrorAsync(string message) =>
-            Application.Current?.Windows.Count > 0
-                ? Application.Current.Windows[0].Page!.DisplayAlertAsync(
-                    L.Get(LocalizationKeys.Settings_ValidationError),
-                    message,
-                    L.Get(LocalizationKeys.Common_OK))
-                : Task.CompletedTask;
+        private Task ShowErrorAsync(string message) =>
+            DialogService.For(this).AlertAsync(this, DialogText.Localized(LocalizationKeys.Settings_ValidationError), message);
 
 
         // Saving

@@ -15,6 +15,7 @@ namespace ASLM.Pages
     public partial class SetupWizardPage : ContentPage, ILocalizable, INotifyPropertyChanged
     {
         private const int TotalSteps = 3;
+        private readonly GitHubRateLimitNotice _gitHubLimitNotice;
         private static int FirstSetupStep => SunriseService.IsEnabled ? 1 : 2;
 
         private readonly AppDataStore _appData;
@@ -78,7 +79,8 @@ namespace ASLM.Pages
             _services = services;
 
             InitializeComponent();
-            GitHubLimitNotice.Initialize(_services, SetupSurface, OpenGitHubAccounts,
+            Dialogs.Initialize(this, SetupSurface, _services);
+            _gitHubLimitNotice = new(this, Dialogs, _services, OpenGitHubAccounts,
                 () => !_legalAcceptance.ManualAcceptanceRequired);
             BindingContext = this;
             LocalizableAttach.Hook(this, _localization, this);
@@ -172,7 +174,7 @@ namespace ASLM.Pages
             try
             {
                 await LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
-                GitHubLimitNotice.Refresh();
+                _gitHubLimitNotice.Refresh();
 
                 if (fastSetup)
                 {
@@ -193,7 +195,7 @@ namespace ASLM.Pages
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SetupWizard] Failed to start setup: {ex}");
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.SetupWizard_Title),
                     ex.Message,
                     L.Get(LocalizationKeys.Common_OK));
@@ -249,7 +251,7 @@ namespace ASLM.Pages
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SetupWizard] Failed to select local account: {ex}");
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.Settings_AslmAccount_Title),
                     ex.Message,
                     L.Get(LocalizationKeys.Common_OK));
@@ -336,7 +338,7 @@ namespace ASLM.Pages
                 CloudAccountStatusLabel.Text = L.Get(
                     LocalizationKeys.SetupWizard_CloudAccountAuthenticationFailed,
                     error);
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.Settings_AslmAccount_Title),
                     CloudAccountStatusLabel.Text,
                     L.Get(LocalizationKeys.Common_OK));
@@ -352,7 +354,7 @@ namespace ASLM.Pages
                 CloudAccountStatusLabel.Text = L.Get(
                     LocalizationKeys.SetupWizard_CloudAccountAuthenticationFailed,
                     ex.Message);
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.Settings_AslmAccount_Title),
                     CloudAccountStatusLabel.Text,
                     L.Get(LocalizationKeys.Common_OK));
@@ -576,7 +578,8 @@ namespace ASLM.Pages
                     }
                     else if (!SettingsService.TryValidateDisplayName(UsernameEntry.Text, out var validatedUserName, out var displayNameErrorMessage))
                     {
-                        await DisplayAlertAsync("Error", displayNameErrorMessage, "OK");
+                        await DialogService.For(this).AlertAsync(this,
+                            DialogText.Localized(LocalizationKeys.Settings_ValidationError), displayNameErrorMessage);
                         return;
                     }
                     else
@@ -631,7 +634,7 @@ namespace ASLM.Pages
                 _appData.Data.Personalization.Language = previousLanguage;
                 LanguagePicker.SelectedItem = AppLocalizationService.GetPickerDisplayName(previousLanguage);
                 _localization.ApplyCulture();
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.SetupWizard_SelectLanguage),
                     ex.Message,
                     L.Get(LocalizationKeys.Common_OK));
@@ -1325,22 +1328,26 @@ namespace ASLM.Pages
         /// </summary>
         private async Task FinishSetupAsync()
         {
+            var window = Window;
             try
             {
                 _appData.Data.FirstRunCompleted = true;
                 await _appData.SaveAsync();
 
-                if (Application.Current?.Windows.Count > 0)
+                if (window != null)
                 {
                     var mainPage = _services.GetRequiredService<AppShellPage>();
-                    Application.Current.Windows[0].Page = mainPage;
+                    window.Page = mainPage;
                     _localization.SyncFlowDirection();
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SetupWizard] FinishSetupAsync error: {ex}");
-                await DisplayAlertAsync("Error", $"Failed to navigate: {ex.Message}", "OK");
+                var host = window?.Page ?? this;
+                await DialogService.For(host).AlertAsync(host,
+                    DialogText.Localized(LocalizationKeys.SetupWizard_Title),
+                    DialogText.Localized(LocalizationKeys.SetupWizard_FinishFailedFormat, ex.Message));
             }
         }
 

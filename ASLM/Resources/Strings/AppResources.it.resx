@@ -69,6 +69,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>Annulla</value>
   </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Chiudi</value>
+  </data>
   <data name="Common_Discard" xml:space="preserve">
     <value>Scarta</value>
   </data>
@@ -243,6 +246,15 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} righe visibili</value>
   </data>
+  <data name="Dialog_ActionFailedFormat" xml:space="preserve">
+    <value>Impossibile completare l’operazione: {0}</value>
+  </data>
+  <data name="Dialog_InvalidValue" xml:space="preserve">
+    <value>Inserisci un valore valido.</value>
+  </data>
+  <data name="Dialog_Required" xml:space="preserve">
+    <value>Questo campo è obbligatorio.</value>
+  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Catalogo</value>
   </data>
@@ -264,14 +276,14 @@
   <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
     <value>[Immagine: {0}]</value>
   </data>
+  <data name="Downloads_NoItems" xml:space="preserve">
+    <value>Nessun elemento</value>
+  </data>
   <data name="Downloads_OpenLink" xml:space="preserve">
     <value>Apri link</value>
   </data>
-  <data name="Downloads_SelectVariant" xml:space="preserve">
-    <value>Seleziona una variante da scaricare:</value>
-  </data>
-  <data name="Downloads_NoItems" xml:space="preserve">
-    <value>Nessun elemento</value>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>In coda</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>Cerca nel catalogo del fornitore</value>
@@ -279,8 +291,26 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Seleziona un elemento</value>
   </data>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Seleziona una variante da scaricare:</value>
+  </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>Download</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>Collega account GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Collega il tuo account GitHub per aumentare il limite di richieste all’ora.</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM ha raggiunto il limite orario di richieste all’API di GitHub. La ricerca e il download dei moduli, così come gli aggiornamenti dei moduli, di ASLM e dei motori, potrebbero non funzionare correttamente fino al ripristino del limite.</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Ricordamelo più tardi</value>
+  </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>Limite di richieste GitHub raggiunto</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>Disco {0}</value>
@@ -495,6 +525,84 @@
   <data name="Loading_Text" xml:space="preserve">
     <value>Caricamento...</value>
   </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Autore</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Installazione annullata.</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Categorie</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Canale di download</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Configurazione</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Una dipendenza circolare tra moduli include {0}. L’installazione è stata annullata.</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>Download e configurazione di {0}…</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Motori richiesti</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Operazione non riuscita: {0}</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>ID del modulo</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Informazioni</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Impossibile completare l’installazione di {0}. Per i dettagli, consulta le notifiche o la console del modulo.</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Installato</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Caricamento delle informazioni sul modulo…</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Il modulo richiesto {0} non è presente nel catalogo locale.</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Categorie di modelli richieste</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Moduli richiesti</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Non è disponibile alcuna fonte di download supportata per questo modulo.</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Il modulo {0} non è più disponibile nel catalogo locale.</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Non installato</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Piattaforme supportate</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Impossibile determinare una fonte di download per {0}.</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Stato del modulo</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Stato</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Tipo</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Versione</value>
+  </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>Attività di aggiornamento</value>
   </data>
@@ -603,6 +711,18 @@
   <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
     <value>Origine aggiornamento</value>
   </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Chiudi le informazioni sul modulo</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Impossibile caricare il catalogo dei moduli.</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Cerca moduli disponibili</value>
+  </data>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>Beta</value>
+  </data>
   <data name="Modules_CheckUpdates" xml:space="preserve">
     <value>Controlla aggiornamenti</value>
   </data>
@@ -612,11 +732,65 @@
   <data name="Modules_Empty" xml:space="preserve">
     <value>Nessun modulo trovato. Installa i moduli tramite la procedura guidata di configurazione</value>
   </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>Sperimentale</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>Installazione come dipendenza</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>Installazione come dipendenza di {0}</value>
+  </data>
   <data name="Modules_Launch" xml:space="preserve">
     <value>Avvia</value>
   </data>
   <data name="Modules_NotVerified" xml:space="preserve">
     <value>Non verificato</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>In coda come dipendenza</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>In coda come dipendenza di {0}</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Disinstalla</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Prima di rimuovere un modulo, attendi il completamento della configurazione, dell’avvio, degli aggiornamenti o dei download dei moduli.</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Il modulo è stato rimosso dall’elenco dei moduli installati, ma non è stato possibile eliminare alcuni file. Si trovano ancora in: {0}</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Modulo rimosso</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Rimuovere {0} e i suoi dati locali? Verranno rimossi anche i motori, gli ambienti e i modelli utilizzati solo da questo modulo. Le dipendenze condivise verranno mantenute.</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Disinstallare {0}?</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Impossibile rimuovere il modulo</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Questo modulo è richiesto da: {0}. Rimuovi prima questi moduli.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Un altro modulo installato utilizza dei file nella directory di questo modulo. La rimozione è stata annullata per proteggere questi file.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Questo modulo è stato rimosso. Aggiorna l’elenco dei moduli prima di continuare.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Alcuni manifesti dei moduli installati sono mancanti, illeggibili o contengono ID duplicati. La rimozione è stata annullata perché non è stato possibile verificare in sicurezza le dipendenze condivise.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>La rimozione è stata annullata perché un percorso si trova al di fuori della directory gestita o contiene un collegamento simbolico.</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Disinstallazione</value>
   </data>
   <data name="Modules_Restart" xml:space="preserve">
     <value>Riavvia</value>
@@ -669,12 +843,6 @@
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Nessuna notifica</value>
   </data>
-  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
-    <value>versione installata</value>
-  </data>
-  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>Quel modulo non è più installato.</value>
-  </data>
   <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
     <value>Aggiornamento del motore disponibile</value>
   </data>
@@ -686,6 +854,12 @@
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Aggiornamento del motore</value>
+  </data>
+  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
+    <value>versione installata</value>
+  </data>
+  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
+    <value>Quel modulo non è più installato.</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>Aggiornamento modulo disponibile</value>
@@ -714,11 +888,47 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Aggiorna ora</value>
   </data>
+  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
+    <value>Account ASLM</value>
+  </data>
+  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
+    <value>Account GitHub</value>
+  </data>
+  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
+    <value>Account Ollama</value>
+  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
     <value>Abilita il server mirror ASLM</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>Canale degli aggiornamenti ASLM</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Accesso all'account cloud non riuscito: {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>In attesa dell'accesso tramite browser...</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Account locale. I dati del profilo vengono archiviati solo su questo dispositivo.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Usa account cloud</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Usa account locale</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Usa account locale</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>Le credenziali SUNRISE verranno rimosse da questo dispositivo. Il tuo profilo ASLM locale resterà disponibile.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Passare a un account locale?</value>
+  </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>Account ASLM</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Ore tra i controlli degli aggiornamenti in background</value>
@@ -737,42 +947,6 @@
   </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Account</value>
-  </data>
-  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
-    <value>Account ASLM</value>
-  </data>
-  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
-    <value>Account GitHub</value>
-  </data>
-  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
-    <value>Account Ollama</value>
-  </data>
-  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
-    <value>Connettiti per aumentare il limite API da 60 a 5.000 richieste all'ora</value>
-  </data>
-  <data name="Settings_GitHub_Connect" xml:space="preserve">
-    <value>Connetti</value>
-  </data>
-  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
-    <value>Disconnetti</value>
-  </data>
-  <data name="Settings_GitHub_Connecting" xml:space="preserve">
-    <value>Connessione in corso…</value>
-  </data>
-  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
-    <value>ghp_... o github_pat_...</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>Incolla token GitHub</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub dovrebbe essersi aperto con scadenza preimpostata a un anno. Lascia i permessi predefiniti per i controlli di aggiornamento pubblici, crea il token e incollalo qui.</value>
-  </data>
-  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
-    <value>Account GitHub</value>
-  </data>
-  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
-    <value>Connessione non riuscita: {0}</value>
   </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
@@ -795,6 +969,9 @@
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
     <value>Mostra la pagina Console</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Disattiva la pagina Home (WIP)</value>
+  </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Scarta modifiche</value>
   </data>
@@ -807,6 +984,12 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Nome visualizzato</value>
   </data>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Scarica aggiornamento</value>
+  </data>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>Download in corso</value>
+  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>Questa categoria non ha impostazioni</value>
   </data>
@@ -816,11 +999,50 @@
   <data name="Settings_Engine_NotInstalled" xml:space="preserve">
     <value>Non installato</value>
   </data>
+  <data name="Settings_GitHub_Connect" xml:space="preserve">
+    <value>Connetti</value>
+  </data>
+  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
+    <value>Connessione non riuscita: {0}</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
+    <value>GitHub dovrebbe essersi aperto con scadenza preimpostata a un anno. Lascia i permessi predefiniti per i controlli di aggiornamento pubblici, crea il token e incollalo qui.</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
+    <value>Incolla token GitHub</value>
+  </data>
+  <data name="Settings_GitHub_Connecting" xml:space="preserve">
+    <value>Connessione in corso…</value>
+  </data>
+  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
+    <value>Disconnetti</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
+    <value>Vuoi scollegare il tuo account GitHub da ASLM? Il token salvato verrà rimosso dall’applicazione.</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
+    <value>Scollegare l’account GitHub?</value>
+  </data>
+  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
+    <value>Connettiti per aumentare il limite API da 60 a 5.000 richieste all'ora</value>
+  </data>
+  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
+    <value>ghp_... o github_pat_...</value>
+  </data>
+  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
+    <value>Account GitHub</value>
+  </data>
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>MODULI</value>
   </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
     <value>Mostra console separate per i processi dei moduli</value>
+  </data>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Installa e riavvia</value>
+  </data>
+  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
+    <value>Accetta automaticamente gli aggiornamenti delle policy</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Carica predefiniti</value>
@@ -831,11 +1053,14 @@
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>Questo modulo non ha impostazioni nello stato corrente</value>
   </data>
-  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
-    <value>Nessuna impostazione disponibile</value>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Altre impostazioni</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>Porta iniziale dei moduli</value>
+  </data>
+  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
+    <value>Nessuna impostazione disponibile</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Account Ollama</value>
@@ -909,9 +1134,6 @@
   <data name="Settings_Personalization_InheritLight" xml:space="preserve">
     <value>Chiaro (integrato)</value>
   </data>
-  <data name="Settings_Personalization_InheritTitle" xml:space="preserve">
-    <value>Eredita colori da</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Lingua</value>
   </data>
@@ -932,9 +1154,6 @@
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Porte</value>
-  </data>
-  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
-    <value>Disattiva la pagina Home (WIP)</value>
   </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>Apri l'ultima pagina visitata all'avvio di ASLM</value>
@@ -971,9 +1190,6 @@
   <data name="Settings_SubGroup_Legal" xml:space="preserve">
     <value>Termini</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Accetta automaticamente gli aggiornamenti delle policy</value>
-  </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Elimina</value>
   </data>
@@ -989,11 +1205,11 @@
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Cancella</value>
   </data>
-  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
-    <value>Editor tema: {0}</value>
-  </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Scegli</value>
+  </data>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Editor tema: {0}</value>
   </data>
   <data name="Settings_ThemeExport_Failed" xml:space="preserve">
     <value>Impossibile esportare il tema: {0}</value>
@@ -1028,26 +1244,50 @@
   <data name="Settings_Title" xml:space="preserve">
     <value>Impostazioni</value>
   </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Versione disponibile: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Versione installata: {0}</value>
+  </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>Impossibile preparare l'aggiornamento ASLM</value>
   </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Riavvio non riuscito: {0}</value>
   </data>
-  <data name="Settings_DownloadUpdate" xml:space="preserve">
-    <value>Scarica aggiornamento</value>
-  </data>
-  <data name="Settings_Downloading" xml:space="preserve">
-    <value>Download in corso</value>
-  </data>
-  <data name="Settings_InstallAndRestart" xml:space="preserve">
-    <value>Installa e riavvia</value>
-  </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Errore di convalida</value>
   </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>Scegli un tipo di account</value>
+  </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
     <value>Installazione annullata.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>Account cloud</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>Accedi con SUNRISE</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Accesso all'account cloud non riuscito: {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>Connesso come {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>In attesa dell'accesso tramite browser...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>Accedi con SUNRISE e sincronizza il tuo profilo ASLM.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Accedi tramite browser per continuare.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Completa l'accesso a SUNRISE prima di continuare.</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>Il tuo nome</value>
@@ -1067,17 +1307,29 @@
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Fine</value>
   </data>
+  <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
+    <value>Impossibile completare la configurazione iniziale: {0}</value>
+  </data>
   <data name="SetupWizard_HideLog" xml:space="preserve">
     <value>Nascondi log</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Installazione</value>
   </data>
-  <data name="SetupWizard_Next_Install" xml:space="preserve">
-    <value>Installa</value>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Account locale</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>Mantieni il tuo profilo ASLM solo su questo dispositivo.</value>
+  </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>Non supportato su {0}</value>
   </data>
   <data name="SetupWizard_ModulesPortLabel" xml:space="preserve">
     <value>Porta iniziale moduli</value>
+  </data>
+  <data name="SetupWizard_Next_Install" xml:space="preserve">
+    <value>Installa</value>
   </data>
   <data name="SetupWizard_OverallProgress" xml:space="preserve">
     <value>Avanzamento complessivo</value>
@@ -1144,239 +1396,5 @@
   </data>
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Opacità</value>
-  </data>
-  <data name="Settings_AslmAccount_Title" xml:space="preserve">
-    <value>Account ASLM</value>
-  </data>
-  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>Account locale. I dati del profilo vengono archiviati solo su questo dispositivo.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
-    <value>Usa account cloud</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
-    <value>Usa account locale</value>
-  </data>
-  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
-    <value>In attesa dell'accesso tramite browser...</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>Passare a un account locale?</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>Le credenziali SUNRISE verranno rimosse da questo dispositivo. Il tuo profilo ASLM locale resterà disponibile.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
-    <value>Usa account locale</value>
-  </data>
-  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
-    <value>Accesso all'account cloud non riuscito: {0}</value>
-  </data>
-  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
-    <value>Scegli un tipo di account</value>
-  </data>
-  <data name="SetupWizard_LocalAccount" xml:space="preserve">
-    <value>Account locale</value>
-  </data>
-  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>Mantieni il tuo profilo ASLM solo su questo dispositivo.</value>
-  </data>
-  <data name="SetupWizard_CloudAccount" xml:space="preserve">
-    <value>Account cloud</value>
-  </data>
-  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>Accedi con SUNRISE e sincronizza il tuo profilo ASLM.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
-    <value>Accedi con SUNRISE</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
-    <value>In attesa dell'accesso tramite browser...</value>
-  </data>
-  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>Accedi tramite browser per continuare.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
-    <value>Connesso come {0}</value>
-  </data>
-  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>Completa l'accesso a SUNRISE prima di continuare.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
-    <value>Accesso all'account cloud non riuscito: {0}</value>
-  </data>
-  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
-    <value>Non supportato su {0}</value>
-  </data>
-  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
-    <value>Altre impostazioni</value>
-  </data>
-  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
-    <value>Versione disponibile: {0}</value>
-  </data>
-  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
-    <value>Versione installata: {0}</value>
-  </data>
-  <data name="ModulesDownloads_Search" xml:space="preserve">
-    <value>Cerca moduli disponibili</value>
-  </data>
-  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>Impossibile caricare il catalogo dei moduli.</value>
-  </data>
-  <data name="ModulesDownloads_Close" xml:space="preserve">
-    <value>Chiudi le informazioni sul modulo</value>
-  </data>
-  <data name="Modules_Remove" xml:space="preserve">
-    <value>Disinstalla</value>
-  </data>
-  <data name="Modules_Removing" xml:space="preserve">
-    <value>Disinstallazione</value>
-  </data>
-  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
-    <value>Disinstallare {0}?</value>
-  </data>
-  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>Rimuovere {0} e i suoi dati locali? Verranno rimossi anche i motori, gli ambienti e i modelli utilizzati solo da questo modulo. Le dipendenze condivise verranno mantenute.</value>
-  </data>
-  <data name="Modules_RemoveFailed" xml:space="preserve">
-    <value>Impossibile rimuovere il modulo</value>
-  </data>
-  <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>Prima di rimuovere un modulo, attendi il completamento della configurazione, dell’avvio, degli aggiornamenti o dei download dei moduli.</value>
-  </data>
-  <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>Questo modulo è stato rimosso. Aggiorna l’elenco dei moduli prima di continuare.</value>
-  </data>
-  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>Alcuni manifesti dei moduli installati sono mancanti, illeggibili o contengono ID duplicati. La rimozione è stata annullata perché non è stato possibile verificare in sicurezza le dipendenze condivise.</value>
-  </data>
-  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>Questo modulo è richiesto da: {0}. Rimuovi prima questi moduli.</value>
-  </data>
-  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>La rimozione è stata annullata perché un percorso si trova al di fuori della directory gestita o contiene un collegamento simbolico.</value>
-  </data>
-  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>Un altro modulo installato utilizza dei file nella directory di questo modulo. La rimozione è stata annullata per proteggere questi file.</value>
-  </data>
-  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
-    <value>Modulo rimosso</value>
-  </data>
-  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
-    <value>Il modulo è stato rimosso dall’elenco dei moduli installati, ma non è stato possibile eliminare alcuni file. Si trovano ancora in: {0}</value>
-  </data>
-  <data name="ModuleInfo_Version" xml:space="preserve">
-    <value>Versione</value>
-  </data>
-  <data name="ModuleInfo_Author" xml:space="preserve">
-    <value>Autore</value>
-  </data>
-  <data name="ModuleInfo_Id" xml:space="preserve">
-    <value>ID del modulo</value>
-  </data>
-  <data name="ModuleInfo_Type" xml:space="preserve">
-    <value>Tipo</value>
-  </data>
-  <data name="ModuleInfo_Categories" xml:space="preserve">
-    <value>Categorie</value>
-  </data>
-  <data name="ModuleInfo_Platforms" xml:space="preserve">
-    <value>Piattaforme supportate</value>
-  </data>
-  <data name="ModuleInfo_Channel" xml:space="preserve">
-    <value>Canale di download</value>
-  </data>
-  <data name="ModuleInfo_Engines" xml:space="preserve">
-    <value>Motori richiesti</value>
-  </data>
-  <data name="ModuleInfo_Modules" xml:space="preserve">
-    <value>Moduli richiesti</value>
-  </data>
-  <data name="ModuleInfo_Models" xml:space="preserve">
-    <value>Categorie di modelli richieste</value>
-  </data>
-  <data name="ModuleInfo_Loading" xml:space="preserve">
-    <value>Caricamento delle informazioni sul modulo…</value>
-  </data>
-  <data name="ModuleInfo_Downloading" xml:space="preserve">
-    <value>Download e configurazione di {0}…</value>
-  </data>
-  <data name="ModuleInfo_Installed" xml:space="preserve">
-    <value>Installato</value>
-  </data>
-  <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>Non è disponibile alcuna fonte di download supportata per questo modulo.</value>
-  </data>
-  <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>Installazione annullata.</value>
-  </data>
-  <data name="ModuleInfo_Failed" xml:space="preserve">
-    <value>Operazione non riuscita: {0}</value>
-  </data>
-  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>Il modulo {0} non è più disponibile nel catalogo locale.</value>
-  </data>
-  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>Impossibile determinare una fonte di download per {0}.</value>
-  </data>
-  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>Impossibile completare l’installazione di {0}. Per i dettagli, consulta le notifiche o la console del modulo.</value>
-  </data>
-  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>Una dipendenza circolare tra moduli include {0}. L’installazione è stata annullata.</value>
-  </data>
-  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>Il modulo richiesto {0} non è presente nel catalogo locale.</value>
-  </data>
-  <data name="ModuleInfo_InfoTab" xml:space="preserve">
-    <value>Informazioni</value>
-  </data>
-  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
-    <value>Configurazione</value>
-  </data>
-  <data name="ModuleInfo_StatusTab" xml:space="preserve">
-    <value>Stato</value>
-  </data>
-  <data name="ModuleInfo_StateTitle" xml:space="preserve">
-    <value>Stato del modulo</value>
-  </data>
-  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
-    <value>Non installato</value>
-  </data>
-  <data name="Modules_Beta" xml:space="preserve">
-    <value>Beta</value>
-  </data>
-  <data name="Modules_Experimental" xml:space="preserve">
-    <value>Sperimentale</value>
-  </data>
-  <data name="Downloads_Queued" xml:space="preserve">
-    <value>In coda</value>
-  </data>
-  <data name="Modules_QueuedDependency" xml:space="preserve">
-    <value>In coda come dipendenza</value>
-  </data>
-  <data name="Modules_InstallingDependency" xml:space="preserve">
-    <value>Installazione come dipendenza</value>
-  </data>
-  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
-    <value>In coda come dipendenza di {0}</value>
-  </data>
-  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
-    <value>Installazione come dipendenza di {0}</value>
-  </data>
-  <data name="GitHubRateLimit_Title" xml:space="preserve">
-    <value>Limite di richieste GitHub raggiunto</value>
-  </data>
-  <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM ha raggiunto il limite orario di richieste all’API di GitHub. La ricerca e il download dei moduli, così come gli aggiornamenti dei moduli, di ASLM e dei motori, potrebbero non funzionare correttamente fino al ripristino del limite.</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>Collega il tuo account GitHub per aumentare il limite di richieste all’ora.</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
-    <value>Collega account GitHub</value>
-  </data>
-  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
-    <value>Ricordamelo più tardi</value>
   </data>
 </root>

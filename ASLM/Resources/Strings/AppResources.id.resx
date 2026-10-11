@@ -69,6 +69,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>Batal</value>
   </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Tutup</value>
+  </data>
   <data name="Common_Discard" xml:space="preserve">
     <value>Buang</value>
   </data>
@@ -243,6 +246,15 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} baris terlihat</value>
   </data>
+  <data name="Dialog_ActionFailedFormat" xml:space="preserve">
+    <value>Tidak dapat menyelesaikan tindakan: {0}</value>
+  </data>
+  <data name="Dialog_InvalidValue" xml:space="preserve">
+    <value>Masukkan nilai yang valid.</value>
+  </data>
+  <data name="Dialog_Required" xml:space="preserve">
+    <value>Kolom ini wajib diisi.</value>
+  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Katalog</value>
   </data>
@@ -264,14 +276,14 @@
   <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
     <value>[Gambar: {0}]</value>
   </data>
+  <data name="Downloads_NoItems" xml:space="preserve">
+    <value>Tidak ada item</value>
+  </data>
   <data name="Downloads_OpenLink" xml:space="preserve">
     <value>Buka tautan</value>
   </data>
-  <data name="Downloads_SelectVariant" xml:space="preserve">
-    <value>Pilih varian unduhan:</value>
-  </data>
-  <data name="Downloads_NoItems" xml:space="preserve">
-    <value>Tidak ada item</value>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>Dalam antrean</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>Cari di katalog penyedia</value>
@@ -279,8 +291,26 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Pilih item</value>
   </data>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Pilih varian unduhan:</value>
+  </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>Unduhan</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>Hubungkan akun GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Hubungkan akun GitHub Anda untuk meningkatkan batas permintaan per jam.</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM telah mencapai batas permintaan API GitHub per jam. Pencarian dan pengunduhan modul, serta pembaruan modul, ASLM, dan mesin mungkin tidak berfungsi dengan baik hingga batas tersebut direset.</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Ingatkan saya nanti</value>
+  </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>Batas permintaan GitHub tercapai</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>Disk {0}</value>
@@ -495,6 +525,84 @@
   <data name="Loading_Text" xml:space="preserve">
     <value>Memuat...</value>
   </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Pembuat</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Pemasangan dibatalkan.</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Kategori</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Saluran unduhan</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Konfigurasi</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Ditemukan dependensi melingkar antarmodul yang melibatkan {0}. Pemasangan dibatalkan.</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>Mengunduh dan menyiapkan {0}…</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Mesin yang diperlukan</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Operasi gagal: {0}</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>ID modul</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Informasi</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Pemasangan {0} tidak dapat diselesaikan. Lihat notifikasi atau konsol modul untuk detailnya.</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Terpasang</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Memuat informasi modul…</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Modul yang diperlukan, {0}, tidak ditemukan di katalog lokal.</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Kategori model yang diperlukan</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Modul yang diperlukan</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Tidak ada sumber unduhan yang didukung untuk modul ini.</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Modul {0} tidak lagi tersedia di katalog lokal.</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Belum terpasang</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Platform yang didukung</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Sumber unduhan untuk {0} tidak dapat ditentukan.</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Status modul</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Jenis</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Versi</value>
+  </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>Aktivitas Pembaruan</value>
   </data>
@@ -603,6 +711,18 @@
   <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
     <value>Sumber pembaruan</value>
   </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Tutup informasi modul</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Katalog modul tidak dapat dimuat.</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Cari modul yang tersedia</value>
+  </data>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>Beta</value>
+  </data>
   <data name="Modules_CheckUpdates" xml:space="preserve">
     <value>Periksa pembaruan</value>
   </data>
@@ -612,11 +732,65 @@
   <data name="Modules_Empty" xml:space="preserve">
     <value>Tidak ada modul ditemukan. Pasang modul melalui Wizard Penyiapan</value>
   </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>Eksperimental</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>Memasang sebagai dependensi</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>Memasang sebagai dependensi {0}</value>
+  </data>
   <data name="Modules_Launch" xml:space="preserve">
     <value>Luncurkan</value>
   </data>
   <data name="Modules_NotVerified" xml:space="preserve">
     <value>Belum diverifikasi</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>Dalam antrean sebagai dependensi</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>Dalam antrean sebagai dependensi {0}</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Copot pemasangan</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Sebelum menghapus modul, tunggu hingga proses penyiapan, pengaktifan, pembaruan, atau pengunduhan modul selesai.</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Modul telah dihapus dari daftar modul terpasang, tetapi beberapa berkas tidak dapat dihapus. Berkas tersebut masih ada di: {0}</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Modul dihapus</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Hapus {0} beserta data lokalnya? Mesin, lingkungan, dan model yang hanya digunakan oleh modul ini juga akan dihapus. Dependensi bersama akan dipertahankan.</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Copot pemasangan {0}?</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Modul tidak dapat dihapus</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Modul ini diperlukan oleh: {0}. Hapus modul-modul tersebut terlebih dahulu.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Modul terpasang lainnya menggunakan berkas di dalam direktori modul ini. Penghapusan dibatalkan untuk melindungi berkas tersebut.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Modul ini telah dihapus. Muat ulang daftar modul sebelum melanjutkan.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Beberapa manifes modul yang terpasang tidak ditemukan, tidak dapat dibaca, atau berisi ID duplikat. Penghapusan dibatalkan karena dependensi bersama tidak dapat diperiksa dengan aman.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Penghapusan dibatalkan karena suatu jalur berada di luar direktori yang dikelola atau mengandung tautan simbolis.</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Mencopot pemasangan</value>
   </data>
   <data name="Modules_Restart" xml:space="preserve">
     <value>Mulai ulang</value>
@@ -669,12 +843,6 @@
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Tidak ada notifikasi</value>
   </data>
-  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
-    <value>versi terinstal</value>
-  </data>
-  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>Modul tersebut sudah tidak lagi terinstal.</value>
-  </data>
   <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
     <value>Pembaruan mesin tersedia</value>
   </data>
@@ -686,6 +854,12 @@
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Pembaruan mesin</value>
+  </data>
+  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
+    <value>versi terinstal</value>
+  </data>
+  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
+    <value>Modul tersebut sudah tidak lagi terinstal.</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>Pembaruan modul tersedia</value>
@@ -714,11 +888,47 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Perbarui sekarang</value>
   </data>
+  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
+    <value>Akun ASLM</value>
+  </data>
+  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
+    <value>Akun GitHub</value>
+  </data>
+  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
+    <value>Akun Ollama</value>
+  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
     <value>Aktifkan ASLM Mirror Server</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>Saluran pembaruan ASLM</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Gagal masuk ke akun cloud: {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>Menunggu Anda masuk melalui browser...</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Akun lokal. Data profil hanya disimpan di perangkat ini.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Gunakan akun cloud</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Gunakan akun lokal</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Gunakan akun lokal</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>Kredensial SUNRISE akan dihapus dari perangkat ini. Profil ASLM lokal Anda akan tetap tersedia.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Beralih ke akun lokal?</value>
+  </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>Akun ASLM</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Jam antara pemeriksaan pembaruan latar belakang</value>
@@ -737,42 +947,6 @@
   </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Akun</value>
-  </data>
-  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
-    <value>Akun ASLM</value>
-  </data>
-  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
-    <value>Akun GitHub</value>
-  </data>
-  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
-    <value>Akun Ollama</value>
-  </data>
-  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
-    <value>Hubungkan untuk menaikkan batas API dari 60 menjadi 5.000 permintaan per jam</value>
-  </data>
-  <data name="Settings_GitHub_Connect" xml:space="preserve">
-    <value>Hubungkan</value>
-  </data>
-  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
-    <value>Putuskan</value>
-  </data>
-  <data name="Settings_GitHub_Connecting" xml:space="preserve">
-    <value>Menghubungkan…</value>
-  </data>
-  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
-    <value>ghp_... atau github_pat_...</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>Tempel token GitHub</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub seharusnya terbuka dengan kedaluwarsa 1 tahun yang sudah diisi. Biarkan izin default untuk pemeriksaan pembaruan publik, buat token, lalu tempel di sini.</value>
-  </data>
-  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
-    <value>Akun GitHub</value>
-  </data>
-  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
-    <value>Koneksi gagal: {0}</value>
   </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
@@ -795,6 +969,9 @@
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
     <value>Tampilkan halaman Konsol</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Nonaktifkan halaman beranda (WIP)</value>
+  </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Buang Perubahan</value>
   </data>
@@ -807,6 +984,12 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Nama Tampilan</value>
   </data>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Unduh pembaruan</value>
+  </data>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>Mengunduh</value>
+  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>Kategori ini tidak memiliki pengaturan</value>
   </data>
@@ -816,11 +999,50 @@
   <data name="Settings_Engine_NotInstalled" xml:space="preserve">
     <value>Belum terpasang</value>
   </data>
+  <data name="Settings_GitHub_Connect" xml:space="preserve">
+    <value>Hubungkan</value>
+  </data>
+  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
+    <value>Koneksi gagal: {0}</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
+    <value>GitHub seharusnya terbuka dengan kedaluwarsa 1 tahun yang sudah diisi. Biarkan izin default untuk pemeriksaan pembaruan publik, buat token, lalu tempel di sini.</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
+    <value>Tempel token GitHub</value>
+  </data>
+  <data name="Settings_GitHub_Connecting" xml:space="preserve">
+    <value>Menghubungkan…</value>
+  </data>
+  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
+    <value>Putuskan</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
+    <value>Putuskan tautan akun GitHub Anda dari ASLM? Token yang tersimpan akan dihapus dari aplikasi.</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
+    <value>Putuskan tautan akun GitHub?</value>
+  </data>
+  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
+    <value>Hubungkan untuk menaikkan batas API dari 60 menjadi 5.000 permintaan per jam</value>
+  </data>
+  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
+    <value>ghp_... atau github_pat_...</value>
+  </data>
+  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
+    <value>Akun GitHub</value>
+  </data>
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>MODUL</value>
   </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
     <value>Tampilkan konsol terpisah untuk proses modul</value>
+  </data>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Instal dan mulai ulang</value>
+  </data>
+  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
+    <value>Terima pembaruan kebijakan secara otomatis</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Muat default</value>
@@ -831,11 +1053,14 @@
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>Modul ini tidak memiliki pengaturan dalam keadaan saat ini</value>
   </data>
-  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
-    <value>Tidak ada pengaturan yang tersedia</value>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Pengaturan lainnya</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>Port awal modul</value>
+  </data>
+  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
+    <value>Tidak ada pengaturan yang tersedia</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Akun Ollama</value>
@@ -909,9 +1134,6 @@
   <data name="Settings_Personalization_InheritLight" xml:space="preserve">
     <value>Terang (bawaan)</value>
   </data>
-  <data name="Settings_Personalization_InheritTitle" xml:space="preserve">
-    <value>Warisi warna dari</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Bahasa</value>
   </data>
@@ -932,9 +1154,6 @@
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Port</value>
-  </data>
-  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
-    <value>Nonaktifkan halaman beranda (WIP)</value>
   </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>Buka halaman yang terakhir dikunjungi saat ASLM dimulai</value>
@@ -971,9 +1190,6 @@
   <data name="Settings_SubGroup_Legal" xml:space="preserve">
     <value>Ketentuan</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Terima pembaruan kebijakan secara otomatis</value>
-  </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Hapus</value>
   </data>
@@ -989,11 +1205,11 @@
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Bersihkan</value>
   </data>
-  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
-    <value>Editor tema: {0}</value>
-  </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Pilih</value>
+  </data>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Editor tema: {0}</value>
   </data>
   <data name="Settings_ThemeExport_Failed" xml:space="preserve">
     <value>Tidak dapat mengekspor tema: {0}</value>
@@ -1028,26 +1244,50 @@
   <data name="Settings_Title" xml:space="preserve">
     <value>Pengaturan</value>
   </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Versi tersedia: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Versi terinstal: {0}</value>
+  </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>Pembaruan ASLM tidak dapat disiapkan</value>
   </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Mulai ulang gagal: {0}</value>
   </data>
-  <data name="Settings_DownloadUpdate" xml:space="preserve">
-    <value>Unduh pembaruan</value>
-  </data>
-  <data name="Settings_Downloading" xml:space="preserve">
-    <value>Mengunduh</value>
-  </data>
-  <data name="Settings_InstallAndRestart" xml:space="preserve">
-    <value>Instal dan mulai ulang</value>
-  </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Kesalahan Validasi</value>
   </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>Pilih jenis akun</value>
+  </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
     <value>Instalasi dibatalkan.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>Akun cloud</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>Masuk dengan SUNRISE</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Gagal masuk ke akun cloud: {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>Terhubung sebagai {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>Menunggu Anda masuk melalui browser...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>Masuk dengan SUNRISE dan sinkronkan profil ASLM Anda.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Masuk melalui browser untuk melanjutkan.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Selesaikan proses masuk ke SUNRISE sebelum melanjutkan.</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>Nama Anda</value>
@@ -1067,17 +1307,29 @@
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Selesai</value>
   </data>
+  <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
+    <value>Tidak dapat menyelesaikan penyiapan awal: {0}</value>
+  </data>
   <data name="SetupWizard_HideLog" xml:space="preserve">
     <value>Sembunyikan Log</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Memasang</value>
   </data>
-  <data name="SetupWizard_Next_Install" xml:space="preserve">
-    <value>Pasang</value>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Akun lokal</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>Simpan profil ASLM Anda hanya di perangkat ini.</value>
+  </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>Tidak didukung di {0}</value>
   </data>
   <data name="SetupWizard_ModulesPortLabel" xml:space="preserve">
     <value>Port awal modul</value>
+  </data>
+  <data name="SetupWizard_Next_Install" xml:space="preserve">
+    <value>Pasang</value>
   </data>
   <data name="SetupWizard_OverallProgress" xml:space="preserve">
     <value>Kemajuan Keseluruhan</value>
@@ -1144,239 +1396,5 @@
   </data>
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Opasitas</value>
-  </data>
-  <data name="Settings_AslmAccount_Title" xml:space="preserve">
-    <value>Akun ASLM</value>
-  </data>
-  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>Akun lokal. Data profil hanya disimpan di perangkat ini.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
-    <value>Gunakan akun cloud</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
-    <value>Gunakan akun lokal</value>
-  </data>
-  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
-    <value>Menunggu Anda masuk melalui browser...</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>Beralih ke akun lokal?</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>Kredensial SUNRISE akan dihapus dari perangkat ini. Profil ASLM lokal Anda akan tetap tersedia.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
-    <value>Gunakan akun lokal</value>
-  </data>
-  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
-    <value>Gagal masuk ke akun cloud: {0}</value>
-  </data>
-  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
-    <value>Pilih jenis akun</value>
-  </data>
-  <data name="SetupWizard_LocalAccount" xml:space="preserve">
-    <value>Akun lokal</value>
-  </data>
-  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>Simpan profil ASLM Anda hanya di perangkat ini.</value>
-  </data>
-  <data name="SetupWizard_CloudAccount" xml:space="preserve">
-    <value>Akun cloud</value>
-  </data>
-  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>Masuk dengan SUNRISE dan sinkronkan profil ASLM Anda.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
-    <value>Masuk dengan SUNRISE</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
-    <value>Menunggu Anda masuk melalui browser...</value>
-  </data>
-  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>Masuk melalui browser untuk melanjutkan.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
-    <value>Terhubung sebagai {0}</value>
-  </data>
-  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>Selesaikan proses masuk ke SUNRISE sebelum melanjutkan.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
-    <value>Gagal masuk ke akun cloud: {0}</value>
-  </data>
-  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
-    <value>Tidak didukung di {0}</value>
-  </data>
-  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
-    <value>Pengaturan lainnya</value>
-  </data>
-  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
-    <value>Versi tersedia: {0}</value>
-  </data>
-  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
-    <value>Versi terinstal: {0}</value>
-  </data>
-  <data name="ModulesDownloads_Search" xml:space="preserve">
-    <value>Cari modul yang tersedia</value>
-  </data>
-  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>Katalog modul tidak dapat dimuat.</value>
-  </data>
-  <data name="ModulesDownloads_Close" xml:space="preserve">
-    <value>Tutup informasi modul</value>
-  </data>
-  <data name="Modules_Remove" xml:space="preserve">
-    <value>Copot pemasangan</value>
-  </data>
-  <data name="Modules_Removing" xml:space="preserve">
-    <value>Mencopot pemasangan</value>
-  </data>
-  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
-    <value>Copot pemasangan {0}?</value>
-  </data>
-  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>Hapus {0} beserta data lokalnya? Mesin, lingkungan, dan model yang hanya digunakan oleh modul ini juga akan dihapus. Dependensi bersama akan dipertahankan.</value>
-  </data>
-  <data name="Modules_RemoveFailed" xml:space="preserve">
-    <value>Modul tidak dapat dihapus</value>
-  </data>
-  <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>Sebelum menghapus modul, tunggu hingga proses penyiapan, pengaktifan, pembaruan, atau pengunduhan modul selesai.</value>
-  </data>
-  <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>Modul ini telah dihapus. Muat ulang daftar modul sebelum melanjutkan.</value>
-  </data>
-  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>Beberapa manifes modul yang terpasang tidak ditemukan, tidak dapat dibaca, atau berisi ID duplikat. Penghapusan dibatalkan karena dependensi bersama tidak dapat diperiksa dengan aman.</value>
-  </data>
-  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>Modul ini diperlukan oleh: {0}. Hapus modul-modul tersebut terlebih dahulu.</value>
-  </data>
-  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>Penghapusan dibatalkan karena suatu jalur berada di luar direktori yang dikelola atau mengandung tautan simbolis.</value>
-  </data>
-  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>Modul terpasang lainnya menggunakan berkas di dalam direktori modul ini. Penghapusan dibatalkan untuk melindungi berkas tersebut.</value>
-  </data>
-  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
-    <value>Modul dihapus</value>
-  </data>
-  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
-    <value>Modul telah dihapus dari daftar modul terpasang, tetapi beberapa berkas tidak dapat dihapus. Berkas tersebut masih ada di: {0}</value>
-  </data>
-  <data name="ModuleInfo_Version" xml:space="preserve">
-    <value>Versi</value>
-  </data>
-  <data name="ModuleInfo_Author" xml:space="preserve">
-    <value>Pembuat</value>
-  </data>
-  <data name="ModuleInfo_Id" xml:space="preserve">
-    <value>ID modul</value>
-  </data>
-  <data name="ModuleInfo_Type" xml:space="preserve">
-    <value>Jenis</value>
-  </data>
-  <data name="ModuleInfo_Categories" xml:space="preserve">
-    <value>Kategori</value>
-  </data>
-  <data name="ModuleInfo_Platforms" xml:space="preserve">
-    <value>Platform yang didukung</value>
-  </data>
-  <data name="ModuleInfo_Channel" xml:space="preserve">
-    <value>Saluran unduhan</value>
-  </data>
-  <data name="ModuleInfo_Engines" xml:space="preserve">
-    <value>Mesin yang diperlukan</value>
-  </data>
-  <data name="ModuleInfo_Modules" xml:space="preserve">
-    <value>Modul yang diperlukan</value>
-  </data>
-  <data name="ModuleInfo_Models" xml:space="preserve">
-    <value>Kategori model yang diperlukan</value>
-  </data>
-  <data name="ModuleInfo_Loading" xml:space="preserve">
-    <value>Memuat informasi modul…</value>
-  </data>
-  <data name="ModuleInfo_Downloading" xml:space="preserve">
-    <value>Mengunduh dan menyiapkan {0}…</value>
-  </data>
-  <data name="ModuleInfo_Installed" xml:space="preserve">
-    <value>Terpasang</value>
-  </data>
-  <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>Tidak ada sumber unduhan yang didukung untuk modul ini.</value>
-  </data>
-  <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>Pemasangan dibatalkan.</value>
-  </data>
-  <data name="ModuleInfo_Failed" xml:space="preserve">
-    <value>Operasi gagal: {0}</value>
-  </data>
-  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>Modul {0} tidak lagi tersedia di katalog lokal.</value>
-  </data>
-  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>Sumber unduhan untuk {0} tidak dapat ditentukan.</value>
-  </data>
-  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>Pemasangan {0} tidak dapat diselesaikan. Lihat notifikasi atau konsol modul untuk detailnya.</value>
-  </data>
-  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>Ditemukan dependensi melingkar antarmodul yang melibatkan {0}. Pemasangan dibatalkan.</value>
-  </data>
-  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>Modul yang diperlukan, {0}, tidak ditemukan di katalog lokal.</value>
-  </data>
-  <data name="ModuleInfo_InfoTab" xml:space="preserve">
-    <value>Informasi</value>
-  </data>
-  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
-    <value>Konfigurasi</value>
-  </data>
-  <data name="ModuleInfo_StatusTab" xml:space="preserve">
-    <value>Status</value>
-  </data>
-  <data name="ModuleInfo_StateTitle" xml:space="preserve">
-    <value>Status modul</value>
-  </data>
-  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
-    <value>Belum terpasang</value>
-  </data>
-  <data name="Modules_Beta" xml:space="preserve">
-    <value>Beta</value>
-  </data>
-  <data name="Modules_Experimental" xml:space="preserve">
-    <value>Eksperimental</value>
-  </data>
-  <data name="Downloads_Queued" xml:space="preserve">
-    <value>Dalam antrean</value>
-  </data>
-  <data name="Modules_QueuedDependency" xml:space="preserve">
-    <value>Dalam antrean sebagai dependensi</value>
-  </data>
-  <data name="Modules_InstallingDependency" xml:space="preserve">
-    <value>Memasang sebagai dependensi</value>
-  </data>
-  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
-    <value>Dalam antrean sebagai dependensi {0}</value>
-  </data>
-  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
-    <value>Memasang sebagai dependensi {0}</value>
-  </data>
-  <data name="GitHubRateLimit_Title" xml:space="preserve">
-    <value>Batas permintaan GitHub tercapai</value>
-  </data>
-  <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM telah mencapai batas permintaan API GitHub per jam. Pencarian dan pengunduhan modul, serta pembaruan modul, ASLM, dan mesin mungkin tidak berfungsi dengan baik hingga batas tersebut direset.</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>Hubungkan akun GitHub Anda untuk meningkatkan batas permintaan per jam.</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
-    <value>Hubungkan akun GitHub</value>
-  </data>
-  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
-    <value>Ingatkan saya nanti</value>
   </data>
 </root>

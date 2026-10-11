@@ -69,6 +69,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>İptal</value>
   </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Kapat</value>
+  </data>
   <data name="Common_Discard" xml:space="preserve">
     <value>Vazgeç</value>
   </data>
@@ -243,6 +246,15 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} görünür satır</value>
   </data>
+  <data name="Dialog_ActionFailedFormat" xml:space="preserve">
+    <value>İşlem tamamlanamadı: {0}</value>
+  </data>
+  <data name="Dialog_InvalidValue" xml:space="preserve">
+    <value>Geçerli bir değer girin.</value>
+  </data>
+  <data name="Dialog_Required" xml:space="preserve">
+    <value>Bu alan zorunludur.</value>
+  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Katalog</value>
   </data>
@@ -264,14 +276,14 @@
   <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
     <value>[Görsel: {0}]</value>
   </data>
+  <data name="Downloads_NoItems" xml:space="preserve">
+    <value>Öğe yok</value>
+  </data>
   <data name="Downloads_OpenLink" xml:space="preserve">
     <value>Bağlantıyı aç</value>
   </data>
-  <data name="Downloads_SelectVariant" xml:space="preserve">
-    <value>İndirilecek varyantı seçin:</value>
-  </data>
-  <data name="Downloads_NoItems" xml:space="preserve">
-    <value>Öğe yok</value>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>Sırada</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>Sağlayıcının kataloğunda ara</value>
@@ -279,8 +291,26 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Bir öğe seçin</value>
   </data>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>İndirilecek varyantı seçin:</value>
+  </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>İndirmeler</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>GitHub hesabını bağla</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Saatlik istek sınırını artırmak için GitHub hesabınızı bağlayın.</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM, GitHub API'sinin saatlik istek sınırına ulaştı. Sınır sıfırlanana kadar modül arama ve indirme işlemleri ile modül, ASLM ve motor güncellemeleri düzgün çalışmayabilir.</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Daha sonra hatırlat</value>
+  </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>GitHub istek sınırına ulaşıldı</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>Depolama {0}</value>
@@ -495,6 +525,84 @@
   <data name="Loading_Text" xml:space="preserve">
     <value>Yükleniyor...</value>
   </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Yazar</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Kurulum iptal edildi.</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Kategoriler</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>İndirme kanalı</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Yapılandırma</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>{0} modülünü içeren döngüsel bir modül bağımlılığı bulundu. Kurulum iptal edildi.</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>{0} indiriliyor ve kuruluyor…</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Gerekli motorlar</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>İşlem başarısız oldu: {0}</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>Modül kimliği</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Bilgi</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>{0} kurulumu tamamlanamadı. Ayrıntılar için bildirimlere veya modül konsoluna bakın.</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Yüklü</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Modül bilgileri yükleniyor…</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Gerekli {0} modülü yerel katalogda bulunmuyor.</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Gerekli model kategorileri</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Gerekli modüller</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Bu modül için desteklenen bir indirme kaynağı bulunmuyor.</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>{0} modülü artık yerel katalogda bulunmuyor.</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Yüklü değil</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Desteklenen platformlar</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>{0} için bir indirme kaynağı belirlenemedi.</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Modül durumu</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Durum</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Tür</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Sürüm</value>
+  </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>Güncelleme etkinliği</value>
   </data>
@@ -603,6 +711,18 @@
   <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
     <value>Güncelleme kaynağı</value>
   </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Modül bilgilerini kapat</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Modül kataloğu yüklenemedi.</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Kullanılabilir modülleri ara</value>
+  </data>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>Beta</value>
+  </data>
   <data name="Modules_CheckUpdates" xml:space="preserve">
     <value>Güncellemeleri denetle</value>
   </data>
@@ -612,11 +732,65 @@
   <data name="Modules_Empty" xml:space="preserve">
     <value>Modül bulunamadı. Kurulum Sihirbazı ile modül yükleyin</value>
   </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>Deneysel</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>Bağımlılık olarak yükleniyor</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>{0} bağımlılığı olarak yükleniyor</value>
+  </data>
   <data name="Modules_Launch" xml:space="preserve">
     <value>Başlat</value>
   </data>
   <data name="Modules_NotVerified" xml:space="preserve">
     <value>Doğrulanmadı</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>Bağımlılık olarak sırada</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>{0} bağımlılığı olarak sırada</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Kaldır</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Bir modülü kaldırmadan önce modül kurulumu, başlatma, güncelleme veya indirme işlemlerinin tamamlanmasını bekleyin.</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Modül yüklü modüller listesinden kaldırıldı ancak bazı dosyalar silinemedi. Dosyalar hâlâ şu konumda: {0}</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Modül kaldırıldı</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>{0} ve yerel verileri kaldırılsın mı? Yalnızca bu modülün kullandığı motorlar, ortamlar ve modeller de kaldırılacak. Paylaşılan bağımlılıklar korunacak.</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>{0} kaldırılsın mı?</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Modül kaldırılamadı</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>Şu modüller bu modüle ihtiyaç duyuyor: {0}. Önce bu modülleri kaldırın.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Yüklü başka bir modül bu modülün dizinindeki dosyaları kullanıyor. Bu dosyaları korumak için kaldırma işlemi iptal edildi.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Bu modül kaldırıldı. Devam etmeden önce modül listesini yenileyin.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Yüklü modüllerin bazı bildirim dosyaları eksik, okunamıyor veya yinelenen kimlikler içeriyor. Paylaşılan bağımlılıklar güvenli bir şekilde denetlenemediği için kaldırma işlemi iptal edildi.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Bir yol yönetilen dizinin dışında olduğu veya sembolik bağlantı içerdiği için kaldırma işlemi iptal edildi.</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Kaldırılıyor</value>
   </data>
   <data name="Modules_Restart" xml:space="preserve">
     <value>Yeniden başlat</value>
@@ -669,12 +843,6 @@
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Bildirim yok</value>
   </data>
-  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
-    <value>yüklü sürüm</value>
-  </data>
-  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>Bu modül artık yüklü değil.</value>
-  </data>
   <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
     <value>Motor güncellemesi mevcut</value>
   </data>
@@ -686,6 +854,12 @@
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Motor güncellemesi</value>
+  </data>
+  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
+    <value>yüklü sürüm</value>
+  </data>
+  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
+    <value>Bu modül artık yüklü değil.</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>Modül güncellemesi mevcut</value>
@@ -714,11 +888,47 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Şimdi güncelle</value>
   </data>
+  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
+    <value>ASLM Hesabı</value>
+  </data>
+  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
+    <value>GitHub Hesabı</value>
+  </data>
+  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
+    <value>Ollama Hesabı</value>
+  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
     <value>ASLM Yansıtma Sunucusunu etkinleştir</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>ASLM güncelleme kanalı</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Bulut hesabında oturum açılamadı: {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>Tarayıcınız üzerinden oturum açmanız bekleniyor...</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Yerel hesap. Profil verileri yalnızca bu cihazda saklanır.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Bulut hesabını kullan</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Yerel hesabı kullan</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Yerel hesabı kullan</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>SUNRISE kimlik bilgileri bu cihazdan kaldırılacak. Yerel ASLM profiliniz kullanılabilir durumda kalacak.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Yerel hesaba geçilsin mi?</value>
+  </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>ASLM Hesabı</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Arka plandaki güncelleme denetimleri arasındaki saat</value>
@@ -737,42 +947,6 @@
   </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Hesaplar</value>
-  </data>
-  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
-    <value>ASLM Hesabı</value>
-  </data>
-  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
-    <value>GitHub Hesabı</value>
-  </data>
-  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
-    <value>Ollama Hesabı</value>
-  </data>
-  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
-    <value>API limitini saatte 60'tan 5.000 isteğe çıkarmak için bağlanın</value>
-  </data>
-  <data name="Settings_GitHub_Connect" xml:space="preserve">
-    <value>Bağlan</value>
-  </data>
-  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
-    <value>Bağlantıyı kes</value>
-  </data>
-  <data name="Settings_GitHub_Connecting" xml:space="preserve">
-    <value>Bağlanıyor…</value>
-  </data>
-  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
-    <value>ghp_... veya github_pat_...</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>GitHub belirtecini yapıştır</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub, bir yıllık süre önceden doldurulmuş olarak açılmalıydı. Genel güncelleme denetimleri için izinleri varsayılan bırakın, belirteci oluşturun ve buraya yapıştırın.</value>
-  </data>
-  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
-    <value>GitHub Hesabı</value>
-  </data>
-  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
-    <value>Bağlantı başarısız: {0}</value>
   </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
@@ -795,6 +969,9 @@
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
     <value>Konsollar sayfasını göster</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Ana sayfayı devre dışı bırak (WIP)</value>
+  </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Değişiklikleri vazgeç</value>
   </data>
@@ -807,6 +984,12 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Görünen ad</value>
   </data>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Güncellemeyi indir</value>
+  </data>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>İndiriliyor</value>
+  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>Bu kategoride ayar yok</value>
   </data>
@@ -816,11 +999,50 @@
   <data name="Settings_Engine_NotInstalled" xml:space="preserve">
     <value>Yüklü değil</value>
   </data>
+  <data name="Settings_GitHub_Connect" xml:space="preserve">
+    <value>Bağlan</value>
+  </data>
+  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
+    <value>Bağlantı başarısız: {0}</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
+    <value>GitHub, bir yıllık süre önceden doldurulmuş olarak açılmalıydı. Genel güncelleme denetimleri için izinleri varsayılan bırakın, belirteci oluşturun ve buraya yapıştırın.</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
+    <value>GitHub belirtecini yapıştır</value>
+  </data>
+  <data name="Settings_GitHub_Connecting" xml:space="preserve">
+    <value>Bağlanıyor…</value>
+  </data>
+  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
+    <value>Bağlantıyı kes</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
+    <value>GitHub hesabınızın ASLM ile bağlantısını kaldırmak istiyor musunuz? Kaydedilen belirteç uygulamadan silinecek.</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
+    <value>GitHub hesabının bağlantısı kaldırılsın mı?</value>
+  </data>
+  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
+    <value>API limitini saatte 60'tan 5.000 isteğe çıkarmak için bağlanın</value>
+  </data>
+  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
+    <value>ghp_... veya github_pat_...</value>
+  </data>
+  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
+    <value>GitHub Hesabı</value>
+  </data>
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>MODÜLLER</value>
   </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
     <value>Modül işlemleri için ayrı konsollar göster</value>
+  </data>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Yükle ve yeniden başlat</value>
+  </data>
+  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
+    <value>Politika güncellemelerini otomatik olarak kabul et</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Varsayılanı yükle</value>
@@ -831,11 +1053,14 @@
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>Bu modülün geçerli durumda ayarı yok</value>
   </data>
-  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
-    <value>Kullanılabilir ayar yok</value>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Diğer ayarlar</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>Modül başlangıç bağlantı noktası</value>
+  </data>
+  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
+    <value>Kullanılabilir ayar yok</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Ollama hesabı</value>
@@ -909,9 +1134,6 @@
   <data name="Settings_Personalization_InheritLight" xml:space="preserve">
     <value>Açık (yerleşik)</value>
   </data>
-  <data name="Settings_Personalization_InheritTitle" xml:space="preserve">
-    <value>Renkleri şuradan devral</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Dil</value>
   </data>
@@ -932,9 +1154,6 @@
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>Bağlantı noktaları</value>
-  </data>
-  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
-    <value>Ana sayfayı devre dışı bırak (WIP)</value>
   </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>ASLM başlatıldığında son ziyaret edilen sayfayı aç</value>
@@ -971,9 +1190,6 @@
   <data name="Settings_SubGroup_Legal" xml:space="preserve">
     <value>Koşullar</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Politika güncellemelerini otomatik olarak kabul et</value>
-  </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Sil</value>
   </data>
@@ -989,11 +1205,11 @@
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Temizle</value>
   </data>
-  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
-    <value>Tema düzenleyici: {0}</value>
-  </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Seç</value>
+  </data>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Tema düzenleyici: {0}</value>
   </data>
   <data name="Settings_ThemeExport_Failed" xml:space="preserve">
     <value>Tema dışa aktarılamadı: {0}</value>
@@ -1028,26 +1244,50 @@
   <data name="Settings_Title" xml:space="preserve">
     <value>Ayarlar</value>
   </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Kullanılabilir sürüm: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Yüklü sürüm: {0}</value>
+  </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>ASLM güncellemesi hazırlanamadı</value>
   </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Yeniden başlatma başarısız: {0}</value>
   </data>
-  <data name="Settings_DownloadUpdate" xml:space="preserve">
-    <value>Güncellemeyi indir</value>
-  </data>
-  <data name="Settings_Downloading" xml:space="preserve">
-    <value>İndiriliyor</value>
-  </data>
-  <data name="Settings_InstallAndRestart" xml:space="preserve">
-    <value>Yükle ve yeniden başlat</value>
-  </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Doğrulama hatası</value>
   </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>Hesap türü seçin</value>
+  </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
     <value>Kurulum iptal edildi.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>Bulut hesabı</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>SUNRISE ile oturum aç</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Bulut hesabında oturum açılamadı: {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>{0} olarak bağlandı</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>Tarayıcınız üzerinden oturum açmanız bekleniyor...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>SUNRISE ile oturum açın ve ASLM profilinizi eşitleyin.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Devam etmek için tarayıcınız üzerinden oturum açın.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Devam etmeden önce SUNRISE oturum açma işlemini tamamlayın.</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>Adınız</value>
@@ -1067,17 +1307,29 @@
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Bitir</value>
   </data>
+  <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
+    <value>İlk kurulum tamamlanamadı: {0}</value>
+  </data>
   <data name="SetupWizard_HideLog" xml:space="preserve">
     <value>Günlüğü gizle</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Yükleniyor</value>
   </data>
-  <data name="SetupWizard_Next_Install" xml:space="preserve">
-    <value>Yükle</value>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Yerel hesap</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>ASLM profilinizi yalnızca bu cihazda tutun.</value>
+  </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>{0} üzerinde desteklenmiyor</value>
   </data>
   <data name="SetupWizard_ModulesPortLabel" xml:space="preserve">
     <value>Modül başlangıç bağlantı noktası</value>
+  </data>
+  <data name="SetupWizard_Next_Install" xml:space="preserve">
+    <value>Yükle</value>
   </data>
   <data name="SetupWizard_OverallProgress" xml:space="preserve">
     <value>Genel ilerleme</value>
@@ -1144,239 +1396,5 @@
   </data>
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Opaklık</value>
-  </data>
-  <data name="Settings_AslmAccount_Title" xml:space="preserve">
-    <value>ASLM Hesabı</value>
-  </data>
-  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>Yerel hesap. Profil verileri yalnızca bu cihazda saklanır.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
-    <value>Bulut hesabını kullan</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
-    <value>Yerel hesabı kullan</value>
-  </data>
-  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
-    <value>Tarayıcınız üzerinden oturum açmanız bekleniyor...</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>Yerel hesaba geçilsin mi?</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>SUNRISE kimlik bilgileri bu cihazdan kaldırılacak. Yerel ASLM profiliniz kullanılabilir durumda kalacak.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
-    <value>Yerel hesabı kullan</value>
-  </data>
-  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
-    <value>Bulut hesabında oturum açılamadı: {0}</value>
-  </data>
-  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
-    <value>Hesap türü seçin</value>
-  </data>
-  <data name="SetupWizard_LocalAccount" xml:space="preserve">
-    <value>Yerel hesap</value>
-  </data>
-  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>ASLM profilinizi yalnızca bu cihazda tutun.</value>
-  </data>
-  <data name="SetupWizard_CloudAccount" xml:space="preserve">
-    <value>Bulut hesabı</value>
-  </data>
-  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>SUNRISE ile oturum açın ve ASLM profilinizi eşitleyin.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
-    <value>SUNRISE ile oturum aç</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
-    <value>Tarayıcınız üzerinden oturum açmanız bekleniyor...</value>
-  </data>
-  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>Devam etmek için tarayıcınız üzerinden oturum açın.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
-    <value>{0} olarak bağlandı</value>
-  </data>
-  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>Devam etmeden önce SUNRISE oturum açma işlemini tamamlayın.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
-    <value>Bulut hesabında oturum açılamadı: {0}</value>
-  </data>
-  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
-    <value>{0} üzerinde desteklenmiyor</value>
-  </data>
-  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
-    <value>Diğer ayarlar</value>
-  </data>
-  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
-    <value>Kullanılabilir sürüm: {0}</value>
-  </data>
-  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
-    <value>Yüklü sürüm: {0}</value>
-  </data>
-  <data name="ModulesDownloads_Search" xml:space="preserve">
-    <value>Kullanılabilir modülleri ara</value>
-  </data>
-  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>Modül kataloğu yüklenemedi.</value>
-  </data>
-  <data name="ModulesDownloads_Close" xml:space="preserve">
-    <value>Modül bilgilerini kapat</value>
-  </data>
-  <data name="Modules_Remove" xml:space="preserve">
-    <value>Kaldır</value>
-  </data>
-  <data name="Modules_Removing" xml:space="preserve">
-    <value>Kaldırılıyor</value>
-  </data>
-  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
-    <value>{0} kaldırılsın mı?</value>
-  </data>
-  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>{0} ve yerel verileri kaldırılsın mı? Yalnızca bu modülün kullandığı motorlar, ortamlar ve modeller de kaldırılacak. Paylaşılan bağımlılıklar korunacak.</value>
-  </data>
-  <data name="Modules_RemoveFailed" xml:space="preserve">
-    <value>Modül kaldırılamadı</value>
-  </data>
-  <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>Bir modülü kaldırmadan önce modül kurulumu, başlatma, güncelleme veya indirme işlemlerinin tamamlanmasını bekleyin.</value>
-  </data>
-  <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>Bu modül kaldırıldı. Devam etmeden önce modül listesini yenileyin.</value>
-  </data>
-  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>Yüklü modüllerin bazı bildirim dosyaları eksik, okunamıyor veya yinelenen kimlikler içeriyor. Paylaşılan bağımlılıklar güvenli bir şekilde denetlenemediği için kaldırma işlemi iptal edildi.</value>
-  </data>
-  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>Şu modüller bu modüle ihtiyaç duyuyor: {0}. Önce bu modülleri kaldırın.</value>
-  </data>
-  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>Bir yol yönetilen dizinin dışında olduğu veya sembolik bağlantı içerdiği için kaldırma işlemi iptal edildi.</value>
-  </data>
-  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>Yüklü başka bir modül bu modülün dizinindeki dosyaları kullanıyor. Bu dosyaları korumak için kaldırma işlemi iptal edildi.</value>
-  </data>
-  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
-    <value>Modül kaldırıldı</value>
-  </data>
-  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
-    <value>Modül yüklü modüller listesinden kaldırıldı ancak bazı dosyalar silinemedi. Dosyalar hâlâ şu konumda: {0}</value>
-  </data>
-  <data name="ModuleInfo_Version" xml:space="preserve">
-    <value>Sürüm</value>
-  </data>
-  <data name="ModuleInfo_Author" xml:space="preserve">
-    <value>Yazar</value>
-  </data>
-  <data name="ModuleInfo_Id" xml:space="preserve">
-    <value>Modül kimliği</value>
-  </data>
-  <data name="ModuleInfo_Type" xml:space="preserve">
-    <value>Tür</value>
-  </data>
-  <data name="ModuleInfo_Categories" xml:space="preserve">
-    <value>Kategoriler</value>
-  </data>
-  <data name="ModuleInfo_Platforms" xml:space="preserve">
-    <value>Desteklenen platformlar</value>
-  </data>
-  <data name="ModuleInfo_Channel" xml:space="preserve">
-    <value>İndirme kanalı</value>
-  </data>
-  <data name="ModuleInfo_Engines" xml:space="preserve">
-    <value>Gerekli motorlar</value>
-  </data>
-  <data name="ModuleInfo_Modules" xml:space="preserve">
-    <value>Gerekli modüller</value>
-  </data>
-  <data name="ModuleInfo_Models" xml:space="preserve">
-    <value>Gerekli model kategorileri</value>
-  </data>
-  <data name="ModuleInfo_Loading" xml:space="preserve">
-    <value>Modül bilgileri yükleniyor…</value>
-  </data>
-  <data name="ModuleInfo_Downloading" xml:space="preserve">
-    <value>{0} indiriliyor ve kuruluyor…</value>
-  </data>
-  <data name="ModuleInfo_Installed" xml:space="preserve">
-    <value>Yüklü</value>
-  </data>
-  <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>Bu modül için desteklenen bir indirme kaynağı bulunmuyor.</value>
-  </data>
-  <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>Kurulum iptal edildi.</value>
-  </data>
-  <data name="ModuleInfo_Failed" xml:space="preserve">
-    <value>İşlem başarısız oldu: {0}</value>
-  </data>
-  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>{0} modülü artık yerel katalogda bulunmuyor.</value>
-  </data>
-  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>{0} için bir indirme kaynağı belirlenemedi.</value>
-  </data>
-  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>{0} kurulumu tamamlanamadı. Ayrıntılar için bildirimlere veya modül konsoluna bakın.</value>
-  </data>
-  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>{0} modülünü içeren döngüsel bir modül bağımlılığı bulundu. Kurulum iptal edildi.</value>
-  </data>
-  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>Gerekli {0} modülü yerel katalogda bulunmuyor.</value>
-  </data>
-  <data name="ModuleInfo_InfoTab" xml:space="preserve">
-    <value>Bilgi</value>
-  </data>
-  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
-    <value>Yapılandırma</value>
-  </data>
-  <data name="ModuleInfo_StatusTab" xml:space="preserve">
-    <value>Durum</value>
-  </data>
-  <data name="ModuleInfo_StateTitle" xml:space="preserve">
-    <value>Modül durumu</value>
-  </data>
-  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
-    <value>Yüklü değil</value>
-  </data>
-  <data name="Modules_Beta" xml:space="preserve">
-    <value>Beta</value>
-  </data>
-  <data name="Modules_Experimental" xml:space="preserve">
-    <value>Deneysel</value>
-  </data>
-  <data name="Downloads_Queued" xml:space="preserve">
-    <value>Sırada</value>
-  </data>
-  <data name="Modules_QueuedDependency" xml:space="preserve">
-    <value>Bağımlılık olarak sırada</value>
-  </data>
-  <data name="Modules_InstallingDependency" xml:space="preserve">
-    <value>Bağımlılık olarak yükleniyor</value>
-  </data>
-  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
-    <value>{0} bağımlılığı olarak sırada</value>
-  </data>
-  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
-    <value>{0} bağımlılığı olarak yükleniyor</value>
-  </data>
-  <data name="GitHubRateLimit_Title" xml:space="preserve">
-    <value>GitHub istek sınırına ulaşıldı</value>
-  </data>
-  <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM, GitHub API'sinin saatlik istek sınırına ulaştı. Sınır sıfırlanana kadar modül arama ve indirme işlemleri ile modül, ASLM ve motor güncellemeleri düzgün çalışmayabilir.</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>Saatlik istek sınırını artırmak için GitHub hesabınızı bağlayın.</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
-    <value>GitHub hesabını bağla</value>
-  </data>
-  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
-    <value>Daha sonra hatırlat</value>
   </data>
 </root>

@@ -234,9 +234,18 @@ namespace ASLM.Pages
                 }
                 else
                 {
+                    if (!await DialogService.For(this).ConfirmAsync(this,
+                        DialogText.Localized(LocalizationKeys.Settings_GitHub_DisconnectTitle),
+                        DialogText.Localized(LocalizationKeys.Settings_GitHub_DisconnectMessage),
+                        DialogText.Localized(LocalizationKeys.Settings_GitHub_Disconnect),
+                        DialogText.Localized(LocalizationKeys.Common_Cancel), danger: true)) return;
                     var result = await _githubAccountStore.DisconnectAsync();
                     _githubDraft = result.State;
                 }
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorAsync(L.Get(LocalizationKeys.Dialog_ActionFailedFormat, ex.Message));
             }
             finally
             {
@@ -335,17 +344,13 @@ namespace ASLM.Pages
         /// <summary>
         /// Prompts the user to paste a GitHub personal access token after browser sign-in.
         /// </summary>
-        private static Task<string?> PromptForGitHubTokenAsync() =>
-            Application.Current?.Windows.Count > 0
-                ? Application.Current.Windows[0].Page!.DisplayPromptAsync(
-                    L.Get(LocalizationKeys.Settings_GitHub_ConnectPrompt_Title),
-                    L.Get(LocalizationKeys.Settings_GitHub_ConnectPrompt_Message),
-                    L.Get(LocalizationKeys.Settings_GitHub_Connect),
-                    L.Get(LocalizationKeys.Common_Cancel),
-                    L.Get(LocalizationKeys.Settings_GitHub_TokenPlaceholder),
-                    maxLength: 256,
-                    keyboard: Keyboard.Text)
-                : Task.FromResult<string?>(null);
+        private Task<string?> PromptForGitHubTokenAsync() =>
+            DialogService.For(this).PromptAsync(this,
+                DialogText.Localized(LocalizationKeys.Settings_GitHub_ConnectPrompt_Title),
+                DialogText.Localized(LocalizationKeys.Settings_GitHub_ConnectPrompt_Message),
+                accept: DialogText.Localized(LocalizationKeys.Settings_GitHub_Connect),
+                placeholder: DialogText.Localized(LocalizationKeys.Settings_GitHub_TokenPlaceholder),
+                kind: DialogFieldKind.Password, maxLength: 256);
 
         /// <summary>
         /// Handles the single Ollama account action button click.

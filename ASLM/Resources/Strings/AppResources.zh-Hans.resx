@@ -69,6 +69,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>取消</value>
   </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
   <data name="Common_Discard" xml:space="preserve">
     <value>放弃</value>
   </data>
@@ -243,6 +246,15 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} 行可见</value>
   </data>
+  <data name="Dialog_ActionFailedFormat" xml:space="preserve">
+    <value>无法完成操作：{0}</value>
+  </data>
+  <data name="Dialog_InvalidValue" xml:space="preserve">
+    <value>请输入有效值。</value>
+  </data>
+  <data name="Dialog_Required" xml:space="preserve">
+    <value>此项为必填项。</value>
+  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>目录</value>
   </data>
@@ -264,14 +276,14 @@
   <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
     <value>[图片：{0}]</value>
   </data>
+  <data name="Downloads_NoItems" xml:space="preserve">
+    <value>没有项目</value>
+  </data>
   <data name="Downloads_OpenLink" xml:space="preserve">
     <value>打开链接</value>
   </data>
-  <data name="Downloads_SelectVariant" xml:space="preserve">
-    <value>选择要下载的变体：</value>
-  </data>
-  <data name="Downloads_NoItems" xml:space="preserve">
-    <value>没有项目</value>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>排队中</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>搜索提供方的目录</value>
@@ -279,8 +291,26 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>选择一个项目</value>
   </data>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>选择要下载的变体：</value>
+  </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>下载</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>连接 GitHub 账户</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>连接您的 GitHub 账户以提高每小时的请求上限。</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM 已达到 GitHub API 每小时的请求上限。在限额重置之前，模块搜索、下载和更新，以及 ASLM 和引擎更新可能无法正常进行。</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>稍后提醒我</value>
+  </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>已达到 GitHub 请求上限</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>磁盘 {0}</value>
@@ -495,6 +525,84 @@
   <data name="Loading_Text" xml:space="preserve">
     <value>正在加载...</value>
   </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>作者</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>安装已取消。</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>分类</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>下载渠道</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>配置</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>检测到包含 {0} 的模块循环依赖关系。安装已取消。</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>正在下载并设置 {0}…</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>所需引擎</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>操作失败：{0}</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>模块 ID</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>信息</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>无法完成 {0} 的安装。请查看通知或模块控制台以了解详情。</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>已安装</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>正在加载模块信息…</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>本地目录中缺少所需模块 {0}。</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>所需模型分类</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>所需模块</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>此模块没有可用的受支持下载来源。</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>模块 {0} 已不在本地目录中。</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>未安装</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>支持的平台</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>无法确定 {0} 的下载来源。</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>模块状态</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>状态</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>类型</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>版本</value>
+  </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>更新活动</value>
   </data>
@@ -603,6 +711,18 @@
   <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
     <value>更新源</value>
   </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>关闭模块信息</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>无法加载模块目录。</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>搜索可用模块</value>
+  </data>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>Beta 版</value>
+  </data>
   <data name="Modules_CheckUpdates" xml:space="preserve">
     <value>检查更新</value>
   </data>
@@ -612,11 +732,65 @@
   <data name="Modules_Empty" xml:space="preserve">
     <value>未找到模块。请通过安装向导安装模块</value>
   </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>实验性</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>正在安装依赖模块</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>正在安装 {0} 的依赖模块</value>
+  </data>
   <data name="Modules_Launch" xml:space="preserve">
     <value>启动</value>
   </data>
   <data name="Modules_NotVerified" xml:space="preserve">
     <value>未验证</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>作为依赖模块排队中</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>作为 {0} 的依赖模块排队中</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>卸载</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>请等待模块设置、启动、更新或下载完成后，再移除模块。</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>模块已从已安装列表中移除，但部分文件无法删除。这些文件仍位于：{0}</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>模块已移除</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>是否移除 {0} 及其本地数据？仅供此模块使用的引擎、环境和模型也将被移除。共享依赖项将被保留。</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>卸载 {0}？</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>无法移除模块</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>以下模块需要此模块：{0}。请先移除这些模块。</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>另一个已安装的模块正在使用此模块目录中的文件。为保护这些文件，已取消移除。</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>此模块已被移除。请刷新模块列表后再继续。</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>部分已安装模块的清单文件缺失、无法读取或包含重复的 ID。由于无法安全检查共享依赖项，已取消移除。</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>由于某个路径位于其托管目录之外或包含符号链接，已取消移除。</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>正在卸载</value>
   </data>
   <data name="Modules_Restart" xml:space="preserve">
     <value>重启</value>
@@ -669,12 +843,6 @@
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>无通知</value>
   </data>
-  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
-    <value>已安装版本</value>
-  </data>
-  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>该模块已不再安装。</value>
-  </data>
   <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
     <value>引擎更新可用</value>
   </data>
@@ -686,6 +854,12 @@
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>引擎更新</value>
+  </data>
+  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
+    <value>已安装版本</value>
+  </data>
+  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
+    <value>该模块已不再安装。</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>模块更新可用</value>
@@ -714,11 +888,47 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>立即更新</value>
   </data>
+  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
+    <value>ASLM 账户</value>
+  </data>
+  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
+    <value>GitHub 账户</value>
+  </data>
+  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
+    <value>Ollama 账户</value>
+  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
     <value>启用 ASLM 镜像服务器</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>ASLM 更新通道</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>云帐户登录失败：{0}</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>正在等待您通过浏览器登录...</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>本地帐户。个人资料数据仅存储在此设备上。</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>使用云帐户</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>使用本地帐户</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>使用本地帐户</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>SUNRISE 凭据将从此设备中移除。您的本地 ASLM 个人资料仍可使用。</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>切换到本地帐户？</value>
+  </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>ASLM 帐户</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>后台检查更新之间的间隔（小时）</value>
@@ -737,42 +947,6 @@
   </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>账户</value>
-  </data>
-  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
-    <value>ASLM 账户</value>
-  </data>
-  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
-    <value>GitHub 账户</value>
-  </data>
-  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
-    <value>Ollama 账户</value>
-  </data>
-  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
-    <value>连接可将 API 限额从每小时 60 次提升至 5,000 次</value>
-  </data>
-  <data name="Settings_GitHub_Connect" xml:space="preserve">
-    <value>连接</value>
-  </data>
-  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
-    <value>断开连接</value>
-  </data>
-  <data name="Settings_GitHub_Connecting" xml:space="preserve">
-    <value>正在连接…</value>
-  </data>
-  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
-    <value>ghp_... 或 github_pat_...</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>粘贴 GitHub 令牌</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub 应已打开并预填 1 年有效期。公开更新检查请保留默认权限，生成令牌后粘贴到此处。</value>
-  </data>
-  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
-    <value>GitHub 账户</value>
-  </data>
-  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
-    <value>连接失败：{0}</value>
   </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
@@ -795,6 +969,9 @@
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
     <value>显示“控制台”页面</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>禁用主页 (WIP)</value>
+  </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>放弃更改</value>
   </data>
@@ -807,6 +984,12 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>显示名称</value>
   </data>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>下载更新</value>
+  </data>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>正在下载</value>
+  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>此分类没有设置项</value>
   </data>
@@ -816,11 +999,50 @@
   <data name="Settings_Engine_NotInstalled" xml:space="preserve">
     <value>未安装</value>
   </data>
+  <data name="Settings_GitHub_Connect" xml:space="preserve">
+    <value>连接</value>
+  </data>
+  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
+    <value>连接失败：{0}</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
+    <value>GitHub 应已打开并预填 1 年有效期。公开更新检查请保留默认权限，生成令牌后粘贴到此处。</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
+    <value>粘贴 GitHub 令牌</value>
+  </data>
+  <data name="Settings_GitHub_Connecting" xml:space="preserve">
+    <value>正在连接…</value>
+  </data>
+  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
+    <value>断开连接</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
+    <value>是否解除 GitHub 账号与 ASLM 的关联？已保存的令牌将从应用中删除。</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
+    <value>解除 GitHub 账号关联？</value>
+  </data>
+  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
+    <value>连接可将 API 限额从每小时 60 次提升至 5,000 次</value>
+  </data>
+  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
+    <value>ghp_... 或 github_pat_...</value>
+  </data>
+  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
+    <value>GitHub 账户</value>
+  </data>
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>模块</value>
   </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
     <value>为模块进程显示独立控制台</value>
+  </data>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>安装并重启</value>
+  </data>
+  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
+    <value>自动接受政策更新</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>加载默认值</value>
@@ -831,11 +1053,14 @@
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>此模块在当前状态下没有设置项</value>
   </data>
-  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
-    <value>没有可用的设置</value>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>其他设置</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>模块起始端口</value>
+  </data>
+  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
+    <value>没有可用的设置</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Ollama 账户</value>
@@ -909,9 +1134,6 @@
   <data name="Settings_Personalization_InheritLight" xml:space="preserve">
     <value>浅色（内置）</value>
   </data>
-  <data name="Settings_Personalization_InheritTitle" xml:space="preserve">
-    <value>颜色继承来源</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>语言</value>
   </data>
@@ -932,9 +1154,6 @@
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>端口</value>
-  </data>
-  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
-    <value>禁用主页 (WIP)</value>
   </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>ASLM 启动时打开上次访问的页面</value>
@@ -971,9 +1190,6 @@
   <data name="Settings_SubGroup_Legal" xml:space="preserve">
     <value>条款</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>自动接受政策更新</value>
-  </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>删除</value>
   </data>
@@ -989,11 +1205,11 @@
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>清除</value>
   </data>
-  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
-    <value>主题编辑器：{0}</value>
-  </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>选取</value>
+  </data>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>主题编辑器：{0}</value>
   </data>
   <data name="Settings_ThemeExport_Failed" xml:space="preserve">
     <value>无法导出主题：{0}</value>
@@ -1028,26 +1244,50 @@
   <data name="Settings_Title" xml:space="preserve">
     <value>设置</value>
   </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>可用版本：{0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>已安装版本：{0}</value>
+  </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>无法准备 ASLM 更新</value>
   </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>重启失败：{0}</value>
   </data>
-  <data name="Settings_DownloadUpdate" xml:space="preserve">
-    <value>下载更新</value>
-  </data>
-  <data name="Settings_Downloading" xml:space="preserve">
-    <value>正在下载</value>
-  </data>
-  <data name="Settings_InstallAndRestart" xml:space="preserve">
-    <value>安装并重启</value>
-  </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>验证错误</value>
   </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>选择帐户类型</value>
+  </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
     <value>安装已取消。</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>云帐户</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>使用 SUNRISE 登录</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>云帐户登录失败：{0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>已连接：{0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>正在等待您通过浏览器登录...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>使用 SUNRISE 登录并同步您的 ASLM 个人资料。</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>请通过浏览器登录以继续。</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>继续之前，请完成 SUNRISE 登录。</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>您的姓名</value>
@@ -1067,17 +1307,29 @@
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>完成</value>
   </data>
+  <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
+    <value>无法完成初始设置：{0}</value>
+  </data>
   <data name="SetupWizard_HideLog" xml:space="preserve">
     <value>隐藏日志</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>正在安装</value>
   </data>
-  <data name="SetupWizard_Next_Install" xml:space="preserve">
-    <value>安装</value>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>本地帐户</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>仅在此设备上保留您的 ASLM 个人资料。</value>
+  </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>不支持 {0}</value>
   </data>
   <data name="SetupWizard_ModulesPortLabel" xml:space="preserve">
     <value>模块起始端口</value>
+  </data>
+  <data name="SetupWizard_Next_Install" xml:space="preserve">
+    <value>安装</value>
   </data>
   <data name="SetupWizard_OverallProgress" xml:space="preserve">
     <value>总体进度</value>
@@ -1144,239 +1396,5 @@
   </data>
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>不透明度</value>
-  </data>
-  <data name="Settings_AslmAccount_Title" xml:space="preserve">
-    <value>ASLM 帐户</value>
-  </data>
-  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>本地帐户。个人资料数据仅存储在此设备上。</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
-    <value>使用云帐户</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
-    <value>使用本地帐户</value>
-  </data>
-  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
-    <value>正在等待您通过浏览器登录...</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>切换到本地帐户？</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>SUNRISE 凭据将从此设备中移除。您的本地 ASLM 个人资料仍可使用。</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
-    <value>使用本地帐户</value>
-  </data>
-  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
-    <value>云帐户登录失败：{0}</value>
-  </data>
-  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
-    <value>选择帐户类型</value>
-  </data>
-  <data name="SetupWizard_LocalAccount" xml:space="preserve">
-    <value>本地帐户</value>
-  </data>
-  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>仅在此设备上保留您的 ASLM 个人资料。</value>
-  </data>
-  <data name="SetupWizard_CloudAccount" xml:space="preserve">
-    <value>云帐户</value>
-  </data>
-  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>使用 SUNRISE 登录并同步您的 ASLM 个人资料。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
-    <value>使用 SUNRISE 登录</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
-    <value>正在等待您通过浏览器登录...</value>
-  </data>
-  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>请通过浏览器登录以继续。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
-    <value>已连接：{0}</value>
-  </data>
-  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>继续之前，请完成 SUNRISE 登录。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
-    <value>云帐户登录失败：{0}</value>
-  </data>
-  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
-    <value>不支持 {0}</value>
-  </data>
-  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
-    <value>其他设置</value>
-  </data>
-  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
-    <value>可用版本：{0}</value>
-  </data>
-  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
-    <value>已安装版本：{0}</value>
-  </data>
-  <data name="ModulesDownloads_Search" xml:space="preserve">
-    <value>搜索可用模块</value>
-  </data>
-  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>无法加载模块目录。</value>
-  </data>
-  <data name="ModulesDownloads_Close" xml:space="preserve">
-    <value>关闭模块信息</value>
-  </data>
-  <data name="Modules_Remove" xml:space="preserve">
-    <value>卸载</value>
-  </data>
-  <data name="Modules_Removing" xml:space="preserve">
-    <value>正在卸载</value>
-  </data>
-  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
-    <value>卸载 {0}？</value>
-  </data>
-  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>是否移除 {0} 及其本地数据？仅供此模块使用的引擎、环境和模型也将被移除。共享依赖项将被保留。</value>
-  </data>
-  <data name="Modules_RemoveFailed" xml:space="preserve">
-    <value>无法移除模块</value>
-  </data>
-  <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>请等待模块设置、启动、更新或下载完成后，再移除模块。</value>
-  </data>
-  <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>此模块已被移除。请刷新模块列表后再继续。</value>
-  </data>
-  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>部分已安装模块的清单文件缺失、无法读取或包含重复的 ID。由于无法安全检查共享依赖项，已取消移除。</value>
-  </data>
-  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>以下模块需要此模块：{0}。请先移除这些模块。</value>
-  </data>
-  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>由于某个路径位于其托管目录之外或包含符号链接，已取消移除。</value>
-  </data>
-  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>另一个已安装的模块正在使用此模块目录中的文件。为保护这些文件，已取消移除。</value>
-  </data>
-  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
-    <value>模块已移除</value>
-  </data>
-  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
-    <value>模块已从已安装列表中移除，但部分文件无法删除。这些文件仍位于：{0}</value>
-  </data>
-  <data name="ModuleInfo_Version" xml:space="preserve">
-    <value>版本</value>
-  </data>
-  <data name="ModuleInfo_Author" xml:space="preserve">
-    <value>作者</value>
-  </data>
-  <data name="ModuleInfo_Id" xml:space="preserve">
-    <value>模块 ID</value>
-  </data>
-  <data name="ModuleInfo_Type" xml:space="preserve">
-    <value>类型</value>
-  </data>
-  <data name="ModuleInfo_Categories" xml:space="preserve">
-    <value>分类</value>
-  </data>
-  <data name="ModuleInfo_Platforms" xml:space="preserve">
-    <value>支持的平台</value>
-  </data>
-  <data name="ModuleInfo_Channel" xml:space="preserve">
-    <value>下载渠道</value>
-  </data>
-  <data name="ModuleInfo_Engines" xml:space="preserve">
-    <value>所需引擎</value>
-  </data>
-  <data name="ModuleInfo_Modules" xml:space="preserve">
-    <value>所需模块</value>
-  </data>
-  <data name="ModuleInfo_Models" xml:space="preserve">
-    <value>所需模型分类</value>
-  </data>
-  <data name="ModuleInfo_Loading" xml:space="preserve">
-    <value>正在加载模块信息…</value>
-  </data>
-  <data name="ModuleInfo_Downloading" xml:space="preserve">
-    <value>正在下载并设置 {0}…</value>
-  </data>
-  <data name="ModuleInfo_Installed" xml:space="preserve">
-    <value>已安装</value>
-  </data>
-  <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>此模块没有可用的受支持下载来源。</value>
-  </data>
-  <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>安装已取消。</value>
-  </data>
-  <data name="ModuleInfo_Failed" xml:space="preserve">
-    <value>操作失败：{0}</value>
-  </data>
-  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>模块 {0} 已不在本地目录中。</value>
-  </data>
-  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>无法确定 {0} 的下载来源。</value>
-  </data>
-  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>无法完成 {0} 的安装。请查看通知或模块控制台以了解详情。</value>
-  </data>
-  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>检测到包含 {0} 的模块循环依赖关系。安装已取消。</value>
-  </data>
-  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>本地目录中缺少所需模块 {0}。</value>
-  </data>
-  <data name="ModuleInfo_InfoTab" xml:space="preserve">
-    <value>信息</value>
-  </data>
-  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
-    <value>配置</value>
-  </data>
-  <data name="ModuleInfo_StatusTab" xml:space="preserve">
-    <value>状态</value>
-  </data>
-  <data name="ModuleInfo_StateTitle" xml:space="preserve">
-    <value>模块状态</value>
-  </data>
-  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
-    <value>未安装</value>
-  </data>
-  <data name="Modules_Beta" xml:space="preserve">
-    <value>Beta 版</value>
-  </data>
-  <data name="Modules_Experimental" xml:space="preserve">
-    <value>实验性</value>
-  </data>
-  <data name="Downloads_Queued" xml:space="preserve">
-    <value>排队中</value>
-  </data>
-  <data name="Modules_QueuedDependency" xml:space="preserve">
-    <value>作为依赖模块排队中</value>
-  </data>
-  <data name="Modules_InstallingDependency" xml:space="preserve">
-    <value>正在安装依赖模块</value>
-  </data>
-  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
-    <value>作为 {0} 的依赖模块排队中</value>
-  </data>
-  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
-    <value>正在安装 {0} 的依赖模块</value>
-  </data>
-  <data name="GitHubRateLimit_Title" xml:space="preserve">
-    <value>已达到 GitHub 请求上限</value>
-  </data>
-  <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM 已达到 GitHub API 每小时的请求上限。在限额重置之前，模块搜索、下载和更新，以及 ASLM 和引擎更新可能无法正常进行。</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>连接您的 GitHub 账户以提高每小时的请求上限。</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
-    <value>连接 GitHub 账户</value>
-  </data>
-  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
-    <value>稍后提醒我</value>
   </data>
 </root>

@@ -4,7 +4,9 @@ using System.ComponentModel;
 
 namespace ASLM.Controls;
 
-/// <summary>Shared stable scrollbar for application scroll views and native consoles.</summary>
+/// <summary>
+/// Displays a shared scrollbar for application scroll views and native consoles.
+/// </summary>
 public sealed class AppScrollBar : Grid
 {
     public static readonly BindableProperty TargetProperty = BindableProperty.Create(
@@ -23,6 +25,9 @@ public sealed class AppScrollBar : Grid
         set => SetValue(TargetProperty, value);
     }
 
+    /// <summary>
+    /// Creates the thumb and connects dragging, layout, and target-lifetime handlers.
+    /// </summary>
     public AppScrollBar()
     {
         WidthRequest = MinimumWidthRequest = 12;
@@ -40,6 +45,9 @@ public sealed class AppScrollBar : Grid
         SizeChanged += (_, _) => Refresh();
     }
 
+    /// <summary>
+    /// Observes the current target and replaces its native scrollbar with the shared thumb.
+    /// </summary>
     private void Reconnect()
     {
         Disconnect();
@@ -48,6 +56,7 @@ public sealed class AppScrollBar : Grid
         _connected.SizeChanged += OnGeometryChanged;
         _connected.PropertyChanged += OnTargetPropertyChanged;
         _connected.HandlerChanged += OnHandlerChanged;
+        // Native consoles expose metrics directly; regular scroll views report content geometry.
         if (_connected is ScrollView scroll)
         {
             scroll.VerticalScrollBarVisibility = ScrollBarVisibility.Never;
@@ -64,6 +73,9 @@ public sealed class AppScrollBar : Grid
         Refresh();
     }
 
+    /// <summary>
+    /// Removes target and content subscriptions before reconnection or unloading.
+    /// </summary>
     private void Disconnect()
     {
         if (_connected != null)
@@ -78,6 +90,9 @@ public sealed class AppScrollBar : Grid
         _connected = null;
     }
 
+    /// <summary>
+    /// Tracks content-size changes when a scroll view replaces its content.
+    /// </summary>
     private void ConnectContent(View? content)
     {
         if (_content != null) _content.SizeChanged -= OnGeometryChanged;
@@ -85,26 +100,46 @@ public sealed class AppScrollBar : Grid
         if (_content != null) _content.SizeChanged += OnGeometryChanged;
     }
 
+    /// <summary>
+    /// Refreshes target-specific subscriptions and chrome only for relevant property changes.
+    /// </summary>
     private void OnTargetPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_connected is ScrollView scroll && e.PropertyName == nameof(ScrollView.Content)) ConnectContent(scroll.Content);
+        if (e.PropertyName == nameof(ScrollView.Orientation)) ApplyNativeChrome();
         if (e.PropertyName is nameof(ScrollView.ContentSize) or nameof(IsVisible) or nameof(ScrollView.Content)) Refresh();
     }
 
+    /// <summary>
+    /// Reapplies native chrome after MAUI creates or replaces the target handler.
+    /// </summary>
     private void OnHandlerChanged(object? sender, EventArgs e) { ApplyNativeChrome(); Refresh(); }
+
+    /// <summary>
+    /// Recomputes the thumb when the viewport or its content changes size.
+    /// </summary>
     private void OnGeometryChanged(object? sender, EventArgs e) => Refresh();
+
+    /// <summary>
+    /// Moves the thumb to follow a scroll initiated by the native view.
+    /// </summary>
     private void OnScrolled(object? sender, ScrolledEventArgs e) => Refresh();
 
+    /// <summary>
+    /// Removes WinUI scroll chrome while retaining the target's constrained scrolling orientation.
+    /// </summary>
     private void ApplyNativeChrome()
     {
 #if WINDOWS
-        if (_connected is ScrollView { Handler.PlatformView: Microsoft.UI.Xaml.Controls.ScrollViewer viewer })
+        if (_connected is ScrollView { Handler.PlatformView: Microsoft.UI.Xaml.Controls.ScrollViewer viewer } scroll)
         {
             var transparent = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
             viewer.Background = viewer.BorderBrush = transparent;
             viewer.BorderThickness = viewer.Padding = new Microsoft.UI.Xaml.Thickness(0);
-            viewer.VerticalScrollBarVisibility = Microsoft.UI.Xaml.Controls.ScrollBarVisibility.Hidden;
-            viewer.HorizontalScrollBarVisibility = Microsoft.UI.Xaml.Controls.ScrollBarVisibility.Hidden;
+            // Hidden permits unbounded content on that axis. Preserve MAUI's orientation mapping:
+            // a vertical scroller must DISABLE horizontal scrolling so text wraps to the viewport.
+            Microsoft.Maui.Platform.ScrollViewerExtensions.UpdateScrollBarVisibility(
+                viewer, ((IScrollView)scroll).Orientation, ScrollBarVisibility.Never);
         }
 #endif
     }
@@ -116,6 +151,9 @@ public sealed class AppScrollBar : Grid
         _ => default
     };
 
+    /// <summary>
+    /// Computes a bounded thumb height and position, returning no thumb when content fits.
+    /// </summary>
     internal static (double Height, double Top) CalculateThumb(double viewport, double content, double offset, double track = 0)
     {
         if (viewport <= 0 || content <= viewport + 1) return default;
@@ -124,6 +162,9 @@ public sealed class AppScrollBar : Grid
         return (height, Math.Clamp(offset / (content - viewport) * (length - height), 0, length - height));
     }
 
+    /// <summary>
+    /// Updates visible thumb geometry without reentering on the resulting size notifications.
+    /// </summary>
     internal void Refresh()
     {
         if (_updating) return;
@@ -140,9 +181,13 @@ public sealed class AppScrollBar : Grid
             _thumb.TranslationY = top;
         }
         finally { _updating = false; }
+        // Visibility affects the available track size; use the next layout pass to settle it.
         if (changed) Dispatcher.Dispatch(Refresh);
     }
 
+    /// <summary>
+    /// Converts a dragged thumb position into the target's scroll offset.
+    /// </summary>
     private void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
     {
         if (e.StatusType == GestureStatus.Started) _dragStart = _thumb.TranslationY;
@@ -151,6 +196,7 @@ public sealed class AppScrollBar : Grid
             var metrics = Metrics;
             var travel = Math.Max(0, Height - _thumb.Height);
             var top = Math.Clamp(_dragStart + e.TotalY, 0, travel);
+            // Normalize against thumb travel, not content height, so both endpoints remain reachable.
             var offset = travel > 0 ? top / travel * Math.Max(0, metrics.Content - metrics.Viewport) : 0;
             _thumb.TranslationY = top;
             if (_connected is ScrollView scroll) _ = scroll.ScrollToAsync(0, offset, false);

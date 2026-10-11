@@ -407,8 +407,6 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-        <modules:ModuleUninstallConfirmationView x:Name="UninstallConfirmation"
-                                                ZIndex="20" />
     </Grid>
 
 </ContentView>

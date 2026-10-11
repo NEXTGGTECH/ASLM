@@ -69,6 +69,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>キャンセル</value>
   </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
   <data name="Common_Discard" xml:space="preserve">
     <value>破棄</value>
   </data>
@@ -243,6 +246,15 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>表示中の {0} 行</value>
   </data>
+  <data name="Dialog_ActionFailedFormat" xml:space="preserve">
+    <value>操作を完了できませんでした: {0}</value>
+  </data>
+  <data name="Dialog_InvalidValue" xml:space="preserve">
+    <value>有効な値を入力してください。</value>
+  </data>
+  <data name="Dialog_Required" xml:space="preserve">
+    <value>この項目は必須です。</value>
+  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>カタログ</value>
   </data>
@@ -264,14 +276,14 @@
   <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
     <value>[画像：{0}]</value>
   </data>
+  <data name="Downloads_NoItems" xml:space="preserve">
+    <value>項目がありません</value>
+  </data>
   <data name="Downloads_OpenLink" xml:space="preserve">
     <value>リンクを開く</value>
   </data>
-  <data name="Downloads_SelectVariant" xml:space="preserve">
-    <value>ダウンロードするバリアントを選択：</value>
-  </data>
-  <data name="Downloads_NoItems" xml:space="preserve">
-    <value>項目がありません</value>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>待機中</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>提供元のカタログを検索</value>
@@ -279,8 +291,26 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>項目を選択</value>
   </data>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>ダウンロードするバリアントを選択：</value>
+  </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>ダウンロード</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>GitHub アカウントを接続</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>GitHub アカウントを接続すると、1時間あたりのリクエスト上限を増やせます。</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM は GitHub API の1時間あたりのリクエスト上限に達しました。上限がリセットされるまで、モジュールの検索・ダウンロード・更新、ASLM の更新、エンジンの更新が正常に動作しない場合があります。</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>後で通知する</value>
+  </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>GitHub のリクエスト上限に達しました</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>ディスク {0}</value>
@@ -495,6 +525,84 @@
   <data name="Loading_Text" xml:space="preserve">
     <value>読み込み中...</value>
   </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>作成者</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>インストールをキャンセルしました。</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>カテゴリ</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>ダウンロードチャネル</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>構成</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>{0} を含むモジュール間の循環依存が検出されました。インストールをキャンセルしました。</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>{0} をダウンロードしてセットアップ中…</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>必要なエンジン</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>操作に失敗しました：{0}</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>モジュール ID</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>情報</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>{0} のインストールを完了できませんでした。詳細は通知またはモジュールのコンソールをご確認ください。</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>インストール済み</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>モジュール情報を読み込み中…</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>必要なモジュール {0} がローカルカタログにありません。</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>必要なモデルカテゴリ</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>必要なモジュール</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>このモジュールに対応するダウンロード元がありません。</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>モジュール {0} はローカルカタログで利用できなくなりました。</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>未インストール</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>対応プラットフォーム</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>{0} のダウンロード元を特定できませんでした。</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>モジュールの状態</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>状態</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>種類</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>バージョン</value>
+  </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>更新アクティビティ</value>
   </data>
@@ -603,6 +711,18 @@
   <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
     <value>更新ソース</value>
   </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>モジュール情報を閉じる</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>モジュールカタログを読み込めませんでした。</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>利用可能なモジュールを検索</value>
+  </data>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>ベータ</value>
+  </data>
   <data name="Modules_CheckUpdates" xml:space="preserve">
     <value>更新を確認</value>
   </data>
@@ -612,11 +732,65 @@
   <data name="Modules_Empty" xml:space="preserve">
     <value>モジュールが見つかりません。セットアップウィザードからモジュールをインストールしてください</value>
   </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>実験的</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>依存モジュールとしてインストール中</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>{0} の依存モジュールとしてインストール中</value>
+  </data>
   <data name="Modules_Launch" xml:space="preserve">
     <value>起動</value>
   </data>
   <data name="Modules_NotVerified" xml:space="preserve">
     <value>未検証</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>依存モジュールとして待機中</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>{0} の依存モジュールとして待機中</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>アンインストール</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>モジュールのセットアップ、起動、更新、ダウンロードが完了するまで、モジュールの削除をお待ちください。</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>モジュールをインストール済み一覧から削除しましたが、一部のファイルを削除できませんでした。これらのファイルは次の場所に残っています：{0}</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>モジュールを削除しました</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>{0} とそのローカルデータを削除しますか？このモジュールだけが使用するエンジン、環境、モデルも削除されます。共有されている依存関係は保持されます。</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>{0}をアンインストールしますか？</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>モジュールを削除できませんでした</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>次のモジュールがこのモジュールを必要としています：{0}。先にこれらのモジュールを削除してください。</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>インストール済みの別のモジュールが、このモジュールのディレクトリ内のファイルを使用しています。これらのファイルを保護するため、削除をキャンセルしました。</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>このモジュールは削除されています。続行する前にモジュール一覧を更新してください。</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>インストール済みモジュールのマニフェストに、欠落、読み取り不能、ID の重複があります。共有されている依存関係を安全に確認できないため、削除をキャンセルしました。</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>パスが管理対象ディレクトリの外部を指しているか、シンボリックリンクを含んでいるため、削除をキャンセルしました。</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>アンインストール中</value>
   </data>
   <data name="Modules_Restart" xml:space="preserve">
     <value>再起動</value>
@@ -669,12 +843,6 @@
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>通知はありません</value>
   </data>
-  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
-    <value>インストール済みバージョン</value>
-  </data>
-  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>そのモジュールはインストールされていません。</value>
-  </data>
   <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
     <value>エンジンのアップデートが利用可能です</value>
   </data>
@@ -686,6 +854,12 @@
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>エンジンのアップデート</value>
+  </data>
+  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
+    <value>インストール済みバージョン</value>
+  </data>
+  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
+    <value>そのモジュールはインストールされていません。</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>モジュールのアップデートが利用可能</value>
@@ -714,11 +888,47 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>今すぐ更新</value>
   </data>
+  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
+    <value>ASLM アカウント</value>
+  </data>
+  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
+    <value>GitHub アカウント</value>
+  </data>
+  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
+    <value>Ollama アカウント</value>
+  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
     <value>ASLM ミラーサーバーを有効にする</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>ASLM 更新チャンネル</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>クラウド アカウントへのサインインに失敗しました: {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>ブラウザーでのサインインを待っています...</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>ローカル アカウント。プロフィール データはこのデバイスにのみ保存されます。</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>クラウド アカウントを使用</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>ローカル アカウントを使用</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>ローカル アカウントを使用</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>SUNRISE の認証情報がこのデバイスから削除されます。ローカルの ASLM プロフィールは引き続き利用できます。</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>ローカル アカウントに切り替えますか？</value>
+  </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>ASLM アカウント</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>バックグラウンド更新確認の間隔（時間）</value>
@@ -737,42 +947,6 @@
   </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>アカウント</value>
-  </data>
-  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
-    <value>ASLM アカウント</value>
-  </data>
-  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
-    <value>GitHub アカウント</value>
-  </data>
-  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
-    <value>Ollama アカウント</value>
-  </data>
-  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
-    <value>接続すると API 制限が時間あたり 60 回から 5,000 回に増えます</value>
-  </data>
-  <data name="Settings_GitHub_Connect" xml:space="preserve">
-    <value>接続</value>
-  </data>
-  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
-    <value>切断</value>
-  </data>
-  <data name="Settings_GitHub_Connecting" xml:space="preserve">
-    <value>接続中…</value>
-  </data>
-  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
-    <value>ghp_... または github_pat_...</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>GitHub トークンを貼り付け</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub が有効期限 1 年で開いているはずです。公開アップデートの確認には既定の権限のままで、トークンを作成してここに貼り付けてください。</value>
-  </data>
-  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
-    <value>GitHub アカウント</value>
-  </data>
-  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
-    <value>接続に失敗しました: {0}</value>
   </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
@@ -795,6 +969,9 @@
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
     <value>コンソールページを表示</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>ホームページを無効にする (WIP)</value>
+  </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>変更を破棄</value>
   </data>
@@ -807,6 +984,12 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>表示名</value>
   </data>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>更新をダウンロード</value>
+  </data>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>ダウンロード中</value>
+  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>このカテゴリには設定がありません</value>
   </data>
@@ -816,11 +999,50 @@
   <data name="Settings_Engine_NotInstalled" xml:space="preserve">
     <value>未インストール</value>
   </data>
+  <data name="Settings_GitHub_Connect" xml:space="preserve">
+    <value>接続</value>
+  </data>
+  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
+    <value>接続に失敗しました: {0}</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
+    <value>GitHub が有効期限 1 年で開いているはずです。公開アップデートの確認には既定の権限のままで、トークンを作成してここに貼り付けてください。</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
+    <value>GitHub トークンを貼り付け</value>
+  </data>
+  <data name="Settings_GitHub_Connecting" xml:space="preserve">
+    <value>接続中…</value>
+  </data>
+  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
+    <value>切断</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
+    <value>GitHub アカウントと ASLM の連携を解除しますか？保存済みのトークンはアプリから削除されます。</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
+    <value>GitHub アカウントの連携を解除しますか？</value>
+  </data>
+  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
+    <value>接続すると API 制限が時間あたり 60 回から 5,000 回に増えます</value>
+  </data>
+  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
+    <value>ghp_... または github_pat_...</value>
+  </data>
+  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
+    <value>GitHub アカウント</value>
+  </data>
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>モジュール</value>
   </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
     <value>モジュールプロセスごとに個別のコンソールを表示</value>
+  </data>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>インストールして再起動</value>
+  </data>
+  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
+    <value>ポリシーの更新を自動的に承認</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>既定値を読み込む</value>
@@ -831,11 +1053,14 @@
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>このモジュールには、現在の状態で設定がありません</value>
   </data>
-  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
-    <value>利用できる設定はありません</value>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>その他の設定</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>モジュール開始ポート</value>
+  </data>
+  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
+    <value>利用できる設定はありません</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Ollama アカウント</value>
@@ -909,9 +1134,6 @@
   <data name="Settings_Personalization_InheritLight" xml:space="preserve">
     <value>ライト（組み込み）</value>
   </data>
-  <data name="Settings_Personalization_InheritTitle" xml:space="preserve">
-    <value>色の継承元</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>言語</value>
   </data>
@@ -932,9 +1154,6 @@
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>ポート</value>
-  </data>
-  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
-    <value>ホームページを無効にする (WIP)</value>
   </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>ASLM の起動時に最後に表示していたページを開く</value>
@@ -971,9 +1190,6 @@
   <data name="Settings_SubGroup_Legal" xml:space="preserve">
     <value>利用条件</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>ポリシーの更新を自動的に承認</value>
-  </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>削除</value>
   </data>
@@ -989,11 +1205,11 @@
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>クリア</value>
   </data>
-  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
-    <value>テーマエディター: {0}</value>
-  </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>選択</value>
+  </data>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>テーマエディター: {0}</value>
   </data>
   <data name="Settings_ThemeExport_Failed" xml:space="preserve">
     <value>テーマをエクスポートできませんでした: {0}</value>
@@ -1028,26 +1244,50 @@
   <data name="Settings_Title" xml:space="preserve">
     <value>設定</value>
   </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>利用可能なバージョン: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>インストール済みバージョン: {0}</value>
+  </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>ASLM 更新を準備できませんでした</value>
   </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>再起動に失敗しました: {0}</value>
   </data>
-  <data name="Settings_DownloadUpdate" xml:space="preserve">
-    <value>更新をダウンロード</value>
-  </data>
-  <data name="Settings_Downloading" xml:space="preserve">
-    <value>ダウンロード中</value>
-  </data>
-  <data name="Settings_InstallAndRestart" xml:space="preserve">
-    <value>インストールして再起動</value>
-  </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>検証エラー</value>
   </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>アカウントの種類を選択</value>
+  </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
     <value>インストールをキャンセルしました。</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>クラウド アカウント</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>SUNRISE でサインイン</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>クラウド アカウントへのサインインに失敗しました: {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>{0} として接続済み</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>ブラウザーでのサインインを待っています...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>SUNRISE でサインインし、ASLM プロフィールを同期します。</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>続行するには、ブラウザーでサインインしてください。</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>続行する前に SUNRISE へのサインインを完了してください。</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>お名前</value>
@@ -1067,17 +1307,29 @@
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>完了</value>
   </data>
+  <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
+    <value>初期設定を完了できませんでした: {0}</value>
+  </data>
   <data name="SetupWizard_HideLog" xml:space="preserve">
     <value>ログを非表示</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>インストール中</value>
   </data>
-  <data name="SetupWizard_Next_Install" xml:space="preserve">
-    <value>インストール</value>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>ローカル アカウント</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>ASLM プロフィールをこのデバイスにのみ保存します。</value>
+  </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>{0} ではサポートされていません</value>
   </data>
   <data name="SetupWizard_ModulesPortLabel" xml:space="preserve">
     <value>モジュール開始ポート</value>
+  </data>
+  <data name="SetupWizard_Next_Install" xml:space="preserve">
+    <value>インストール</value>
   </data>
   <data name="SetupWizard_OverallProgress" xml:space="preserve">
     <value>全体の進捗</value>
@@ -1144,239 +1396,5 @@
   </data>
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>不透明度</value>
-  </data>
-  <data name="Settings_AslmAccount_Title" xml:space="preserve">
-    <value>ASLM アカウント</value>
-  </data>
-  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>ローカル アカウント。プロフィール データはこのデバイスにのみ保存されます。</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
-    <value>クラウド アカウントを使用</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
-    <value>ローカル アカウントを使用</value>
-  </data>
-  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
-    <value>ブラウザーでのサインインを待っています...</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>ローカル アカウントに切り替えますか？</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>SUNRISE の認証情報がこのデバイスから削除されます。ローカルの ASLM プロフィールは引き続き利用できます。</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
-    <value>ローカル アカウントを使用</value>
-  </data>
-  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
-    <value>クラウド アカウントへのサインインに失敗しました: {0}</value>
-  </data>
-  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
-    <value>アカウントの種類を選択</value>
-  </data>
-  <data name="SetupWizard_LocalAccount" xml:space="preserve">
-    <value>ローカル アカウント</value>
-  </data>
-  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>ASLM プロフィールをこのデバイスにのみ保存します。</value>
-  </data>
-  <data name="SetupWizard_CloudAccount" xml:space="preserve">
-    <value>クラウド アカウント</value>
-  </data>
-  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>SUNRISE でサインインし、ASLM プロフィールを同期します。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
-    <value>SUNRISE でサインイン</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
-    <value>ブラウザーでのサインインを待っています...</value>
-  </data>
-  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>続行するには、ブラウザーでサインインしてください。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
-    <value>{0} として接続済み</value>
-  </data>
-  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>続行する前に SUNRISE へのサインインを完了してください。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
-    <value>クラウド アカウントへのサインインに失敗しました: {0}</value>
-  </data>
-  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
-    <value>{0} ではサポートされていません</value>
-  </data>
-  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
-    <value>その他の設定</value>
-  </data>
-  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
-    <value>利用可能なバージョン: {0}</value>
-  </data>
-  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
-    <value>インストール済みバージョン: {0}</value>
-  </data>
-  <data name="ModulesDownloads_Search" xml:space="preserve">
-    <value>利用可能なモジュールを検索</value>
-  </data>
-  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>モジュールカタログを読み込めませんでした。</value>
-  </data>
-  <data name="ModulesDownloads_Close" xml:space="preserve">
-    <value>モジュール情報を閉じる</value>
-  </data>
-  <data name="Modules_Remove" xml:space="preserve">
-    <value>アンインストール</value>
-  </data>
-  <data name="Modules_Removing" xml:space="preserve">
-    <value>アンインストール中</value>
-  </data>
-  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
-    <value>{0}をアンインストールしますか？</value>
-  </data>
-  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>{0} とそのローカルデータを削除しますか？このモジュールだけが使用するエンジン、環境、モデルも削除されます。共有されている依存関係は保持されます。</value>
-  </data>
-  <data name="Modules_RemoveFailed" xml:space="preserve">
-    <value>モジュールを削除できませんでした</value>
-  </data>
-  <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>モジュールのセットアップ、起動、更新、ダウンロードが完了するまで、モジュールの削除をお待ちください。</value>
-  </data>
-  <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>このモジュールは削除されています。続行する前にモジュール一覧を更新してください。</value>
-  </data>
-  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>インストール済みモジュールのマニフェストに、欠落、読み取り不能、ID の重複があります。共有されている依存関係を安全に確認できないため、削除をキャンセルしました。</value>
-  </data>
-  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>次のモジュールがこのモジュールを必要としています：{0}。先にこれらのモジュールを削除してください。</value>
-  </data>
-  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>パスが管理対象ディレクトリの外部を指しているか、シンボリックリンクを含んでいるため、削除をキャンセルしました。</value>
-  </data>
-  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>インストール済みの別のモジュールが、このモジュールのディレクトリ内のファイルを使用しています。これらのファイルを保護するため、削除をキャンセルしました。</value>
-  </data>
-  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
-    <value>モジュールを削除しました</value>
-  </data>
-  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
-    <value>モジュールをインストール済み一覧から削除しましたが、一部のファイルを削除できませんでした。これらのファイルは次の場所に残っています：{0}</value>
-  </data>
-  <data name="ModuleInfo_Version" xml:space="preserve">
-    <value>バージョン</value>
-  </data>
-  <data name="ModuleInfo_Author" xml:space="preserve">
-    <value>作成者</value>
-  </data>
-  <data name="ModuleInfo_Id" xml:space="preserve">
-    <value>モジュール ID</value>
-  </data>
-  <data name="ModuleInfo_Type" xml:space="preserve">
-    <value>種類</value>
-  </data>
-  <data name="ModuleInfo_Categories" xml:space="preserve">
-    <value>カテゴリ</value>
-  </data>
-  <data name="ModuleInfo_Platforms" xml:space="preserve">
-    <value>対応プラットフォーム</value>
-  </data>
-  <data name="ModuleInfo_Channel" xml:space="preserve">
-    <value>ダウンロードチャネル</value>
-  </data>
-  <data name="ModuleInfo_Engines" xml:space="preserve">
-    <value>必要なエンジン</value>
-  </data>
-  <data name="ModuleInfo_Modules" xml:space="preserve">
-    <value>必要なモジュール</value>
-  </data>
-  <data name="ModuleInfo_Models" xml:space="preserve">
-    <value>必要なモデルカテゴリ</value>
-  </data>
-  <data name="ModuleInfo_Loading" xml:space="preserve">
-    <value>モジュール情報を読み込み中…</value>
-  </data>
-  <data name="ModuleInfo_Downloading" xml:space="preserve">
-    <value>{0} をダウンロードしてセットアップ中…</value>
-  </data>
-  <data name="ModuleInfo_Installed" xml:space="preserve">
-    <value>インストール済み</value>
-  </data>
-  <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>このモジュールに対応するダウンロード元がありません。</value>
-  </data>
-  <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>インストールをキャンセルしました。</value>
-  </data>
-  <data name="ModuleInfo_Failed" xml:space="preserve">
-    <value>操作に失敗しました：{0}</value>
-  </data>
-  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>モジュール {0} はローカルカタログで利用できなくなりました。</value>
-  </data>
-  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>{0} のダウンロード元を特定できませんでした。</value>
-  </data>
-  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>{0} のインストールを完了できませんでした。詳細は通知またはモジュールのコンソールをご確認ください。</value>
-  </data>
-  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>{0} を含むモジュール間の循環依存が検出されました。インストールをキャンセルしました。</value>
-  </data>
-  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>必要なモジュール {0} がローカルカタログにありません。</value>
-  </data>
-  <data name="ModuleInfo_InfoTab" xml:space="preserve">
-    <value>情報</value>
-  </data>
-  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
-    <value>構成</value>
-  </data>
-  <data name="ModuleInfo_StatusTab" xml:space="preserve">
-    <value>状態</value>
-  </data>
-  <data name="ModuleInfo_StateTitle" xml:space="preserve">
-    <value>モジュールの状態</value>
-  </data>
-  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
-    <value>未インストール</value>
-  </data>
-  <data name="Modules_Beta" xml:space="preserve">
-    <value>ベータ</value>
-  </data>
-  <data name="Modules_Experimental" xml:space="preserve">
-    <value>実験的</value>
-  </data>
-  <data name="Downloads_Queued" xml:space="preserve">
-    <value>待機中</value>
-  </data>
-  <data name="Modules_QueuedDependency" xml:space="preserve">
-    <value>依存モジュールとして待機中</value>
-  </data>
-  <data name="Modules_InstallingDependency" xml:space="preserve">
-    <value>依存モジュールとしてインストール中</value>
-  </data>
-  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
-    <value>{0} の依存モジュールとして待機中</value>
-  </data>
-  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
-    <value>{0} の依存モジュールとしてインストール中</value>
-  </data>
-  <data name="GitHubRateLimit_Title" xml:space="preserve">
-    <value>GitHub のリクエスト上限に達しました</value>
-  </data>
-  <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>ASLM は GitHub API の1時間あたりのリクエスト上限に達しました。上限がリセットされるまで、モジュールの検索・ダウンロード・更新、ASLM の更新、エンジンの更新が正常に動作しない場合があります。</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>GitHub アカウントを接続すると、1時間あたりのリクエスト上限を増やせます。</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
-    <value>GitHub アカウントを接続</value>
-  </data>
-  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
-    <value>後で通知する</value>
   </data>
 </root>

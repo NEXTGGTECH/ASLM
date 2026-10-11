@@ -232,6 +232,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Close.
+        /// </summary>
+        public static string Common_Close {
+            get {
+                return ResourceManager.GetString("Common_Close", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Discard.
         /// </summary>
         public static string Common_Discard {
@@ -750,6 +759,33 @@ namespace ASLM.Resources.Strings {
         public static string Consoles_VisibleLinesFormat {
             get {
                 return ResourceManager.GetString("Consoles_VisibleLinesFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not complete the action: {0}.
+        /// </summary>
+        public static string Dialog_ActionFailedFormat {
+            get {
+                return ResourceManager.GetString("Dialog_ActionFailedFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Enter a valid value..
+        /// </summary>
+        public static string Dialog_InvalidValue {
+            get {
+                return ResourceManager.GetString("Dialog_InvalidValue", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на This field is required..
+        /// </summary>
+        public static string Dialog_Required {
+            get {
+                return ResourceManager.GetString("Dialog_Required", resourceCulture);
             }
         }
         
@@ -3040,6 +3076,24 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Disconnect your GitHub account from ASLM? The saved token will be removed from the application..
+        /// </summary>
+        public static string Settings_GitHub_DisconnectMessage {
+            get {
+                return ResourceManager.GetString("Settings_GitHub_DisconnectMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Disconnect GitHub account?.
+        /// </summary>
+        public static string Settings_GitHub_DisconnectTitle {
+            get {
+                return ResourceManager.GetString("Settings_GitHub_DisconnectTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Connect to raise the API limit from 60 to 5,000 requests/hour.
         /// </summary>
         public static string Settings_GitHub_NotConnectedHint {
@@ -3369,15 +3423,6 @@ namespace ASLM.Resources.Strings {
         public static string Settings_Personalization_InheritLight {
             get {
                 return ResourceManager.GetString("Settings_Personalization_InheritLight", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Inherit colors from.
-        /// </summary>
-        public static string Settings_Personalization_InheritTitle {
-            get {
-                return ResourceManager.GetString("Settings_Personalization_InheritTitle", resourceCulture);
             }
         }
         
@@ -3893,6 +3938,15 @@ namespace ASLM.Resources.Strings {
         public static string SetupWizard_Finish {
             get {
                 return ResourceManager.GetString("SetupWizard_Finish", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not complete initial setup: {0}.
+        /// </summary>
+        public static string SetupWizard_FinishFailedFormat {
+            get {
+                return ResourceManager.GetString("SetupWizard_FinishFailedFormat", resourceCulture);
             }
         }
         

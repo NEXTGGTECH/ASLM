@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:ASLM.Controls"
+             x:Class="ASLM.Controls.Dialogs.DialogHostView"
+             InputTransparent="True">
+    <Grid x:Name="DialogLayer" IsVisible="False">
+        <Grid BackgroundColor="{DynamicResource OverlayBackground}">
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnDismissClicked" />
+            </Grid.GestureRecognizers>
+        </Grid>
+        <Border x:Name="Card" Style="{StaticResource DialogCardStyle}"
+                HorizontalOptions="Center" VerticalOptions="Center">
+            <Grid ColumnDefinitions="*,Auto">
+                <ScrollView x:Name="Scroller" VerticalScrollBarVisibility="Never" HorizontalScrollBarVisibility="Never">
+                    <VerticalStackLayout x:Name="Body" Spacing="16">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <Label x:Name="TitleLabel" Style="{StaticResource DialogTitleStyle}" VerticalOptions="Center" />
+                            <Button x:Name="CloseButton" Grid.Column="1" Text="&#x2715;"
+                                    FontSize="17" WidthRequest="24" MinimumWidthRequest="24"
+                                    HeightRequest="24" MinimumHeightRequest="24" Padding="0"
+                                    BackgroundColor="Transparent" TextColor="{DynamicResource LabelSecondary}"
+                                    VerticalOptions="Start" Clicked="OnDismissClicked" />
+                        </Grid>
+                        <Label x:Name="MessageLabel" Style="{StaticResource DialogTextStyle}" />
+                        <VerticalStackLayout x:Name="Fields" Spacing="12" />
+                        <Label x:Name="ActionErrorLabel" Style="{StaticResource DialogTextStyle}"
+                               TextColor="{DynamicResource ActionRed}" IsVisible="False" />
+                        <FlexLayout x:Name="Buttons" Direction="Row" Wrap="Wrap" JustifyContent="End" AlignItems="Start" />
+                    </VerticalStackLayout>
+                </ScrollView>
+                <controls:AppScrollBar x:Name="ScrollBar" Grid.Column="1" Target="{x:Reference Scroller}" />
+            </Grid>
+        </Border>
+    </Grid>
+</ContentView>

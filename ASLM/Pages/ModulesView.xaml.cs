@@ -18,6 +18,7 @@ namespace ASLM.Pages
     public partial class ModulesView : ContentView, INotifyPropertyChanged, ILocalizable
     {
         private const double MinCardWidth = 440;
+        private bool _confirmingRemoval;
 
         private readonly UpdateManager _updateManager;
         private readonly ModuleTrustService _moduleTrustService;
@@ -92,7 +93,6 @@ namespace ASLM.Pages
             _launchCoordinator = launchCoordinator;
             _localization = localization;
             InitializeComponent();
-            UninstallConfirmation.Initialize(_localization);
             BindingContext = this;
             DashboardView.HandlerChanged += OnDashboardViewHandlerChanged;
             Loaded += OnLoaded;
@@ -291,9 +291,19 @@ namespace ASLM.Pages
         /// <summary>Confirms uninstall in the dashboard overlay and keeps the card busy throughout removal.</summary>
         private async void OnRemoveRequested(ModuleViewModel module)
         {
-            if (UninstallConfirmation.IsOpen || !module.RemoveCommand.CanExecute(null)) return;
+            if (_confirmingRemoval || !module.RemoveCommand.CanExecute(null)) return;
             CloseAllMenus();
-            if (!await UninstallConfirmation.ConfirmAsync(module.Name)) return;
+            _confirmingRemoval = true;
+            bool confirmed;
+            try
+            {
+                confirmed = await DialogService.For(this).ConfirmAsync(this,
+                    DialogText.Localized(LocalizationKeys.Modules_RemoveConfirmTitle, module.Name),
+                    DialogText.Localized(LocalizationKeys.Modules_RemoveConfirmFormat, module.Name),
+                    DialogText.Localized(LocalizationKeys.Modules_Remove), danger: true);
+            }
+            finally { _confirmingRemoval = false; }
+            if (!confirmed) return;
             if (!module.RemoveCommand.CanExecute(null)) return;
 
             SetRemovingModule(module.SourcePath, true);
@@ -316,9 +326,10 @@ namespace ASLM.Pages
 
             if (!IsLoaded) return;
             if (failure != null)
-                await UninstallConfirmation.ShowFailureAsync(failure.Message);
+                await DialogService.For(this).AlertAsync(this, DialogText.Localized(LocalizationKeys.Modules_RemoveFailed), failure.Message);
             else if (retainedFiles != null)
-                await UninstallConfirmation.ShowCleanupAsync(retainedFiles);
+                await DialogService.For(this).AlertAsync(this, DialogText.Localized(LocalizationKeys.Modules_RemoveCleanupTitle),
+                    DialogText.Localized(LocalizationKeys.Modules_RemoveCleanupFormat, retainedFiles));
         }
 
         private void SetRemovingModule(string sourcePath, bool removing)
@@ -362,7 +373,6 @@ namespace ASLM.Pages
         /// </summary>
         private void OnUnloaded(object? sender, EventArgs e)
         {
-            UninstallConfirmation.Dismiss();
             ThemeService.PaletteApplied -= OnPaletteAppliedForMoreIcon;
             if (Application.Current is { } app)
             {

@@ -419,51 +419,35 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Prompts for a new custom theme name, creates it, and selects it in the editor.
+        /// Collects the theme name and base appearance, committing only after successful persistence.
         /// </summary>
         private async void OnCreateThemeClicked(object? sender, EventArgs e)
         {
-            var name = await PromptAsync(
-                L.Get(LocalizationKeys.Settings_ThemeNew_PromptTitle),
-                L.Get(LocalizationKeys.Settings_ThemeNew_PromptMessage),
-                L.Get(LocalizationKeys.Settings_ThemeNew_DefaultName));
-            if (string.IsNullOrWhiteSpace(name))
+            // Keep the draft outside the theme registry until the user explicitly saves it.
+            var form = new ThemeCreationForm();
+            CustomTheme? created = null;
+            var result = await DialogService.For(this).ShowAsync(this, new()
             {
-                return;
-            }
+                Title = DialogText.Localized(LocalizationKeys.Settings_ThemeNew_PromptTitle),
+                Fields = form.Fields,
+                Actions =
+                [
+                    new() { Id = "cancel", Text = DialogText.Localized(LocalizationKeys.Common_Cancel), IsCancel = true },
+                    new() { Id = "create", Text = DialogText.Localized(LocalizationKeys.Common_Save),
+                        Style = DialogActionStyle.Primary, IsDefault = true,
+                        ExecuteAsync = async (values, ct) =>
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            created = await _customThemesStore.CreateThemeAsync(form.BuildTheme(values));
+                        } }
+                ]
+            });
+            if (result.IsCancelled || created == null) return;
 
-            var host = Application.Current?.Windows.FirstOrDefault()?.Page;
-            if (host == null)
-            {
-                return;
-            }
-
-            var inheritDark = L.Get(LocalizationKeys.Settings_Personalization_InheritDark);
-            var inheritLight = L.Get(LocalizationKeys.Settings_Personalization_InheritLight);
-            var inheritChoice = await host.DisplayActionSheetAsync(
-                L.Get(LocalizationKeys.Settings_Personalization_InheritTitle),
-                L.Get(LocalizationKeys.Common_Cancel),
-                null,
-                inheritDark,
-                inheritLight);
-
-            if (string.IsNullOrEmpty(inheritChoice) ||
-                string.Equals(inheritChoice, L.Get(LocalizationKeys.Common_Cancel), StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            var baseAppearance = string.Equals(inheritChoice, inheritLight, StringComparison.OrdinalIgnoreCase)
-                ? "light"
-                : "dark";
-
-            var newTheme = _customThemesStore.CreateTheme(name.Trim(), baseAppearance);
-            ThemePaletteResolver.PrefillCustomThemeFromBuiltIn(newTheme);
-            await _customThemesStore.SaveAsync();
-
-            _personalizationDraft.CustomThemeId = newTheme.Id;
+            // Select the saved theme and leave palette editing in the existing settings section.
+            _personalizationDraft.CustomThemeId = created.Id;
             RebuildCustomThemeSection();
-            ApplyCustomThemeSelection(newTheme.Id);
+            ApplyCustomThemeSelection(created.Id);
         }
 
         /// <summary>
@@ -672,10 +656,8 @@ namespace ASLM.Pages
         /// <summary>
         /// Shows a simple text-input prompt dialog and returns the user's entry.
         /// </summary>
-        private static Task<string?> PromptAsync(string title, string message, string defaultValue) =>
-            Application.Current?.Windows.Count > 0
-                ? Application.Current.Windows[0].Page!.DisplayPromptAsync(title, message, initialValue: defaultValue)
-                : Task.FromResult<string?>(null);
+        private Task<string?> PromptAsync(string title, string message, string defaultValue) =>
+            DialogService.For(this).PromptAsync(this, title, message, defaultValue);
 
         /// <summary>
         /// Creates a deep copy of a custom theme for editing without modifying the stored version.

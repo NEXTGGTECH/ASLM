@@ -30,6 +30,9 @@ namespace ASLM
                 .ConfigureMauiHandlers(handlers =>
                 {
                     handlers.AddHandler<ConsoleOutputView, ConsoleOutputViewHandler>();
+#if MACCATALYST
+                    handlers.AddHandler<DialogHostView, DialogHostHandler>();
+#endif
 #if WINDOWS
                     handlers.AddHandler<WebView, WebViewClipboardHandler>();
 #endif
@@ -50,6 +53,7 @@ namespace ASLM
 
             // Service registrations
             builder.Services.AddSingleton<AppDataStore>();
+            builder.Services.AddSingleton<DialogService>();
             builder.Services.AddSingleton<LegalAcceptanceService>();
             builder.Services.AddSingleton<EngineInstaller>();
             builder.Services.AddSingleton<ModuleEngineReconciler>();

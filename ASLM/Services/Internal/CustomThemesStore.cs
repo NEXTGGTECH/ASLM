@@ -15,6 +15,7 @@ namespace ASLM.Services.Internal
     {
         private readonly string _filePath;
         private readonly ILogger<CustomThemesStore> _logger;
+        private readonly SemaphoreSlim _saveLock = new(1, 1);
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -81,11 +82,23 @@ namespace ASLM.Services.Internal
         /// </summary>
         public async Task SaveAsync()
         {
-            EnsureDirectoryExists();
-
-            Root.Normalize();
-            var json = JsonSerializer.Serialize(Root, _jsonOptions);
-            await File.WriteAllTextAsync(_filePath, json);
+            // Serialize writers and replace the registry atomically so failed saves preserve the old file.
+            await _saveLock.WaitAsync();
+            var temporaryPath = _filePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                EnsureDirectoryExists();
+                Root.Normalize();
+                var json = JsonSerializer.Serialize(Root, _jsonOptions);
+                await File.WriteAllTextAsync(temporaryPath, json);
+                File.Move(temporaryPath, _filePath, overwrite: true);
+            }
+            finally
+            {
+                // Remove only this save attempt's temporary file and release the lock on every path.
+                try { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); }
+                finally { _saveLock.Release(); }
+            }
         }
 
 
@@ -115,6 +128,25 @@ namespace ASLM.Services.Internal
 
             Root.Themes.Add(theme);
             return theme;
+        }
+
+        /// <summary>
+        /// Commits a detached theme and rolls back its registry entry if saving fails.
+        /// </summary>
+        public async Task<CustomTheme> CreateThemeAsync(CustomTheme draft)
+        {
+            var theme = ImportThemeCopy(draft);
+            try
+            {
+                await SaveAsync();
+                return theme;
+            }
+            catch
+            {
+                // A failed dialog action must not leave an unsaved theme visible in the picker.
+                Root.Themes.Remove(theme);
+                throw;
+            }
         }
 
         /// <summary>

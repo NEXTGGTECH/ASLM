@@ -14,6 +14,7 @@ namespace ASLM.Pages
     public partial class AppShellPage : ContentPage, INotifyPropertyChanged, ILocalizable
     {
         private const double PanelExpandedWidth = 240;
+        private readonly GitHubRateLimitNotice _gitHubLimitNotice;
         private const double PanelCollapsedWidth = 48;
         private const double SidebarIconLogicalSize = 20;
 
@@ -103,7 +104,8 @@ namespace ASLM.Pages
             _services = services;
 
             InitializeComponent();
-            GitHubLimitNotice.Initialize(_services, ShellSurface,
+            Dialogs.Initialize(this, ShellSurface, _services);
+            _gitHubLimitNotice = new(this, Dialogs, _services,
                 () => OpenSettingsOverlay(SettingsCategoryKind.Accounts),
                 () => !_legalAcceptance.ManualAcceptanceRequired);
             LocalizableAttach.Hook(this, _localization, this);
@@ -189,7 +191,7 @@ namespace ASLM.Pages
         private async Task PresentStartupOverlaysAsync()
         {
             await LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
-            GitHubLimitNotice.Refresh();
+            _gitHubLimitNotice.Refresh();
         }
 
         /// <summary>

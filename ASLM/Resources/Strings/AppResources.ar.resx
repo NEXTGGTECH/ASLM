@@ -69,6 +69,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>إلغاء</value>
   </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
   <data name="Common_Discard" xml:space="preserve">
     <value>تجاهل</value>
   </data>
@@ -243,6 +246,15 @@
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} سطر مرئي</value>
   </data>
+  <data name="Dialog_ActionFailedFormat" xml:space="preserve">
+    <value>تعذّر إكمال الإجراء: {0}</value>
+  </data>
+  <data name="Dialog_InvalidValue" xml:space="preserve">
+    <value>أدخل قيمة صالحة.</value>
+  </data>
+  <data name="Dialog_Required" xml:space="preserve">
+    <value>هذا الحقل مطلوب.</value>
+  </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>الكتالوج</value>
   </data>
@@ -264,14 +276,14 @@
   <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
     <value>[صورة: {0}]</value>
   </data>
+  <data name="Downloads_NoItems" xml:space="preserve">
+    <value>لا توجد عناصر</value>
+  </data>
   <data name="Downloads_OpenLink" xml:space="preserve">
     <value>فتح الرابط</value>
   </data>
-  <data name="Downloads_SelectVariant" xml:space="preserve">
-    <value>اختر نسخة للتنزيل:</value>
-  </data>
-  <data name="Downloads_NoItems" xml:space="preserve">
-    <value>لا توجد عناصر</value>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>في قائمة الانتظار</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>البحث في كتالوج المزوّد</value>
@@ -279,8 +291,26 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>اختر عنصرًا</value>
   </data>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>اختر نسخة للتنزيل:</value>
+  </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>التنزيلات</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>ربط حساب GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>اربط حسابك على GitHub لزيادة عدد الطلبات المسموح بها في الساعة.</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>استنفد ASLM الحد المسموح لطلبات واجهة برمجة تطبيقات GitHub في الساعة. قد لا يعمل البحث عن الوحدات وتنزيلها وتحديثها، وكذلك تحديث ASLM والمحركات، بشكل صحيح حتى يُعاد تعيين الحد.</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>ذكّرني لاحقًا</value>
+  </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>تم بلوغ حد طلبات GitHub</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>قرص {0}</value>
@@ -495,6 +525,84 @@
   <data name="Loading_Text" xml:space="preserve">
     <value>جارٍ التحميل...</value>
   </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>المؤلف</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>أُلغي التثبيت.</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>الفئات</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>قناة التنزيل</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>التكوين</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>توجد تبعية دائرية بين الوحدات تشمل {0}. أُلغي التثبيت.</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>جارٍ تنزيل {0} وإعدادها…</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>المحرّكات المطلوبة</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>فشلت العملية: {0}</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>معرّف الوحدة</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>المعلومات</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>تعذّر إكمال تثبيت {0}. راجع الإشعارات أو وحدة التحكم الخاصة بالوحدة للاطلاع على التفاصيل.</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>مثبتة</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>جارٍ تحميل معلومات الوحدة…</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>الوحدة المطلوبة {0} غير موجودة في الفهرس المحلي.</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>فئات النماذج المطلوبة</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>الوحدات المطلوبة</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>لا يتوفر مصدر تنزيل مدعوم لهذه الوحدة.</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>لم تعد الوحدة {0} متاحة في الفهرس المحلي.</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>غير مثبتة</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>المنصات المدعومة</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>تعذّر تحديد مصدر تنزيل لـ {0}.</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>حالة الوحدة</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>النوع</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>الإصدار</value>
+  </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>نشاط التحديث</value>
   </data>
@@ -603,6 +711,18 @@
   <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
     <value>مصدر التحديث</value>
   </data>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>إغلاق معلومات الوحدة</value>
+  </data>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>تعذّر تحميل فهرس الوحدات.</value>
+  </data>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>البحث عن الوحدات المتاحة</value>
+  </data>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>بيتا</value>
+  </data>
   <data name="Modules_CheckUpdates" xml:space="preserve">
     <value>التحقق من التحديثات</value>
   </data>
@@ -612,11 +732,65 @@
   <data name="Modules_Empty" xml:space="preserve">
     <value>لم تُعثر على وحدات. ثبّت الوحدات عبر معالج الإعداد</value>
   </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>تجريبي</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>جارٍ التثبيت كاعتمادية</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>جارٍ التثبيت كاعتمادية لـ {0}</value>
+  </data>
   <data name="Modules_Launch" xml:space="preserve">
     <value>تشغيل</value>
   </data>
   <data name="Modules_NotVerified" xml:space="preserve">
     <value>غير مُتحقَّق</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>في قائمة الانتظار كاعتمادية</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>في قائمة الانتظار كاعتمادية لـ {0}</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>إلغاء التثبيت</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>انتظر اكتمال إعداد الوحدات أو تشغيلها أو تحديثها أو تنزيلها قبل إزالة أي وحدة.</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>أُزيلت الوحدة من قائمة الوحدات المثبتة، لكن تعذّر حذف بعض الملفات. ما زالت موجودة في: {0}</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>أُزيلت الوحدة</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>هل تريد إزالة {0} وبياناتها المحلية؟ ستُزال أيضًا المحرّكات والبيئات والنماذج التي تستخدمها هذه الوحدة وحدها. وسيُحتفظ بالتبعيات المشتركة.</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>هل تريد إلغاء تثبيت {0}؟</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>تعذّرت إزالة الوحدة</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>تحتاج الوحدات التالية إلى هذه الوحدة: {0}. أزل تلك الوحدات أولًا.</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>تستخدم وحدة مثبتة أخرى ملفات داخل مجلد هذه الوحدة. أُلغيت الإزالة لحماية تلك الملفات.</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>أُزيلت هذه الوحدة. حدّث قائمة الوحدات قبل المتابعة.</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>بعض ملفات بيان الوحدات المثبتة مفقودة أو غير قابلة للقراءة أو تحتوي على معرّفات مكررة. أُلغيت الإزالة لتعذّر التحقق من التبعيات المشتركة بأمان.</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>أُلغيت الإزالة لأن أحد المسارات يقع خارج المجلد المُدار أو يحتوي على رابط رمزي.</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>جارٍ إلغاء التثبيت</value>
   </data>
   <data name="Modules_Restart" xml:space="preserve">
     <value>إعادة التشغيل</value>
@@ -669,12 +843,6 @@
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>لا إشعارات</value>
   </data>
-  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
-    <value>الإصدار المثبّت</value>
-  </data>
-  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>هذه الوحدة لم تعد مثبّتة.</value>
-  </data>
   <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
     <value>يتوفر تحديث للمحرك</value>
   </data>
@@ -686,6 +854,12 @@
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>تحديث المحرك</value>
+  </data>
+  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
+    <value>الإصدار المثبّت</value>
+  </data>
+  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
+    <value>هذه الوحدة لم تعد مثبّتة.</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>يتوفر تحديث للوحدة</value>
@@ -714,11 +888,47 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>التحديث الآن</value>
   </data>
+  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
+    <value>حساب ASLM</value>
+  </data>
+  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
+    <value>حساب GitHub</value>
+  </data>
+  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
+    <value>حساب Ollama</value>
+  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
     <value>تمكين خادم ASLM المرآة</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>قناة تحديثات ASLM</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>فشل تسجيل الدخول إلى الحساب السحابي: {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>في انتظار تسجيل الدخول عبر المتصفح...</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>حساب محلي. تُخزَّن بيانات الملف الشخصي على هذا الجهاز فقط.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>استخدام حساب سحابي</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>استخدام حساب محلي</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>استخدام الحساب المحلي</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>ستُحذف بيانات اعتماد SUNRISE من هذا الجهاز. وسيظل ملف ASLM المحلي متاحًا.</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>التبديل إلى حساب محلي؟</value>
+  </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>حساب ASLM</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>ساعات بين فحوصات التحديث في الخلفية</value>
@@ -737,42 +947,6 @@
   </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>الحسابات</value>
-  </data>
-  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
-    <value>حساب ASLM</value>
-  </data>
-  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
-    <value>حساب GitHub</value>
-  </data>
-  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
-    <value>حساب Ollama</value>
-  </data>
-  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
-    <value>اتصل لرفع حد واجهة برمجة التطبيقات من 60 إلى 5000 طلب في الساعة</value>
-  </data>
-  <data name="Settings_GitHub_Connect" xml:space="preserve">
-    <value>اتصال</value>
-  </data>
-  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
-    <value>قطع الاتصال</value>
-  </data>
-  <data name="Settings_GitHub_Connecting" xml:space="preserve">
-    <value>جارٍ الاتصال…</value>
-  </data>
-  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
-    <value>ghp_... أو github_pat_...</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>لصق رمز GitHub</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>يُفترض أن يكون GitHub قد فُتح مع تاريخ انتهاء مُسبق لمدة سنة واحدة. اترك الأذونات الافتراضية لفحوصات التحديثات العامة، أنشئ الرمز ثم الصقه هنا.</value>
-  </data>
-  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
-    <value>حساب GitHub</value>
-  </data>
-  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
-    <value>فشل الاتصال: {0}</value>
   </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
@@ -795,6 +969,9 @@
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
     <value>إظهار صفحة وحدات التحكم</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>تعطيل الصفحة الرئيسية (WIP)</value>
+  </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>تجاهل التغييرات</value>
   </data>
@@ -807,6 +984,12 @@
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>اسم العرض</value>
   </data>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>تنزيل التحديث</value>
+  </data>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>جارٍ التنزيل</value>
+  </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>لا توجد إعدادات في هذه الفئة</value>
   </data>
@@ -816,11 +999,50 @@
   <data name="Settings_Engine_NotInstalled" xml:space="preserve">
     <value>غير مثبت</value>
   </data>
+  <data name="Settings_GitHub_Connect" xml:space="preserve">
+    <value>اتصال</value>
+  </data>
+  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
+    <value>فشل الاتصال: {0}</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
+    <value>يُفترض أن يكون GitHub قد فُتح مع تاريخ انتهاء مُسبق لمدة سنة واحدة. اترك الأذونات الافتراضية لفحوصات التحديثات العامة، أنشئ الرمز ثم الصقه هنا.</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
+    <value>لصق رمز GitHub</value>
+  </data>
+  <data name="Settings_GitHub_Connecting" xml:space="preserve">
+    <value>جارٍ الاتصال…</value>
+  </data>
+  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
+    <value>قطع الاتصال</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
+    <value>هل تريد إلغاء ربط حساب GitHub بتطبيق ASLM؟ سيُحذف رمز الوصول المحفوظ من التطبيق.</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
+    <value>إلغاء ربط حساب GitHub؟</value>
+  </data>
+  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
+    <value>اتصل لرفع حد واجهة برمجة التطبيقات من 60 إلى 5000 طلب في الساعة</value>
+  </data>
+  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
+    <value>ghp_... أو github_pat_...</value>
+  </data>
+  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
+    <value>حساب GitHub</value>
+  </data>
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>الوحدات</value>
   </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
     <value>إظهار وحدات تحكم منفصلة لعمليات الوحدات</value>
+  </data>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>التثبيت وإعادة التشغيل</value>
+  </data>
+  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
+    <value>قبول تحديثات السياسة تلقائيًا</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>تحميل الافتراضي</value>
@@ -831,11 +1053,14 @@
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>لا توجد إعدادات لهذه الوحدة في الحالة الحالية</value>
   </data>
-  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
-    <value>لا تتوفر إعدادات</value>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>إعدادات أخرى</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>منفذ بدء الوحدات</value>
+  </data>
+  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
+    <value>لا تتوفر إعدادات</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>حساب Ollama</value>
@@ -909,9 +1134,6 @@
   <data name="Settings_Personalization_InheritLight" xml:space="preserve">
     <value>فاتح (مدمج)</value>
   </data>
-  <data name="Settings_Personalization_InheritTitle" xml:space="preserve">
-    <value>وراثة الألوان من</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>اللغة</value>
   </data>
@@ -932,9 +1154,6 @@
   </data>
   <data name="Settings_Ports" xml:space="preserve">
     <value>المنافذ</value>
-  </data>
-  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
-    <value>تعطيل الصفحة الرئيسية (WIP)</value>
   </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>فتح آخر صفحة تمت زيارتها عند بدء ASLM</value>
@@ -971,9 +1190,6 @@
   <data name="Settings_SubGroup_Legal" xml:space="preserve">
     <value>الشروط</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>قبول تحديثات السياسة تلقائيًا</value>
-  </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>حذف</value>
   </data>
@@ -989,11 +1205,11 @@
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>مسح</value>
   </data>
-  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
-    <value>محرر السمة: {0}</value>
-  </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>اختيار</value>
+  </data>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>محرر السمة: {0}</value>
   </data>
   <data name="Settings_ThemeExport_Failed" xml:space="preserve">
     <value>تعذّر تصدير السمة: {0}</value>
@@ -1028,26 +1244,50 @@
   <data name="Settings_Title" xml:space="preserve">
     <value>الإعدادات</value>
   </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>الإصدار المتاح: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>الإصدار المثبّت: {0}</value>
+  </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>تعذّر تحضير تحديث ASLM</value>
   </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>فشلت إعادة التشغيل: {0}</value>
   </data>
-  <data name="Settings_DownloadUpdate" xml:space="preserve">
-    <value>تنزيل التحديث</value>
-  </data>
-  <data name="Settings_Downloading" xml:space="preserve">
-    <value>جارٍ التنزيل</value>
-  </data>
-  <data name="Settings_InstallAndRestart" xml:space="preserve">
-    <value>التثبيت وإعادة التشغيل</value>
-  </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>خطأ في التحقق</value>
   </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>اختر نوع الحساب</value>
+  </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
     <value>تم إلغاء التثبيت.</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>حساب سحابي</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>تسجيل الدخول باستخدام SUNRISE</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>فشل تسجيل الدخول إلى الحساب السحابي: {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>تم الاتصال باسم {0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>في انتظار تسجيل الدخول عبر المتصفح...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>سجّل الدخول باستخدام SUNRISE وقم بمزامنة ملف ASLM الشخصي.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>سجّل الدخول عبر المتصفح للمتابعة.</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>أكمل تسجيل الدخول إلى SUNRISE قبل المتابعة.</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>اسمك</value>
@@ -1067,17 +1307,29 @@
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>إنهاء</value>
   </data>
+  <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
+    <value>تعذّر إكمال الإعداد الأولي: {0}</value>
+  </data>
   <data name="SetupWizard_HideLog" xml:space="preserve">
     <value>إخفاء السجل</value>
   </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>جارٍ التثبيت</value>
   </data>
-  <data name="SetupWizard_Next_Install" xml:space="preserve">
-    <value>تثبيت</value>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>حساب محلي</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>احتفظ بملف ASLM الشخصي الخاص بك على هذا الجهاز فقط.</value>
+  </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>غير مدعوم على {0}</value>
   </data>
   <data name="SetupWizard_ModulesPortLabel" xml:space="preserve">
     <value>منفذ بداية الوحدات</value>
+  </data>
+  <data name="SetupWizard_Next_Install" xml:space="preserve">
+    <value>تثبيت</value>
   </data>
   <data name="SetupWizard_OverallProgress" xml:space="preserve">
     <value>التقدّم الإجمالي</value>
@@ -1144,239 +1396,5 @@
   </data>
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>الشفافية</value>
-  </data>
-  <data name="Settings_AslmAccount_Title" xml:space="preserve">
-    <value>حساب ASLM</value>
-  </data>
-  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>حساب محلي. تُخزَّن بيانات الملف الشخصي على هذا الجهاز فقط.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
-    <value>استخدام حساب سحابي</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
-    <value>استخدام حساب محلي</value>
-  </data>
-  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
-    <value>في انتظار تسجيل الدخول عبر المتصفح...</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>التبديل إلى حساب محلي؟</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>ستُحذف بيانات اعتماد SUNRISE من هذا الجهاز. وسيظل ملف ASLM المحلي متاحًا.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
-    <value>استخدام الحساب المحلي</value>
-  </data>
-  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
-    <value>فشل تسجيل الدخول إلى الحساب السحابي: {0}</value>
-  </data>
-  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
-    <value>اختر نوع الحساب</value>
-  </data>
-  <data name="SetupWizard_LocalAccount" xml:space="preserve">
-    <value>حساب محلي</value>
-  </data>
-  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>احتفظ بملف ASLM الشخصي الخاص بك على هذا الجهاز فقط.</value>
-  </data>
-  <data name="SetupWizard_CloudAccount" xml:space="preserve">
-    <value>حساب سحابي</value>
-  </data>
-  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>سجّل الدخول باستخدام SUNRISE وقم بمزامنة ملف ASLM الشخصي.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
-    <value>تسجيل الدخول باستخدام SUNRISE</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
-    <value>في انتظار تسجيل الدخول عبر المتصفح...</value>
-  </data>
-  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>سجّل الدخول عبر المتصفح للمتابعة.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
-    <value>تم الاتصال باسم {0}</value>
-  </data>
-  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>أكمل تسجيل الدخول إلى SUNRISE قبل المتابعة.</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
-    <value>فشل تسجيل الدخول إلى الحساب السحابي: {0}</value>
-  </data>
-  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
-    <value>غير مدعوم على {0}</value>
-  </data>
-  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
-    <value>إعدادات أخرى</value>
-  </data>
-  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
-    <value>الإصدار المتاح: {0}</value>
-  </data>
-  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
-    <value>الإصدار المثبّت: {0}</value>
-  </data>
-  <data name="ModulesDownloads_Search" xml:space="preserve">
-    <value>البحث عن الوحدات المتاحة</value>
-  </data>
-  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>تعذّر تحميل فهرس الوحدات.</value>
-  </data>
-  <data name="ModulesDownloads_Close" xml:space="preserve">
-    <value>إغلاق معلومات الوحدة</value>
-  </data>
-  <data name="Modules_Remove" xml:space="preserve">
-    <value>إلغاء التثبيت</value>
-  </data>
-  <data name="Modules_Removing" xml:space="preserve">
-    <value>جارٍ إلغاء التثبيت</value>
-  </data>
-  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
-    <value>هل تريد إلغاء تثبيت {0}؟</value>
-  </data>
-  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>هل تريد إزالة {0} وبياناتها المحلية؟ ستُزال أيضًا المحرّكات والبيئات والنماذج التي تستخدمها هذه الوحدة وحدها. وسيُحتفظ بالتبعيات المشتركة.</value>
-  </data>
-  <data name="Modules_RemoveFailed" xml:space="preserve">
-    <value>تعذّرت إزالة الوحدة</value>
-  </data>
-  <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>انتظر اكتمال إعداد الوحدات أو تشغيلها أو تحديثها أو تنزيلها قبل إزالة أي وحدة.</value>
-  </data>
-  <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>أُزيلت هذه الوحدة. حدّث قائمة الوحدات قبل المتابعة.</value>
-  </data>
-  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>بعض ملفات بيان الوحدات المثبتة مفقودة أو غير قابلة للقراءة أو تحتوي على معرّفات مكررة. أُلغيت الإزالة لتعذّر التحقق من التبعيات المشتركة بأمان.</value>
-  </data>
-  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>تحتاج الوحدات التالية إلى هذه الوحدة: {0}. أزل تلك الوحدات أولًا.</value>
-  </data>
-  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>أُلغيت الإزالة لأن أحد المسارات يقع خارج المجلد المُدار أو يحتوي على رابط رمزي.</value>
-  </data>
-  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>تستخدم وحدة مثبتة أخرى ملفات داخل مجلد هذه الوحدة. أُلغيت الإزالة لحماية تلك الملفات.</value>
-  </data>
-  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
-    <value>أُزيلت الوحدة</value>
-  </data>
-  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
-    <value>أُزيلت الوحدة من قائمة الوحدات المثبتة، لكن تعذّر حذف بعض الملفات. ما زالت موجودة في: {0}</value>
-  </data>
-  <data name="ModuleInfo_Version" xml:space="preserve">
-    <value>الإصدار</value>
-  </data>
-  <data name="ModuleInfo_Author" xml:space="preserve">
-    <value>المؤلف</value>
-  </data>
-  <data name="ModuleInfo_Id" xml:space="preserve">
-    <value>معرّف الوحدة</value>
-  </data>
-  <data name="ModuleInfo_Type" xml:space="preserve">
-    <value>النوع</value>
-  </data>
-  <data name="ModuleInfo_Categories" xml:space="preserve">
-    <value>الفئات</value>
-  </data>
-  <data name="ModuleInfo_Platforms" xml:space="preserve">
-    <value>المنصات المدعومة</value>
-  </data>
-  <data name="ModuleInfo_Channel" xml:space="preserve">
-    <value>قناة التنزيل</value>
-  </data>
-  <data name="ModuleInfo_Engines" xml:space="preserve">
-    <value>المحرّكات المطلوبة</value>
-  </data>
-  <data name="ModuleInfo_Modules" xml:space="preserve">
-    <value>الوحدات المطلوبة</value>
-  </data>
-  <data name="ModuleInfo_Models" xml:space="preserve">
-    <value>فئات النماذج المطلوبة</value>
-  </data>
-  <data name="ModuleInfo_Loading" xml:space="preserve">
-    <value>جارٍ تحميل معلومات الوحدة…</value>
-  </data>
-  <data name="ModuleInfo_Downloading" xml:space="preserve">
-    <value>جارٍ تنزيل {0} وإعدادها…</value>
-  </data>
-  <data name="ModuleInfo_Installed" xml:space="preserve">
-    <value>مثبتة</value>
-  </data>
-  <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>لا يتوفر مصدر تنزيل مدعوم لهذه الوحدة.</value>
-  </data>
-  <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>أُلغي التثبيت.</value>
-  </data>
-  <data name="ModuleInfo_Failed" xml:space="preserve">
-    <value>فشلت العملية: {0}</value>
-  </data>
-  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>لم تعد الوحدة {0} متاحة في الفهرس المحلي.</value>
-  </data>
-  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>تعذّر تحديد مصدر تنزيل لـ {0}.</value>
-  </data>
-  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>تعذّر إكمال تثبيت {0}. راجع الإشعارات أو وحدة التحكم الخاصة بالوحدة للاطلاع على التفاصيل.</value>
-  </data>
-  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>توجد تبعية دائرية بين الوحدات تشمل {0}. أُلغي التثبيت.</value>
-  </data>
-  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>الوحدة المطلوبة {0} غير موجودة في الفهرس المحلي.</value>
-  </data>
-  <data name="ModuleInfo_InfoTab" xml:space="preserve">
-    <value>المعلومات</value>
-  </data>
-  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
-    <value>التكوين</value>
-  </data>
-  <data name="ModuleInfo_StatusTab" xml:space="preserve">
-    <value>الحالة</value>
-  </data>
-  <data name="ModuleInfo_StateTitle" xml:space="preserve">
-    <value>حالة الوحدة</value>
-  </data>
-  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
-    <value>غير مثبتة</value>
-  </data>
-  <data name="Modules_Beta" xml:space="preserve">
-    <value>بيتا</value>
-  </data>
-  <data name="Modules_Experimental" xml:space="preserve">
-    <value>تجريبي</value>
-  </data>
-  <data name="Downloads_Queued" xml:space="preserve">
-    <value>في قائمة الانتظار</value>
-  </data>
-  <data name="Modules_QueuedDependency" xml:space="preserve">
-    <value>في قائمة الانتظار كاعتمادية</value>
-  </data>
-  <data name="Modules_InstallingDependency" xml:space="preserve">
-    <value>جارٍ التثبيت كاعتمادية</value>
-  </data>
-  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
-    <value>في قائمة الانتظار كاعتمادية لـ {0}</value>
-  </data>
-  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
-    <value>جارٍ التثبيت كاعتمادية لـ {0}</value>
-  </data>
-  <data name="GitHubRateLimit_Title" xml:space="preserve">
-    <value>تم بلوغ حد طلبات GitHub</value>
-  </data>
-  <data name="GitHubRateLimit_Message" xml:space="preserve">
-    <value>استنفد ASLM الحد المسموح لطلبات واجهة برمجة تطبيقات GitHub في الساعة. قد لا يعمل البحث عن الوحدات وتنزيلها وتحديثها، وكذلك تحديث ASLM والمحركات، بشكل صحيح حتى يُعاد تعيين الحد.</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
-    <value>اربط حسابك على GitHub لزيادة عدد الطلبات المسموح بها في الساعة.</value>
-  </data>
-  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
-    <value>ربط حساب GitHub</value>
-  </data>
-  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
-    <value>ذكّرني لاحقًا</value>
   </data>
 </root>

@@ -8,6 +8,46 @@ namespace ASLM.Tests.Services;
 public sealed class CustomThemesStoreTests
 {
     /// <summary>
+    /// Verifies saving a detached theme preserves its values and assigns an ID only to the stored copy.
+    /// </summary>
+    [Fact]
+    public async Task Create_complete_theme_saves_all_values_and_allocates_a_unique_id()
+    {
+        using var layout = new AslmFileSystemLayout();
+        var store = new CustomThemesStore(TestLoggerFactory.Create<CustomThemesStore>());
+        var draft = new CustomTheme { Name = "Ocean", BaseAppearance = "light", Colors = new() { ["SystemBlue"] = "#123456" } };
+        var saved = await store.CreateThemeAsync(draft);
+        saved.Id.Should().NotBeNullOrWhiteSpace();
+        draft.Id.Should().BeEmpty();
+        // Reload from disk instead of checking only the store's in-memory registry.
+        var reloaded = new CustomThemesStore(TestLoggerFactory.Create<CustomThemesStore>());
+        await reloaded.LoadAsync();
+        reloaded.FindById(saved.Id)!.Colors["SystemBlue"].Should().Be("#123456");
+    }
+
+    /// <summary>
+    /// Verifies a failed atomic save preserves existing themes and removes the incomplete registry entry.
+    /// </summary>
+    [Fact]
+    public async Task Failed_create_preserves_existing_file_and_rolls_back_the_registry_entry()
+    {
+        using var layout = new AslmFileSystemLayout();
+        var store = new CustomThemesStore(TestLoggerFactory.Create<CustomThemesStore>());
+        await store.CreateThemeAsync(new CustomTheme { Name = "Existing" });
+        var original = await File.ReadAllTextAsync(layout.CustomThemesFilePath);
+        // Force replacement to fail without modifying permissions or deleting the original file.
+        using (var locked = new FileStream(layout.CustomThemesFilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var attempt = () => store.CreateThemeAsync(new CustomTheme { Name = "New theme" });
+            var error = (await attempt.Should().ThrowAsync<Exception>()).Which;
+            (error is IOException or UnauthorizedAccessException).Should().BeTrue();
+        }
+        store.Root.Themes.Should().ContainSingle(t => t.Name == "Existing");
+        (await File.ReadAllTextAsync(layout.CustomThemesFilePath)).Should().Be(original);
+        Directory.GetFiles(layout.DataAppDir, "*.tmp").Should().BeEmpty();
+    }
+
+    /// <summary>
     /// Verifies renaming keeps the selected theme id and resolves display-name collisions.
     /// </summary>
     [Fact]
