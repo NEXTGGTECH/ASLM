@@ -20,13 +20,20 @@ namespace ASLM.Services.Internal
         private const int TokenLifetimeDays = 365;
 
         /// <summary>
-        /// Builds the GitHub fine-grained token page URL pre-filled for ASLM.
+        /// Builds the GitHub token page URL with a name based on the current local date and time.
         /// </summary>
-        public static string BuildTokenCreationUrl()
+        public static string BuildTokenCreationUrl() => BuildTokenCreationUrl(DateTimeOffset.Now);
+
+        /// <summary>
+        /// Formats a timestamped token name independently of the application's selected language.
+        /// </summary>
+        internal static string BuildTokenCreationUrl(DateTimeOffset createdAt)
         {
+            // Preserve local time and a stable date format; encode spaces as %20 in the query.
+            var tokenName = string.Create(CultureInfo.InvariantCulture, $"ASLM {createdAt:dd.MM.yyyy HH:mm:ss}");
             var query = string.Create(
                 CultureInfo.InvariantCulture,
-                $"?name={Uri.EscapeDataString("ASLM")}" +
+                $"?name={Uri.EscapeDataString(tokenName)}" +
                 $"&expires_in={TokenLifetimeDays}");
             return FineGrainedTokenCreationBaseUrl + query;
         }
