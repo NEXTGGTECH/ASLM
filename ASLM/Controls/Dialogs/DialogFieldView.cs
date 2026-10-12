@@ -47,7 +47,8 @@ internal sealed class DialogFieldView : ContentView, IDisposable
             SettingsControlChrome.SetCompactPicker(_picker, true);
             _picker.SelectedIndexChanged += (_, _) =>
             {
-                if (!_syncing && _picker.SelectedIndex >= 0) field.Value = field.Choices[_picker.SelectedIndex].Id;
+                if (!_syncing && _picker.SelectedIndex >= 0 && _picker.SelectedIndex < field.Choices.Count)
+                    field.Value = field.Choices[_picker.SelectedIndex].Id;
             };
             _input = _picker;
         }
@@ -78,6 +79,16 @@ internal sealed class DialogFieldView : ContentView, IDisposable
         layout.Add(_error);
         Content = layout;
         field.ValueChanged += OnValueChanged;
+        field.PresentationChanged += OnPresentationChanged;
+    }
+
+    /// <summary>
+    /// Refreshes a dependent selector after its options, label, or loading state change.
+    /// </summary>
+    private void OnPresentationChanged(object? sender, EventArgs e)
+    {
+        ApplyLocalization();
+        ShowError(Field.PresentationError?.Resolve());
     }
 
     /// <summary>
@@ -95,7 +106,7 @@ internal sealed class DialogFieldView : ContentView, IDisposable
     public void FocusInput() => (_entry as View ?? _editor ?? _picker as View ?? _toggle)?.Focus();
 
     /// <summary>
-    /// Updates localized labels and choice captions only when the form language changes.
+    /// Updates labels and choice captions when the language or dependent field presentation changes.
     /// </summary>
     public void ApplyLocalization()
     {
@@ -103,6 +114,7 @@ internal sealed class DialogFieldView : ContentView, IDisposable
         try
         {
             _label.Text = Field.Label.Resolve();
+            _input.IsEnabled = Field.IsEnabled;
             if (_entry != null) _entry.Placeholder = Field.Placeholder?.Resolve();
             if (_editor != null) _editor.Placeholder = Field.Placeholder?.Resolve();
             if (_picker != null)
@@ -157,5 +169,9 @@ internal sealed class DialogFieldView : ContentView, IDisposable
     /// <summary>
     /// Releases the model subscription when the dialog discards its input controls.
     /// </summary>
-    public void Dispose() => Field.ValueChanged -= OnValueChanged;
+    public void Dispose()
+    {
+        Field.ValueChanged -= OnValueChanged;
+        Field.PresentationChanged -= OnPresentationChanged;
+    }
 }

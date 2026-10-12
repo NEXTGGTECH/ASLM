@@ -42,17 +42,21 @@ public sealed record DialogChoice(string Id, DialogText Label);
 public sealed class DialogField
 {
     private object? _value;
+    private IReadOnlyList<DialogChoice> _choices = [];
     public required string Id { get; init; }
-    public required DialogText Label { get; init; }
+    public required DialogText Label { get; set; }
     public DialogFieldKind Kind { get; init; }
     public DialogText? Placeholder { get; init; }
     public bool Required { get; init; }
     public int MaxLength { get; init; } = int.MaxValue;
     public decimal? Minimum { get; init; }
     public decimal? Maximum { get; init; }
-    public IReadOnlyList<DialogChoice> Choices { get; init; } = [];
+    public IReadOnlyList<DialogChoice> Choices { get => _choices; init => _choices = value; }
+    public bool IsEnabled { get; private set; } = true;
+    public DialogText? PresentationError { get; private set; }
     public Func<object?, string?>? Validate { get; init; }
     public event EventHandler? ValueChanged;
+    public event EventHandler? PresentationChanged;
     public object? Value
     {
         get => _value;
@@ -62,6 +66,19 @@ public sealed class DialogField
             _value = value;
             ValueChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>
+    /// Replaces dependent selector options and their caption without closing the dialog.
+    /// </summary>
+    public void UpdateChoices(DialogText label, IReadOnlyList<DialogChoice> choices,
+        bool isEnabled = true, DialogText? error = null)
+    {
+        Label = label;
+        _choices = choices;
+        IsEnabled = isEnabled;
+        PresentationError = error;
+        PresentationChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -110,6 +127,7 @@ public sealed class DialogAction
     public bool CloseOnSuccess { get; init; } = true;
     public Func<IReadOnlyDictionary<string, object?>, CancellationToken, Task>? ExecuteAsync { get; init; }
     public Func<bool>? IsVisible { get; init; }
+    public Func<bool>? IsEnabled { get; init; }
 }
 
 /// <summary>
@@ -143,4 +161,3 @@ public sealed record DialogResult(string? ActionId, IReadOnlyDictionary<string, 
     public bool IsCancelled => ActionId == null;
     public static DialogResult Cancelled { get; } = new(null, new Dictionary<string, object?>());
 }
-

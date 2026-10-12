@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>In coda come dipendenza di {0}</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Reinstalla</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>Reinstallare {0}?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Impossibile reinstallare il modulo</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>Disinstalla</value>
   </data>

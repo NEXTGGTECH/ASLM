@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>{0} की निर्भरता के रूप में कतार में</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>फिर से इंस्टॉल करें</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>{0} को फिर से इंस्टॉल करें?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>मॉड्यूल फिर से इंस्टॉल नहीं हो सका</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>अनइंस्टॉल करें</value>
   </data>

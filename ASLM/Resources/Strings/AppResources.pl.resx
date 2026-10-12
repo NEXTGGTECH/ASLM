@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>W kolejce jako zależność modułu {0}</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Zainstaluj ponownie</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>Zainstalować ponownie {0}?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Nie udało się ponownie zainstalować modułu</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>Odinstaluj</value>
   </data>

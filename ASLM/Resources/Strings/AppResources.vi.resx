@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>Đang chờ cài đặt thành phần phụ thuộc của {0}</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Cài đặt lại</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>Cài đặt lại {0}?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Không thể cài đặt lại mô-đun</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>Gỡ cài đặt</value>
   </data>

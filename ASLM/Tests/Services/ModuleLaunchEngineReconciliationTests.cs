@@ -13,6 +13,157 @@ namespace ASLM.Tests.Services;
 [Collection("ModuleManifestDiscovery")]
 public sealed class ModuleLaunchEngineReconciliationTests
 {
+    /// <summary>
+    /// Missing release or branch metadata must fail before stopping or deleting the installed module.
+    /// </summary>
+    [Theory]
+    [InlineData("release")]
+    [InlineData("pre-release")]
+    [InlineData("branch")]
+    public async Task Reinstall_with_an_unavailable_target_preserves_the_existing_installation(string mode)
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var module = await WriteCatalogModuleAsync(layout, "aslm-chat");
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        module.Status.Installed = module.Status.FirstRunCompleted = true;
+        await installer.SaveConfigAsync(module);
+        var manifest = await File.ReadAllTextAsync(module.SourcePath);
+        var payload = Path.Combine(Path.GetDirectoryName(module.SourcePath)!, "user-data.txt");
+        await File.WriteAllTextAsync(payload, "untouched");
+        using var http = new HttpClient(new ReinstallCatalogHandler(missing: true));
+        var manager = CreateReinstallManager(layout, installer, engines, runner, http, new DownloadQueue());
+
+        await FluentActions.Awaiting(() => manager.ReinstallModuleAsync(module,
+            new() { Mode = mode, SelectedReleaseTag = "v1.0.0", Branch = "preview" }, new RecordingProgress()))
+            .Should().ThrowAsync<InvalidOperationException>();
+
+        File.ReadAllText(module.SourcePath).Should().Be(manifest);
+        File.ReadAllText(payload).Should().Be("untouched");
+        installer.Registry.ReadIds().Should().Contain(module.Id);
+        installer.GetInstallationState(module.Id).Should().BeNull();
+        installer.GetRemovalState(module.Id).Should().BeNull();
+    }
+
+    /// <summary>
+    /// Reinstall reserves its card while queued, waits for deletion, and only then enters ordinary installation.
+    /// </summary>
+    [Theory]
+    [InlineData("release")]
+    [InlineData("pre-release")]
+    [InlineData("branch")]
+    public async Task Reinstall_uses_both_queues_and_enters_installation_only_after_removal(string mode)
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var module = await WriteCatalogModuleAsync(layout, "aslm-chat");
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        module.Status.Installed = module.Status.FirstRunCompleted = true;
+        module.Update.InstalledReleaseTag = "v1.0.0";
+        module.Update.InstalledCommitSha = "abcdef123456";
+        await installer.SaveConfigAsync(module);
+        var payload = Path.Combine(Path.GetDirectoryName(module.SourcePath)!, "user-data.txt");
+        await File.WriteAllTextAsync(payload, "old data");
+        var queue = new DownloadQueue();
+        using var http = new HttpClient(new ReinstallCatalogHandler(missing: false));
+        var manager = CreateReinstallManager(layout, installer, engines, runner, http, queue);
+        var releaseInstall = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRemoval = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var published = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var removeQueued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var installedLane = queue.EnqueueAsync("preceding-install", async _ => { await releaseInstall.Task; return true; },
+            kind: DownloadQueueKind.Modules);
+        var removalLane = queue.EnqueueAsync("preceding-removal", async _ => { await releaseRemoval.Task; return true; },
+            kind: DownloadQueueKind.ModuleRemoval);
+        using var cts = new CancellationTokenSource();
+        var reachedInstall = false;
+        installer.ModulesChanged += (_, _) =>
+        {
+            var state = installer.GetInstallationState(module.Id);
+            if (state == null) return;
+            if (state.Phase == DownloadOperationState.Queued) published.TrySetResult();
+            if (state.Phase != DownloadOperationState.Running) return;
+            installer.Registry.ReadIds().Should().NotContain(module.Id);
+            File.Exists(payload).Should().BeFalse();
+            reachedInstall = true;
+            // Stop before archive downloading: this test has no native notification dispatcher.
+            cts.Cancel();
+        };
+        queue.StateChanged += (_, _) =>
+        {
+            if (queue.Contains("module-remove:" + module.Id)) removeQueued.TrySetResult();
+        };
+        var reinstall = manager.ReinstallModuleAsync(module,
+            new() { Mode = mode, SelectedReleaseTag = "v1.0.0", Branch = "preview" }, new RecordingProgress(), ct: cts.Token);
+        try
+        {
+            await published.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            installer.GetInstallationState(module.Id)!.IsDependency.Should().BeFalse();
+            File.Exists(payload).Should().BeTrue();
+            releaseInstall.SetResult();
+            await removeQueued.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            File.Exists(payload).Should().BeTrue("reinstall must respect the separate removal queue");
+            releaseRemoval.SetResult();
+            await FluentActions.Awaiting(() => reinstall.WaitAsync(TimeSpan.FromSeconds(5)))
+                .Should().ThrowAsync<OperationCanceledException>();
+            reachedInstall.Should().BeTrue();
+            var retainedCatalog = (await installer.LoadModuleConfig(module.SourcePath))!;
+            retainedCatalog.Update.Mode.Should().Be(mode);
+            retainedCatalog.Update.SelectedReleaseTag.Should().Be("v1.0.0");
+            installer.GetRemovalState(module.Id).Should().BeNull();
+            installer.GetInstallationState(module.Id).Should().BeNull();
+        }
+        finally
+        {
+            cts.Cancel();
+            releaseInstall.TrySetResult();
+            releaseRemoval.TrySetResult();
+            await Task.WhenAll(installedLane, removalLane);
+            try { await reinstall; } catch (OperationCanceledException) { }
+        }
+    }
+
+    /// <summary>
+    /// Creates a manager with a fake HTTP catalog; these tests stop before any archive or native UI work.
+    /// </summary>
+    private static UpdateManager CreateReinstallManager(AslmFileSystemLayout layout, ModuleInstaller installer,
+        EngineInstaller engines, ModuleRunner runner, HttpClient http, DownloadQueue queue)
+    {
+        var appData = new AppDataStore(NullLogger<AppDataStore>.Instance);
+        var limits = new GitHubRateLimitStore(NullLogger<GitHubRateLimitStore>.Instance);
+        var account = new GitHubAccountStore(appData, limits, NullLogger<GitHubAccountStore>.Instance);
+        var client = new GitHubUpdateClient(limits, account, http,
+            new ModuleIconCache(Path.Combine(layout.Root, "Data", "Downloads", "IconModules")));
+        return new UpdateManager(appData, installer, engines, runner, null!, null!, null!, null!, client,
+            null!, NullLogger<UpdateManager>.Instance, queue);
+    }
+
+    /// <summary>
+    /// Supplies deterministic metadata and rejects archive requests or accidental real-network access.
+    /// </summary>
+    private sealed class ReinstallCatalogHandler(bool missing) : HttpMessageHandler
+    {
+        /// <summary>
+        /// Returns a fixed release or branch catalog without performing network IO.
+        /// </summary>
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var json = request.RequestUri!.AbsolutePath switch
+            {
+                "/repos/test/catalog/releases" => missing ? "[]" :
+                    """[{"tag_name":"v1.0.0","zipball_url":"https://example.test/module.zip"}]""",
+                "/repos/test/catalog/branches" => missing ? "[]" :
+                    """[{"name":"preview","commit":{"sha":"abcdef123456"}}]""",
+                _ => throw new InvalidOperationException("Unexpected test request: " + request.RequestUri)
+            };
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(json) });
+        }
+    }
+
     [Fact]
     public async Task Module_installs_do_not_wait_for_the_bridge_download_queue()
     {

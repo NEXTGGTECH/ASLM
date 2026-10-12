@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>Als Abhängigkeit von {0} eingereiht</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Neu installieren</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>{0} neu installieren?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Modul konnte nicht neu installiert werden</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>Deinstallieren</value>
   </data>

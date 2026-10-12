@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>In wachtrij als afhankelijkheid van {0}</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Opnieuw installeren</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>{0} opnieuw installeren?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Module kon niet opnieuw worden geïnstalleerd</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>Verwijderen</value>
   </data>

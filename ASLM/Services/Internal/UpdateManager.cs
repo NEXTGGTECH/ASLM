@@ -15,7 +15,7 @@ namespace ASLM.Services.Internal
     /// <summary>
     /// Checks, prepares, and applies ASLM and module updates.
     /// </summary>
-    public sealed class UpdateManager
+    public sealed partial class UpdateManager
     {
         // Fields and constants
 
@@ -919,8 +919,11 @@ namespace ASLM.Services.Internal
             return await job.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Installs a reserved dependency plan, optionally using an exact root target resolved before reinstallation.
+        /// </summary>
         private async Task<ModuleLaunchResult> InstallCatalogModuleCoreAsync(ModuleInstaller.CatalogInstallation request, IProgress<string> log,
-            IProgress<DownloadProgress>? progress, CancellationToken ct)
+            IProgress<DownloadProgress>? progress, CancellationToken ct, UpdateCandidate? reinstallTarget = null)
         {
             // Do not hold a content-operation lease while waiting: removal needs exclusive file access.
             foreach (var pending in request.Plan)
@@ -953,7 +956,8 @@ namespace ASLM.Services.Internal
                 if (!isDownloaded) request.TrackNewContent(item);
                 if (!isDownloaded && item.HasDeclaredUpdateConfig)
                 {
-                    var candidate = await ResolveModuleInstallCandidateAsync(item, ct, isManualRequest: true)
+                    var candidate = (string.Equals(item.Id, reinstallTarget?.TargetId, StringComparison.OrdinalIgnoreCase)
+                        ? reinstallTarget : await ResolveModuleInstallCandidateAsync(item, ct, isManualRequest: true))
                         ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_SourceUnavailable, item.Name));
                     try
                     {

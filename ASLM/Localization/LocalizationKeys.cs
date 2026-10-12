@@ -250,6 +250,9 @@ public static class LocalizationKeys
     public const string Modules_NotVerified = "Modules_NotVerified";
     public const string Modules_QueuedDependency = "Modules_QueuedDependency";
     public const string Modules_QueuedDependencyFor = "Modules_QueuedDependencyFor";
+    public const string Modules_Reinstall = "Modules_Reinstall";
+    public const string Modules_ReinstallConfirmTitle = "Modules_ReinstallConfirmTitle";
+    public const string Modules_ReinstallFailed = "Modules_ReinstallFailed";
     public const string Modules_Remove = "Modules_Remove";
     public const string Modules_RemoveBusy = "Modules_RemoveBusy";
     public const string Modules_RemoveCleanupFormat = "Modules_RemoveCleanupFormat";

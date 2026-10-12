@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>{0} bağımlılığı olarak sırada</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Yeniden yükle</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>{0} yeniden yüklensin mi?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Modül yeniden yüklenemedi</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>Kaldır</value>
   </data>

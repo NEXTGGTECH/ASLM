@@ -1933,6 +1933,33 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Reinstall.
+        /// </summary>
+        public static string Modules_Reinstall {
+            get {
+                return ResourceManager.GetString("Modules_Reinstall", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Reinstall {0}?.
+        /// </summary>
+        public static string Modules_ReinstallConfirmTitle {
+            get {
+                return ResourceManager.GetString("Modules_ReinstallConfirmTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not reinstall module.
+        /// </summary>
+        public static string Modules_ReinstallFailed {
+            get {
+                return ResourceManager.GetString("Modules_ReinstallFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Uninstall.
         /// </summary>
         public static string Modules_Remove {

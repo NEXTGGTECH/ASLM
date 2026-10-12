@@ -241,11 +241,12 @@ public partial class DialogHostView : ContentView, ILocalizable
         CloseButton.IsEnabled = !session.IsBusy;
         ActionErrorLabel.Text = session.ActionError;
         ActionErrorLabel.IsVisible = !string.IsNullOrEmpty(session.ActionError);
-        foreach (var field in _fields) field.ShowError(session.Errors.GetValueOrDefault(field.Field.Id));
+        foreach (var field in _fields)
+            field.ShowError(session.Errors.GetValueOrDefault(field.Field.Id) ?? field.Field.PresentationError?.Resolve());
         foreach (var (action, button) in _buttons)
         {
             button.IsVisible = action.IsVisible?.Invoke() != false;
-            button.IsEnabled = !session.IsBusy;
+            button.IsEnabled = !session.IsBusy && action.IsEnabled?.Invoke() != false;
         }
         QueueResize();
     }

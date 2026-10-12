@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>作為 {0} 的相依模組排隊中</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>重新安裝</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>重新安裝 {0}？</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>無法重新安裝模組</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>解除安裝</value>
   </data>

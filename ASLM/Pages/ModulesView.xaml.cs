@@ -19,6 +19,7 @@ namespace ASLM.Pages
     {
         private const double MinCardWidth = 440;
         private bool _confirmingRemoval;
+        private bool _confirmingReinstall;
 
         private readonly UpdateManager _updateManager;
         private readonly ModuleTrustService _moduleTrustService;
@@ -203,7 +204,8 @@ namespace ASLM.Pages
                     OnMenuToggleRequested,
                     OpenConfigureUpdates,
                     OpenUpdateDialog,
-                    OnRemoveRequested);
+                    OnRemoveRequested,
+                    OnReinstallRequested);
                 viewModel.SetRemoving(_removingSourcePaths.Contains(module.SourcePath));
                 Modules.Add(viewModel);
             }
@@ -291,7 +293,7 @@ namespace ASLM.Pages
         /// <summary>Confirms uninstall in the dashboard overlay and keeps the card busy throughout removal.</summary>
         private async void OnRemoveRequested(ModuleViewModel module)
         {
-            if (_confirmingRemoval || !module.RemoveCommand.CanExecute(null)) return;
+            if (_confirmingRemoval || _confirmingReinstall || !module.RemoveCommand.CanExecute(null)) return;
             CloseAllMenus();
             _confirmingRemoval = true;
             bool confirmed;
@@ -332,6 +334,48 @@ namespace ASLM.Pages
                     DialogText.Localized(LocalizationKeys.Modules_RemoveCleanupFormat, retainedFiles));
         }
 
+        /// <summary>
+        /// Confirms a clean reinstall with a detached copy of the latest saved update preferences.
+        /// </summary>
+        private async void OnReinstallRequested(ModuleViewModel module)
+        {
+            if (_confirmingRemoval || _confirmingReinstall || !module.ReinstallCommand.CanExecute(null)) return;
+            CloseAllMenus();
+            _confirmingReinstall = true;
+            try
+            {
+                ModuleUpdateConfig selection;
+                // Dispose the form as soon as it closes; the queued job owns its own preferences snapshot.
+                try
+                {
+                    using var form = new ModuleReinstallForm(await module.LoadReinstallConfigAsync(), _updateManager);
+                    if (!IsLoaded) return;
+                    var dialog = DialogService.For(this).ShowAsync(this, form.Request);
+                    _ = form.LoadOptionsAsync();
+                    var result = await dialog;
+                    if (result.IsCancelled) return;
+                    selection = form.BuildSelection(result.Values);
+                }
+                finally { _confirmingReinstall = false; }
+
+                if (!module.ReinstallCommand.CanExecute(null)) return;
+                var launch = await module.ReinstallAsync(selection);
+                if (IsLoaded && launch.Status is not (ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning or ModuleLaunchStatus.NoRunCommands))
+                    await DialogService.For(this).AlertAsync(this,
+                        module.Name,
+                        DialogText.Localized(LocalizationKeys.ModuleInfo_Failed, launch.Message ?? launch.Status.ToString()));
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (IsLoaded) await DialogService.For(this).AlertAsync(this,
+                    DialogText.Localized(LocalizationKeys.Modules_ReinstallFailed), ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Keeps removal state consistent if manifest discovery replaces a visible card.
+        /// </summary>
         private void SetRemovingModule(string sourcePath, bool removing)
         {
             if (removing) _removingSourcePaths.Add(sourcePath);
@@ -498,6 +542,7 @@ namespace ASLM.Pages
         private readonly Action<ModuleViewModel> _onConfigureUpdatesRequested;
         private readonly Action<ModuleViewModel> _onUpdateDialogRequested;
         private readonly Action<ModuleViewModel> _onRemoveRequested;
+        private readonly Action<ModuleViewModel>? _onReinstallRequested;
         private readonly ObservableCollection<string> _branchOptions = [];
         private readonly ObservableCollection<UpdateCandidate> _releaseOptions = [];
         private readonly Command _launchCommand;
@@ -507,6 +552,7 @@ namespace ASLM.Pages
         private readonly Command _updateCommand;
         private readonly Command _closeMenuCommand;
         private readonly Command _removeCommand;
+        private readonly Command _reinstallCommand;
         private bool _isRemoving;
 
         private string _selectedSourceMode = "release";
@@ -563,7 +609,8 @@ namespace ASLM.Pages
             Action<ModuleViewModel> onMenuToggleRequested,
             Action<ModuleViewModel> onConfigureUpdatesRequested,
             Action<ModuleViewModel> onUpdateDialogRequested,
-            Action<ModuleViewModel> onRemoveRequested)
+            Action<ModuleViewModel> onRemoveRequested,
+            Action<ModuleViewModel>? onReinstallRequested = null)
         {
             _config = config;
             _installer = installer;
@@ -576,6 +623,7 @@ namespace ASLM.Pages
             _onConfigureUpdatesRequested = onConfigureUpdatesRequested;
             _onUpdateDialogRequested = onUpdateDialogRequested;
             _onRemoveRequested = onRemoveRequested;
+            _onReinstallRequested = onReinstallRequested;
 
             // Normalize once so every card starts from the persisted update preferences.
             _config.Normalize();
@@ -593,6 +641,8 @@ namespace ASLM.Pages
             _checkUpdateCommand = new Command(ExecuteCheckUpdateCommand, CanCheckOrUpdate);
             _updateCommand = new Command(ExecuteApplyUpdateCommand, CanApplyUpdate);
             _removeCommand = new Command(OnRemove, () => CanUninstall && !IsRemoving && !IsBusy && !IsStarting && !IsRestarting);
+            _reinstallCommand = new Command(OnReinstall, () => !IsRemoving && !IsBusy && !IsStarting && !IsRestarting &&
+                string.IsNullOrEmpty(_installer.GetPendingConsumers(_config.Id)));
 
             LaunchCommand = _launchCommand;
             StopCommand = _stopCommand;
@@ -667,6 +717,8 @@ namespace ASLM.Pages
         public ICommand RemoveCommand => _removeCommand;
         public bool CanUninstall => !ModuleRegistry.IsRequired(_config.Id) && string.IsNullOrEmpty(_installer.GetPendingConsumers(_config.Id));
         public string RemoveLabel => L.Get(LocalizationKeys.Modules_Remove);
+        public ICommand ReinstallCommand => _reinstallCommand;
+        public string ReinstallLabel => L.Get(LocalizationKeys.Modules_Reinstall);
         public string RemovingLabel => L.Get(_installer.GetRemovalState(_config.Id) == DownloadOperationState.Queued
             ? LocalizationKeys.Downloads_Queued : LocalizationKeys.Modules_Removing);
         public bool IsRemoving => _isRemoving || _installer.GetRemovalState(_config.Id) != null ||
@@ -689,6 +741,31 @@ namespace ASLM.Pages
         }
 
         internal Task<string?> UninstallAsync() => _updateManager.UninstallModuleAsync(_config);
+
+        /// <summary>
+        /// Reads persisted preferences rather than potentially stale selections cached by the card.
+        /// </summary>
+        internal async Task<ModuleConfig> LoadReinstallConfigAsync() =>
+            await _installer.LoadModuleConfig(_config.SourcePath)
+                ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, Name));
+
+        /// <summary>
+        /// Runs reinstallation through the shared queues and keeps failures visible in the module console.
+        /// </summary>
+        internal async Task<ModuleLaunchResult> ReinstallAsync(ModuleUpdateConfig selection)
+        {
+            var log = _runner.ConsoleStore.CreateMaintenanceLog(_config, null, reset: true);
+            try
+            {
+                return await _updateManager.ReinstallModuleAsync(_config, selection, log);
+            }
+            catch (Exception ex)
+            {
+                log.Report(ex is OperationCanceledException ? L.Get(LocalizationKeys.ModuleInfo_Canceled)
+                    : L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
+                throw;
+            }
+        }
 
         /// <summary>
         /// Gets the localized not-verified badge text.
@@ -774,6 +851,7 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(CheckUpdatesLabel));
             OnPropertyChanged(nameof(ConfigureUpdatesLabel));
             OnPropertyChanged(nameof(RemoveLabel));
+            OnPropertyChanged(nameof(ReinstallLabel));
             OnPropertyChanged(nameof(RemovingLabel));
         }
 
@@ -1392,6 +1470,7 @@ namespace ASLM.Pages
             _checkUpdateCommand.ChangeCanExecute();
             _updateCommand.ChangeCanExecute();
             _removeCommand.ChangeCanExecute();
+            _reinstallCommand.ChangeCanExecute();
         }
 
         /// <summary>
@@ -1957,11 +2036,24 @@ namespace ASLM.Pages
 
         // Launch flow
 
+        /// <summary>
+        /// Opens the uninstall confirmation for a removable, idle module.
+        /// </summary>
         private void OnRemove()
         {
             if (!_removeCommand.CanExecute(null)) return;
             SetMenuOpen(false);
             _onRemoveRequested(this);
+        }
+
+        /// <summary>
+        /// Opens reinstall confirmation without applying the mandatory-module uninstall restriction.
+        /// </summary>
+        private void OnReinstall()
+        {
+            if (!_reinstallCommand.CanExecute(null)) return;
+            SetMenuOpen(false);
+            _onReinstallRequested?.Invoke(this);
         }
 
         /// <summary>

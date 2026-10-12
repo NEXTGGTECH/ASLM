@@ -64,6 +64,40 @@ public sealed class ModuleRegistryAndRemovalTests
         using var operation = ModuleInstaller.BeginContentOperation();
     }
 
+    /// <summary>
+    /// Reinstall may clean a required module, while retaining installed consumers and their shared storage.
+    /// </summary>
+    [Theory]
+    [InlineData("aslm-chat")]
+    [InlineData("ASLM-CHAT")]
+    [InlineData("optional-module")]
+    public async Task Reinstall_cleans_owned_data_and_preserves_consumers_even_for_required_modules(string id)
+    {
+        using var fixture = new InstalledFixture(id);
+        var consumer = fixture.AddModule("consumer");
+        consumer.Dependencies.Modules.Add(new() { Id = fixture.Module.Id });
+        consumer.Dependencies.Engines.Add(new() { Id = fixture.Engine.Id });
+        fixture.Installer.SaveModuleConfig(consumer);
+        var selected = UpdateManager.CreateReinstallConfig(fixture.Module,
+            new() { Mode = "pre-release", SelectedReleaseTag = "v2-beta" });
+        using var request = fixture.Installer.BeginCatalogInstallation(selected, [selected], reinstall: true);
+        fixture.Installer.GetInstallationState(id)!.IsDependency.Should().BeFalse();
+        fixture.Installer.GetInstallationState(id)!.Phase.Should().Be(DownloadOperationState.Queued);
+        await fixture.Installer.RemoveForReinstallAsync(selected, CancellationToken.None);
+
+        File.Exists(fixture.Payload).Should().BeFalse();
+        Directory.Exists(fixture.Environment).Should().BeFalse();
+        Directory.Exists(fixture.Runtime).Should().BeTrue();
+        Directory.Exists(fixture.Models).Should().BeTrue();
+        fixture.Installer.Registry.ReadIds().Should().Contain(consumer.Id).And.NotContain(id);
+        var catalog = (await fixture.Installer.LoadModuleConfig(selected.SourcePath))!;
+        catalog.Update.Mode.Should().Be("pre-release");
+        catalog.Update.SelectedReleaseTag.Should().Be("v2-beta");
+        catalog.Status.Installed.Should().BeFalse();
+        (await fixture.Installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Should().Contain(module => module.Id == id);
+        (await fixture.Installer.DiscoverAvailableModulesAsync()).Should().Contain(module => module.Id == id);
+    }
+
     [Fact]
     public void Registry_migrates_installed_manifests_once_and_respects_an_empty_registry()
     {

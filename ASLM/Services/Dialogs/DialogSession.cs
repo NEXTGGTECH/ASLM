@@ -28,6 +28,17 @@ internal sealed class DialogSession : IDisposable
     {
         request.Validate();
         Request = request;
+        foreach (var field in request.Fields) field.PresentationChanged += OnFieldPresentationChanged;
+    }
+
+    /// <summary>
+    /// Re-evaluates action availability when a live selector finishes loading or changes mode.
+    /// </summary>
+    private void OnFieldPresentationChanged(object? sender, EventArgs e)
+    {
+        if (Completion.IsCompleted) return;
+        if (sender is DialogField field) Errors.Remove(field.Id);
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -53,7 +64,8 @@ internal sealed class DialogSession : IDisposable
     /// </summary>
     public async Task InvokeAsync(DialogAction action)
     {
-        if (IsBusy || Completion.IsCompleted || !Request.Actions.Contains(action) || action.IsVisible?.Invoke() == false) return;
+        if (IsBusy || Completion.IsCompleted || !Request.Actions.Contains(action) ||
+            action.IsVisible?.Invoke() == false || action.IsEnabled?.Invoke() == false) return;
         if (action.IsCancel) { Cancel(); return; }
 
         // Parse a detached value snapshot; callbacks never need to read from native controls.
@@ -97,6 +109,7 @@ internal sealed class DialogSession : IDisposable
     {
         if (_disposed) return;
         _disposeRequested = true;
+        foreach (var field in Request.Fields) field.PresentationChanged -= OnFieldPresentationChanged;
         Cancel();
 
         // Keep the token alive until an in-flight callback has unwound after its owner was unloaded.

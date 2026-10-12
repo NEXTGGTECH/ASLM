@@ -386,6 +386,16 @@
                                                    HorizontalOptions="Start"
                                                    VerticalOptions="Center" />
                                         </Grid>
+                                        <Grid HeightRequest="32" Padding="4">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding ReinstallCommand}" />
+                                            </Grid.GestureRecognizers>
+                                            <Label Text="{Binding ReinstallLabel}"
+                                                   FontSize="13"
+                                                   TextColor="{DynamicResource ActionRed}"
+                                                   HorizontalOptions="Start"
+                                                   VerticalOptions="Center" />
+                                        </Grid>
                                         <Grid HeightRequest="32"
                                               Padding="4"
                                               IsVisible="{Binding CanUninstall}">

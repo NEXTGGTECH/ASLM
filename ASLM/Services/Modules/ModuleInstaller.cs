@@ -200,14 +200,16 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>Publishes the requested module and dependencies while they are still queued.</summary>
-        internal CatalogInstallation BeginCatalogInstallation(ModuleConfig root, IReadOnlyList<ModuleConfig> plan)
+        internal CatalogInstallation BeginCatalogInstallation(ModuleConfig root, IReadOnlyList<ModuleConfig> plan,
+            bool reinstall = false)
         {
             var ids = Registry.ReadIds();
             CatalogInstallation scope;
             lock (_installationLock)
             {
                 var pending = plan.Where(module => !ids.Contains(module.Id) || !module.Status.FirstRunCompleted ||
-                    IsInstalling(module.Id) || GetRemovalState(module.Id) != null).ToArray();
+                    IsInstalling(module.Id) || GetRemovalState(module.Id) != null ||
+                    (reinstall && string.Equals(module.Id, root.Id, StringComparison.OrdinalIgnoreCase))).ToArray();
                 scope = new(this, root, plan, pending);
                 _catalogInstallations.Add(scope.Token, scope);
             }

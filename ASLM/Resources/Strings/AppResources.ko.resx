@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>{0}의 의존 모듈로 대기 중</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>다시 설치</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>{0}을(를) 다시 설치하시겠습니까?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>모듈을 다시 설치할 수 없습니다</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>제거</value>
   </data>

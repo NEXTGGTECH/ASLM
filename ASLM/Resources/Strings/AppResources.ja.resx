@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>{0} の依存モジュールとして待機中</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>再インストール</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>{0}を再インストールしますか？</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>モジュールを再インストールできませんでした</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>アンインストール</value>
   </data>

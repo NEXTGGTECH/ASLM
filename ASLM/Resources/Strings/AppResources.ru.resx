@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>В очереди как зависимость для {0}</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Переустановить</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>Переустановить {0}?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Не удалось переустановить модуль</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>Удалить</value>
   </data>

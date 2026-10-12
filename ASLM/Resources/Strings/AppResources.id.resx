@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>Dalam antrean sebagai dependensi {0}</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Instal ulang</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>Instal ulang {0}?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Modul tidak dapat diinstal ulang</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>Copot pemasangan</value>
   </data>

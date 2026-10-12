@@ -108,11 +108,20 @@ public partial class ModuleInstaller
     internal Task<string?> UninstallQueuedAsync(ModuleConfig selected, CancellationToken ct) =>
         UninstallCoreAsync(selected, [], waitForOperations: true, ct, checkPendingInstallations: false);
 
+    /// <summary>
+    /// Clears a module for immediate reinstallation, including mandatory modules, without removing consumers.
+    /// </summary>
+    internal Task<string?> RemoveForReinstallAsync(ModuleConfig selected, CancellationToken ct) =>
+        UninstallCoreAsync(selected, [], waitForOperations: true, ct, checkPendingInstallations: false, reinstall: true);
+
+    /// <summary>
+    /// Removes owned files with shared-storage protection; only a confirmed reinstall may replace required modules.
+    /// </summary>
     private async Task<string?> UninstallCoreAsync(ModuleConfig selected, IReadOnlyList<ModuleConfig> consumers,
-        bool waitForOperations, CancellationToken ct, bool checkPendingInstallations = true)
+        bool waitForOperations, CancellationToken ct, bool checkPendingInstallations = true, bool reinstall = false)
     {
-        // Required modules are not removable; leave their processes and files untouched.
-        if (ModuleRegistry.IsRequired(selected.Id)) return null;
+        // Ordinary uninstall must leave required modules untouched; reinstall is a separate guarded flow.
+        if (!reinstall && ModuleRegistry.IsRequired(selected.Id)) return null;
 
         while (true)
         {
@@ -157,7 +166,7 @@ public partial class ModuleInstaller
                 .DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase).ToList();
             var dependents = remaining.Where(module => module.Dependencies.Modules.Any(dependency =>
                 string.Equals(dependency.Id, target.Id, StringComparison.OrdinalIgnoreCase))).ToList();
-            if (dependents.Count > 0)
+            if (!reinstall && dependents.Count > 0)
                 throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveRequiredFormat,
                     string.Join(", ", dependents.Select(module => module.Name))));
 
@@ -186,6 +195,8 @@ public partial class ModuleInstaller
                 }
             }
 
+            // The accepted reinstall target survives removal; old runtime state and user data do not.
+            if (reinstall) target.Update = selected.Update;
             var result = await Task.Run(() => RemoveInstalledFiles(target, moduleDirectory, plan), ct).ConfigureAwait(false);
             _removedModuleIds[target.Id] = 0;
             changed = true;

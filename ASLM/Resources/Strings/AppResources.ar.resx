@@ -753,6 +753,15 @@
   <data name="Modules_QueuedDependencyFor" xml:space="preserve">
     <value>في قائمة الانتظار كاعتمادية لـ {0}</value>
   </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>إعادة التثبيت</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>إعادة تثبيت {0}؟</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>تعذّرت إعادة تثبيت الوحدة</value>
+  </data>
   <data name="Modules_Remove" xml:space="preserve">
     <value>إلغاء التثبيت</value>
   </data>
