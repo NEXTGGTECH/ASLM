@@ -26,6 +26,7 @@ namespace ASLM.Pages
         private readonly ModuleTrustService _moduleTrustService;
         private readonly ModuleLaunchCoordinator _launchCoordinator;
         private readonly AppLocalizationService _localization;
+        private readonly AppDataStore _appData;
         private AppShellPage? _shell;
         private ModuleConsoleStore? _consoleStore;
         private int _gridSpan = 1;
@@ -39,6 +40,11 @@ namespace ASLM.Pages
         /// Stores the module cards shown in the dashboard.
         /// </summary>
         public ObservableCollection<ModuleViewModel> Modules { get; } = new();
+
+        /// <summary>
+        /// Shows the logs action only while the consoles page is enabled in saved settings.
+        /// </summary>
+        public bool ShowLogsAction => _appData.Data.Consoles.SidebarVisible;
 
 
         // Layout state
@@ -89,12 +95,14 @@ namespace ASLM.Pages
             UpdateManager updateManager,
             ModuleTrustService moduleTrustService,
             ModuleLaunchCoordinator launchCoordinator,
-            AppLocalizationService localization)
+            AppLocalizationService localization,
+            AppDataStore appData)
         {
             _updateManager = updateManager;
             _moduleTrustService = moduleTrustService;
             _launchCoordinator = launchCoordinator;
             _localization = localization;
+            _appData = appData;
             InitializeComponent();
             BindingContext = this;
             DashboardView.HandlerChanged += OnDashboardViewHandlerChanged;
@@ -215,7 +223,8 @@ namespace ASLM.Pages
                     CheckModuleUpdates,
                     OnRemoveRequested,
                     OnReinstallRequested,
-                    OpenModuleInfo);
+                    OpenModuleInfo,
+                    OpenModuleLogs);
                 viewModel.SetRemoving(_removingSourcePaths.Contains(module.SourcePath));
                 Modules.Add(viewModel);
             }
@@ -263,6 +272,9 @@ namespace ASLM.Pages
             {
                 return;
             }
+
+            // Read saved settings on every opening so a cached dashboard never exposes disabled consoles.
+            OnPropertyChanged(nameof(ShowLogsAction));
 
             // One dashboard-level menu can extend beyond a card without affecting the card's size.
             _menuModule = module;
@@ -378,6 +390,19 @@ namespace ASLM.Pages
         {
             CloseAllMenus();
             _shell?.OpenModuleInfoOverlay(module.Config, ModuleInfo.Section.Info);
+        }
+
+        /// <summary>
+        /// Opens a running module's merged console when console navigation is enabled.
+        /// </summary>
+        private void OpenModuleLogs(ModuleViewModel module)
+        {
+            // Recheck both conditions in case the module stopped after the menu was opened.
+            CloseAllMenus();
+            if (ShowLogsAction && module.IsRunning)
+            {
+                _shell?.OpenConsoles(module.SourcePath);
+            }
         }
 
         /// <summary>
@@ -678,6 +703,7 @@ namespace ASLM.Pages
         private readonly Action<ModuleViewModel> _onCheckUpdatesRequested;
         private readonly Action<ModuleViewModel> _onRemoveRequested;
         private readonly Action<ModuleViewModel>? _onReinstallRequested;
+        private readonly Action<ModuleViewModel>? _onLogsRequested;
         private readonly Command _launchCommand;
         private readonly Command _stopCommand;
         private readonly Command _restartCommand;
@@ -722,7 +748,8 @@ namespace ASLM.Pages
             Action<ModuleViewModel> onCheckUpdatesRequested,
             Action<ModuleViewModel> onRemoveRequested,
             Action<ModuleViewModel>? onReinstallRequested = null,
-            Action<ModuleViewModel>? onInfoRequested = null)
+            Action<ModuleViewModel>? onInfoRequested = null,
+            Action<ModuleViewModel>? onLogsRequested = null)
         {
             _config = config;
             _installer = installer;
@@ -737,6 +764,7 @@ namespace ASLM.Pages
             _onCheckUpdatesRequested = onCheckUpdatesRequested;
             _onRemoveRequested = onRemoveRequested;
             _onReinstallRequested = onReinstallRequested;
+            _onLogsRequested = onLogsRequested;
 
             // Normalize once so every card starts from the persisted update preferences.
             _config.Normalize();
@@ -748,6 +776,7 @@ namespace ASLM.Pages
             _closeMenuCommand = new Command(ExecuteCloseMenuCommand);
             OpenConfigureUpdatesCommand = new Command(ExecuteOpenConfigureUpdatesCommand);
             OpenInfoCommand = new Command(() => { SetMenuOpen(false); onInfoRequested?.Invoke(this); });
+            ViewLogsCommand = new Command(ExecuteViewLogsCommand);
             UpdateCommand = new Command(ExecuteUpdateCommand);
             _checkUpdateCommand = new Command(ExecuteCheckUpdateCommand, CanCheckOrUpdate);
             _removeCommand = new Command(OnRemove, () => CanUninstall && !IsRemoving && !IsBusy && !IsStarting && !IsRestarting);
@@ -881,6 +910,11 @@ namespace ASLM.Pages
         public string ConfigureUpdatesLabel { get; private set; } = string.Empty;
 
         /// <summary>
+        /// Gets the localized action label for opening the module's console output.
+        /// </summary>
+        public string ViewLogsLabel => L.Get(LocalizationKeys.Modules_ViewLogs);
+
+        /// <summary>
         /// Refreshes localized strings shown on the module card template.
         /// </summary>
         internal void RefreshLocalizedLabels()
@@ -912,6 +946,7 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(RemoveLabel));
             OnPropertyChanged(nameof(ReinstallLabel));
             OnPropertyChanged(nameof(InfoLabel));
+            OnPropertyChanged(nameof(ViewLogsLabel));
             OnPropertyChanged(nameof(RemovingLabel));
         }
 
@@ -1162,6 +1197,11 @@ namespace ASLM.Pages
         public ICommand OpenConfigureUpdatesCommand { get; }
 
         /// <summary>
+        /// Gets the command that opens the merged console output for this module.
+        /// </summary>
+        public ICommand ViewLogsCommand { get; }
+
+        /// <summary>
         /// Gets the command that starts an available update without opening a view.
         /// </summary>
         public ICommand UpdateCommand { get; }
@@ -1193,6 +1233,16 @@ namespace ASLM.Pages
             if (IsRemoving || IsInstalling) return;
             SetMenuOpen(false);
             _onConfigureUpdatesRequested(this);
+        }
+
+        /// <summary>
+        /// Closes the card menu before navigating to the module's console.
+        /// </summary>
+        private void ExecuteViewLogsCommand()
+        {
+            // Console navigation is read-only and does not participate in module lifecycle operations.
+            SetMenuOpen(false);
+            _onLogsRequested?.Invoke(this);
         }
 
         /// <summary>

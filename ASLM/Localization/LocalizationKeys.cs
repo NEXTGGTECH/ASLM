@@ -247,6 +247,7 @@ public static class LocalizationKeys
     public const string Modules_Title = "Modules_Title";
     public const string Modules_Update = "Modules_Update";
     public const string Modules_Updating = "Modules_Updating";
+    public const string Modules_ViewLogs = "Modules_ViewLogs";
     public const string Notifications_ActionFailed = "Notifications_ActionFailed";
     public const string Notifications_AslmUpdateAvailable = "Notifications_AslmUpdateAvailable";
     public const string Notifications_AslmUpdateNotAvailable = "Notifications_AslmUpdateNotAvailable";

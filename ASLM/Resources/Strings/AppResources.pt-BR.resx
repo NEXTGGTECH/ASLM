@@ -744,6 +744,9 @@
   <data name="Modules_Updating" xml:space="preserve">
     <value>Atualizando</value>
   </data>
+  <data name="Modules_ViewLogs" xml:space="preserve">
+    <value>Ver registros</value>
+  </data>
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Ação falhou</value>
   </data>

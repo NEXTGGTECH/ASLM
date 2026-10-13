@@ -385,6 +385,29 @@
                                        VerticalOptions="Center" />
                             </Grid>
                             <Grid HeightRequest="32"
+                                  Padding="4"
+                                  IsVisible="False">
+                                <Grid.Triggers>
+                                    <MultiTrigger TargetType="Grid">
+                                        <MultiTrigger.Conditions>
+                                            <BindingCondition Binding="{Binding Source={x:Reference RootView}, Path=ShowLogsAction}"
+                                                              Value="True" />
+                                            <BindingCondition Binding="{Binding IsRunning}"
+                                                              Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter Property="IsVisible" Value="True" />
+                                    </MultiTrigger>
+                                </Grid.Triggers>
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding ViewLogsCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Text="{Binding ViewLogsLabel}"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       HorizontalOptions="Start"
+                                       VerticalOptions="Center" />
+                            </Grid>
+                            <Grid HeightRequest="32"
                                   Padding="4">
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Command="{Binding CheckUpdateCommand}" />

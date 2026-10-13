@@ -744,6 +744,9 @@
   <data name="Modules_Updating" xml:space="preserve">
     <value>Memperbarui</value>
   </data>
+  <data name="Modules_ViewLogs" xml:space="preserve">
+    <value>Lihat log</value>
+  </data>
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Tindakan gagal</value>
   </data>

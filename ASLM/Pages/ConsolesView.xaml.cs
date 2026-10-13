@@ -69,11 +69,11 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Opens the consoles workspace focused on the requested module.
+        /// Opens the requested module's merged output regardless of the previously selected process.
         /// </summary>
         internal Task ShowModuleAsync(string sourcePath)
         {
-            return _presenter.SelectModuleAsync(sourcePath);
+            return _presenter.ShowModuleAsync(sourcePath);
         }
 
 
@@ -494,6 +494,15 @@ namespace ASLM.Pages
         }
 
         /// <summary>
+        /// Opens a module's merged console even when its individual process was previously selected.
+        /// </summary>
+        public Task ShowModuleAsync(string sourcePath)
+        {
+            // Shell navigation already refreshes module metadata; this pass only changes the selection.
+            return RefreshAsync(forceModuleReload: false, moduleSourcePath: sourcePath);
+        }
+
+        /// <summary>
         /// Selects a console session inside the currently active module scope.
         /// </summary>
         public async Task SelectSessionAsync(string sessionId)
@@ -521,11 +530,26 @@ namespace ASLM.Pages
         /// <summary>
         /// Reloads module metadata when requested, snapshots console state, and renders the result.
         /// </summary>
-        public async Task RefreshAsync(bool forceModuleReload)
+        public Task RefreshAsync(bool forceModuleReload)
+        {
+            return RefreshAsync(forceModuleReload, moduleSourcePath: null);
+        }
+
+        /// <summary>
+        /// Serializes refreshes and applies an optional merged-console shortcut before building state.
+        /// </summary>
+        private async Task RefreshAsync(bool forceModuleReload, string? moduleSourcePath)
         {
             await _refreshLock.WaitAsync();
             try
             {
+                // Apply external selection under the refresh lock so an older refresh cannot reset it.
+                if (!string.IsNullOrWhiteSpace(moduleSourcePath))
+                {
+                    _selectedModuleSourcePath = moduleSourcePath;
+                    _selectedSessionId = UnifiedSessionId;
+                }
+
                 LoadPreferences();
 
                 if (forceModuleReload || _knownModules.Count == 0)
@@ -589,6 +613,11 @@ namespace ASLM.Pages
         /// </summary>
         private ConsolesDashboardState BuildState(IReadOnlyList<ModuleConsoleModuleSnapshot> snapshots)
         {
+            // Retain the explicitly selected module's history even when it is currently stopped.
+            var visibleModules = snapshots
+                .Where(module => module.IsEnabled || module.ActiveProcessCount > 0 ||
+                    string.Equals(module.SourcePath, _selectedModuleSourcePath, StringComparison.OrdinalIgnoreCase))
+                .ToList();
             var activeModules = snapshots
                 .Where(module => module.IsEnabled || module.ActiveProcessCount > 0)
                 .ToList();
@@ -605,7 +634,7 @@ namespace ASLM.Pages
                 });
             }
 
-            moduleItems.AddRange(activeModules.Select(MapModule));
+            moduleItems.AddRange(visibleModules.Select(MapModule));
 
             if (moduleItems.Count == 0)
             {
@@ -618,7 +647,8 @@ namespace ASLM.Pages
             }
 
             var isGlobalModule = string.Equals(_selectedModuleSourcePath, AllModulesModuleId, StringComparison.Ordinal);
-            var selectedModule = activeModules.FirstOrDefault(module => module.SourcePath == _selectedModuleSourcePath);
+            var selectedModule = visibleModules.FirstOrDefault(module =>
+                string.Equals(module.SourcePath, _selectedModuleSourcePath, StringComparison.OrdinalIgnoreCase));
             var activeModulePaths = activeModules.Select(module => module.SourcePath).ToList();
             var showIndividualConsoles = _appData.Data.Consoles.ShowIndividualModuleConsoles;
 

@@ -2140,6 +2140,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на View logs.
+        /// </summary>
+        public static string Modules_ViewLogs {
+            get {
+                return ResourceManager.GetString("Modules_ViewLogs", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Close module information.
         /// </summary>
         public static string ModulesDownloads_Close {

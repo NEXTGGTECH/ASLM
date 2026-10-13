@@ -744,6 +744,9 @@
   <data name="Modules_Updating" xml:space="preserve">
     <value>Обновление</value>
   </data>
+  <data name="Modules_ViewLogs" xml:space="preserve">
+    <value>Просмотреть логи</value>
+  </data>
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Действие не выполнено</value>
   </data>

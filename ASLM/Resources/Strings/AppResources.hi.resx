@@ -744,6 +744,9 @@
   <data name="Modules_Updating" xml:space="preserve">
     <value>अपडेट हो रहा है</value>
   </data>
+  <data name="Modules_ViewLogs" xml:space="preserve">
+    <value>लॉग देखें</value>
+  </data>
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>कार्रवाई विफल</value>
   </data>

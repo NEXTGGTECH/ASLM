@@ -1173,10 +1173,16 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Opens the consoles page and optionally focuses one module.
+        /// Opens the enabled consoles page and optionally focuses one module's merged output.
         /// </summary>
         internal void OpenConsoles(string? moduleSourcePath = null)
         {
+            // Programmatic shortcuts must respect the same preference as the sidebar.
+            if (!_appData.Data.Consoles.SidebarVisible)
+            {
+                return;
+            }
+
             NavigateTo(ConsolesButton);
 
             if (_consolesView is not ConsolesView consolesView)

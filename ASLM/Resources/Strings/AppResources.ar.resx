@@ -744,6 +744,9 @@
   <data name="Modules_Updating" xml:space="preserve">
     <value>جارٍ التحديث</value>
   </data>
+  <data name="Modules_ViewLogs" xml:space="preserve">
+    <value>عرض السجلات</value>
+  </data>
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>فشل الإجراء</value>
   </data>
