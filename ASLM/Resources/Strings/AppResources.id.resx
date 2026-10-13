@@ -606,26 +606,8 @@
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>Aktivitas Pembaruan</value>
   </data>
-  <data name="ModuleUpdate_ActivityTitle_Status" xml:space="preserve">
-    <value>Status Pembaruan</value>
-  </data>
-  <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>Pembaruan {0} gagal</value>
-  </data>
-  <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} berhasil diperbarui</value>
-  </data>
-  <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
-    <value>Periksa pembaruan</value>
-  </data>
-  <data name="ModuleUpdate_CloseTooltip" xml:space="preserve">
-    <value>Tutup pembaruan modul</value>
-  </data>
-  <data name="ModuleUpdate_CurrentVersion" xml:space="preserve">
-    <value>Versi saat ini</value>
-  </data>
   <data name="ModuleUpdate_InstallUpdate" xml:space="preserve">
-    <value>Pasang pembaruan</value>
+    <value>Perbarui</value>
   </data>
   <data name="ModuleUpdate_LoadOptionsFailedFormat" xml:space="preserve">
     <value>Gagal memuat opsi pembaruan: {0}</value>
@@ -633,56 +615,11 @@
   <data name="ModuleUpdate_Log_CheckingFormat" xml:space="preserve">
     <value>Memeriksa pembaruan untuk {0}...</value>
   </data>
-  <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>Pembaruan tidak selesai dengan sukses</value>
-  </data>
-  <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
-    <value>Menginstal pembaruan untuk {0}...</value>
-  </data>
-  <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>Memulai pembaruan untuk {0}</value>
-  </data>
-  <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>Pembaruan selesai. {0} diinstal</value>
-  </data>
-  <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
-    <value>Tidak ada modul yang dipilih</value>
-  </data>
-  <data name="ModuleUpdate_NoVersionSelected" xml:space="preserve">
-    <value>Tidak ada versi yang dipilih</value>
-  </data>
-  <data name="ModuleUpdate_OverallProgress" xml:space="preserve">
-    <value>Kemajuan keseluruhan</value>
-  </data>
-  <data name="ModuleUpdate_PrefsAutoSaved" xml:space="preserve">
-    <value>Preferensi disimpan secara otomatis</value>
-  </data>
-  <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>Siap</value>
-  </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>Versi rilis</value>
   </data>
   <data name="ModuleUpdate_RepositoryBranch" xml:space="preserve">
     <value>Cabang repositori</value>
-  </data>
-  <data name="ModuleUpdate_SearchMode" xml:space="preserve">
-    <value>Mode pencarian</value>
-  </data>
-  <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>Pilih cabang repositori sebelum memeriksa pembaruan</value>
-  </data>
-  <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
-    <value>Target yang dipilih</value>
-  </data>
-  <data name="ModuleUpdate_Status_CheckFailedFormat" xml:space="preserve">
-    <value>Pemeriksaan gagal: {0}</value>
-  </data>
-  <data name="ModuleUpdate_Status_Checking" xml:space="preserve">
-    <value>Memeriksa pembaruan...</value>
-  </data>
-  <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>Siap untuk diperiksa</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>Mutakhir</value>
@@ -695,21 +632,6 @@
   </data>
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Diperbarui</value>
-  </data>
-  <data name="ModuleUpdate_Status_Updating" xml:space="preserve">
-    <value>Memperbarui...</value>
-  </data>
-  <data name="ModuleUpdate_SubtitleFormat" xml:space="preserve">
-    <value>{0} - {1}</value>
-  </data>
-  <data name="ModuleUpdate_Title_Configure" xml:space="preserve">
-    <value>Konfigurasi Pembaruan Modul</value>
-  </data>
-  <data name="ModuleUpdate_Title_Update" xml:space="preserve">
-    <value>Pembaruan Modul</value>
-  </data>
-  <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
-    <value>Sumber pembaruan</value>
   </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Tutup informasi modul</value>

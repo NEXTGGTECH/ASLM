@@ -74,6 +74,21 @@ public sealed class UpdateManagerInstallStateTests
         fields.Should().OnlyContain(field => !string.IsNullOrWhiteSpace(field.Value));
     }
 
+    /// <summary>The latest label shows release metadata while its stored selection remains latest.</summary>
+    [Fact]
+    public void Latest_alias_displays_the_actual_tag_and_invariant_release_date()
+    {
+        var release = new UpdateCandidate { ReleaseTag = "v1.0.0.0", PublishedAt =
+            new DateTimeOffset(2026, 10, 11, 12, 0, 0, TimeSpan.Zero) };
+        var option = ASLM.Pages.ModuleInfo.BuildReleaseOptions([release], "latest")[0];
+        option.DisplayName.Should().Be("latest (v1.0.0.0 - 2026-10-11)");
+        option.IsVirtualLatest.Should().BeTrue();
+        option.ReleaseTag.Should().BeNull();
+        release.PublishedAt = null;
+        UpdateManager.FormatLatestRelease(release).Should().Be("latest (v1.0.0.0)");
+        UpdateManager.FormatLatestRelease(null).Should().Be("latest");
+    }
+
     [Fact]
     public void Info_groups_platforms_after_download_target_and_puts_engine_help_on_the_engine_line()
     {

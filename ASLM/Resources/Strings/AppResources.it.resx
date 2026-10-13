@@ -606,26 +606,8 @@
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>Attività di aggiornamento</value>
   </data>
-  <data name="ModuleUpdate_ActivityTitle_Status" xml:space="preserve">
-    <value>Stato aggiornamento</value>
-  </data>
-  <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>Aggiornamento di {0} non riuscito</value>
-  </data>
-  <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} aggiornato correttamente</value>
-  </data>
-  <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
-    <value>Controlla aggiornamenti</value>
-  </data>
-  <data name="ModuleUpdate_CloseTooltip" xml:space="preserve">
-    <value>Chiudi aggiornamenti moduli</value>
-  </data>
-  <data name="ModuleUpdate_CurrentVersion" xml:space="preserve">
-    <value>Versione corrente</value>
-  </data>
   <data name="ModuleUpdate_InstallUpdate" xml:space="preserve">
-    <value>Installa aggiornamento</value>
+    <value>Aggiorna</value>
   </data>
   <data name="ModuleUpdate_LoadOptionsFailedFormat" xml:space="preserve">
     <value>Impossibile caricare le opzioni di aggiornamento: {0}</value>
@@ -633,56 +615,11 @@
   <data name="ModuleUpdate_Log_CheckingFormat" xml:space="preserve">
     <value>Verifica aggiornamenti per {0}...</value>
   </data>
-  <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>L'aggiornamento non è stato completato correttamente</value>
-  </data>
-  <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
-    <value>Installazione aggiornamento per {0}...</value>
-  </data>
-  <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>Avvio aggiornamento per {0}</value>
-  </data>
-  <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>Aggiornamento completato. {0} installato</value>
-  </data>
-  <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
-    <value>Nessun modulo selezionato</value>
-  </data>
-  <data name="ModuleUpdate_NoVersionSelected" xml:space="preserve">
-    <value>Nessuna versione selezionata</value>
-  </data>
-  <data name="ModuleUpdate_OverallProgress" xml:space="preserve">
-    <value>Avanzamento complessivo</value>
-  </data>
-  <data name="ModuleUpdate_PrefsAutoSaved" xml:space="preserve">
-    <value>Le preferenze vengono salvate automaticamente</value>
-  </data>
-  <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>Pronto</value>
-  </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>Versione di rilascio</value>
   </data>
   <data name="ModuleUpdate_RepositoryBranch" xml:space="preserve">
     <value>Branch del repository</value>
-  </data>
-  <data name="ModuleUpdate_SearchMode" xml:space="preserve">
-    <value>Modalità di ricerca</value>
-  </data>
-  <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>Seleziona un ramo del repository prima di verificare gli aggiornamenti</value>
-  </data>
-  <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
-    <value>Destinazione selezionata</value>
-  </data>
-  <data name="ModuleUpdate_Status_CheckFailedFormat" xml:space="preserve">
-    <value>Verifica non riuscita: {0}</value>
-  </data>
-  <data name="ModuleUpdate_Status_Checking" xml:space="preserve">
-    <value>Verifica aggiornamenti in corso...</value>
-  </data>
-  <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>Pronto per la verifica</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>Aggiornato</value>
@@ -695,21 +632,6 @@
   </data>
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Aggiornato</value>
-  </data>
-  <data name="ModuleUpdate_Status_Updating" xml:space="preserve">
-    <value>Aggiornamento in corso...</value>
-  </data>
-  <data name="ModuleUpdate_SubtitleFormat" xml:space="preserve">
-    <value>{0} - {1}</value>
-  </data>
-  <data name="ModuleUpdate_Title_Configure" xml:space="preserve">
-    <value>Configura aggiornamenti moduli</value>
-  </data>
-  <data name="ModuleUpdate_Title_Update" xml:space="preserve">
-    <value>Aggiornamento modulo</value>
-  </data>
-  <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
-    <value>Origine aggiornamento</value>
   </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Chiudi le informazioni sul modulo</value>

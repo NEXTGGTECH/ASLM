@@ -14,6 +14,203 @@ namespace ASLM.Tests.Services;
 public sealed class ModuleLaunchEngineReconciliationTests
 {
     /// <summary>
+    /// The card's check command never dispatches the install action, including when its badge is visible.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Card_check_and_update_commands_remain_separate(bool hasPendingUpdate)
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var module = await WriteCatalogModuleAsync(layout, "card-actions");
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        using var http = new HttpClient(new ReinstallCatalogHandler(missing: false));
+        var manager = CreateReinstallManager(layout, installer, engines, runner, http, new DownloadQueue());
+        module.Update.InstalledReleaseTag = "v0.1.0";
+        module.Update.PendingUpdate = hasPendingUpdate ? ModulePendingUpdate.FromCandidate(module,
+            new() { Mode = "release", ReleaseTag = "v1.0.0", RemoteVersion = "v1.0.0" }) : null;
+        var checks = 0;
+        var updates = 0;
+        var card = new ASLM.Pages.ModuleViewModel(module, installer, runner, null!, manager,
+            new ModuleTrustService(NullLogger<ModuleTrustService>.Instance),
+            () => { }, _ => { }, _ => { }, _ => updates++, _ => checks++, _ => { });
+
+        // Test command dispatch itself without a MAUI window, archive download, or module mutation.
+        card.HasUpdate.Should().Be(hasPendingUpdate);
+        card.CheckUpdateCommand.Execute(null);
+        checks.Should().Be(1);
+        updates.Should().Be(0);
+        card.UpdateCommand.Execute(null);
+        updates.Should().Be(hasPendingUpdate ? 1 : 0);
+        checks.Should().Be(1);
+    }
+
+    /// <summary>A check records the available update using saved preferences without starting an installation.</summary>
+    [Fact]
+    public async Task Manual_check_uses_saved_preferences_and_only_records_the_candidate()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var module = await WriteCatalogModuleAsync(layout, "manual-check");
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        module.Status.Installed = module.Status.FirstRunCompleted = true;
+        module.Update.Mode = module.Update.Channel = "pre-release";
+        module.Update.InstalledReleaseTag = "v1.0.0";
+        await installer.SaveConfigAsync(module);
+        // Simulate a card created before the user changed the saved configuration.
+        module.Update.Mode = module.Update.Channel = "release";
+        using var http = new HttpClient(new ReinstallCatalogHandler(missing: false, beforeResponse: _ =>
+        {
+            runner.ConsoleStore.GetActivity(module.SourcePath).Should().BeNull("checking is not updating");
+            return Task.CompletedTask;
+        }));
+        var manager = CreateReinstallManager(layout, installer, engines, runner, http, new DownloadQueue());
+
+        var checkedModule = await manager.CheckModuleUpdatesAsync(module);
+
+        var saved = (await installer.LoadModuleConfig(module.SourcePath))!;
+        saved.Update.PendingUpdate.Should().NotBeNull();
+        saved.Update.PendingUpdate!.ReleaseTag.Should().Be("v2.0.0-beta");
+        checkedModule.Should().NotBeNull("the view needs the checked preferences without reopening itself");
+        checkedModule!.Update.PendingUpdate!.ReleaseTag.Should().Be(saved.Update.PendingUpdate.ReleaseTag);
+        saved.Update.Mode.Should().Be("pre-release");
+        saved.Update.InstalledReleaseTag.Should().Be("v1.0.0");
+        saved.Version.Should().Be(module.Version);
+        manager.IsModuleUpdatePending(module.SourcePath).Should().BeFalse();
+        runner.ConsoleStore.GetActivity(module.SourcePath).Should().BeNull();
+
+        // A second check with an already saved candidate must not turn into archive installation.
+        var rechecked = await manager.CheckModuleUpdatesAsync(saved);
+        rechecked!.Update.PendingUpdate!.ReleaseTag.Should().Be("v2.0.0-beta");
+        rechecked.Update.InstalledReleaseTag.Should().Be("v1.0.0");
+        runner.ConsoleStore.GetActivity(module.SourcePath).Should().BeNull();
+        manager.IsCheckingModuleUpdate(module.SourcePath).Should().BeFalse();
+    }
+
+    /// <summary>Rechecking a changed source replaces or clears its candidate, without installing an available version.</summary>
+    [Fact]
+    public async Task Checks_after_channel_changes_refresh_the_candidate_without_starting_maintenance()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var module = await WriteCatalogModuleAsync(layout, "changed-channel");
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        module.Status.Installed = module.Status.FirstRunCompleted = true;
+        module.Update.InstalledReleaseTag = "v1.0.0";
+        await installer.SaveConfigAsync(module);
+        using var http = new HttpClient(new ReinstallCatalogHandler(missing: false));
+        var manager = CreateReinstallManager(layout, installer, engines, runner, http, new DownloadQueue());
+
+        foreach (var mode in new[] { "pre-release", "release", "pre-release" })
+        {
+            module.Update.Mode = module.Update.Channel = mode;
+            manager.SaveModuleUpdatePreferences(module);
+            var result = await manager.CheckModuleUpdatesAsync(module);
+            result.Should().NotBeNull();
+            result!.Update.Mode.Should().Be(mode);
+            (result.Update.PendingUpdate?.ReleaseTag).Should().Be(mode == "pre-release" ? "v2.0.0-beta" : null);
+            var saved = (await installer.LoadModuleConfig(module.SourcePath))!;
+            (saved.Update.PendingUpdate?.ReleaseTag).Should().Be(result.Update.PendingUpdate?.ReleaseTag);
+            saved.Update.InstalledReleaseTag.Should().Be("v1.0.0");
+            runner.ConsoleStore.GetActivity(module.SourcePath).Should().BeNull();
+            manager.IsModuleUpdatePending(module.SourcePath).Should().BeFalse();
+        }
+    }
+
+    /// <summary>Direct updates do not claim Updating during their metadata check and release reservations after cancellation.</summary>
+    [Fact]
+    public async Task Direct_update_needs_no_view_and_can_run_again_after_cancellation()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var module = await WriteCatalogModuleAsync(layout, "direct-update");
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        module.Status.Installed = module.Status.FirstRunCompleted = true;
+        module.Update.InstalledReleaseTag = "v1.0.0";
+        await installer.SaveConfigAsync(module);
+        var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestCount = 0;
+        using var http = new HttpClient(new ReinstallCatalogHandler(missing: false, beforeResponse: async ct =>
+        {
+            Interlocked.Increment(ref requestCount);
+            requested.TrySetResult();
+            await release.Task.WaitAsync(ct);
+        }));
+        var manager = CreateReinstallManager(layout, installer, engines, runner, http, new DownloadQueue());
+        using var cts = new CancellationTokenSource();
+        var phases = new System.Collections.Concurrent.ConcurrentQueue<bool>();
+        manager.ModuleUpdateStateChanged += (_, _) => phases.Enqueue(manager.IsCheckingModuleUpdate(module.SourcePath));
+        var updating = manager.UpdateModuleAsync(module, ct: cts.Token);
+        try
+        {
+            await requested.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            manager.IsModuleUpdatePending(module.SourcePath).Should().BeTrue();
+            manager.IsCheckingModuleUpdate(module.SourcePath).Should().BeTrue("metadata checking has its own animation state");
+            runner.ConsoleStore.GetActivity(module.SourcePath).Should().BeNull("metadata checks must not show Updating");
+            await manager.UpdateModuleAsync(module).WaitAsync(TimeSpan.FromSeconds(5));
+            requestCount.Should().Be(1, "a repeated click must not start or enqueue another update");
+            cts.Cancel();
+            await updating.WaitAsync(TimeSpan.FromSeconds(5));
+            manager.IsModuleUpdatePending(module.SourcePath).Should().BeFalse();
+            manager.IsCheckingModuleUpdate(module.SourcePath).Should().BeFalse();
+            phases.Should().Equal(true, false);
+            runner.ConsoleStore.GetActivity(module.SourcePath).Should().BeNull();
+        }
+        finally
+        {
+            cts.Cancel();
+            release.TrySetResult();
+            await updating;
+        }
+
+        // The installed release already matches the server, so retry completes without any download or native UI.
+        await manager.UpdateModuleAsync(module);
+        requestCount.Should().Be(2);
+        phases.Should().Equal(true, false, true, false);
+        runner.ConsoleStore.GetMaintenanceSnapshot(module.SourcePath).Text.Should()
+            .Contain(ASLM.Localization.L.Get(ASLM.Localization.LocalizationKeys.ModuleUpdate_Status_UpToDate));
+        manager.IsModuleUpdatePending(module.SourcePath).Should().BeFalse();
+        runner.ConsoleStore.GetActivity(module.SourcePath).Should().BeNull();
+    }
+
+    /// <summary>A failed background request is reported in the console and never leaves a module permanently busy.</summary>
+    [Fact]
+    public async Task Manual_update_request_failure_is_logged_and_allows_retry()
+    {
+        using var layout = new AslmFileSystemLayout();
+        ResetDirectory(layout.ModulesDir);
+        var module = await WriteCatalogModuleAsync(layout, "failed-check");
+        var engines = new EngineInstaller();
+        using var runner = CreateRunner(engines);
+        var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
+        module.Status.Installed = module.Status.FirstRunCompleted = true;
+        module.Update.InstalledReleaseTag = "v0.1.0";
+        await installer.SaveConfigAsync(module);
+        var fail = true;
+        using var http = new HttpClient(new ReinstallCatalogHandler(missing: false, beforeResponse: _ =>
+            fail ? throw new HttpRequestException("test-offline") : Task.CompletedTask));
+        var manager = CreateReinstallManager(layout, installer, engines, runner, http, new DownloadQueue());
+
+        await manager.UpdateModuleAsync(module);
+        runner.ConsoleStore.GetMaintenanceSnapshot(module.SourcePath).Text.Should().Contain("test-offline");
+        manager.IsModuleUpdatePending(module.SourcePath).Should().BeFalse();
+        runner.ConsoleStore.GetActivity(module.SourcePath).Should().BeNull();
+        fail = false;
+        await manager.CheckModuleUpdatesAsync(module);
+        (await installer.LoadModuleConfig(module.SourcePath))!.Update.PendingUpdate.Should().NotBeNull();
+    }
+
+    /// <summary>
     /// Missing release or branch metadata must fail before stopping or deleting the installed module.
     /// </summary>
     [Theory]
@@ -145,22 +342,23 @@ public sealed class ModuleLaunchEngineReconciliationTests
     /// <summary>
     /// Supplies deterministic metadata and rejects archive requests or accidental real-network access.
     /// </summary>
-    private sealed class ReinstallCatalogHandler(bool missing) : HttpMessageHandler
+    private sealed class ReinstallCatalogHandler(bool missing, Func<CancellationToken, Task>? beforeResponse = null) : HttpMessageHandler
     {
         /// <summary>
         /// Returns a fixed release or branch catalog without performing network IO.
         /// </summary>
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (beforeResponse != null) await beforeResponse(cancellationToken);
             var json = request.RequestUri!.AbsolutePath switch
             {
                 "/repos/test/catalog/releases" => missing ? "[]" :
-                    """[{"tag_name":"v1.0.0","zipball_url":"https://example.test/module.zip"}]""",
+                    """[{"tag_name":"v1.0.0","zipball_url":"https://example.test/module.zip"},{"tag_name":"v2.0.0-beta","prerelease":true,"zipball_url":"https://example.test/preview.zip"}]""",
                 "/repos/test/catalog/branches" => missing ? "[]" :
                     """[{"name":"preview","commit":{"sha":"abcdef123456"}}]""",
                 _ => throw new InvalidOperationException("Unexpected test request: " + request.RequestUri)
             };
-            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(json) });
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(json) };
         }
     }
 

@@ -606,26 +606,8 @@
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>更新アクティビティ</value>
   </data>
-  <data name="ModuleUpdate_ActivityTitle_Status" xml:space="preserve">
-    <value>更新ステータス</value>
-  </data>
-  <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>{0} の更新に失敗しました</value>
-  </data>
-  <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} が正常に更新されました</value>
-  </data>
-  <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
-    <value>更新を確認</value>
-  </data>
-  <data name="ModuleUpdate_CloseTooltip" xml:space="preserve">
-    <value>モジュール更新を閉じる</value>
-  </data>
-  <data name="ModuleUpdate_CurrentVersion" xml:space="preserve">
-    <value>現在のバージョン</value>
-  </data>
   <data name="ModuleUpdate_InstallUpdate" xml:space="preserve">
-    <value>更新をインストール</value>
+    <value>更新</value>
   </data>
   <data name="ModuleUpdate_LoadOptionsFailedFormat" xml:space="preserve">
     <value>更新オプションの読み込みに失敗しました: {0}</value>
@@ -633,56 +615,11 @@
   <data name="ModuleUpdate_Log_CheckingFormat" xml:space="preserve">
     <value>{0} の更新を確認しています...</value>
   </data>
-  <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>更新が正常に完了しませんでした</value>
-  </data>
-  <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
-    <value>{0} の更新をインストールしています...</value>
-  </data>
-  <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>{0} の更新を開始しています</value>
-  </data>
-  <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>更新が完了しました。{0} をインストールしました</value>
-  </data>
-  <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
-    <value>モジュールが選択されていません</value>
-  </data>
-  <data name="ModuleUpdate_NoVersionSelected" xml:space="preserve">
-    <value>バージョンが選択されていません</value>
-  </data>
-  <data name="ModuleUpdate_OverallProgress" xml:space="preserve">
-    <value>全体の進捗</value>
-  </data>
-  <data name="ModuleUpdate_PrefsAutoSaved" xml:space="preserve">
-    <value>設定は自動的に保存されます</value>
-  </data>
-  <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>準備完了</value>
-  </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>リリースバージョン</value>
   </data>
   <data name="ModuleUpdate_RepositoryBranch" xml:space="preserve">
     <value>リポジトリブランチ</value>
-  </data>
-  <data name="ModuleUpdate_SearchMode" xml:space="preserve">
-    <value>検索モード</value>
-  </data>
-  <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>更新を確認する前にリポジトリブランチを選択してください</value>
-  </data>
-  <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
-    <value>選択したターゲット</value>
-  </data>
-  <data name="ModuleUpdate_Status_CheckFailedFormat" xml:space="preserve">
-    <value>確認に失敗しました: {0}</value>
-  </data>
-  <data name="ModuleUpdate_Status_Checking" xml:space="preserve">
-    <value>更新を確認しています...</value>
-  </data>
-  <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>確認の準備が完了しました</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>最新</value>
@@ -695,21 +632,6 @@
   </data>
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>更新済み</value>
-  </data>
-  <data name="ModuleUpdate_Status_Updating" xml:space="preserve">
-    <value>更新中...</value>
-  </data>
-  <data name="ModuleUpdate_SubtitleFormat" xml:space="preserve">
-    <value>{0} - {1}</value>
-  </data>
-  <data name="ModuleUpdate_Title_Configure" xml:space="preserve">
-    <value>モジュール更新の構成</value>
-  </data>
-  <data name="ModuleUpdate_Title_Update" xml:space="preserve">
-    <value>モジュール更新</value>
-  </data>
-  <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
-    <value>更新ソース</value>
   </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>モジュール情報を閉じる</value>

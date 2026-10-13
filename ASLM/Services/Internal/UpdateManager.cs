@@ -204,6 +204,10 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            // Resolve unavailable streams identically for setup, manual and automatic updates.
+            var options = await GetModuleDownloadOptionsAsync(module, ct, isManualRequest);
+            options.ApplyTo(module);
+
             // Branch and release modes use different GitHub resolution strategies.
             if (string.Equals(module.Update.Mode, "branch", StringComparison.OrdinalIgnoreCase))
             {
@@ -216,7 +220,7 @@ namespace ASLM.Services.Internal
                 return branchCandidate;
             }
 
-            var releaseCandidate = await CheckModuleReleaseUpdateAsync(module, isManualRequest, ct);
+            var releaseCandidate = CheckModuleReleaseUpdate(module, options.Releases);
             if (releaseCandidate != null && publishUpdateNotification)
             {
                 _notifications.PublishUpdateCandidate(releaseCandidate);
@@ -372,12 +376,14 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            var options = await GetModuleDownloadOptionsAsync(module, ct, isManualRequest);
+            options.ApplyTo(module);
             if (string.Equals(module.Update.Mode, "branch", StringComparison.OrdinalIgnoreCase))
             {
                 return await ResolveModuleBranchInstallCandidateAsync(module, isManualRequest, ct);
             }
 
-            return await ResolveModuleReleaseInstallCandidateAsync(module, isManualRequest, ct);
+            return ResolveModuleReleaseInstallCandidate(module, options.Releases);
         }
 
         /// <summary>
@@ -388,33 +394,9 @@ namespace ASLM.Services.Internal
             CancellationToken ct = default,
             bool isManualRequest = false)
         {
-            module.Normalize();
-            if (!string.Equals(module.Source.Type, "github", StringComparison.OrdinalIgnoreCase) ||
-                string.IsNullOrWhiteSpace(module.Source.Repo))
-            {
-                return [];
-            }
-
-            var includePrerelease = IsPrereleaseMode(module.Update.Mode);
-            var releases = await _github.GetReleasesAsync(
-                module.Source.Repo,
-                includePrerelease,
-                ResolveRequestSource(isManualRequest),
-                ct);
-            var candidates = new List<UpdateCandidate>();
-
-            foreach (var release in releases)
-            {
-                var downloadUrl = ResolveModuleDownloadUrl(module, release);
-                if (string.IsNullOrWhiteSpace(downloadUrl))
-                {
-                    continue;
-                }
-
-                candidates.Add(BuildModuleReleaseCandidate(module, release, downloadUrl));
-            }
-
-            return candidates;
+            var options = await GetModuleDownloadOptionsAsync(module, ct, isManualRequest);
+            options.ApplyTo(module);
+            return options.Releases.ToList();
         }
 
         /// <summary>
@@ -618,14 +600,6 @@ namespace ASLM.Services.Internal
                     return false;
                 }
 
-                if (string.Equals(
-                    pending.CommitSha.Trim(),
-                    module.Update.InstalledCommitSha?.Trim(),
-                    StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-
                 candidate = new UpdateCandidate
                 {
                     TargetKind = "module",
@@ -639,17 +613,16 @@ namespace ASLM.Services.Internal
                     CommitSha = pending.CommitSha,
                     Module = module
                 };
+                if (IsModuleAlreadyAtInstallTarget(module, candidate))
+                {
+                    candidate = null;
+                    return false;
+                }
                 return true;
             }
 
             // Release mode: tag must differ from installed and still match the user's selection policy.
             if (string.IsNullOrWhiteSpace(pending.ReleaseTag))
-            {
-                return false;
-            }
-
-            var installed = ResolveInstalledModuleReleaseTag(module);
-            if (ReleaseTagOrdering.AreEquivalentVersionReferences(pending.ReleaseTag, installed))
             {
                 return false;
             }
@@ -690,6 +663,11 @@ namespace ASLM.Services.Internal
                 PublishedAt = null,
                 Module = module
             };
+            if (IsModuleAlreadyAtInstallTarget(module, candidate))
+            {
+                candidate = null;
+                return false;
+            }
             return true;
         }
 
@@ -788,9 +766,15 @@ namespace ASLM.Services.Internal
 
         // Catalog installation
 
+        /// <summary>
+        /// Applies the application channel preference to an unconfigured catalog module.
+        /// </summary>
         internal void ApplyCatalogDefaults(ModuleConfig module, bool installed) =>
             ApplyCatalogDefaults(module, installed, _appData.Data.Updates.ModuleDefaultChannel);
 
+        /// <summary>
+        /// Preserves installed and explicitly configured modules when assigning catalog defaults.
+        /// </summary>
         internal static void ApplyCatalogDefaults(ModuleConfig module, bool installed, string defaultChannel)
         {
             if (installed || module.Update.UseDefaultChannel == false) return;
@@ -799,16 +783,21 @@ namespace ASLM.Services.Internal
             module.HasDeclaredUpdateConfig = true;
         }
 
-        /// <summary>Presentation only: never replaces the local manifest or its installed version.</summary>
+        /// <summary>
+        /// Presentation only: never replaces the local manifest or its installed version.
+        /// </summary>
         internal async Task<string> GetModuleCatalogVersionAsync(
             ModuleConfig module, bool installed, CancellationToken ct = default)
         {
-            if (!CanDownloadModule(module) || installed || module.Update.Mode == "branch") return module.Version;
+            if (!CanDownloadModule(module) || installed) return module.Version;
             try
             {
-                var candidates = await GetModuleReleaseCandidatesAsync(module, ct, isManualRequest: true);
+                // Presentation must not race the editable selectors or persist a fallback on its own.
+                var draft = JsonSerializer.Deserialize<ModuleConfig>(JsonSerializer.Serialize(module))!;
+                var options = await GetModuleDownloadOptionsAsync(draft, ct, isManualRequest: true);
+                options.ApplyTo(draft);
                 ct.ThrowIfCancellationRequested();
-                return SelectModuleReleaseInstallTarget(module, candidates)?.RemoteVersion ?? module.Version;
+                return SelectModuleReleaseInstallTarget(draft, options.Releases)?.RemoteVersion ?? module.Version;
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
@@ -817,7 +806,9 @@ namespace ASLM.Services.Internal
             }
         }
 
-        /// <summary>Independent of release metadata so cached artwork can be displayed immediately.</summary>
+        /// <summary>
+        /// Independent of release metadata so cached artwork can be displayed immediately.
+        /// </summary>
         internal async Task<GitHubUpdateClient.ModuleArtwork?> GetModuleCatalogArtworkAsync(
             ModuleConfig module, CancellationToken ct = default)
         {
@@ -834,6 +825,9 @@ namespace ASLM.Services.Internal
             }
         }
 
+        /// <summary>
+        /// Accepts supported GitHub repository coordinates without path or query fragments.
+        /// </summary>
         internal static bool CanDownloadModule(ModuleConfig module)
         {
             if (!string.Equals(module.Source.Type, "github", StringComparison.OrdinalIgnoreCase)) return false;
@@ -842,7 +836,9 @@ namespace ASLM.Services.Internal
                 part.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.'));
         }
 
-        /// <summary>Installs a catalog entry and its dependencies, then launches it through the shared module lifecycle.</summary>
+        /// <summary>
+        /// Installs a catalog entry and its dependencies, then launches it through the shared module lifecycle.
+        /// </summary>
         public Task<ModuleLaunchResult> InstallCatalogModuleAsync(ModuleConfig selected, IProgress<string> log,
             IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
         {
@@ -886,9 +882,18 @@ namespace ASLM.Services.Internal
                 });
         }
 
+        /// <summary>
+        /// Reports both queued and active catalog installations.
+        /// </summary>
         public bool IsCatalogInstallPending(string moduleId) => _downloadQueue.Contains("module:" + moduleId);
+        /// <summary>
+        /// Cancels a root catalog request through its dependency-aware queue.
+        /// </summary>
         public void CancelCatalogInstall(string moduleId) => _downloadQueue.Cancel("module:" + moduleId);
 
+        /// <summary>
+        /// Reserves and queues removal without racing dependency installation plans.
+        /// </summary>
         public async Task<string?> UninstallModuleAsync(ModuleConfig module)
         {
             Task<string?> job;
@@ -1458,6 +1463,9 @@ namespace ASLM.Services.Internal
                    IsPlaceholderEngineReleaseTag(version);
         }
 
+        /// <summary>
+        /// Recognizes missing runtime tags and the unresolved latest alias.
+        /// </summary>
         private static bool IsPlaceholderEngineReleaseTag(string? value) =>
             string.IsNullOrWhiteSpace(value) ||
             string.Equals(value.Trim(), "latest", StringComparison.OrdinalIgnoreCase);
@@ -1485,6 +1493,9 @@ namespace ASLM.Services.Internal
             return await TryProbeExecutableVersionAsync(executablePath, ct);
         }
 
+        /// <summary>
+        /// Reads a local Ollama runtime version when its API is available.
+        /// </summary>
         private static async Task<string?> TryProbeOllamaApiVersionAsync(CancellationToken ct)
         {
             try
@@ -1514,6 +1525,9 @@ namespace ASLM.Services.Internal
             return null;
         }
 
+        /// <summary>
+        /// Reads version output from the installed engine executable without a console window.
+        /// </summary>
         private static async Task<string?> TryProbeExecutableVersionAsync(string executablePath, CancellationToken ct)
         {
             try
@@ -1544,6 +1558,9 @@ namespace ASLM.Services.Internal
             }
         }
 
+        /// <summary>
+        /// Extracts a numeric runtime version from executable output.
+        /// </summary>
         private static string? TryExtractVersionToken(string output)
         {
             if (string.IsNullOrWhiteSpace(output))
@@ -1557,6 +1574,9 @@ namespace ASLM.Services.Internal
             return match.Success ? match.Value : null;
         }
 
+        /// <summary>
+        /// Normalizes a probed runtime version to a release-tag reference.
+        /// </summary>
         private static string NormalizeEngineVersionReference(string version)
         {
             var trimmed = version.Trim();
@@ -1605,14 +1625,12 @@ namespace ASLM.Services.Internal
             var selected = branches.FirstOrDefault(branch =>
                 string.Equals(branch.Name, module.Update.Branch, StringComparison.OrdinalIgnoreCase));
 
-            if (selected == null ||
-                string.IsNullOrWhiteSpace(selected.CommitSha) ||
-                string.Equals(selected.CommitSha, module.Update.InstalledCommitSha, StringComparison.OrdinalIgnoreCase))
+            if (selected == null || string.IsNullOrWhiteSpace(selected.CommitSha))
             {
                 return null;
             }
 
-            return new UpdateCandidate
+            var candidate = new UpdateCandidate
             {
                 TargetKind = "module",
                 TargetId = module.Id,
@@ -1625,6 +1643,7 @@ namespace ASLM.Services.Internal
                 CommitSha = selected.CommitSha,
                 Module = module
             };
+            return IsModuleAlreadyAtInstallTarget(module, candidate) ? null : candidate;
         }
 
         /// <summary>
@@ -1646,10 +1665,10 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
-            if (!string.IsNullOrWhiteSpace(module.Update.InstalledCommitSha) &&
+            if (IsInstalledFromBranch(module) &&
                 string.Equals(
                     selected.CommitSha.Trim(),
-                    module.Update.InstalledCommitSha.Trim(),
+                    module.Update.InstalledCommitSha!.Trim(),
                     StringComparison.OrdinalIgnoreCase))
             {
                 return null;
@@ -1673,49 +1692,20 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Checks whether a release-tracked module has a newer GitHub release.
         /// </summary>
-        private async Task<UpdateCandidate?> CheckModuleReleaseUpdateAsync(
-            ModuleConfig module,
-            bool isManualRequest,
-            CancellationToken ct)
+        private static UpdateCandidate? CheckModuleReleaseUpdate(
+            ModuleConfig module, IReadOnlyList<UpdateCandidate> candidates)
         {
-            var currentTag = ResolveInstalledModuleReleaseTag(module);
-            var candidates = await GetModuleReleaseCandidatesAsync(module, ct, isManualRequest);
-            if (candidates.Count == 0)
-            {
-                return null;
-            }
-
-            // Pinned release: offer an update only when the selected tag differs from installed.
-            if (!IsLatestReleaseSelection(module.Update.SelectedReleaseTag) &&
-                !string.IsNullOrWhiteSpace(module.Update.SelectedReleaseTag))
-            {
-                var selected = candidates.FirstOrDefault(candidate =>
-                    string.Equals(candidate.ReleaseTag, module.Update.SelectedReleaseTag, StringComparison.OrdinalIgnoreCase));
-
-                if (selected == null || string.IsNullOrWhiteSpace(selected.ReleaseTag))
-                {
-                    return null;
-                }
-
-                return !ReleaseTagOrdering.AreEquivalentVersionReferences(selected.ReleaseTag, currentTag) ? selected : null;
-            }
-
-            // Latest selection: compare the newest remote tag against the installed baseline.
-            var latest = candidates[0];
-            return !ReleaseTagOrdering.AreEquivalentVersionReferences(latest.ReleaseTag ?? string.Empty, currentTag)
-                ? latest
-                : null;
+            // A manifest version or a tag left over from an earlier installation does not identify current files.
+            var selected = SelectModuleReleaseInstallTarget(module, candidates);
+            return selected != null && !IsModuleAlreadyAtInstallTarget(module, selected) ? selected : null;
         }
 
         /// <summary>
         /// Resolves the release install target selected by the module manifest.
         /// </summary>
-        private async Task<UpdateCandidate?> ResolveModuleReleaseInstallCandidateAsync(
-            ModuleConfig module,
-            bool isManualRequest,
-            CancellationToken ct)
+        private static UpdateCandidate? ResolveModuleReleaseInstallCandidate(
+            ModuleConfig module, IReadOnlyList<UpdateCandidate> candidates)
         {
-            var candidates = await GetModuleReleaseCandidatesAsync(module, ct, isManualRequest);
             var resolved = SelectModuleReleaseInstallTarget(module, candidates);
             if (resolved == null || string.IsNullOrWhiteSpace(resolved.ReleaseTag))
             {
@@ -1730,7 +1720,9 @@ namespace ASLM.Services.Internal
             return resolved;
         }
 
-        /// <summary>Only latest may follow the release stream; a missing pinned tag must not install a different version.</summary>
+        /// <summary>
+        /// Only latest may follow the release stream; a missing pinned tag must not install a different version.
+        /// </summary>
         internal static UpdateCandidate? SelectModuleReleaseInstallTarget(ModuleConfig module, IReadOnlyList<UpdateCandidate> candidates)
         {
             var tag = module.Update.SelectedReleaseTag;
@@ -1937,7 +1929,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Carries forward user state and update metadata from the old module into the new manifest.
         /// </summary>
-        private static void MergeModuleState(ModuleConfig oldConfig, ModuleConfig newConfig, UpdateCandidate candidate)
+        internal static void MergeModuleState(ModuleConfig oldConfig, ModuleConfig newConfig, UpdateCandidate candidate)
         {
             // Carry forward user-edited setting values keyed by setting name.
             var oldSettingValues = oldConfig.Settings
@@ -1975,8 +1967,11 @@ namespace ASLM.Services.Internal
                 .Concat(newConfig.Update.Preserve)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            newConfig.Update.InstalledCommitSha = candidate.CommitSha ?? oldConfig.Update.InstalledCommitSha;
-            newConfig.Update.InstalledReleaseTag = candidate.ReleaseTag ?? oldConfig.Update.InstalledReleaseTag;
+            // These fields identify the current files, not the history of previously installed sources.
+            // Clearing the opposite fingerprint is essential when switching branch -> release -> branch.
+            var installedFromBranch = string.Equals(candidate.Mode, "branch", StringComparison.OrdinalIgnoreCase);
+            newConfig.Update.InstalledCommitSha = installedFromBranch ? candidate.CommitSha : null;
+            newConfig.Update.InstalledReleaseTag = installedFromBranch ? null : candidate.ReleaseTag;
             newConfig.Update.SelectedReleaseTag =
                 string.IsNullOrWhiteSpace(oldConfig.Update.SelectedReleaseTag) ||
                 IsLatestReleaseSelection(oldConfig.Update.SelectedReleaseTag)
@@ -1990,11 +1985,14 @@ namespace ASLM.Services.Internal
         // Version helpers
 
         /// <summary>
-        /// Returns whether the selected update channel should include GitHub pre-releases.
+        /// Identifies explicit user requests separately from automatic background checks.
         /// </summary>
         private static string ResolveRequestSource(bool isManualRequest) =>
             isManualRequest ? GitHubRequestSources.Manual : GitHubRequestSources.Auto;
 
+        /// <summary>
+        /// Returns whether the selected update channel should include GitHub pre-releases.
+        /// </summary>
         private static bool IsPrereleaseChannel(string? channel)
         {
             return string.Equals(channel, "pre-release", StringComparison.OrdinalIgnoreCase) ||
@@ -2014,10 +2012,10 @@ namespace ASLM.Services.Internal
         /// </summary>
         private static string BuildModuleCurrentVersion(ModuleConfig module)
         {
-            if (string.Equals(module.Update.Mode, "branch", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(module.Update.InstalledCommitSha))
+            if (IsInstalledFromBranch(module))
             {
-                return $"{module.Update.Branch}@{ShortSha(module.Update.InstalledCommitSha)}";
+                // The selected tracking branch may have changed; only the recorded commit is an installed identity.
+                return ShortSha(module.Update.InstalledCommitSha!);
             }
 
             return ResolveInstalledModuleReleaseTag(module);
@@ -2028,8 +2026,24 @@ namespace ASLM.Services.Internal
         /// </summary>
         private static string ResolveInstalledModuleReleaseTag(ModuleConfig module)
         {
-            return module.Update.InstalledReleaseTag ?? module.Status.InstalledVersion ?? module.Version;
+            return IsInstalledFromRelease(module)
+                ? module.Update.InstalledReleaseTag!
+                : module.Status.InstalledVersion ?? module.Version;
         }
+
+        /// <summary>
+        /// Identifies a current branch installation; legacy manifests containing both fingerprints are ambiguous.
+        /// </summary>
+        private static bool IsInstalledFromBranch(ModuleConfig module) =>
+            !string.IsNullOrWhiteSpace(module.Update.InstalledCommitSha) &&
+            string.IsNullOrWhiteSpace(module.Update.InstalledReleaseTag);
+
+        /// <summary>
+        /// Identifies a current release installation without trusting a tag retained from a previous source.
+        /// </summary>
+        private static bool IsInstalledFromRelease(ModuleConfig module) =>
+            !string.IsNullOrWhiteSpace(module.Update.InstalledReleaseTag) &&
+            string.IsNullOrWhiteSpace(module.Update.InstalledCommitSha);
 
         /// <summary>
         /// Returns whether the module manifest records a successful remote source install.
@@ -2038,10 +2052,10 @@ namespace ASLM.Services.Internal
         {
             if (string.Equals(module.Update.Mode, "branch", StringComparison.OrdinalIgnoreCase))
             {
-                return !string.IsNullOrWhiteSpace(module.Update.InstalledCommitSha);
+                return IsInstalledFromBranch(module);
             }
 
-            return !string.IsNullOrWhiteSpace(module.Update.InstalledReleaseTag);
+            return IsInstalledFromRelease(module);
         }
 
         /// <summary>
@@ -2054,7 +2068,7 @@ namespace ASLM.Services.Internal
                 return false;
             }
 
-            if (!HasRecordedRemoteSourceInstall(module))
+            if (!IsInstalledFromRelease(module))
             {
                 return true;
             }
@@ -2068,18 +2082,17 @@ namespace ASLM.Services.Internal
         /// </summary>
         internal static bool IsModuleAlreadyAtInstallTarget(ModuleConfig module, UpdateCandidate candidate)
         {
-            if (string.Equals(module.Update.Mode, "branch", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(candidate.Mode, "branch", StringComparison.OrdinalIgnoreCase))
+            // Compare the candidate with the actual installed source, never with the newly selected channel.
+            if (string.Equals(candidate.Mode, "branch", StringComparison.OrdinalIgnoreCase))
             {
-                if (string.IsNullOrWhiteSpace(candidate.CommitSha) ||
-                    string.IsNullOrWhiteSpace(module.Update.InstalledCommitSha))
+                if (string.IsNullOrWhiteSpace(candidate.CommitSha) || !IsInstalledFromBranch(module))
                 {
                     return false;
                 }
 
                 return string.Equals(
                     candidate.CommitSha.Trim(),
-                    module.Update.InstalledCommitSha.Trim(),
+                    module.Update.InstalledCommitSha!.Trim(),
                     StringComparison.OrdinalIgnoreCase);
             }
 
@@ -2088,7 +2101,7 @@ namespace ASLM.Services.Internal
                 return false;
             }
 
-            if (!HasRecordedRemoteSourceInstall(module))
+            if (!IsInstalledFromRelease(module))
             {
                 return false;
             }
@@ -2224,14 +2237,9 @@ namespace ASLM.Services.Internal
                 ? release.Name
                 : release.TagName;
 
-            if (release.Prerelease)
-            {
-                label += " pre-release";
-            }
-
             if (release.PublishedAt.HasValue)
             {
-                label += $" - {release.PublishedAt.Value:yyyy-MM-dd}";
+                label += " - " + release.PublishedAt.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
             }
 
             return label;

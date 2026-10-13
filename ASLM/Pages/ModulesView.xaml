@@ -3,6 +3,7 @@
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:modules="clr-namespace:ASLM.Controls.Modules"
+             xmlns:controls="clr-namespace:ASLM.Controls"
              x:Class="ASLM.Pages.ModulesView"
              x:Name="RootView">
 
@@ -10,7 +11,7 @@
         <TapGestureRecognizer Tapped="OnBackgroundTapped" />
     </ContentView.GestureRecognizers>
 
-    <Grid>
+    <Grid x:Name="DashboardRoot">
         <CollectionView x:Name="DashboardView"
                         ItemsSource="{Binding Modules}"
                         SelectionMode="None">
@@ -137,8 +138,8 @@
                                         </Grid>
 
                                         <ActivityIndicator Grid.Column="1"
-                                                           IsRunning="{Binding ShowHeaderBusyIndicator}"
-                                                           IsVisible="{Binding ShowHeaderBusyIndicator}"
+                                                           IsRunning="{Binding IsCheckingUpdates}"
+                                                           IsVisible="{Binding IsCheckingUpdates}"
                                                            WidthRequest="24"
                                                            HeightRequest="24"
                                                            VerticalOptions="Center"
@@ -157,7 +158,7 @@
                                                   ColumnSpacing="0"
                                                   Padding="4,0">
                                                 <Grid.GestureRecognizers>
-                                                    <TapGestureRecognizer Command="{Binding OpenUpdateDialogCommand}" />
+                                                    <TapGestureRecognizer Command="{Binding UpdateCommand}" />
                                                 </Grid.GestureRecognizers>
 
                                                 <Image Source="icon_update.png"
@@ -185,7 +186,7 @@
                                                 VerticalOptions="Center">
                                             <Grid>
                                                 <Grid.GestureRecognizers>
-                                                    <TapGestureRecognizer Command="{Binding ToggleMenuCommand}" />
+                                                    <TapGestureRecognizer Tapped="OnModuleMenuTapped" />
                                                 </Grid.GestureRecognizers>
 
                                                 <Image Source="{Binding MoreIconSource, Source={x:Reference RootView}}"
@@ -345,77 +346,96 @@
                                             Margin="0" />
                                 </Grid>
                             </Grid>
-
-                            <Grid IsVisible="{Binding IsMenuOpen}"
-                                  ZIndex="10"
-                                  InputTransparent="False">
-                                <Grid BackgroundColor="Transparent">
-                                    <Grid.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding CloseMenuCommand}" />
-                                    </Grid.GestureRecognizers>
-                                </Grid>
-
-                                <Border BackgroundColor="{DynamicResource BackgroundTertiary}"
-                                        Stroke="{DynamicResource Separator}"
-                                        StrokeThickness="1"
-                                        StrokeShape="RoundRectangle 8"
-                                        Padding="4"
-                                        HorizontalOptions="End"
-                                        VerticalOptions="Start"
-                                        Margin="0,40,16,0">
-                                    <VerticalStackLayout Spacing="0">
-                                        <Grid HeightRequest="32"
-                                              Padding="4">
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding CheckUpdateCommand}" />
-                                            </Grid.GestureRecognizers>
-                                            <Label Text="{Binding CheckUpdatesLabel}"
-                                                   FontSize="13"
-                                                   TextColor="{DynamicResource LabelPrimary}"
-                                                   HorizontalOptions="Start"
-                                                   VerticalOptions="Center" />
-                                        </Grid>
-                                        <Grid HeightRequest="32"
-                                              Padding="4">
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding OpenConfigureUpdatesCommand}" />
-                                            </Grid.GestureRecognizers>
-                                            <Label Text="{Binding ConfigureUpdatesLabel}"
-                                                   FontSize="13"
-                                                   TextColor="{DynamicResource LabelPrimary}"
-                                                   HorizontalOptions="Start"
-                                                   VerticalOptions="Center" />
-                                        </Grid>
-                                        <Grid HeightRequest="32" Padding="4">
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding ReinstallCommand}" />
-                                            </Grid.GestureRecognizers>
-                                            <Label Text="{Binding ReinstallLabel}"
-                                                   FontSize="13"
-                                                   TextColor="{DynamicResource ActionRed}"
-                                                   HorizontalOptions="Start"
-                                                   VerticalOptions="Center" />
-                                        </Grid>
-                                        <Grid HeightRequest="32"
-                                              Padding="4"
-                                              IsVisible="{Binding CanUninstall}">
-                                            <Grid.GestureRecognizers>
-                                                <TapGestureRecognizer Command="{Binding RemoveCommand}" />
-                                            </Grid.GestureRecognizers>
-                                            <Label Text="{Binding RemoveLabel}"
-                                                   FontSize="13"
-                                                   TextColor="{DynamicResource ActionRed}"
-                                                   HorizontalOptions="Start"
-                                                   VerticalOptions="Center" />
-                                        </Grid>
-                                    </VerticalStackLayout>
-                                </Border>
-                            </Grid>
                         </Grid>
                     </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
+
+        <!-- Keep card actions outside the virtualized item: cards must never clip a longer menu. -->
+        <AbsoluteLayout x:Name="ModuleMenuLayer"
+                        IsVisible="False"
+                        ZIndex="10">
+            <Grid BackgroundColor="Transparent"
+                  AbsoluteLayout.LayoutBounds="0,0,1,1"
+                  AbsoluteLayout.LayoutFlags="All">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnMenuBackdropTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+            <Border x:Name="ModuleMenuPopup"
+                    BackgroundColor="{DynamicResource BackgroundTertiary}"
+                    Stroke="{DynamicResource Separator}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 8"
+                    Padding="4">
+                <Grid ColumnDefinitions="*,Auto">
+                    <ScrollView x:Name="ModuleMenuScroll"
+                                VerticalScrollBarVisibility="Never"
+                                HorizontalScrollBarVisibility="Never">
+                        <VerticalStackLayout x:Name="ModuleMenuItems" Spacing="0">
+                            <Grid HeightRequest="32" Padding="4">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding OpenInfoCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Text="{Binding InfoLabel}"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       HorizontalOptions="Start"
+                                       VerticalOptions="Center" />
+                            </Grid>
+                            <Grid HeightRequest="32"
+                                  Padding="4">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding CheckUpdateCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Text="{Binding CheckUpdatesLabel}"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       HorizontalOptions="Start"
+                                       VerticalOptions="Center" />
+                            </Grid>
+                            <Grid HeightRequest="32"
+                                  Padding="4">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding OpenConfigureUpdatesCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Text="{Binding ConfigureUpdatesLabel}"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       HorizontalOptions="Start"
+                                       VerticalOptions="Center" />
+                            </Grid>
+                            <Grid HeightRequest="32" Padding="4">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding ReinstallCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Text="{Binding ReinstallLabel}"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource ActionRed}"
+                                       HorizontalOptions="Start"
+                                       VerticalOptions="Center" />
+                            </Grid>
+                            <Grid HeightRequest="32"
+                                  Padding="4"
+                                  IsVisible="{Binding CanUninstall}">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding RemoveCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Text="{Binding RemoveLabel}"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource ActionRed}"
+                                       HorizontalOptions="Start"
+                                       VerticalOptions="Center" />
+                            </Grid>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                    <controls:AppScrollBar Grid.Column="1"
+                                           Target="{x:Reference ModuleMenuScroll}" />
+                </Grid>
+            </Border>
+        </AbsoluteLayout>
+
 
     </Grid>
 

@@ -2167,24 +2167,6 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} update failed.
-        /// </summary>
-        public static string ModuleUpdate_Activity_FailedFormat {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Activity_FailedFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} updated successfully.
-        /// </summary>
-        public static string ModuleUpdate_Activity_SuccessFormat {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Activity_SuccessFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Update Activity.
         /// </summary>
         public static string ModuleUpdate_ActivityTitle_Activity {
@@ -2194,43 +2176,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Update Status.
-        /// </summary>
-        public static string ModuleUpdate_ActivityTitle_Status {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_ActivityTitle_Status", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Check updates.
-        /// </summary>
-        public static string ModuleUpdate_CheckUpdates {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_CheckUpdates", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Close module updates.
-        /// </summary>
-        public static string ModuleUpdate_CloseTooltip {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_CloseTooltip", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Current version.
-        /// </summary>
-        public static string ModuleUpdate_CurrentVersion {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_CurrentVersion", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Install update.
+        ///   Ищет локализованную строку, похожую на Update.
         /// </summary>
         public static string ModuleUpdate_InstallUpdate {
             get {
@@ -2257,87 +2203,6 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Update did not complete successfully.
-        /// </summary>
-        public static string ModuleUpdate_Log_Failed {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Log_Failed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Installing update for {0}....
-        /// </summary>
-        public static string ModuleUpdate_Log_InstallingFormat {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Log_InstallingFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Starting update for {0}.
-        /// </summary>
-        public static string ModuleUpdate_Log_StartingFormat {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Log_StartingFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Update finished. Installed {0}.
-        /// </summary>
-        public static string ModuleUpdate_Log_SuccessFormat {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Log_SuccessFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на No module selected.
-        /// </summary>
-        public static string ModuleUpdate_NoModuleSelected {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_NoModuleSelected", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на No version selected.
-        /// </summary>
-        public static string ModuleUpdate_NoVersionSelected {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_NoVersionSelected", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Overall progress.
-        /// </summary>
-        public static string ModuleUpdate_OverallProgress {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_OverallProgress", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Preferences are saved automatically.
-        /// </summary>
-        public static string ModuleUpdate_PrefsAutoSaved {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_PrefsAutoSaved", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Ready.
-        /// </summary>
-        public static string ModuleUpdate_ReadyDefault {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_ReadyDefault", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Release version.
         /// </summary>
         public static string ModuleUpdate_ReleaseVersion {
@@ -2352,60 +2217,6 @@ namespace ASLM.Resources.Strings {
         public static string ModuleUpdate_RepositoryBranch {
             get {
                 return ResourceManager.GetString("ModuleUpdate_RepositoryBranch", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Search mode.
-        /// </summary>
-        public static string ModuleUpdate_SearchMode {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_SearchMode", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Select a repository branch before checking updates.
-        /// </summary>
-        public static string ModuleUpdate_SelectBranchRequired {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_SelectBranchRequired", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Selected target.
-        /// </summary>
-        public static string ModuleUpdate_SelectedTarget {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_SelectedTarget", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Check failed: {0}.
-        /// </summary>
-        public static string ModuleUpdate_Status_CheckFailedFormat {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Status_CheckFailedFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Checking for updates....
-        /// </summary>
-        public static string ModuleUpdate_Status_Checking {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Status_Checking", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Ready to check.
-        /// </summary>
-        public static string ModuleUpdate_Status_ReadyToCheck {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Status_ReadyToCheck", resourceCulture);
             }
         }
         
@@ -2437,56 +2248,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Updating....
-        /// </summary>
-        public static string ModuleUpdate_Status_Updating {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Status_Updating", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Up to date.
         /// </summary>
         public static string ModuleUpdate_Status_UpToDate {
             get {
                 return ResourceManager.GetString("ModuleUpdate_Status_UpToDate", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} - {1}.
-        /// </summary>
-        public static string ModuleUpdate_SubtitleFormat {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_SubtitleFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Configure Module Updates.
-        /// </summary>
-        public static string ModuleUpdate_Title_Configure {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Title_Configure", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Module Update.
-        /// </summary>
-        public static string ModuleUpdate_Title_Update {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_Title_Update", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Update source.
-        /// </summary>
-        public static string ModuleUpdate_UpdateSource {
-            get {
-                return ResourceManager.GetString("ModuleUpdate_UpdateSource", resourceCulture);
             }
         }
         

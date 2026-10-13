@@ -57,7 +57,7 @@ namespace ASLM.Pages
         private View? _notificationsView;
         private View? _downloadsView;
         private View? _settingsView;
-        private View? _moduleUpdateView;
+        private ModuleInfo? _moduleInfoView;
 
         private Button? _activeNavButton;
         private Button[] _navButtons = [];
@@ -565,30 +565,24 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Opens the shared module update overlay for the selected module.
+        /// Opens module metadata or configuration without starting a maintenance operation.
         /// </summary>
-        internal void OpenModuleUpdateOverlay(ModuleViewModel module, ModuleUpdateMode mode)
+        internal void OpenModuleInfoOverlay(ModuleConfig module, ModuleInfo.Section section)
         {
-            _ = OpenModuleUpdateOverlayAsync(module, mode);
+            _ = OpenModuleInfoOverlayAsync(module, section);
         }
 
         /// <summary>
-        /// Loads and shows the module update overlay before binding it to the selected module.
+        /// Hosts the same ModuleInfo view used by Downloads, with an explicit entry section.
         /// </summary>
-        private async Task OpenModuleUpdateOverlayAsync(ModuleViewModel module, ModuleUpdateMode mode)
+        private async Task OpenModuleInfoOverlayAsync(ModuleConfig module, ModuleInfo.Section section)
         {
-            _moduleUpdateView ??= _services.GetRequiredService<ModuleUpdateView>();
-            if (_moduleUpdateView is not ModuleUpdateView moduleUpdateView)
-            {
-                return;
-            }
-
-            moduleUpdateView.CloseRequested -= OnModuleUpdateCloseRequested;
-            moduleUpdateView.CloseRequested += OnModuleUpdateCloseRequested;
-            OverlayContainer.Content = _moduleUpdateView;
+            _moduleInfoView ??= _services.GetRequiredService<ModuleInfo>();
+            _moduleInfoView.CloseRequested -= OnModuleInfoCloseRequested;
+            _moduleInfoView.CloseRequested += OnModuleInfoCloseRequested;
+            OverlayContainer.Content = _moduleInfoView;
             OverlayContainer.IsVisible = true;
-
-            await moduleUpdateView.OpenAsync(module, mode);
+            await _moduleInfoView.OpenAsync(module, section);
         }
 
         /// <summary>
@@ -628,11 +622,12 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Hides the overlay container when the module update view requests close.
+        /// Hides ModuleInfo and refreshes card preferences and any newly discovered update badge.
         /// </summary>
-        private void OnModuleUpdateCloseRequested(object? sender, EventArgs e)
+        private void OnModuleInfoCloseRequested(object? sender, EventArgs e)
         {
             OverlayContainer.IsVisible = false;
+            OnModuleStateChanged();
         }
 
 
@@ -882,7 +877,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Opens the module update overlay in configure mode for the module referenced by the notification.
+        /// Opens ModuleInfo for the installed module referenced by an update notification.
         /// </summary>
         private async Task OpenModuleUpdateFromNotificationAsync(string moduleId)
         {
@@ -900,23 +895,7 @@ namespace ASLM.Pages
                 return;
             }
 
-            ModuleViewModel? viewModel = null;
-            if (_modulesView is ModulesView modulesView)
-            {
-                viewModel = modulesView.Modules.FirstOrDefault(module =>
-                    string.Equals(module.SourcePath, config.SourcePath, StringComparison.OrdinalIgnoreCase));
-            }
-
-            viewModel ??= ModulesView.CreateViewModelForDeferredUpdateOverlay(
-                config,
-                _moduleInstaller,
-                _moduleRunner,
-                _moduleLaunchCoordinator,
-                _updateManager,
-                _moduleTrustService,
-                OnModuleStateChanged);
-
-            OpenModuleUpdateOverlay(viewModel, ModuleUpdateMode.Configure);
+            OpenModuleInfoOverlay(config, ModuleInfo.Section.Status);
         }
 
         /// <summary>

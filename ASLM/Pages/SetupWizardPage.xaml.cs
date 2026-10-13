@@ -1231,9 +1231,7 @@ namespace ASLM.Pages
         /// </summary>
         private static bool ShouldUseConfiguredUpdateInstall(ModuleConfig module)
         {
-            return module.HasDeclaredUpdateConfig &&
-                   string.Equals(module.Source.Type, "github", StringComparison.OrdinalIgnoreCase) &&
-                   !string.IsNullOrWhiteSpace(module.Source.Repo);
+            return UpdateManager.CanDownloadModule(module);
         }
 
         /// <summary>
@@ -1275,6 +1273,8 @@ namespace ASLM.Pages
             IProgress<DownloadProgress> downloadProgress,
             CancellationToken ct)
         {
+            // Apply application defaults before the common resolver falls back to available repository channels.
+            _updateManager.ApplyCatalogDefaults(module, _moduleInstaller.Registry.ReadIds().Contains(module.Id));
             // Setup should resolve the same branch or release candidate the normal updater would use.
             var candidate = await Task.Run(
                 () => _updateManager.ResolveModuleInstallCandidateAsync(module, ct, isManualRequest: true),

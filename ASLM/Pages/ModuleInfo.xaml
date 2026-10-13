@@ -404,6 +404,17 @@
                     <HorizontalStackLayout Grid.Column="1"
                                            Spacing="8"
                                            VerticalOptions="Center">
+                        <ActivityIndicator IsVisible="{Binding IsCheckingUpdates}"
+                                           IsRunning="{Binding IsCheckingUpdates}"
+                                           WidthRequest="24"
+                                           HeightRequest="24"
+                                           VerticalOptions="Center"
+                                           Color="{DynamicResource LabelSecondary}" />
+                        <Button x:Name="UpdateButton"
+                                IsVisible="{Binding ShowUpdateButton}"
+                                IsEnabled="{Binding CanCheckOrUpdate}"
+                                Style="{StaticResource SettingsFooterPrimaryButtonStyle}"
+                                Clicked="OnUpdateClicked" />
                         <Button x:Name="CancelButton"
                                 IsVisible="{Binding CanCancelInstallation}"
                                 Style="{StaticResource SettingsFooterButtonStyle}"

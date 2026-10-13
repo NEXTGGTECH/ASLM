@@ -106,7 +106,6 @@ namespace ASLM
             builder.Services.AddTransient<NotificationsView>();
             builder.Services.AddTransient<DownloadsView>();
             builder.Services.AddTransient<SettingsView>();
-            builder.Services.AddTransient<ModuleUpdateView>();
             builder.Services.AddTransient<ModuleInfo>();
 
 #if WINDOWS

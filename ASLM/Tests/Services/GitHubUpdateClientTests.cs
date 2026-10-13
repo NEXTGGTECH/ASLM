@@ -13,6 +13,250 @@ public sealed class GitHubUpdateClientTests : IDisposable
     private readonly DirectoryInfo _iconDirectory = Directory.CreateTempSubdirectory("ASLM-IconCache-");
 
     public void Dispose() => _iconDirectory.Delete(recursive: true);
+
+    /// <summary>
+    /// Returning to a previously installed source must compare the current files, not old source history.
+    /// </summary>
+    [Theory]
+    [InlineData("release", false)]
+    [InlineData("branch", false)]
+    [InlineData("release", true)]
+    [InlineData("branch", true)]
+    public async Task Source_switches_compare_only_the_current_installation(string initialMode, bool legacyFingerprints)
+    {
+        // Both sources deliberately keep the same release tag and commit across the entire round trip.
+        using var http = new HttpClient(new RepositoryHandler(branchJson:
+            """[{"name":"main","commit":{"sha":"abcdef123456"}}]"""));
+        var manager = CreateSourceManager(http);
+        var module = CreateModule("module", "owner/repo");
+        module.SourcePath = Path.Combine(_iconDirectory.FullName, "ASLM_Module.json");
+        module.Update.Mode = initialMode;
+        module.Update.Branch = "main";
+        module.Update.InstalledReleaseTag = initialMode == "release" || legacyFingerprints ? "v1.0" : null;
+        module.Update.InstalledCommitSha = initialMode == "branch" || legacyFingerprints ? "abcdef123456" : null;
+        var otherMode = initialMode == "branch" ? "release" : "branch";
+
+        foreach (var mode in new[] { otherMode, initialMode, otherMode })
+        {
+            module.Update.Mode = mode;
+            var candidate = await manager.CheckModuleUpdateAsync(module, publishUpdateNotification: false);
+            candidate.Should().NotBeNull("a previously installed target is not the current installation");
+            candidate!.Mode.Should().Be(mode);
+            UpdateManager.IsModuleAlreadyAtInstallTarget(module, candidate).Should().BeFalse();
+            (await manager.ResolveModuleInstallCandidateAsync(module)).Should().NotBeNull();
+            module.Update.PendingUpdate = ModulePendingUpdate.FromCandidate(module, candidate);
+            manager.TryRestorePendingUpdateCandidate(module, out _).Should().BeTrue();
+
+            // Exercise the actual manifest merge used after a successful archive replacement.
+            var installed = CreateModule("module", "owner/repo");
+            installed.SourcePath = module.SourcePath;
+            installed.Update.InstalledReleaseTag = "untrusted-package-tag";
+            installed.Update.InstalledCommitSha = "untrusted-package-commit";
+            UpdateManager.MergeModuleState(module, installed, candidate);
+            installed.Update.InstalledReleaseTag.Should().Be(mode == "branch" ? null : "v1.0");
+            installed.Update.InstalledCommitSha.Should().Be(mode == "branch" ? "abcdef123456" : null);
+            UpdateManager.IsModuleAlreadyAtInstallTarget(installed, candidate).Should().BeTrue();
+            (await manager.CheckModuleUpdateAsync(installed, publishUpdateNotification: false)).Should().BeNull();
+            installed.Update.PendingUpdate = ModulePendingUpdate.FromCandidate(installed, candidate);
+            manager.TryRestorePendingUpdateCandidate(installed, out _).Should().BeFalse();
+            module = installed;
+        }
+    }
+
+    /// <summary>
+    /// Stable and prerelease selectors share one tag/date format without an extra channel suffix.
+    /// </summary>
+    [Theory]
+    [InlineData(false, "release")]
+    [InlineData(true, "pre-release")]
+    public async Task Release_labels_have_the_same_format_in_every_channel(bool prerelease, string channel)
+    {
+        var json = JsonSerializer.Serialize(new[] { new
+        {
+            tag_name = "v1.0.0.0", prerelease, published_at = "2026-10-11T12:00:00Z",
+            zipball_url = "https://example.test/module.zip"
+        } });
+        using var http = new HttpClient(new RepositoryHandler(releaseJson: json));
+        var module = CreateModule("module", "owner/repo");
+        module.Update.Mode = channel;
+
+        var options = await CreateSourceManager(http).GetModuleDownloadOptionsAsync(module);
+
+        options.Releases.Should().ContainSingle().Which.DisplayName.Should().Be("v1.0.0.0 - 2026-10-11");
+        ASLM.Pages.ModuleInfo.BuildReleaseOptions(options.Releases, "latest")[0].DisplayName.Should()
+            .Be("latest (v1.0.0.0 - 2026-10-11)");
+    }
+
+    /// <summary>Catalog, setup and update resolution must agree even when the preferred stream is absent.</summary>
+    [Theory]
+    [InlineData(true, true, "release", "release", "v1.0")]
+    [InlineData(true, true, "pre-release", "pre-release", "v2.0-beta")]
+    [InlineData(false, true, "release", "pre-release", "v2.0-beta")]
+    [InlineData(false, true, "pre-release", "pre-release", "v2.0-beta")]
+    [InlineData(true, false, "pre-release", "release", "v1.0")]
+    [InlineData(false, false, "release", "branch", "develop@abcdef1")]
+    [InlineData(false, false, "pre-release", "branch", "develop@abcdef1")]
+    public async Task Missing_channels_fall_back_consistently(bool stable, bool preview, string preferred,
+        string expectedMode, string expectedVersion)
+    {
+        var releases = new List<object>();
+        if (stable) releases.Add(new { tag_name = "v1.0", prerelease = false, zipball_url = "https://example.test/stable.zip" });
+        if (preview) releases.Add(new { tag_name = "v2.0-beta", prerelease = true, zipball_url = "https://example.test/preview.zip" });
+        // Drafts must not make a channel selectable.
+        releases.Add(new { tag_name = "v3.0", draft = true, prerelease = false, zipball_url = "https://example.test/draft.zip" });
+        var handler = new RepositoryHandler(releaseJson: JsonSerializer.Serialize(releases),
+            branchJson: """[{"name":"develop","commit":{"sha":"abcdef123456"}}]""");
+        using var http = new HttpClient(handler);
+        var manager = CreateSourceManager(http);
+        var module = CreateModule("module", "owner/repo");
+        module.SourcePath = Path.Combine(_iconDirectory.FullName, "ASLM_Module.json");
+        UpdateManager.ApplyCatalogDefaults(module, false, preferred);
+
+        var options = await manager.GetModuleDownloadOptionsAsync(module);
+        options.Mode.Should().Be(expectedMode);
+        options.Channels.Contains("release").Should().Be(stable);
+        options.Channels.Contains("pre-release").Should().Be(preview);
+        options.Channels.Should().Contain("branch");
+        module.Update.Mode.Should().Be(preferred, "a metadata query alone must not edit preferences");
+        var displayed = await manager.GetModuleCatalogVersionAsync(module, false);
+        displayed.Should().Be(expectedMode == "branch" ? module.Version : expectedVersion);
+        module.Update.Mode.Should().Be(preferred, "presentation must not race the editable configuration");
+
+        // Setup and catalog installation both call this entry point, not a view-specific fallback.
+        var candidate = await manager.ResolveModuleInstallCandidateAsync(module);
+        candidate.Should().NotBeNull();
+        candidate!.Mode.Should().Be(expectedMode);
+        candidate.RemoteVersion.Should().Be(expectedVersion);
+        module.Update.Mode.Should().Be(expectedMode);
+        var update = await manager.CheckModuleUpdateAsync(module, publishUpdateNotification: false);
+        update!.RemoteVersion.Should().Be(expectedVersion);
+        handler.Requests.Count(uri => uri.Contains("/releases")).Should().Be(1);
+    }
+
+    /// <summary>A pinned version in an available channel is never silently replaced with latest.</summary>
+    [Fact]
+    public async Task Available_channels_preserve_explicit_missing_targets_and_branches()
+    {
+        using var http = new HttpClient(new RepositoryHandler(branchJson:
+            """[{"name":"main","commit":{"sha":"abcdef123456"}},{"name":"preview","commit":{"sha":"111111122222"}}]"""));
+        var manager = CreateSourceManager(http);
+        var module = CreateModule("module", "owner/repo");
+        module.Update.SelectedReleaseTag = "v-missing";
+        (await manager.ResolveModuleInstallCandidateAsync(module)).Should().BeNull();
+        module.Update.SelectedReleaseTag.Should().Be("v-missing");
+        module.Update.Mode = "branch";
+        module.Update.Branch = "preview";
+        (await manager.ResolveModuleInstallCandidateAsync(module))!.ReferenceName.Should().Be("preview");
+        module.Update.Branch = "deleted-branch";
+        (await manager.ResolveModuleInstallCandidateAsync(module)).Should().BeNull();
+        module.Update.Branch.Should().Be("deleted-branch");
+    }
+
+    /// <summary>A failed request is not proof that a repository has no releases.</summary>
+    [Fact]
+    public async Task Failed_catalog_queries_do_not_change_saved_source_preferences()
+    {
+        using var http = new HttpClient(new RepositoryHandler(beforeResponse: (_, _) =>
+            throw new HttpRequestException("offline")));
+        var manager = CreateSourceManager(http);
+        var module = CreateModule("module", "owner/repo");
+        module.Update.SelectedReleaseTag = "v1.0";
+        module.Normalize();
+        var before = JsonSerializer.Serialize(module.Update);
+        await FluentActions.Awaiting(() => manager.ResolveModuleInstallCandidateAsync(module))
+            .Should().ThrowAsync<HttpRequestException>();
+        JsonSerializer.Serialize(module.Update).Should().Be(before);
+    }
+
+    /// <summary>The real reinstall dialog removes missing channels and follows the shared fallback.</summary>
+    [Fact]
+    public async Task Reinstall_selectors_only_offer_available_repository_channels()
+    {
+        using var http = new HttpClient(new RepositoryHandler(releaseJson: "[]", branchJson:
+            """[{"name":"develop","commit":{"sha":"abcdef123456"}}]"""));
+        var module = CreateModule("module", "owner/repo");
+        using var form = new ASLM.Services.Dialogs.ModuleReinstallForm(module, CreateSourceManager(http));
+        await form.LoadOptionsAsync();
+        form.Channel.Choices.Select(choice => choice.Id).Should().Equal("branch");
+        form.Channel.Value.Should().Be("branch");
+        form.Target.Choices.Select(choice => choice.Id).Should().Equal("develop");
+        form.Target.Value.Should().Be("develop");
+        module.Update.Mode.Should().Be("release", "canceling the dialog must leave saved preferences untouched");
+    }
+
+    /// <summary>Real selectors display saved values before GitHub responds, then remove unavailable release channels.</summary>
+    [Theory]
+    [InlineData("release")]
+    [InlineData("pre-release")]
+    [InlineData("branch")]
+    public async Task Configuration_shows_selected_channel_and_branch_option_while_metadata_is_pending(string mode)
+    {
+        var response = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var http = new HttpClient(new RepositoryHandler(releaseJson: "[]", branchJson:
+            """[{"name":"develop","commit":{"sha":"abcdef123456"}}]""",
+            beforeResponse: (_, ct) => response.Task.WaitAsync(ct)));
+        var module = CreateModule("module", "owner/repo");
+        module.Update.Mode = module.Update.Channel = mode;
+        module.Update.Branch = "develop";
+        using var form = new ASLM.Services.Dialogs.ModuleReinstallForm(module, CreateSourceManager(http));
+        form.Channel.IsEnabled.Should().BeTrue();
+        form.Channel.Value.Should().Be(mode);
+        form.Channel.Choices.Should().Contain(choice => choice.Id == mode);
+        form.Channel.Choices.Should().Contain(choice => choice.Id == "branch");
+        var loading = form.LoadOptionsAsync();
+        try
+        {
+            loading.IsCompleted.Should().BeFalse();
+            form.Channel.Value.Should().Be(mode);
+            form.Channel.Choices.Should().Contain(choice => choice.Id == mode);
+            form.Target.Value.Should().Be(mode == "branch" ? "develop" : "latest");
+            form.Target.IsEnabled.Should().BeFalse("destructive confirmation still requires target validation");
+        }
+        finally
+        {
+            response.TrySetResult();
+            await loading;
+        }
+        form.Channel.Choices.Should().ContainSingle(choice => choice.Id == "branch");
+        form.Channel.Value.Should().Be("branch");
+        form.Target.Value.Should().Be("develop");
+        module.Update.Mode.Should().Be(mode, "the dialog only edits its detached draft");
+    }
+
+    /// <summary>A slow release response must not postpone the branch request for an explicitly selected branch.</summary>
+    [Fact]
+    public async Task Selected_branch_metadata_is_requested_without_waiting_for_releases()
+    {
+        var releaseResponse = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var branchRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = new RepositoryHandler(branchJson:
+            """[{"name":"preview","commit":{"sha":"abcdef123456"}}]""", beforeResponse: (request, ct) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/releases")) return releaseResponse.Task.WaitAsync(ct);
+            branchRequested.TrySetResult();
+            return Task.CompletedTask;
+        });
+        using var http = new HttpClient(handler);
+        var module = CreateModule("module", "owner/repo");
+        module.Update.Mode = "branch";
+        module.Update.Branch = "preview";
+        var loading = CreateSourceManager(http).GetModuleDownloadOptionsAsync(module);
+        try
+        {
+            await branchRequested.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            loading.IsCompleted.Should().BeFalse();
+        }
+        finally { releaseResponse.TrySetResult(); }
+        var options = await loading;
+        options.Mode.Should().Be("branch");
+        options.Branches.Should().Equal("preview");
+        handler.Requests.Count(uri => uri.Contains("/branches")).Should().Be(1);
+        handler.Requests.Count(uri => uri.Contains("/releases")).Should().Be(1);
+    }
+
+    /// <summary>Creates only the services required for metadata and candidate resolution.</summary>
+    private UpdateManager CreateSourceManager(HttpClient http) => new(null!, null!, null!, null!, null!, null!,
+        null!, null!, CreateClient(http), null!, NullLogger<UpdateManager>.Instance, new DownloadQueue());
     [Theory]
     [InlineData("release", "v1.0", 1)]
     [InlineData("pre-release", "v2.0-beta", 2)]
@@ -355,7 +599,8 @@ public sealed class GitHubUpdateClientTests : IDisposable
         new() { Id = id, Version = "0.1", Source = new() { Type = "github", Repo = repo } };
 
     private sealed class RepositoryHandler(bool failIcon = false,
-        Func<HttpRequestMessage, CancellationToken, Task>? beforeResponse = null) : HttpMessageHandler
+        Func<HttpRequestMessage, CancellationToken, Task>? beforeResponse = null,
+        string? releaseJson = null, string branchJson = "[]") : HttpMessageHandler
     {
         public static readonly byte[] Icon = [137, 80, 78, 71];
         public ConcurrentQueue<string> Requests { get; } = [];
@@ -369,13 +614,13 @@ public sealed class GitHubUpdateClientTests : IDisposable
             {
                 case "/repos/owner/repo/releases":
                 case "/repos/owner/other/releases":
-                    content = new StringContent("""
+                    content = new StringContent(releaseJson ?? """
                         [{"tag_name":"v1.0","prerelease":false,"zipball_url":"https://example.test/v1.zip"},
                          {"tag_name":"v2.0-beta","prerelease":true,"zipball_url":"https://example.test/v2.zip"}]
                         """);
                     break;
                 case "/repos/owner/repo/branches":
-                    content = new StringContent("[]");
+                    content = new StringContent(branchJson);
                     break;
                 case "/repos/owner/repo/contents/ASLM_Module.json":
                     request.Headers.Accept.Should().Contain(value => value.MediaType == "application/vnd.github.raw+json");

@@ -12,7 +12,9 @@ namespace ASLM.Services.Dialogs;
 internal sealed class ModuleReinstallForm : IDisposable
 {
     private readonly ModuleConfig _module;
-    private readonly Func<ModuleConfig, CancellationToken, Task<IReadOnlyList<DialogChoice>>> _load;
+    private readonly Func<ModuleConfig, CancellationToken, Task<IReadOnlyList<DialogChoice>>>? _load;
+    private readonly UpdateManager? _updates;
+    private bool _synchronizing;
     private readonly Dictionary<string, string> _selections = new(StringComparer.Ordinal);
     private CancellationTokenSource? _loading;
     private bool _disposed;
@@ -23,27 +25,31 @@ internal sealed class ModuleReinstallForm : IDisposable
     /// <summary>
     /// Uses the same release and branch catalog as the module update configuration page.
     /// </summary>
-    public ModuleReinstallForm(ModuleConfig module, UpdateManager updates)
-        : this(module, async (draft, ct) => draft.Update.Mode == "branch"
-            ? (await updates.GetModuleBranchesAsync(draft, ct, isManualRequest: true))
-                .Select(branch => new DialogChoice(branch.Name, branch.Name)).ToArray()
-            : (await updates.GetModuleReleaseCandidatesAsync(draft, ct, isManualRequest: true))
-                .Where(release => !string.IsNullOrWhiteSpace(release.ReleaseTag))
-                .Select(release => new DialogChoice(release.ReleaseTag!, release.DisplayName)).ToArray()) { }
+    public ModuleReinstallForm(ModuleConfig module, UpdateManager updates) : this(module)
+    {
+        _updates = updates;
+    }
 
     /// <summary>
     /// Initializes selectors from saved preferences and accepts a testable asynchronous option loader.
     /// </summary>
     internal ModuleReinstallForm(ModuleConfig module,
-        Func<ModuleConfig, CancellationToken, Task<IReadOnlyList<DialogChoice>>> load)
+        Func<ModuleConfig, CancellationToken, Task<IReadOnlyList<DialogChoice>>> load) : this(module)
+    {
+        _load = load;
+    }
+
+    /// <summary>
+    /// Builds the shared fields and actions before attaching a repository option provider.
+    /// </summary>
+    private ModuleReinstallForm(ModuleConfig module)
     {
         _module = JsonSerializer.Deserialize<ModuleConfig>(JsonSerializer.Serialize(module))!;
         _module.SourcePath = module.SourcePath;
         _module.Normalize();
-        _load = load;
         Channel = new() { Id = "channel", Label = DialogText.Localized(LocalizationKeys.ModuleInfo_Channel),
             Kind = DialogFieldKind.Choice, Required = true, Value = _module.Update.Mode,
-            Choices = [new("release", "release"), new("pre-release", "pre-release"), new("branch", "branch")] };
+            Choices = ModuleDownloadOptions.InitialChannels.Select(mode => new DialogChoice(mode, mode)).ToArray() };
         Target = new() { Id = "target", Label = TargetLabel(), Kind = DialogFieldKind.Choice, Required = true,
             Value = _module.Update.Mode == "branch" ? _module.Update.Branch : _module.Update.SelectedReleaseTag ?? ModuleUpdateConfig.LatestReleaseTag };
         _selections[_module.Update.Mode] = Target.Value!.ToString()!;
@@ -74,7 +80,8 @@ internal sealed class ModuleReinstallForm : IDisposable
     {
         var selected = Target.Value?.ToString() ?? string.Empty;
         var choices = new List<DialogChoice>();
-        if (Channel.Value?.ToString() != "branch") choices.Add(new("latest", "latest"));
+        if (Channel.Value?.ToString() != "branch")
+            choices.Add(remote.FirstOrDefault(choice => choice.Id == "latest") ?? new("latest", "latest"));
         choices.AddRange(remote);
         if (!string.IsNullOrEmpty(selected)) choices.Add(new(selected, selected));
         return choices.DistinctBy(choice => choice.Id, StringComparer.Ordinal).ToArray();
@@ -85,6 +92,7 @@ internal sealed class ModuleReinstallForm : IDisposable
     /// </summary>
     private async void OnChannelChanged(object? sender, EventArgs e)
     {
+        if (_synchronizing) return;
         var mode = Channel.Value!.ToString()!;
         Target.Value = _selections.GetValueOrDefault(mode, mode == "branch" ? _module.Update.Branch : "latest");
         await LoadOptionsAsync();
@@ -112,7 +120,29 @@ internal sealed class ModuleReinstallForm : IDisposable
             var draft = JsonSerializer.Deserialize<ModuleConfig>(JsonSerializer.Serialize(_module))!;
             draft.Update.Mode = draft.Update.Channel = Channel.Value!.ToString()!;
             draft.Update.Normalize();
-            var choices = await _load(draft, cts.Token);
+            IReadOnlyList<DialogChoice> choices;
+            if (_updates == null) choices = await _load!(draft, cts.Token);
+            else
+            {
+                var options = await _updates.GetModuleDownloadOptionsAsync(draft, cts.Token, isManualRequest: true);
+                if (cts.IsCancellationRequested || _disposed) return;
+                _synchronizing = true;
+                try
+                {
+                    // Keep the open form aligned with the same fallback used by setup and installation.
+                    Channel.UpdateChoices(Channel.Label, options.Channels.Select(mode => new DialogChoice(mode, mode)).ToArray());
+                    if (Channel.Value?.ToString() != options.Mode)
+                    {
+                        Channel.Value = options.Mode;
+                        Target.Value = options.Mode == "branch" ? options.Branch : "latest";
+                    }
+                    choices = options.Mode == "branch"
+                        ? options.Branches.Select(branch => new DialogChoice(branch, branch)).ToArray()
+                        : new[] { new DialogChoice("latest", UpdateManager.FormatLatestRelease(options.Releases.FirstOrDefault())) }
+                            .Concat(options.Releases.Select(release => new DialogChoice(release.ReleaseTag!, release.DisplayName))).ToArray();
+                }
+                finally { _synchronizing = false; }
+            }
             if (!cts.IsCancellationRequested && !_disposed)
                 Target.UpdateChoices(TargetLabel(), BuildChoices(choices));
         }

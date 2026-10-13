@@ -335,11 +335,11 @@ namespace ASLM.Models
         [JsonPropertyName("runFirstRunAfterUpdate")]
         public bool RunFirstRunAfterUpdate { get; set; } = true;
 
-        // Last branch commit installed by the updater.
+        // Commit identifying the current branch installation; null after installing a release.
         [JsonPropertyName("installedCommitSha")]
         public string? InstalledCommitSha { get; set; }
 
-        // Last release tag installed by the updater.
+        // Tag identifying the current release installation; null after installing a branch.
         [JsonPropertyName("installedReleaseTag")]
         public string? InstalledReleaseTag { get; set; }
 
