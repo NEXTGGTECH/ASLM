@@ -35,6 +35,7 @@ namespace ASLM.Services.Internal
         private readonly NotificationCenter _notifications;
         private readonly ILogger<UpdateManager> _logger;
         private readonly DownloadQueue _downloadQueue;
+        private readonly UpdateOperationTracker _updateOperations = new();
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -89,6 +90,23 @@ namespace ASLM.Services.Internal
         /// Returns the current ASLM app version.
         /// </summary>
         public string CurrentAppVersion => ResolveCurrentAppDisplayVersion();
+
+        /// <summary>
+        /// Publishes live app and engine operation changes regardless of which caller initiated the update.
+        /// </summary>
+        internal event EventHandler? UpdateOperationStateChanged
+        {
+            add => _updateOperations.StateChanged += value;
+            remove => _updateOperations.StateChanged -= value;
+        }
+
+        /// <summary>
+        /// Returns the active update stage and download progress for one app or engine target.
+        /// </summary>
+        internal UpdateOperationSnapshot? GetUpdateOperation(string targetKind, string targetId)
+        {
+            return _updateOperations.GetSnapshot(NotificationCenter.BuildOperationKey(targetKind, targetId));
+        }
 
 
         // Configuration
@@ -325,6 +343,12 @@ namespace ASLM.Services.Internal
             CancellationToken ct = default,
             bool isManualRequest = false)
         {
+            // Version probes must not rewrite engine metadata during a shared update operation.
+            if (GetUpdateOperation("engine", engine.Id) != null)
+            {
+                return ResolveInstalledEngineReleaseTag(engine);
+            }
+
             engine.Normalize();
             if (EngineInstaller.EnsureManifestMetadata(engine) && !string.IsNullOrWhiteSpace(engine.SourcePath))
             {
@@ -339,10 +363,21 @@ namespace ASLM.Services.Internal
                 return ResolveInstalledEngineReleaseTag(engine);
             }
 
+            var installedTagBeforeProbe = ResolveInstalledEngineReleaseTag(engine);
             var probedVersion = await TryProbeEngineRuntimeVersionAsync(engine, ct);
-            if (string.IsNullOrWhiteSpace(probedVersion))
+            if (GetUpdateOperation("engine", engine.Id) != null || string.IsNullOrWhiteSpace(probedVersion))
             {
                 return ResolveInstalledEngineReleaseTag(engine);
+            }
+
+            // An update may have both started and finished during the probe. Never persist its older result
+            // over the installed version now held by the refreshed engine catalog.
+            var currentEngine = _engineInstaller.DiscoverEngines().FirstOrDefault(current =>
+                string.Equals(current.SourcePath, engine.SourcePath, StringComparison.OrdinalIgnoreCase)) ?? engine;
+            var currentInstalledTag = ResolveInstalledEngineReleaseTag(currentEngine);
+            if (!string.Equals(installedTagBeforeProbe, currentInstalledTag, StringComparison.OrdinalIgnoreCase))
+            {
+                return currentInstalledTag;
             }
 
             var normalizedTag = NormalizeEngineVersionReference(probedVersion);
@@ -677,13 +712,32 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Downloads and stages an ASLM app update for the external patcher.
         /// </summary>
-        public async Task<bool> PrepareAppUpdateAsync(
+        public Task<bool> PrepareAppUpdateAsync(
             UpdateCandidate candidate,
             IProgress<string>? log = null,
             IProgress<DownloadProgress>? progress = null,
             bool isManualRequest = false,
             CancellationToken ct = default)
         {
+            // Reserve the target before asynchronous work so manual and automatic requests cannot race.
+            return _updateOperations.RunAsync(NotificationCenter.BuildOperationKey("app", candidate.TargetId),
+                candidate.ReleaseTag ?? candidate.RemoteVersion,
+                operation => PrepareAppUpdateCoreAsync(candidate, operation, log, progress, isManualRequest, ct), ct);
+        }
+
+        /// <summary>
+        /// Stages one reserved ASLM update and publishes its transfer and preparation stages.
+        /// </summary>
+        private async Task<bool> PrepareAppUpdateCoreAsync(UpdateCandidate candidate,
+            UpdateOperationTracker.Operation operation, IProgress<string>? log,
+            IProgress<DownloadProgress>? progress, bool isManualRequest, CancellationToken ct)
+        {
+            // A completed competing request may already have produced the payload before this reservation.
+            if (HasPendingAppUpdate)
+            {
+                return true;
+            }
+
             // Surface download progress and validate the shipped update source before touching disk.
             var operationKey = NotificationCenter.BuildOperationKey("app-update", candidate.TargetId);
             await _notifications.StartDownloadAsync(
@@ -712,11 +766,13 @@ namespace ASLM.Services.Internal
             TryDeleteDirectory(stagingRoot);
             Directory.CreateDirectory(extractDir);
 
-            var notificationProgress = _notifications.CreateDownloadProgressBridge(operationKey, progress);
+            var notificationProgress = operation.WrapProgress(
+                _notifications.CreateDownloadProgressBridge(operationKey, progress));
 
             try
             {
                 // Download, extract off the UI thread, then persist pending.json for the patcher.
+                operation.SetPhase(UpdateOperationPhase.Downloading);
                 await _github.DownloadFileAsync(
                     candidate.DownloadUrl,
                     archivePath,
@@ -724,6 +780,7 @@ namespace ASLM.Services.Internal
                     notificationProgress,
                     ResolveRequestSource(isManualRequest),
                     ct);
+                operation.SetPhase(UpdateOperationPhase.Applying);
                 var payloadDir = await Task.Run(() =>
                 {
                     // Archive extraction and payload inspection can touch a lot of files, so keep it off the UI thread.
@@ -1178,22 +1235,39 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Downloads and applies one engine runtime update.
         /// </summary>
-        public async Task<bool> ApplyEngineUpdateAsync(
+        public Task<bool> ApplyEngineUpdateAsync(
             UpdateCandidate candidate,
             IProgress<string>? log = null,
             IProgress<DownloadProgress>? progress = null,
             bool isManualRequest = false,
             CancellationToken ct = default)
         {
+            // Engine reservations are independent, but every caller for the same engine joins one task.
+            var engineId = candidate.Engine?.Id ?? candidate.TargetId;
+            return _updateOperations.RunAsync(NotificationCenter.BuildOperationKey("engine", engineId),
+                candidate.ReleaseTag ?? candidate.RemoteVersion,
+                operation => ApplyEngineUpdateCoreAsync(candidate, operation, log, progress, isManualRequest, ct), ct);
+        }
+
+        /// <summary>
+        /// Applies one reserved engine update and retains its state through dependent module restarts.
+        /// </summary>
+        private async Task<bool> ApplyEngineUpdateCoreAsync(UpdateCandidate candidate,
+            UpdateOperationTracker.Operation updateOperation, IProgress<string>? log,
+            IProgress<DownloadProgress>? progress, bool isManualRequest, CancellationToken ct)
+        {
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct).ConfigureAwait(false);
             var engine = candidate.Engine ?? throw new InvalidOperationException(
                 "Engine update candidate does not contain engine metadata.");
+            // A card may retain an old candidate after another caller finished updating this engine.
+            engine = _engineInstaller.DiscoverEngines().FirstOrDefault(current =>
+                string.Equals(current.SourcePath, engine.SourcePath, StringComparison.OrdinalIgnoreCase)) ?? engine;
             engine.Normalize();
 
             if (IsEngineAlreadyAtInstallTarget(engine, candidate))
             {
                 log?.Report("The selected version is already installed.");
-                return false;
+                return true;
             }
 
             var operationKey = NotificationCenter.BuildOperationKey("engine-update", engine.Id);
@@ -1225,7 +1299,9 @@ namespace ASLM.Services.Internal
             try
             {
                 log?.Report($"Downloading {engine.Name} {candidate.RemoteVersion}...");
-                var notificationProgress = _notifications.CreateDownloadProgressBridge(operationKey, progress);
+                var notificationProgress = updateOperation.WrapProgress(
+                    _notifications.CreateDownloadProgressBridge(operationKey, progress));
+                updateOperation.SetPhase(UpdateOperationPhase.Downloading);
                 await _github.DownloadFileAsync(
                     candidate.DownloadUrl,
                     archivePath,
@@ -1233,6 +1309,8 @@ namespace ASLM.Services.Internal
                     notificationProgress,
                     ResolveRequestSource(isManualRequest),
                     ct);
+
+                updateOperation.SetPhase(UpdateOperationPhase.Applying);
 
                 enabledModuleSourcePaths = await CaptureEnabledModuleSourcePathsAsync(ct);
                 await StopModulesForEngineUpdateAsync(engine, engineDir, enabledModuleSourcePaths, log, ct);

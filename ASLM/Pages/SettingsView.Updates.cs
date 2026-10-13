@@ -8,10 +8,9 @@ namespace ASLM.Pages
     public partial class SettingsView
     {
         private const string MissingVersionDisplay = "—";
-        private static readonly TimeSpan DownloadProgressUpdateInterval = TimeSpan.FromMilliseconds(100);
-
-        private bool _isAslmUpdateDownloadRunning;
-        private bool _isOllamaUpdateDownloadRunning;
+        private int _updateOperationRefreshQueued;
+        private UpdateOperationPhase? _shownAppUpdatePhase;
+        private UpdateOperationPhase? _shownOllamaUpdatePhase;
 
 
         // Update state
@@ -113,7 +112,8 @@ namespace ASLM.Pages
         /// </summary>
         private void RefreshAslmVersionInformation()
         {
-            var availableVersion = ResolveCandidateDisplayVersion(_pendingAppUpdateCandidate);
+            var availableVersion = _updateManager.GetUpdateOperation("app", "aslm")?.Version
+                ?? ResolveCandidateDisplayVersion(_pendingAppUpdateCandidate);
             if (string.IsNullOrWhiteSpace(availableVersion))
             {
                 availableVersion = _updateManager.TryGetPendingPreparedAppVersion()?.Trim();
@@ -139,7 +139,8 @@ namespace ASLM.Pages
                 _ollamaInstalledVersionLabel,
                 _ollamaAvailableVersionLabel,
                 installedVersion,
-                ResolveCandidateDisplayVersion(_pendingOllamaUpdateCandidate));
+                _updateManager.GetUpdateOperation("engine", "ollama-service")?.Version
+                    ?? ResolveCandidateDisplayVersion(_pendingOllamaUpdateCandidate));
         }
 
         /// <summary>
@@ -147,6 +148,12 @@ namespace ASLM.Pages
         /// </summary>
         private async Task RefreshOllamaVersionDisplayAsync()
         {
+            // Do not probe or rewrite runtime metadata while the engine is being replaced.
+            if (_updateManager.GetUpdateOperation("engine", "ollama-service") != null)
+            {
+                return;
+            }
+
             var engine = ResolveOllamaEngineConfig();
             if (engine?.Status.Installed != true)
             {
@@ -156,7 +163,11 @@ namespace ASLM.Pages
             try
             {
                 await _updateManager.TrySyncEngineInstalledReleaseTagFromRuntimeAsync(engine, isManualRequest: false);
-                _engineInstaller.InvalidateCache();
+                if (_updateManager.GetUpdateOperation("engine", "ollama-service") != null)
+                {
+                    return;
+                }
+                // The update manager invalidates discovery only when it actually changes the manifest.
                 engine = ResolveOllamaEngineConfig();
                 if (engine == null)
                 {
@@ -166,6 +177,10 @@ namespace ASLM.Pages
                 var version = ResolveOllamaDisplayVersion(engine);
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
+                    if (_updateManager.GetUpdateOperation("engine", "ollama-service") != null)
+                    {
+                        return;
+                    }
                     SetVersionInformation(
                         _ollamaInstalledVersionLabel,
                         _ollamaAvailableVersionLabel,
@@ -180,12 +195,14 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Reloads update candidates and action visibility from the shared scheduler state.
+        /// Reloads candidates, versions, and action visibility from shared update services.
         /// </summary>
         private void ResetUpdateActionControls()
         {
             _pendingAppUpdateCandidate = _updateScheduler.GetAvailableAppUpdate();
             _pendingOllamaUpdateCandidate = _updateScheduler.GetAvailableOllamaUpdate();
+            var appOperation = _updateManager.GetUpdateOperation("app", "aslm");
+            var ollamaOperation = _updateManager.GetUpdateOperation("engine", "ollama-service");
 
             // ASLM switches from download to installation as soon as the patcher payload is prepared.
             var hasPreparedAppUpdate = _updateManager.HasPendingAppUpdate;
@@ -193,43 +210,30 @@ namespace ASLM.Pages
             RefreshAslmVersionInformation();
             if (_prepareAppUpdateHost != null)
             {
-                _prepareAppUpdateHost.IsVisible = hasDownloadableAppUpdate;
+                _prepareAppUpdateHost.IsVisible = appOperation != null || hasDownloadableAppUpdate;
             }
 
             if (_restartAppUpdateButton != null)
             {
-                _restartAppUpdateButton.IsVisible = hasPreparedAppUpdate;
+                // A pending manifest can appear before staging cleanup finishes; wait for the operation.
+                _restartAppUpdateButton.IsVisible = hasPreparedAppUpdate && appOperation == null;
             }
 
             if (_aslmUpdateActionHost != null)
             {
-                _aslmUpdateActionHost.IsVisible = hasDownloadableAppUpdate || hasPreparedAppUpdate;
+                _aslmUpdateActionHost.IsVisible = appOperation != null || hasDownloadableAppUpdate || hasPreparedAppUpdate;
             }
-
-            SetDownloadProgressState(
-                _prepareAppUpdateButton,
-                _prepareAppUpdateProgress,
-                _prepareAppUpdateSpinner,
-                _prepareAppUpdateProgressPercent,
-                isRunning: false,
-                fraction: 0);
 
             // Ollama exposes its download action only while the persisted candidate remains actionable.
             var engine = ResolveOllamaEngineConfig();
             RefreshOllamaVersionInformation(engine);
             if (_ollamaUpdateHost != null)
             {
-                _ollamaUpdateHost.IsVisible = engine?.Status.Installed == true &&
-                                              _pendingOllamaUpdateCandidate != null;
+                _ollamaUpdateHost.IsVisible = ollamaOperation != null ||
+                    (engine?.Status.Installed == true && _pendingOllamaUpdateCandidate != null);
             }
 
-            SetDownloadProgressState(
-                _ollamaUpdateButton,
-                _ollamaUpdateProgress,
-                _ollamaUpdateSpinner,
-                _ollamaUpdateProgressPercent,
-                isRunning: false,
-                fraction: 0);
+            RefreshUpdateProgressControls(appOperation, ollamaOperation);
 
             _ = RefreshOllamaVersionDisplayAsync();
         }
@@ -238,7 +242,7 @@ namespace ASLM.Pages
         // Scheduler integration
 
         /// <summary>
-        /// Subscribes the visible settings view to shared background update results once.
+        /// Subscribes the visible settings view to candidates and live operations, then restores their snapshots.
         /// </summary>
         private void AttachUpdateSchedulerHandler()
         {
@@ -248,7 +252,10 @@ namespace ASLM.Pages
             }
 
             _updateScheduler.UpdateStateChanged += OnUpdateSchedulerStateChanged;
+            _updateManager.UpdateOperationStateChanged += OnUpdateOperationStateChanged;
             _isUpdateSchedulerSubscribed = true;
+            // A cached view may reopen halfway through an automatic download or engine replacement.
+            ResetUpdateActionControls();
         }
 
         /// <summary>
@@ -262,6 +269,7 @@ namespace ASLM.Pages
             }
 
             _updateScheduler.UpdateStateChanged -= OnUpdateSchedulerStateChanged;
+            _updateManager.UpdateOperationStateChanged -= OnUpdateOperationStateChanged;
             _isUpdateSchedulerSubscribed = false;
         }
 
@@ -272,7 +280,7 @@ namespace ASLM.Pages
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (_isAslmUpdateDownloadRunning || _isOllamaUpdateDownloadRunning)
+                if (!_isUpdateSchedulerSubscribed)
                 {
                     return;
                 }
@@ -281,46 +289,73 @@ namespace ASLM.Pages
             });
         }
 
-
-        // Download presentation
-
         /// <summary>
-        /// Creates a UI progress sink that limits visual updates to ten times per second.
+        /// Coalesces live update samples and refreshes metadata only when an operation's stage changes.
         /// </summary>
-        private static IProgress<DownloadProgress> CreateThrottledDownloadProgress(
-            Action<double> applyProgress)
+        private void OnUpdateOperationStateChanged(object? sender, EventArgs e)
         {
-            var lastUpdateUtc = DateTimeOffset.MinValue;
-            return new Progress<DownloadProgress>(progress =>
+            if (Interlocked.Exchange(ref _updateOperationRefreshQueued, 1) == 1)
             {
-                var now = DateTimeOffset.UtcNow;
-                if (progress.Fraction < 1 && now - lastUpdateUtc < DownloadProgressUpdateInterval)
+                return;
+            }
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                Interlocked.Exchange(ref _updateOperationRefreshQueued, 0);
+                if (!_isUpdateSchedulerSubscribed)
                 {
                     return;
                 }
 
-                lastUpdateUtc = now;
-                applyProgress(Math.Clamp(progress.Fraction, 0, 1));
+                var appOperation = _updateManager.GetUpdateOperation("app", "aslm");
+                var ollamaOperation = _updateManager.GetUpdateOperation("engine", "ollama-service");
+                // Download samples only change inline progress, not engine discovery or version probes.
+                if (_shownAppUpdatePhase != appOperation?.Phase || _shownOllamaUpdatePhase != ollamaOperation?.Phase)
+                {
+                    ResetUpdateActionControls();
+                }
+                else
+                {
+                    RefreshUpdateProgressControls(appOperation, ollamaOperation);
+                }
             });
         }
 
+
+        // Operation presentation
+
         /// <summary>
-        /// Switches one update button between its normal label and inline download progress.
+        /// Restores both inline operation presentations from the latest shared snapshots.
         /// </summary>
-        private static void SetDownloadProgressState(
+        private void RefreshUpdateProgressControls(UpdateOperationSnapshot? appOperation,
+            UpdateOperationSnapshot? ollamaOperation)
+        {
+            _shownAppUpdatePhase = appOperation?.Phase;
+            _shownOllamaUpdatePhase = ollamaOperation?.Phase;
+            SetUpdateOperationState(_prepareAppUpdateButton, _prepareAppUpdateProgress, _prepareAppUpdateSpinner,
+                _prepareAppUpdateProgressText, _prepareAppUpdateProgressPercent, appOperation, isAppUpdate: true);
+            SetUpdateOperationState(_ollamaUpdateButton, _ollamaUpdateProgress, _ollamaUpdateSpinner,
+                _ollamaUpdateProgressText, _ollamaUpdateProgressPercent, ollamaOperation, isAppUpdate: false);
+        }
+
+        /// <summary>
+        /// Replaces one actionable button with the current operation stage and measurable download progress.
+        /// </summary>
+        private static void SetUpdateOperationState(
             Button? button,
             HorizontalStackLayout? progressContent,
             ActivityIndicator? spinner,
+            Label? progressText,
             Label? progressPercent,
-            bool isRunning,
-            double fraction)
+            UpdateOperationSnapshot? operation,
+            bool isAppUpdate)
         {
+            var isRunning = operation != null;
             if (button != null)
             {
                 button.IsEnabled = !isRunning;
-                button.Text = isRunning
-                    ? string.Empty
-                    : L.Get(LocalizationKeys.Settings_DownloadUpdate);
+                button.IsVisible = !isRunning;
+                button.Text = L.Get(LocalizationKeys.Settings_DownloadUpdate);
             }
 
             if (progressContent != null)
@@ -335,8 +370,22 @@ namespace ASLM.Pages
 
             if (progressPercent != null)
             {
-                var percentage = (int)Math.Round(Math.Clamp(fraction, 0, 1) * 100);
-                progressPercent.Text = isRunning ? $"{percentage}%" : string.Empty;
+                // Applying an archive is not a 100% network transfer; hide percentages until measurable.
+                var hasDownloadProgress = operation?.Phase == UpdateOperationPhase.Downloading &&
+                    operation.DownloadFraction.HasValue;
+                progressPercent.IsVisible = hasDownloadProgress;
+                progressPercent.Text = hasDownloadProgress
+                    ? $"{(int)Math.Round(operation!.DownloadFraction!.Value * 100)}%" : string.Empty;
+            }
+
+            if (progressText != null)
+            {
+                progressText.Text = operation == null ? string.Empty : L.Get(operation.Phase switch
+                {
+                    UpdateOperationPhase.Downloading => LocalizationKeys.Settings_Downloading,
+                    UpdateOperationPhase.Applying when !isAppUpdate => LocalizationKeys.Modules_Updating,
+                    _ => LocalizationKeys.SetupWizard_Preparing
+                });
             }
         }
 
@@ -349,34 +398,17 @@ namespace ASLM.Pages
         private async void OnUpdateOllamaClicked(object? sender, EventArgs e)
         {
             var candidate = _pendingOllamaUpdateCandidate;
-            if (candidate == null || _isOllamaUpdateDownloadRunning)
+            if (candidate == null || _updateManager.GetUpdateOperation("engine", "ollama-service") != null)
             {
                 return;
             }
 
-            _isOllamaUpdateDownloadRunning = true;
-            SetDownloadProgressState(
-                _ollamaUpdateButton,
-                _ollamaUpdateProgress,
-                _ollamaUpdateSpinner,
-                _ollamaUpdateProgressPercent,
-                isRunning: true,
-                fraction: 0);
-
             try
             {
-                var progress = CreateThrottledDownloadProgress(fraction =>
-                    SetDownloadProgressState(
-                        _ollamaUpdateButton,
-                        _ollamaUpdateProgress,
-                        _ollamaUpdateSpinner,
-                        _ollamaUpdateProgressPercent,
-                        isRunning: true,
-                        fraction));
+                // Every caller is observed through the service; there is no view-local progress state.
                 var success = await Task.Run(() => _updateManager.ApplyEngineUpdateAsync(
                     candidate,
                     log: null,
-                    progress: progress,
                     isManualRequest: true));
 
                 if (!success)
@@ -396,7 +428,6 @@ namespace ASLM.Pages
             }
             finally
             {
-                _isOllamaUpdateDownloadRunning = false;
                 ResetUpdateActionControls();
             }
         }
@@ -407,34 +438,17 @@ namespace ASLM.Pages
         private async void OnPrepareAppUpdateClicked(object? sender, EventArgs e)
         {
             var candidate = _pendingAppUpdateCandidate;
-            if (candidate == null || _isAslmUpdateDownloadRunning)
+            if (candidate == null || _updateManager.GetUpdateOperation("app", "aslm") != null)
             {
                 return;
             }
 
-            _isAslmUpdateDownloadRunning = true;
-            SetDownloadProgressState(
-                _prepareAppUpdateButton,
-                _prepareAppUpdateProgress,
-                _prepareAppUpdateSpinner,
-                _prepareAppUpdateProgressPercent,
-                isRunning: true,
-                fraction: 0);
-
             try
             {
-                var progress = CreateThrottledDownloadProgress(fraction =>
-                    SetDownloadProgressState(
-                        _prepareAppUpdateButton,
-                        _prepareAppUpdateProgress,
-                        _prepareAppUpdateSpinner,
-                        _prepareAppUpdateProgressPercent,
-                        isRunning: true,
-                        fraction));
+                // Automatic and manual staging publish the same operation snapshots and action state.
                 var success = await Task.Run(() => _updateManager.PrepareAppUpdateAsync(
                     candidate,
                     log: null,
-                    progress: progress,
                     isManualRequest: true));
 
                 if (!success)
@@ -453,7 +467,6 @@ namespace ASLM.Pages
             }
             finally
             {
-                _isAslmUpdateDownloadRunning = false;
                 ResetUpdateActionControls();
             }
         }

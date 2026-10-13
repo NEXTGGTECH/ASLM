@@ -89,6 +89,7 @@ namespace ASLM.Pages
         private Button? _prepareAppUpdateButton;
         private HorizontalStackLayout? _prepareAppUpdateProgress;
         private ActivityIndicator? _prepareAppUpdateSpinner;
+        private Label? _prepareAppUpdateProgressText;
         private Label? _prepareAppUpdateProgressPercent;
         private Button? _restartAppUpdateButton;
         private UpdateCandidate? _pendingAppUpdateCandidate;
@@ -96,6 +97,7 @@ namespace ASLM.Pages
         private Button? _ollamaUpdateButton;
         private HorizontalStackLayout? _ollamaUpdateProgress;
         private ActivityIndicator? _ollamaUpdateSpinner;
+        private Label? _ollamaUpdateProgressText;
         private Label? _ollamaUpdateProgressPercent;
         private Label? _ollamaInstalledVersionLabel;
         private Label? _ollamaAvailableVersionLabel;
@@ -332,12 +334,14 @@ namespace ASLM.Pages
             _prepareAppUpdateButton = BuiltInSettingsContainer.PrepareAppUpdateAction;
             _prepareAppUpdateProgress = BuiltInSettingsContainer.PrepareAppUpdateProgressContent;
             _prepareAppUpdateSpinner = BuiltInSettingsContainer.PrepareAppUpdateProgressSpinner;
+            _prepareAppUpdateProgressText = BuiltInSettingsContainer.PrepareAppUpdateProgressStatus;
             _prepareAppUpdateProgressPercent = BuiltInSettingsContainer.PrepareAppUpdateProgressValue;
             _restartAppUpdateButton = BuiltInSettingsContainer.RestartAppUpdateAction;
             _ollamaUpdateHost = BuiltInSettingsContainer.OllamaUpdateContainer;
             _ollamaUpdateButton = BuiltInSettingsContainer.OllamaUpdateAction;
             _ollamaUpdateProgress = BuiltInSettingsContainer.OllamaUpdateProgressContent;
             _ollamaUpdateSpinner = BuiltInSettingsContainer.OllamaUpdateProgressSpinner;
+            _ollamaUpdateProgressText = BuiltInSettingsContainer.OllamaUpdateProgressStatus;
             _ollamaUpdateProgressPercent = BuiltInSettingsContainer.OllamaUpdateProgressValue;
             _ollamaInstalledVersionLabel = BuiltInSettingsContainer.OllamaInstalledVersion;
             _ollamaAvailableVersionLabel = BuiltInSettingsContainer.OllamaAvailableVersion;
@@ -584,8 +588,8 @@ namespace ASLM.Pages
             SettingsSidebarTitleLabel.Text = L.Get(LocalizationKeys.Settings_Title);
             ToolTipProperties.SetText(CloseSettingsButton, L.Get(LocalizationKeys.Settings_CloseTooltip));
             BuiltInSettingsContainer.ApplyLocalization();
-            RefreshAslmVersionInformation();
-            RefreshOllamaVersionInformation();
+            // Localization must not replace an active operation's label with the default download text.
+            ResetUpdateActionControls();
 
             DefaultButton.Text = L.Get(LocalizationKeys.Settings_LoadDefault);
             DiscardButton.Text = L.Get(LocalizationKeys.Settings_DiscardChanges);
