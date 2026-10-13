@@ -1474,12 +1474,15 @@ namespace ASLM.Pages
                 return;
             }
 
+            // A full page switch must load a fresh document even when the native browser kept the same URL.
+            var forceNavigation = !Browser.IsVisible ||
+                !string.Equals(_activeModule?.Id, resolved.Id, StringComparison.OrdinalIgnoreCase);
             _activeModule = resolved;
             var url = _ports.GetModuleUrl(resolved);
 
             ContentArea.Content = null;
             EnsureModuleBrowserLeftToRight();
-            NavigateModuleBrowser(url);
+            NavigateModuleBrowser(url, force: forceNavigation);
             Browser.IsVisible = true;
             ScheduleEnsureModuleBrowserLeftToRight();
 
@@ -1643,9 +1646,9 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Navigates the shared module browser to one local module URL.
+        /// Navigates the shared module browser, optionally reloading its URL after a full page switch.
         /// </summary>
-        private void NavigateModuleBrowser(string url)
+        private void NavigateModuleBrowser(string url, bool force = false)
         {
             if (string.IsNullOrWhiteSpace(url))
             {
@@ -1657,7 +1660,7 @@ namespace ASLM.Pages
 #endif
             var sequence = Interlocked.Increment(ref _moduleBrowserNavigationSequence);
             _moduleBrowserExpectedUrl = url;
-            MainThread.BeginInvokeOnMainThread(() => ApplyModuleBrowserNavigation(sequence, url));
+            MainThread.BeginInvokeOnMainThread(() => ApplyModuleBrowserNavigation(sequence, url, force));
         }
 
         /// <summary>
