@@ -69,12 +69,9 @@ namespace ASLM.Services.Internal
             // Labels
             ["LabelPrimary"]    = C("#FFFFFF"),
             ["LabelSecondary"]  = C("#99EBEBF5"),
-            ["LabelTertiary"]   = C("#4DEBEBF5"),
-            ["LabelQuaternary"] = C("#2EEBEBF5"),
 
             // Utility
             ["Separator"]         = C("#38383A"),
-            ["PlaceholderText"]   = C("#4DEBEBF5"),
             ["LinkColor"]         = C("#0984FF"),
             ["SystemBlueOverlay"] = C("#200A84FF"),
 
@@ -87,8 +84,6 @@ namespace ASLM.Services.Internal
             ["ActionGreen"] = C("#32D74B"),
 
             ["OverlayBackground"] = C("#40000000"),
-
-            ["BackgroundErrorOverlay"] = C("#4C1F24"),
         };
 
 
@@ -123,11 +118,8 @@ namespace ASLM.Services.Internal
 
             ["LabelPrimary"]    = C("#000000"),
             ["LabelSecondary"]  = C("#636366"),
-            ["LabelTertiary"]   = C("#8E8E93"),
-            ["LabelQuaternary"] = C("#AEAEB2"),
 
             ["Separator"]         = C("#B0B0B6"),
-            ["PlaceholderText"]   = C("#8E8E93"),
             ["LinkColor"]         = C("#007AFF"),
             ["SystemBlueOverlay"] = C("#20007AFF"),
 
@@ -139,8 +131,6 @@ namespace ASLM.Services.Internal
             ["ActionGreen"] = C("#34C759"),
 
             ["OverlayBackground"] = C("#59000000"),
-
-            ["BackgroundErrorOverlay"] = C("#FFEBEC"),
         };
 
 

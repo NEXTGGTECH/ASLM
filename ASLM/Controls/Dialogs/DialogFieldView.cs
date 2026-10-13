@@ -66,7 +66,7 @@ internal sealed class DialogFieldView : ContentView, IDisposable
                 IsSpellCheckEnabled = false, IsTextPredictionEnabled = false,
                 Keyboard = field.Kind is DialogFieldKind.Integer or DialogFieldKind.Decimal ? Keyboard.Numeric : Keyboard.Text };
             _entry.SetDynamicResource(Entry.TextColorProperty, "LabelPrimary");
-            _entry.SetDynamicResource(Entry.PlaceholderColorProperty, "PlaceholderText");
+            _entry.SetDynamicResource(Entry.PlaceholderColorProperty, "LabelSecondary");
             SettingsControlChrome.SetFlatEntry(_entry, true);
             _entry.TextChanged += (_, e) => { if (!_syncing) field.Value = e.NewTextValue; };
             _entry.Completed += async (_, _) => await submit();

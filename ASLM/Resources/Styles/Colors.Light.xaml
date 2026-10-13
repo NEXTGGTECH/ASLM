@@ -33,12 +33,9 @@
     <!-- Labels -->
     <Color x:Key="LabelPrimary">#000000</Color>
     <Color x:Key="LabelSecondary">#636366</Color>
-    <Color x:Key="LabelTertiary">#8E8E93</Color>
-    <Color x:Key="LabelQuaternary">#AEAEB2</Color>
 
     <!-- Utility colors -->
     <Color x:Key="Separator">#B0B0B6</Color>
-    <Color x:Key="PlaceholderText">#8E8E93</Color>
     <Color x:Key="LinkColor">#007AFF</Color>
     <Color x:Key="SystemBlueOverlay">#20007AFF</Color>
 
@@ -51,9 +48,6 @@
     <Color x:Key="ActionGreen">#34C759</Color>
 
     <Color x:Key="OverlayBackground">#59000000</Color>
-
-    <!-- Error overlay -->
-    <Color x:Key="BackgroundErrorOverlay">#FFEBEC</Color>
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource ActionBlue}" />

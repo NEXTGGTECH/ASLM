@@ -173,7 +173,7 @@
                            Placeholder="Your name"
                            FontSize="16"
                            TextColor="{DynamicResource LabelPrimary}"
-                           PlaceholderColor="{DynamicResource PlaceholderText}"
+                           PlaceholderColor="{DynamicResource LabelSecondary}"
                            BackgroundColor="{DynamicResource BackgroundSecondary}" />
                 </VerticalStackLayout>
 
