@@ -4,12 +4,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:services="clr-namespace:ASLM.Services.Internal"
              xmlns:settings="clr-namespace:ASLM.Controls.Settings"
+             xmlns:dialogs="clr-namespace:ASLM.Controls.Dialogs"
              x:Class="ASLM.Pages.SetupWizardPage"
              x:Name="RootView"
              Title="ASLM Setup"
              BackgroundColor="{DynamicResource BackgroundPrimary}">
 
     <Grid>
+        <Grid x:Name="SetupSurface">
         <Grid RowDefinitions="Auto, *, Auto" Padding="16">
 
         <!-- Header (hidden on welcome step) -->
@@ -171,7 +173,7 @@
                            Placeholder="Your name"
                            FontSize="16"
                            TextColor="{DynamicResource LabelPrimary}"
-                           PlaceholderColor="{DynamicResource PlaceholderText}"
+                           PlaceholderColor="{DynamicResource LabelSecondary}"
                            BackgroundColor="{DynamicResource BackgroundSecondary}" />
                 </VerticalStackLayout>
 
@@ -316,6 +318,8 @@
         <ContentView x:Name="OverlayContainer"
                      IsVisible="False"
                      BackgroundColor="Transparent" />
+        <ContentView x:Name="GitHubAccountsOverlay" IsVisible="False" />
+        </Grid>
+        <dialogs:DialogHostView x:Name="Dialogs" />
     </Grid>
-
 </ContentPage>

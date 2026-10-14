@@ -66,7 +66,7 @@ namespace ASLM.Services.Internal
             const string url = "https://api.github.com/rate_limit";
             using var request = CreateAuthorizedGetRequest(url);
             using var response = await _httpClient.SendAsync(request, ct);
-            ApplyRateLimitHeaders(response);
+            ApplyRateLimitHeaders(response, request);
             _rateLimitStore.RecordRequest(url, GitHubRequestTypes.RateLimit, requestSource, (int)response.StatusCode);
             if (!response.IsSuccessStatusCode)
             {
@@ -78,7 +78,7 @@ namespace ASLM.Services.Internal
             var core = payload?.Resources?.Core;
             if (core != null)
             {
-                _rateLimitStore.UpdateFromHeaders(core.Limit, core.Remaining, core.Reset);
+                _rateLimitStore.UpdateFromHeaders(core.Limit, core.Remaining, core.Reset, request.Headers.Authorization != null);
             }
         }
 
@@ -190,7 +190,7 @@ namespace ASLM.Services.Internal
             request.Headers.Accept.Clear();
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.raw+json"));
             using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            ApplyRateLimitHeaders(response);
+            ApplyRateLimitHeaders(response, request);
             _rateLimitStore.RecordRequest(url, GitHubRequestTypes.Download, GitHubRequestSources.Manual, (int)response.StatusCode);
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength > maxBytes) throw new InvalidDataException("Repository file is too large.");
@@ -222,7 +222,7 @@ namespace ASLM.Services.Internal
 
             using var request = CreateAuthorizedGetRequest(url);
             using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            ApplyRateLimitHeaders(response);
+            ApplyRateLimitHeaders(response, request);
             _rateLimitStore.RecordRequest(
                 url,
                 ResolveDownloadRequestType(url),
@@ -395,7 +395,7 @@ namespace ASLM.Services.Internal
         {
             using var request = CreateAuthorizedGetRequest(url);
             using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-            ApplyRateLimitHeaders(response);
+            ApplyRateLimitHeaders(response, request);
             _rateLimitStore.RecordRequest(url, requestType, requestSource, (int)response.StatusCode);
             response.EnsureSuccessStatusCode();
 
@@ -409,15 +409,18 @@ namespace ASLM.Services.Internal
         private HttpRequestMessage CreateAuthorizedGetRequest(string url)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
-            ApplyAuthorizationHeader(request);
+            PrepareApiRequest(request);
             return request;
         }
 
         /// <summary>
         /// Applies the persisted GitHub bearer token when one is configured.
         /// </summary>
-        private void ApplyAuthorizationHeader(HttpRequestMessage request)
+        internal void PrepareApiRequest(HttpRequestMessage request)
         {
+            if (!IsGitHubApiRequest(request)) return;
+            request.Headers.UserAgent.ParseAdd("ASLM-Updater");
+            request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28");
             var token = _githubAccountStore.GetPersonalAccessToken();
             if (!string.IsNullOrWhiteSpace(token))
             {
@@ -428,49 +431,24 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Applies GitHub rate-limit headers when they are present on a response.
         /// </summary>
-        private void ApplyRateLimitHeaders(HttpResponseMessage response)
+        private void ApplyRateLimitHeaders(HttpResponseMessage response, HttpRequestMessage request)
         {
-            if (!TryReadRateLimitHeaders(response, out var limit, out var remaining, out var resetEpoch))
-            {
-                return;
-            }
-
-            _rateLimitStore.UpdateFromHeaders(limit, remaining, resetEpoch);
+            if (IsGitHubApiRequest(request))
+                _rateLimitStore.UpdateFromResponse(response, request.Headers.Authorization != null);
         }
 
-        /// <summary>
-        /// Reads GitHub rate-limit headers from one HTTP response.
-        /// </summary>
-        private static bool TryReadRateLimitHeaders(
-            HttpResponseMessage response,
-            out int limit,
-            out int remaining,
-            out long resetEpoch)
+        /// <summary>Shares quota tracking with direct module/engine archive downloads.</summary>
+        internal void TrackApiResponse(HttpRequestMessage request, HttpResponseMessage response)
         {
-            limit = 0;
-            remaining = 0;
-            resetEpoch = 0;
-
-            if (!response.Headers.TryGetValues("X-RateLimit-Limit", out var limitValues) ||
-                !int.TryParse(limitValues.FirstOrDefault(), out limit))
-            {
-                return false;
-            }
-
-            if (!response.Headers.TryGetValues("X-RateLimit-Remaining", out var remainingValues) ||
-                !int.TryParse(remainingValues.FirstOrDefault(), out remaining))
-            {
-                return false;
-            }
-
-            if (!response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues) ||
-                !long.TryParse(resetValues.FirstOrDefault(), out resetEpoch))
-            {
-                return false;
-            }
-
-            return true;
+            if (!IsGitHubApiRequest(request)) return;
+            ApplyRateLimitHeaders(response, request);
+            _rateLimitStore.RecordRequest(request.RequestUri!.AbsoluteUri, GitHubRequestTypes.Download,
+                GitHubRequestSources.Manual, (int)response.StatusCode);
         }
+
+        private static bool IsGitHubApiRequest(HttpRequestMessage request) =>
+            request.RequestUri is { Scheme: "https" } uri &&
+            string.Equals(uri.Host, "api.github.com", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Resolves the persisted request type for one download URL.

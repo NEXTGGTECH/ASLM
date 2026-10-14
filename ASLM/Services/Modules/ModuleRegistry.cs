@@ -10,6 +10,12 @@ namespace ASLM.Services.Modules;
 /// </summary>
 public sealed class ModuleRegistry
 {
+    // Host policy, not a module-controlled manifest flag or a user preference.
+    public static IReadOnlyList<string> RequiredModuleIds { get; } = Array.AsReadOnly<string>(["aslm-chat"]);
+
+    public static bool IsRequired(string moduleId) =>
+        RequiredModuleIds.Contains(moduleId, StringComparer.OrdinalIgnoreCase);
+
     private static readonly object FileLock = new();
     private readonly string _root;
 

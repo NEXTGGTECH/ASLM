@@ -8,6 +8,104 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:shimmer="clr-namespace:Syncfusion.Maui.Toolkit.Shimmer;assembly=Syncfusion.Maui.Toolkit">
 
+    <!-- Shared module development badges; used beside the version on all module cards. -->
+    <ControlTemplate x:Key="ModuleDevelopmentBadgesTemplate">
+        <HorizontalStackLayout BindingContext="{TemplateBinding BindingContext}"
+                               Spacing="4"
+                               VerticalOptions="Center">
+            <Border IsVisible="False"
+                    Background="{DynamicResource SystemOrange}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 2"
+                    HeightRequest="24"
+                    Padding="4,0"
+                    VerticalOptions="Center">
+                <Border.Triggers>
+                    <MultiTrigger TargetType="Border">
+                        <MultiTrigger.Conditions>
+                            <BindingCondition Binding="{Binding IsBeta}"
+                                              Value="True" />
+                            <BindingCondition Binding="{Binding IsExperimental}"
+                                              Value="False" />
+                        </MultiTrigger.Conditions>
+                        <Setter Property="IsVisible"
+                                Value="True" />
+                    </MultiTrigger>
+                </Border.Triggers>
+                <HorizontalStackLayout Spacing="4"
+                                       VerticalOptions="Center">
+                    <Image Source="icon_warning.png"
+                           WidthRequest="20"
+                           HeightRequest="20"
+                           VerticalOptions="Center"
+                           Aspect="AspectFit" />
+                    <Label Text="{Binding BetaLabel}"
+                           FontSize="14"
+                           TextColor="{DynamicResource White}"
+                           VerticalOptions="Center"
+                           LineBreakMode="NoWrap" />
+                </HorizontalStackLayout>
+            </Border>
+            <Border IsVisible="{Binding IsExperimental}"
+                    Background="{DynamicResource SystemPurple}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 2"
+                    HeightRequest="24"
+                    Padding="4,0"
+                    VerticalOptions="Center">
+                <HorizontalStackLayout Spacing="4"
+                                       VerticalOptions="Center">
+                    <Image Source="icon_warning.png"
+                           WidthRequest="20"
+                           HeightRequest="20"
+                           VerticalOptions="Center"
+                           Aspect="AspectFit" />
+                    <Label Text="{Binding ExperimentalLabel}"
+                           FontSize="14"
+                           TextColor="{DynamicResource White}"
+                           VerticalOptions="Center"
+                           LineBreakMode="NoWrap" />
+                </HorizontalStackLayout>
+            </Border>
+        </HorizontalStackLayout>
+    </ControlTemplate>
+
+    <!-- Shared installation/queue status on dashboard and download cards. -->
+    <ControlTemplate x:Key="ModuleMaintenanceStatusTemplate">
+        <Border BindingContext="{TemplateBinding BindingContext}"
+                BackgroundColor="#2032D74B"
+                Stroke="{DynamicResource SystemGreen}"
+                StrokeShape="RoundRectangle 4"
+                StrokeThickness="1"
+                StrokeDashArray="4,2"
+                Padding="0"
+                MinimumHeightRequest="44"
+                HorizontalOptions="Fill"
+                VerticalOptions="Fill">
+            <Border.Triggers>
+                <DataTrigger TargetType="Border"
+                             Binding="{Binding IsRemoving}"
+                             Value="True">
+                    <Setter Property="BackgroundColor" Value="Transparent" />
+                    <Setter Property="Stroke" Value="{DynamicResource ActionRed}" />
+                </DataTrigger>
+            </Border.Triggers>
+            <HorizontalStackLayout HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   Spacing="8">
+                <ActivityIndicator IsRunning="{Binding ShowMaintenanceStatus}"
+                                   Color="{DynamicResource LabelPrimary}"
+                                   WidthRequest="16"
+                                   HeightRequest="16"
+                                   VerticalOptions="Center" />
+                <Label Text="{Binding MaintenanceLabel}"
+                       TextColor="{DynamicResource LabelPrimary}"
+                       FontSize="13"
+                       VerticalOptions="Center" />
+            </HorizontalStackLayout>
+        </Border>
+    </ControlTemplate>
+
     <!-- Core controls -->
     <Style x:Key="AppScrollBarThumbStyle" TargetType="BoxView">
         <Setter Property="WidthRequest" Value="4" />
@@ -96,7 +194,7 @@
                     </VisualState>
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelQuaternary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray3}" />
                             <Setter Property="BackgroundColor" Value="Transparent" />
                         </VisualState.Setters>
                     </VisualState>
@@ -137,7 +235,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -150,7 +248,7 @@
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
         <Setter Property="FontSize" Value="14" />
-        <Setter Property="PlaceholderColor" Value="{DynamicResource PlaceholderText}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource LabelSecondary}" />
         <Setter Property="MinimumHeightRequest" Value="44" />
         <Setter Property="MinimumWidthRequest" Value="44" />
         <Setter Property="VisualStateManager.VisualStateGroups">
@@ -159,7 +257,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -172,7 +270,7 @@
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
         <Setter Property="FontSize" Value="{OnIdiom 18, Desktop=24}" />
-        <Setter Property="PlaceholderColor" Value="{DynamicResource PlaceholderText}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource LabelSecondary}" />
         <Setter Property="MinimumHeightRequest" Value="44" />
         <Setter Property="MinimumWidthRequest" Value="44" />
         <Setter Property="VisualStateManager.VisualStateGroups">
@@ -181,7 +279,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -223,7 +321,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -259,8 +357,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
-                            <Setter Property="TitleColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
+                            <Setter Property="TitleColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -348,7 +446,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -358,7 +456,7 @@
 
     <Style TargetType="SearchBar">
         <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{DynamicResource PlaceholderText}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource LabelSecondary}" />
         <Setter Property="CancelButtonColor" Value="{DynamicResource LabelSecondary}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
@@ -371,8 +469,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
-                            <Setter Property="PlaceholderColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
+                            <Setter Property="PlaceholderColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -382,7 +480,7 @@
 
     <Style TargetType="SearchHandler">
         <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
-        <Setter Property="PlaceholderColor" Value="{DynamicResource PlaceholderText}" />
+        <Setter Property="PlaceholderColor" Value="{DynamicResource LabelSecondary}" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
         <Setter Property="FontSize" Value="14" />
@@ -392,8 +490,8 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
-                            <Setter Property="PlaceholderColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
+                            <Setter Property="PlaceholderColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -443,7 +541,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -518,7 +616,7 @@
         <Setter Property="Shell.BackgroundColor" Value="{DynamicResource BackgroundPrimary}" />
         <Setter Property="Shell.ForegroundColor" Value="{DynamicResource LabelPrimary}" />
         <Setter Property="Shell.TitleColor" Value="{DynamicResource LabelPrimary}" />
-        <Setter Property="Shell.DisabledColor" Value="{DynamicResource LabelQuaternary}" />
+        <Setter Property="Shell.DisabledColor" Value="{DynamicResource SystemGray3}" />
         <Setter Property="Shell.UnselectedColor" Value="{DynamicResource LabelSecondary}" />
         <Setter Property="Shell.NavBarHasShadow" Value="False" />
         <Setter Property="Shell.TabBarBackgroundColor" Value="{DynamicResource BackgroundPrimary}" />

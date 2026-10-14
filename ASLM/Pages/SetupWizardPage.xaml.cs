@@ -15,12 +15,14 @@ namespace ASLM.Pages
     public partial class SetupWizardPage : ContentPage, ILocalizable, INotifyPropertyChanged
     {
         private const int TotalSteps = 3;
+        private readonly GitHubRateLimitNotice _gitHubLimitNotice;
         private static int FirstSetupStep => SunriseService.IsEnabled ? 1 : 2;
 
         private readonly AppDataStore _appData;
         private readonly EngineInstaller _engineInstaller;
         private readonly ModuleInstaller _moduleInstaller;
         private readonly ModuleRunner _moduleRunner;
+        private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
         private readonly UpdateManager _updateManager;
         private readonly LegalAcceptanceService _legalAcceptance;
         private readonly AppLocalizationService _localization;
@@ -58,6 +60,7 @@ namespace ASLM.Pages
             EngineInstaller engineInstaller,
             ModuleInstaller moduleInstaller,
             ModuleRunner moduleRunner,
+            ModuleLaunchCoordinator moduleLaunchCoordinator,
             UpdateManager updateManager,
             LegalAcceptanceService legalAcceptance,
             AppLocalizationService localization,
@@ -68,6 +71,7 @@ namespace ASLM.Pages
             _engineInstaller = engineInstaller;
             _moduleInstaller = moduleInstaller;
             _moduleRunner = moduleRunner;
+            _moduleLaunchCoordinator = moduleLaunchCoordinator;
             _updateManager = updateManager;
             _legalAcceptance = legalAcceptance;
             _localization = localization;
@@ -75,6 +79,9 @@ namespace ASLM.Pages
             _services = services;
 
             InitializeComponent();
+            Dialogs.Initialize(this, SetupSurface, _services);
+            _gitHubLimitNotice = new(this, Dialogs, _services, OpenGitHubAccounts,
+                () => !_legalAcceptance.ManualAcceptanceRequired);
             BindingContext = this;
             LocalizableAttach.Hook(this, _localization, this);
 
@@ -105,6 +112,23 @@ namespace ASLM.Pages
 
 
         // Initial load
+
+        private void OpenGitHubAccounts()
+        {
+            // Keep setup and any installation progress intact underneath settings.
+            var settings = _services.GetRequiredService<SettingsView>();
+            settings.SelectCategory(SettingsCategoryKind.Accounts);
+            settings.CloseRequested += OnClose;
+            GitHubAccountsOverlay.Content = settings;
+            GitHubAccountsOverlay.IsVisible = true;
+
+            void OnClose(object? sender, EventArgs e)
+            {
+                settings.CloseRequested -= OnClose;
+                GitHubAccountsOverlay.IsVisible = false;
+                GitHubAccountsOverlay.Content = null;
+            }
+        }
 
         /// <summary>
         /// Populates the module selection list once after the page is ready.
@@ -150,6 +174,7 @@ namespace ASLM.Pages
             try
             {
                 await LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
+                _gitHubLimitNotice.Refresh();
 
                 if (fastSetup)
                 {
@@ -170,7 +195,7 @@ namespace ASLM.Pages
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SetupWizard] Failed to start setup: {ex}");
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.SetupWizard_Title),
                     ex.Message,
                     L.Get(LocalizationKeys.Common_OK));
@@ -226,7 +251,7 @@ namespace ASLM.Pages
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SetupWizard] Failed to select local account: {ex}");
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.Settings_AslmAccount_Title),
                     ex.Message,
                     L.Get(LocalizationKeys.Common_OK));
@@ -313,7 +338,7 @@ namespace ASLM.Pages
                 CloudAccountStatusLabel.Text = L.Get(
                     LocalizationKeys.SetupWizard_CloudAccountAuthenticationFailed,
                     error);
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.Settings_AslmAccount_Title),
                     CloudAccountStatusLabel.Text,
                     L.Get(LocalizationKeys.Common_OK));
@@ -329,7 +354,7 @@ namespace ASLM.Pages
                 CloudAccountStatusLabel.Text = L.Get(
                     LocalizationKeys.SetupWizard_CloudAccountAuthenticationFailed,
                     ex.Message);
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.Settings_AslmAccount_Title),
                     CloudAccountStatusLabel.Text,
                     L.Get(LocalizationKeys.Common_OK));
@@ -452,10 +477,11 @@ namespace ASLM.Pages
             foreach (var module in modules)
             {
                 var isSupported = module.IsSupportedOnCurrentPlatform;
+                var isRequired = ModuleRegistry.IsRequired(module.Id);
                 var check = new CheckBox
                 {
-                    IsChecked = isSupported,
-                    IsEnabled = isSupported
+                    IsChecked = isSupported || isRequired,
+                    IsEnabled = isSupported && !isRequired
                 };
                 check.SetDynamicResource(CheckBox.ColorProperty, "LabelPrimary");
                 var row = new HorizontalStackLayout { Spacing = 10 };
@@ -552,7 +578,8 @@ namespace ASLM.Pages
                     }
                     else if (!SettingsService.TryValidateDisplayName(UsernameEntry.Text, out var validatedUserName, out var displayNameErrorMessage))
                     {
-                        await DisplayAlertAsync("Error", displayNameErrorMessage, "OK");
+                        await DialogService.For(this).AlertAsync(this,
+                            DialogText.Localized(LocalizationKeys.Settings_ValidationError), displayNameErrorMessage);
                         return;
                     }
                     else
@@ -607,7 +634,7 @@ namespace ASLM.Pages
                 _appData.Data.Personalization.Language = previousLanguage;
                 LanguagePicker.SelectedItem = AppLocalizationService.GetPickerDisplayName(previousLanguage);
                 _localization.ApplyCulture();
-                await DisplayAlertAsync(
+                await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.SetupWizard_SelectLanguage),
                     ex.Message,
                     L.Get(LocalizationKeys.Common_OK));
@@ -807,16 +834,10 @@ namespace ASLM.Pages
 
             await _appData.SaveAsync();
 
-            var selectedModules = _moduleChecks
-                .Where(moduleCheck => moduleCheck.Check.IsEnabled && moduleCheck.Check.IsChecked)
-                .Select(moduleCheck => moduleCheck.Module)
-                .ToList();
-
-            if (selectedModules.Count == 0)
-            {
-                await FinishSetupAsync();
-                return;
-            }
+            var selectedIds = _moduleChecks
+                .Where(moduleCheck => moduleCheck.Check.IsChecked && moduleCheck.Module.IsSupportedOnCurrentPlatform)
+                .Select(moduleCheck => moduleCheck.Module.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // Switch the final wizard step from selection mode into install mode.
             ButtonPanel.IsVisible = false;
@@ -843,11 +864,17 @@ namespace ASLM.Pages
             try
             {
                 catalog = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync(), _cts.Token);
+                // Required choices do not depend on the checkbox's enabled state or list-loading timing.
+                // Entries without a discovered manifest are intentionally skipped.
+                var selectedModules = catalog.Where(module => ModuleRegistry.IsRequired(module.Id) ||
+                    (module.IsSupportedOnCurrentPlatform && selectedIds.Contains(module.Id))).ToList();
                 installModules = ModuleDependencyResolver.ExpandInstallOrder(selectedModules, catalog);
             }
             catch (Exception ex)
             {
                 AddLog($"Failed to load module catalog: {ex.Message}");
+                ButtonPanel.IsVisible = true;
+                StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Failed);
                 ConfigureRetryAndSkipButtons();
                 return;
             }
@@ -954,6 +981,7 @@ namespace ASLM.Pages
                         AddLog($"[OK] {module.Name} already set up.");
                         completedSteps += GetModuleInstallStepCount(module);
                         UpdateOverallProgress(completedSteps, totalSteps);
+                        hasFailures |= !await LaunchInstalledModuleAsync(module, logProgress, _cts.Token);
                         continue;
                     }
 
@@ -977,6 +1005,8 @@ namespace ASLM.Pages
                             ? $"[OK] {module.Name} installed successfully"
                             : $"[Error] Installation failed for {module.Name}");
                         hasFailures |= !updateInstalled;
+                        if (updateInstalled)
+                            hasFailures |= !await LaunchInstalledModuleAsync(module, logProgress, _cts.Token);
                         continue;
                     }
 
@@ -1034,10 +1064,14 @@ namespace ASLM.Pages
                         ? $"[OK] {module.Name} installed successfully"
                         : $"[Error] Setup failed for {module.Name}");
                     hasFailures |= !success;
+                    if (success)
+                        hasFailures |= !await LaunchInstalledModuleAsync(installedModule, logProgress, _cts.Token);
                 }
 
-                UpdateInstallStatus("Setup complete!");
-                StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_SetupComplete);
+                var completionStatus = L.Get(hasFailures
+                    ? LocalizationKeys.SetupWizard_Failed : LocalizationKeys.SetupWizard_SetupComplete);
+                UpdateInstallStatus(completionStatus);
+                StepLabel.Text = completionStatus;
             }
             catch (OperationCanceledException)
             {
@@ -1197,9 +1231,7 @@ namespace ASLM.Pages
         /// </summary>
         private static bool ShouldUseConfiguredUpdateInstall(ModuleConfig module)
         {
-            return module.HasDeclaredUpdateConfig &&
-                   string.Equals(module.Source.Type, "github", StringComparison.OrdinalIgnoreCase) &&
-                   !string.IsNullOrWhiteSpace(module.Source.Repo);
+            return UpdateManager.CanDownloadModule(module);
         }
 
         /// <summary>
@@ -1211,6 +1243,28 @@ namespace ASLM.Pages
         }
 
         /// <summary>
+        /// Uses the same launch pipeline as catalog installation, including dependency startup and retry safety.
+        /// </summary>
+        private async Task<bool> LaunchInstalledModuleAsync(
+            ModuleConfig module,
+            IProgress<string> log,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.Modules_Starting)}");
+            var launch = await Task.Run(() => _moduleLaunchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
+                module.SourcePath, log, ct), ct);
+            // The coordinator returns Error for cancellation; preserve the wizard's canceled state.
+            ct.ThrowIfCancellationRequested();
+            if (launch.Status is ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning or ModuleLaunchStatus.NoRunCommands)
+                return true;
+
+            // Keep the completed installation so Retry only needs to attempt startup again.
+            log.Report(L.Get(LocalizationKeys.ModuleInfo_Failed, $"{module.Name}: {launch.Message ?? launch.Status.ToString()}"));
+            return false;
+        }
+
+        /// <summary>
         /// Installs one module through the updater so setup respects the manifest update configuration.
         /// </summary>
         private async Task<bool> InstallModuleFromUpdateConfigAsync(
@@ -1219,6 +1273,8 @@ namespace ASLM.Pages
             IProgress<DownloadProgress> downloadProgress,
             CancellationToken ct)
         {
+            // Apply application defaults before the common resolver falls back to available repository channels.
+            _updateManager.ApplyCatalogDefaults(module, _moduleInstaller.Registry.ReadIds().Contains(module.Id));
             // Setup should resolve the same branch or release candidate the normal updater would use.
             var candidate = await Task.Run(
                 () => _updateManager.ResolveModuleInstallCandidateAsync(module, ct, isManualRequest: true),
@@ -1272,22 +1328,26 @@ namespace ASLM.Pages
         /// </summary>
         private async Task FinishSetupAsync()
         {
+            var window = Window;
             try
             {
                 _appData.Data.FirstRunCompleted = true;
                 await _appData.SaveAsync();
 
-                if (Application.Current?.Windows.Count > 0)
+                if (window != null)
                 {
                     var mainPage = _services.GetRequiredService<AppShellPage>();
-                    Application.Current.Windows[0].Page = mainPage;
+                    window.Page = mainPage;
                     _localization.SyncFlowDirection();
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[SetupWizard] FinishSetupAsync error: {ex}");
-                await DisplayAlertAsync("Error", $"Failed to navigate: {ex.Message}", "OK");
+                var host = window?.Page ?? this;
+                await DialogService.For(host).AlertAsync(host,
+                    DialogText.Localized(LocalizationKeys.SetupWizard_Title),
+                    DialogText.Localized(LocalizationKeys.SetupWizard_FinishFailedFormat, ex.Message));
             }
         }
 

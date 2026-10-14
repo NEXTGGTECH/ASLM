@@ -176,9 +176,18 @@
                     </Border>
                     <VerticalStackLayout Grid.Column="1"
                                          Spacing="4">
-                        <Label Text="{Binding VersionText}"
-                               IsVisible="{Binding HasVersion}"
-                               Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                        <Grid ColumnDefinitions="*,Auto"
+                              HorizontalOptions="Start">
+                            <Label Text="{Binding VersionText}"
+                                   IsVisible="{Binding HasVersion}"
+                                   Style="{StaticResource ModuleInfoFieldLabelStyle}"
+                                   VerticalOptions="Center" />
+                            <ContentView Grid.Column="1"
+                                         IsVisible="{Binding HasDevelopmentStatus}"
+                                         ControlTemplate="{StaticResource ModuleDevelopmentBadgesTemplate}"
+                                         VerticalOptions="Center"
+                                         Margin="4,0,0,0" />
+                        </Grid>
                         <Label Text="{Binding AuthorText}"
                                IsVisible="{Binding HasAuthor}"
                                Style="{StaticResource ModuleInfoFieldLabelStyle}" />
@@ -395,8 +404,19 @@
                     <HorizontalStackLayout Grid.Column="1"
                                            Spacing="8"
                                            VerticalOptions="Center">
+                        <ActivityIndicator IsVisible="{Binding IsCheckingUpdates}"
+                                           IsRunning="{Binding IsCheckingUpdates}"
+                                           WidthRequest="24"
+                                           HeightRequest="24"
+                                           VerticalOptions="Center"
+                                           Color="{DynamicResource LabelSecondary}" />
+                        <Button x:Name="UpdateButton"
+                                IsVisible="{Binding ShowUpdateButton}"
+                                IsEnabled="{Binding CanCheckOrUpdate}"
+                                Style="{StaticResource SettingsFooterPrimaryButtonStyle}"
+                                Clicked="OnUpdateClicked" />
                         <Button x:Name="CancelButton"
-                                IsVisible="{Binding IsCurrentInstallation}"
+                                IsVisible="{Binding CanCancelInstallation}"
                                 Style="{StaticResource SettingsFooterButtonStyle}"
                                 Clicked="OnCancelClicked" />
                         <Button x:Name="InstallButton"

@@ -56,6 +56,7 @@ namespace ASLM.Pages
         private List<ModuleConfig> _loadedModules = [];
         private List<SettingsCategory> _categories = [];
         private SettingsCategory? _activeCategory;
+        private SettingsCategoryKind? _requestedCategory;
         private OllamaPersistentSettings _ollamaDraft = new();
         private GitHubAccountState _githubDraft = new();
         private bool _hasLoaded;
@@ -88,6 +89,7 @@ namespace ASLM.Pages
         private Button? _prepareAppUpdateButton;
         private HorizontalStackLayout? _prepareAppUpdateProgress;
         private ActivityIndicator? _prepareAppUpdateSpinner;
+        private Label? _prepareAppUpdateProgressText;
         private Label? _prepareAppUpdateProgressPercent;
         private Button? _restartAppUpdateButton;
         private UpdateCandidate? _pendingAppUpdateCandidate;
@@ -95,6 +97,7 @@ namespace ASLM.Pages
         private Button? _ollamaUpdateButton;
         private HorizontalStackLayout? _ollamaUpdateProgress;
         private ActivityIndicator? _ollamaUpdateSpinner;
+        private Label? _ollamaUpdateProgressText;
         private Label? _ollamaUpdateProgressPercent;
         private Label? _ollamaInstalledVersionLabel;
         private Label? _ollamaAvailableVersionLabel;
@@ -331,12 +334,14 @@ namespace ASLM.Pages
             _prepareAppUpdateButton = BuiltInSettingsContainer.PrepareAppUpdateAction;
             _prepareAppUpdateProgress = BuiltInSettingsContainer.PrepareAppUpdateProgressContent;
             _prepareAppUpdateSpinner = BuiltInSettingsContainer.PrepareAppUpdateProgressSpinner;
+            _prepareAppUpdateProgressText = BuiltInSettingsContainer.PrepareAppUpdateProgressStatus;
             _prepareAppUpdateProgressPercent = BuiltInSettingsContainer.PrepareAppUpdateProgressValue;
             _restartAppUpdateButton = BuiltInSettingsContainer.RestartAppUpdateAction;
             _ollamaUpdateHost = BuiltInSettingsContainer.OllamaUpdateContainer;
             _ollamaUpdateButton = BuiltInSettingsContainer.OllamaUpdateAction;
             _ollamaUpdateProgress = BuiltInSettingsContainer.OllamaUpdateProgressContent;
             _ollamaUpdateSpinner = BuiltInSettingsContainer.OllamaUpdateProgressSpinner;
+            _ollamaUpdateProgressText = BuiltInSettingsContainer.OllamaUpdateProgressStatus;
             _ollamaUpdateProgressPercent = BuiltInSettingsContainer.OllamaUpdateProgressValue;
             _ollamaInstalledVersionLabel = BuiltInSettingsContainer.OllamaInstalledVersion;
             _ollamaAvailableVersionLabel = BuiltInSettingsContainer.OllamaAvailableVersion;
@@ -434,6 +439,22 @@ namespace ASLM.Pages
         }
 
 
+        /// <summary>Opens a built-in category, including before the first asynchronous load completes.</summary>
+        internal void SelectCategory(SettingsCategoryKind kind)
+        {
+            _requestedCategory = kind;
+            ApplyRequestedCategory();
+        }
+
+        private void ApplyRequestedCategory()
+        {
+            if (_isLoading || _isSaving || _isSwitchingCategory || !_requestedCategory.HasValue) return;
+            var category = _categories.FirstOrDefault(c => c.Kind == _requestedCategory.Value);
+            if (category == null) return;
+            TrySelectCategory(category);
+            _requestedCategory = null;
+        }
+
         // Overlay Events
 
         /// <summary>
@@ -499,7 +520,9 @@ namespace ASLM.Pages
 
             _categories = SettingsPresentationBuilder.BuildCategories(_loadedModules).ToList();
 
-            var targetCategory = ResolveCategory(previousCategoryId) ?? _categories.FirstOrDefault();
+            var targetCategory = (_requestedCategory.HasValue
+                ? _categories.FirstOrDefault(c => c.Kind == _requestedCategory.Value) : null)
+                ?? ResolveCategory(previousCategoryId) ?? _categories.FirstOrDefault();
             if (targetCategory == null)
             {
                 _activeCategory = null;
@@ -510,6 +533,7 @@ namespace ASLM.Pages
 
             BuildCategorySelectors();
             ActivateCategory(targetCategory);
+            _requestedCategory = null;
         }
 
         /// <summary>
@@ -564,8 +588,8 @@ namespace ASLM.Pages
             SettingsSidebarTitleLabel.Text = L.Get(LocalizationKeys.Settings_Title);
             ToolTipProperties.SetText(CloseSettingsButton, L.Get(LocalizationKeys.Settings_CloseTooltip));
             BuiltInSettingsContainer.ApplyLocalization();
-            RefreshAslmVersionInformation();
-            RefreshOllamaVersionInformation();
+            // Localization must not replace an active operation's label with the default download text.
+            ResetUpdateActionControls();
 
             DefaultButton.Text = L.Get(LocalizationKeys.Settings_LoadDefault);
             DiscardButton.Text = L.Get(LocalizationKeys.Settings_DiscardChanges);

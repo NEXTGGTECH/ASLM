@@ -19,11 +19,18 @@ namespace ASLM.Services.Modules
         private static readonly TimeSpan ManifestWriteRetryDelay = TimeSpan.FromMilliseconds(50);
 
         private readonly HttpClient _httpClient = new();
+        private readonly GitHubUpdateClient? _github;
         private readonly ModuleRunner _moduleRunner;
         private readonly ModuleTrustService _moduleTrustService;
         private readonly ModuleEngineReconciler _moduleEngineReconciler;
         private readonly EngineInstaller _engineInstaller;
         internal ModuleRegistry Registry { get; } = new();
+        private readonly object _installationLock = new();
+        private readonly Dictionary<Guid, CatalogInstallation> _catalogInstallations = [];
+        private readonly HashSet<string> _manuallyRequested = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _temporaryDependencies = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, DownloadOperationState> _moduleRemovals = new(StringComparer.OrdinalIgnoreCase);
+        internal SemaphoreSlim CatalogPlanGate { get; } = new(1, 1);
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -32,7 +39,7 @@ namespace ASLM.Services.Modules
         };
 
         /// <summary>
-        /// Raised after an installed module manifest is saved.
+        /// Raised when module metadata or the set of modules being installed changes.
         /// </summary>
         public event EventHandler? ModulesChanged;
 
@@ -45,9 +52,11 @@ namespace ASLM.Services.Modules
             ModuleRunner moduleRunner,
             ModuleTrustService moduleTrustService,
             ModuleEngineReconciler moduleEngineReconciler,
-            EngineInstaller? engineInstaller = null)
+            EngineInstaller? engineInstaller = null,
+            GitHubUpdateClient? github = null)
         {
             _moduleRunner = moduleRunner;
+            _github = github;
             _moduleTrustService = moduleTrustService;
             _moduleEngineReconciler = moduleEngineReconciler;
             _engineInstaller = engineInstaller ?? new EngineInstaller();
@@ -97,22 +106,157 @@ namespace ASLM.Services.Modules
         // Single manifest
 
         /// <summary>
-        /// Returns installed modules only. Discovery without this filter remains the local catalog.
+        /// Returns registered modules. The dashboard can also include the current installation plan,
+        /// without exposing unfinished modules to services that require an installed module.
         /// </summary>
-        public async Task<List<ModuleConfig>> DiscoverInstalledModulesAsync()
+        public async Task<List<ModuleConfig>> DiscoverInstalledModulesAsync(bool includeInstalling = false)
         {
+            var catalog = await DiscoverModulesAsync().ConfigureAwait(false);
             var ids = Registry.ReadIds();
-            return (await DiscoverModulesAsync().ConfigureAwait(false))
-                .Where(module => ids.Contains(module.Id)).ToList();
+            var installing = includeInstalling ? GetInstallingModules() : [];
+            var installingIds = installing.Select(module => module.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return catalog.Where(module => ids.Contains(module.Id) || installingIds.Contains(module.Id))
+                // Keep pending cards visible even while the updater is replacing their manifests.
+                .Concat(installing).DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(module => module.Name, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         /// <summary>Returns compatible catalog entries that have not been installed.</summary>
         public async Task<List<ModuleConfig>> DiscoverAvailableModulesAsync()
         {
+            var catalog = await DiscoverModulesAsync().ConfigureAwait(false);
             var ids = Registry.ReadIds();
-            return (await DiscoverModulesAsync().ConfigureAwait(false))
+            var pending = GetInstallingModules();
+            ids.ExceptWith(pending.Select(module => module.Id));
+            return catalog
                 .Where(module => module.IsSupportedOnCurrentPlatform && !ids.Contains(module.Id))
+                .Concat(pending)
                 .DistinctBy(module => module.Id, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        internal bool IsInstalling(string moduleId)
+        {
+            return GetInstallationState(moduleId) != null;
+        }
+
+        private ModuleConfig[] GetInstallingModules()
+        {
+            lock (_installationLock)
+                return _catalogInstallations.Values.SelectMany(request => request.Pending).ToArray();
+        }
+
+        internal void RecordManualRequest(string id)
+        {
+            lock (_installationLock) _manuallyRequested.Add(id);
+        }
+
+        internal DownloadOperationState? GetRemovalState(string id)
+        {
+            lock (_installationLock) return _moduleRemovals.TryGetValue(id, out var state) ? state : null;
+        }
+
+        internal void SetRemovalState(string id, DownloadOperationState? state)
+        {
+            lock (_installationLock)
+            {
+                if (state.HasValue) _moduleRemovals[id] = state.Value;
+                else _moduleRemovals.Remove(id);
+            }
+            RaiseModulesChanged();
+        }
+
+        internal string GetPendingConsumers(string id)
+        {
+            lock (_installationLock)
+                return string.Join(", ", _catalogInstallations.Values.Where(request => request.Plan.Any(module =>
+                    string.Equals(module.Id, id, StringComparison.OrdinalIgnoreCase))).Select(request => request.Root.Name).Distinct());
+        }
+
+        internal sealed record InstallationState(DownloadOperationState Phase, bool IsDependency, string RequestedBy)
+        {
+            public string Label => L.Get(Phase == DownloadOperationState.Removing ? LocalizationKeys.Modules_Removing
+                : Phase == DownloadOperationState.Queued
+                    ? IsDependency ? LocalizationKeys.Modules_QueuedDependency : LocalizationKeys.Downloads_Queued
+                    : IsDependency ? LocalizationKeys.Modules_InstallingDependency : LocalizationKeys.SetupWizard_Installing);
+
+            public string LabelWithRequester => IsDependency && Phase != DownloadOperationState.Removing && !string.IsNullOrWhiteSpace(RequestedBy)
+                ? L.Get(Phase == DownloadOperationState.Queued
+                    ? LocalizationKeys.Modules_QueuedDependencyFor : LocalizationKeys.Modules_InstallingDependencyFor, RequestedBy)
+                : Label;
+        }
+
+        internal InstallationState? GetInstallationState(string id)
+        {
+            lock (_installationLock)
+            {
+                var requests = _catalogInstallations.Values.Where(request => request.Pending.Any(module =>
+                    string.Equals(module.Id, id, StringComparison.OrdinalIgnoreCase))).ToList();
+                if (requests.Count == 0) return null;
+                var dependency = !requests.Any(request => string.Equals(request.Root.Id, id, StringComparison.OrdinalIgnoreCase));
+                return new(requests.Max(request => request.Phases.GetValueOrDefault(id, DownloadOperationState.Queued)),
+                    dependency, string.Join(", ", requests.Where(request => !string.Equals(request.Root.Id, id, StringComparison.OrdinalIgnoreCase))
+                        .Select(request => request.Root.Name).Distinct(StringComparer.OrdinalIgnoreCase)));
+            }
+        }
+
+        /// <summary>Publishes the requested module and dependencies while they are still queued.</summary>
+        internal CatalogInstallation BeginCatalogInstallation(ModuleConfig root, IReadOnlyList<ModuleConfig> plan,
+            bool reinstall = false)
+        {
+            var ids = Registry.ReadIds();
+            CatalogInstallation scope;
+            lock (_installationLock)
+            {
+                var pending = plan.Where(module => !ids.Contains(module.Id) || !module.Status.FirstRunCompleted ||
+                    IsInstalling(module.Id) || GetRemovalState(module.Id) != null ||
+                    (reinstall && string.Equals(module.Id, root.Id, StringComparison.OrdinalIgnoreCase))).ToArray();
+                scope = new(this, root, plan, pending);
+                _catalogInstallations.Add(scope.Token, scope);
+            }
+            try
+            {
+                RaiseModulesChanged();
+                return scope;
+            }
+            catch
+            {
+                lock (_installationLock) _catalogInstallations.Remove(scope.Token);
+                throw;
+            }
+        }
+
+        internal sealed class CatalogInstallation(ModuleInstaller installer, ModuleConfig root,
+            IReadOnlyList<ModuleConfig> plan, ModuleConfig[] pending) : IDisposable
+        {
+            internal Guid Token { get; } = Guid.NewGuid();
+            internal ModuleConfig Root { get; } = root;
+            internal IReadOnlyList<ModuleConfig> Plan { get; } = plan;
+            internal ModuleConfig[] Pending { get; } = pending;
+            internal Dictionary<string, DownloadOperationState> Phases { get; } = new(StringComparer.OrdinalIgnoreCase);
+            internal HashSet<string> NewlyInstalled { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            internal void SetPhase(string id, DownloadOperationState phase)
+            {
+                lock (installer._installationLock) Phases[id] = phase;
+                installer.RaiseModulesChanged();
+            }
+
+            internal void TrackNewContent(ModuleConfig module)
+            {
+                lock (installer._installationLock)
+                {
+                    NewlyInstalled.Add(module.Id);
+                    if (!string.Equals(module.Id, Root.Id, StringComparison.OrdinalIgnoreCase))
+                        installer._temporaryDependencies.Add(module.Id);
+                }
+            }
+
+            public void Dispose()
+            {
+                lock (installer._installationLock)
+                    if (!installer._catalogInstallations.Remove(Token)) return;
+                installer.RaiseModulesChanged();
+            }
         }
 
         /// <summary>
@@ -188,7 +332,7 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress = null,
             CancellationToken ct = default)
         {
-            using var operation = BeginContentOperation();
+            using var operation = await BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             ResolvePlatformSupport(module);
             if (!module.IsSupportedOnCurrentPlatform)
             {
@@ -282,20 +426,22 @@ namespace ASLM.Services.Modules
         /// <summary>Records newly copied, validated content, including reinstalls in the same session.</summary>
         internal async Task SaveInstalledContentAsync(ModuleConfig config, bool raiseModulesChanged = true)
         {
-            using var operation = BeginContentOperation();
+            using var operation = await BeginContentOperationAsync(CancellationToken.None, config).ConfigureAwait(false);
             var wasRemoved = _removedModuleIds.TryRemove(config.Id, out _);
             try
             {
                 config.Status.Installed = true;
                 config.Status.InstalledVersion = config.Version;
                 config.Status.LastUpdated = DateTime.UtcNow.ToString("o");
-                await SaveConfigAsync(config, raiseModulesChanged);
+                await SaveConfigAsync(config, raiseModulesChanged: false);
             }
             catch
             {
                 if (wasRemoved) _removedModuleIds[config.Id] = 0;
                 throw;
             }
+            // Disk and registry are committed. A failing observer must not restore the removal guard.
+            if (raiseModulesChanged) RaiseModulesChanged();
         }
 
         /// <summary>
@@ -307,7 +453,7 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress = null,
             CancellationToken ct = default)
         {
-            using var operation = BeginContentOperation();
+            using var operation = await BeginContentOperationAsync(ct).ConfigureAwait(false);
             var baseDir = GetRootDirectory();
             var modulesRoot = Path.Combine(baseDir, "Modules");
             var tempZip = Path.GetTempFileName();
@@ -454,7 +600,10 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress,
             CancellationToken ct)
         {
-            using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            _github?.PrepareApiRequest(request);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            _github?.TrackApiResponse(request, response);
             response.EnsureSuccessStatusCode();
 
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
@@ -523,7 +672,7 @@ namespace ASLM.Services.Modules
         /// </param>
         public void SaveModuleConfig(ModuleConfig config, bool raiseModulesChanged = true)
         {
-            using var operation = BeginContentOperation();
+            using var operation = BeginContentOperation(config);
             EnsureNotRemoved(config);
             if (string.IsNullOrEmpty(config.SourcePath))
             {
@@ -545,7 +694,7 @@ namespace ASLM.Services.Modules
         /// </summary>
         internal void SaveModuleUpdatePreferences(ModuleConfig config)
         {
-            using var operation = BeginContentOperation();
+            using var operation = BeginContentOperation(config);
             var manifest = JsonNode.Parse(File.ReadAllText(config.SourcePath))?.AsObject()
                 ?? throw new JsonException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, config.Name));
             if (!string.Equals(manifest["id"]?.GetValue<string>(), config.Id, StringComparison.OrdinalIgnoreCase))
@@ -575,7 +724,7 @@ namespace ASLM.Services.Modules
         /// </param>
         public async Task SaveConfigAsync(ModuleConfig config, bool raiseModulesChanged = true)
         {
-            using var operation = BeginContentOperation();
+            using var operation = await BeginContentOperationAsync(CancellationToken.None, config).ConfigureAwait(false);
             EnsureNotRemoved(config);
             if (string.IsNullOrEmpty(config.SourcePath))
             {

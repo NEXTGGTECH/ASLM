@@ -75,6 +75,12 @@ namespace ASLM.Controls.Settings
         public Button PrepareAppUpdateAction => PrepareAppUpdateButton;
         public HorizontalStackLayout PrepareAppUpdateProgressContent => PrepareAppUpdateProgress;
         public ActivityIndicator PrepareAppUpdateProgressSpinner => PrepareAppUpdateSpinner;
+
+        /// <summary>
+        /// Exposes the live self-update stage label to the settings presenter.
+        /// </summary>
+        public Label PrepareAppUpdateProgressStatus => PrepareAppUpdateProgressText;
+
         public Label PrepareAppUpdateProgressValue => PrepareAppUpdateProgressPercent;
         public Button RestartAppUpdateAction => RestartAppUpdateButton;
         public Label OllamaInstalledVersion => OllamaInstalledVersionLabel;
@@ -83,6 +89,12 @@ namespace ASLM.Controls.Settings
         public Button OllamaUpdateAction => OllamaUpdateButton;
         public HorizontalStackLayout OllamaUpdateProgressContent => OllamaUpdateProgress;
         public ActivityIndicator OllamaUpdateProgressSpinner => OllamaUpdateSpinner;
+
+        /// <summary>
+        /// Exposes the live engine-update stage label to the settings presenter.
+        /// </summary>
+        public Label OllamaUpdateProgressStatus => OllamaUpdateProgressText;
+
         public Label OllamaUpdateProgressValue => OllamaUpdateProgressPercent;
         public Picker LanguageInput => LanguagePicker;
         public Picker AppearanceInput => AppearancePicker;

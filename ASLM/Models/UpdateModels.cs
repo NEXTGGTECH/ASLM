@@ -5,6 +5,27 @@ using System.Text.Json.Serialization;
 namespace ASLM.Models
 {
     /// <summary>
+    /// Distinguishes preparation, network transfer, and file replacement in a shared update operation.
+    /// </summary>
+    internal enum UpdateOperationPhase
+    {
+        Preparing,
+        Downloading,
+        Applying
+    }
+
+    /// <summary>
+    /// Carries an immutable, session-only update snapshot independently of the initiating view.
+    /// </summary>
+    /// <param name="Phase">Current operation stage.</param>
+    /// <param name="Version">Release being downloaded or applied.</param>
+    /// <param name="DownloadFraction">Known download completion, or null outside a measurable transfer.</param>
+    internal sealed record UpdateOperationSnapshot(
+        UpdateOperationPhase Phase,
+        string Version,
+        double? DownloadFraction = null);
+
+    /// <summary>
     /// Describes the shipped ASLM update source.
     /// </summary>
     public sealed class AppUpdateSourceConfig

@@ -69,6 +69,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>Отмена</value>
   </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
   <data name="Common_Discard" xml:space="preserve">
     <value>Отклонить</value>
   </data>
@@ -118,13 +121,13 @@
     <value>Все модули / Единая консоль</value>
   </data>
   <data name="Consoles_EmptySelectionDescription" xml:space="preserve">
-    <value>Здесь появится вывод консоли при запуске модуля, настройке, синхронизации параметров, сервисах и подпроцессах.</value>
+    <value>Здесь появится вывод консоли при запуске модуля, настройке, синхронизации параметров, сервисах и подпроцессах</value>
   </data>
   <data name="Consoles_EmptySelectionFooter" xml:space="preserve">
-    <value>Ожидание активности модуля.</value>
+    <value>Ожидание активности модуля</value>
   </data>
   <data name="Consoles_EmptySelectionStatus" xml:space="preserve">
-    <value>Запустите или выберите модуль для просмотра консоли.</value>
+    <value>Запустите или выберите модуль для просмотра консоли</value>
   </data>
   <data name="Consoles_EmptySelectionTitle" xml:space="preserve">
     <value>Консоль не выбрана</value>
@@ -163,7 +166,7 @@
     <value>Нет консолей</value>
   </data>
   <data name="Consoles_NoOutputYet" xml:space="preserve">
-    <value>Вывода пока нет.</value>
+    <value>Вывода пока нет</value>
   </data>
   <data name="Consoles_PidFormat" xml:space="preserve">
     <value> — PID {0}</value>
@@ -187,10 +190,10 @@
     <value>Сеанс {0} выполняется{1}</value>
   </data>
   <data name="Consoles_SessionObservedDescription" xml:space="preserve">
-    <value>Наблюдаемый дочерний процесс, запущенный модулем. ASLM может сохранять его видимым как сервис, но прямой захват stdout/stderr может быть недоступен для сторонних исполняемых файлов.</value>
+    <value>Наблюдаемый дочерний процесс, запущенный модулем. ASLM может сохранять его видимым как сервис, но прямой захват stdout/stderr может быть недоступен для сторонних исполняемых файлов</value>
   </data>
   <data name="Consoles_SessionObservedPreview" xml:space="preserve">
-    <value>Наблюдаемый дочерний процесс. Прямой захват stdout/stderr может быть недоступен.</value>
+    <value>Наблюдаемый дочерний процесс. Прямой захват stdout/stderr может быть недоступен</value>
   </data>
   <data name="Consoles_SessionStageFormat" xml:space="preserve">
     <value>Сеанс {0}</value>
@@ -238,10 +241,19 @@
     <value>Единая консоль для всех активных модулей</value>
   </data>
   <data name="Consoles_UnifiedPreview" xml:space="preserve">
-    <value>Включает объединённые журналы и историю завершённых процессов активных модулей.</value>
+    <value>Включает объединённые журналы и историю завершённых процессов активных модулей</value>
   </data>
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} видимых строк</value>
+  </data>
+  <data name="Dialog_ActionFailedFormat" xml:space="preserve">
+    <value>Не удалось выполнить действие: {0}</value>
+  </data>
+  <data name="Dialog_InvalidValue" xml:space="preserve">
+    <value>Введите корректное значение</value>
+  </data>
+  <data name="Dialog_Required" xml:space="preserve">
+    <value>Заполните это поле</value>
   </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>Каталог</value>
@@ -252,6 +264,9 @@
   <data name="Downloads_DetailsLabel" xml:space="preserve">
     <value>Сведения:</value>
   </data>
+  <data name="Downloads_Downloaded" xml:space="preserve">
+    <value>Скачано</value>
+  </data>
   <data name="Downloads_FeaturesLabel" xml:space="preserve">
     <value>Возможности:</value>
   </data>
@@ -261,17 +276,14 @@
   <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
     <value>[Изображение: {0}]</value>
   </data>
+  <data name="Downloads_NoItems" xml:space="preserve">
+    <value>Нет элементов</value>
+  </data>
   <data name="Downloads_OpenLink" xml:space="preserve">
     <value>Открыть ссылку</value>
   </data>
-  <data name="Downloads_Downloaded" xml:space="preserve">
-    <value>Скачано</value>
-  </data>
-  <data name="Downloads_SelectVariant" xml:space="preserve">
-    <value>Выберите вариант загрузки:</value>
-  </data>
-  <data name="Downloads_NoItems" xml:space="preserve">
-    <value>Нет элементов</value>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>В очереди</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>Поиск в каталоге поставщика</value>
@@ -279,8 +291,26 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>Выберите элемент</value>
   </data>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>Выберите вариант загрузки:</value>
+  </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>Загрузки</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>Подключить учётную запись GitHub</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>Подключите учётную запись GitHub, чтобы увеличить часовой лимит запросов</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM исчерпал часовой лимит запросов к API GitHub. До обновления квоты поиск и загрузка модулей, обновление модулей, ASLM и движков могут работать некорректно</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>Напомнить позже</value>
+  </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>Исчерпан лимит запросов к GitHub</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>Диск {0}</value>
@@ -472,22 +502,22 @@
     <value>Принять и продолжить</value>
   </data>
   <data name="Legal_AcceptDocumentFormat" xml:space="preserve">
-    <value>Я прочитал(а) и принимаю документ «{0}».</value>
+    <value>Я прочитал(а) и принимаю документ «{0}»</value>
   </data>
   <data name="Legal_AcceptRequired" xml:space="preserve">
-    <value>Примите соглашение, чтобы продолжить.</value>
+    <value>Примите соглашение, чтобы продолжить</value>
   </data>
   <data name="Legal_Decline" xml:space="preserve">
     <value>Отклонить</value>
   </data>
   <data name="Legal_DocumentsUpdated" xml:space="preserve">
-    <value>Условия обновлены. Примите их снова.</value>
+    <value>Условия обновлены. Примите их снова</value>
   </data>
   <data name="Legal_StepFormat" xml:space="preserve">
     <value>Условие {0} из {1}</value>
   </data>
   <data name="Legal_Subtitle" xml:space="preserve">
-    <value>Примите обязательные условия для использования ASLM.</value>
+    <value>Примите обязательные условия для использования ASLM</value>
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>Условия и лицензии</value>
@@ -495,29 +525,89 @@
   <data name="Loading_Text" xml:space="preserve">
     <value>Загрузка...</value>
   </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>Автор</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>Установка отменена</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>Категории</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>Канал загрузки</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>Конфигурация</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>Обнаружена циклическая зависимость модулей, включающая {0}. Установка отменена</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>Загрузка и настройка {0}…</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>Необходимые движки</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>Операция завершилась с ошибкой: {0}</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>Идентификатор модуля</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>Информация</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>Не удалось завершить установку {0}. Подробности — в уведомлениях или консоли модуля</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>Установлен</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>Загрузка информации о модуле…</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>Необходимый модуль {0} отсутствует в локальном каталоге</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>Необходимые категории моделей</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>Необходимые модули</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>Для этого модуля нет поддерживаемого источника загрузки</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>Модуль {0} больше не доступен в локальном каталоге</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>Не установлен</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>Поддерживаемые платформы</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>Не удалось определить источник загрузки для {0}</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>Состояние модуля</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>Тип</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>Версия</value>
+  </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>Активность обновления</value>
   </data>
-  <data name="ModuleUpdate_ActivityTitle_Status" xml:space="preserve">
-    <value>Статус обновления</value>
-  </data>
-  <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>Обновление {0} не выполнено.</value>
-  </data>
-  <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} успешно обновлён.</value>
-  </data>
-  <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
-    <value>Проверить обновления</value>
-  </data>
-  <data name="ModuleUpdate_CloseTooltip" xml:space="preserve">
-    <value>Закрыть обновления модуля</value>
-  </data>
-  <data name="ModuleUpdate_CurrentVersion" xml:space="preserve">
-    <value>Текущая версия</value>
-  </data>
   <data name="ModuleUpdate_InstallUpdate" xml:space="preserve">
-    <value>Установить обновление</value>
+    <value>Обновить</value>
   </data>
   <data name="ModuleUpdate_LoadOptionsFailedFormat" xml:space="preserve">
     <value>Не удалось загрузить параметры обновления: {0}</value>
@@ -525,56 +615,11 @@
   <data name="ModuleUpdate_Log_CheckingFormat" xml:space="preserve">
     <value>Проверка обновлений для {0}...</value>
   </data>
-  <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>Обновление завершилось с ошибкой.</value>
-  </data>
-  <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
-    <value>Установка обновления для {0}...</value>
-  </data>
-  <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>Запуск обновления для {0}.</value>
-  </data>
-  <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>Обновление завершено. Установлено {0}.</value>
-  </data>
-  <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
-    <value>Модуль не выбран</value>
-  </data>
-  <data name="ModuleUpdate_NoVersionSelected" xml:space="preserve">
-    <value>Версия не выбрана</value>
-  </data>
-  <data name="ModuleUpdate_OverallProgress" xml:space="preserve">
-    <value>Общий ход</value>
-  </data>
-  <data name="ModuleUpdate_PrefsAutoSaved" xml:space="preserve">
-    <value>Настройки сохраняются автоматически</value>
-  </data>
-  <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>Готово.</value>
-  </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>Версия выпуска</value>
   </data>
   <data name="ModuleUpdate_RepositoryBranch" xml:space="preserve">
     <value>Ветка репозитория</value>
-  </data>
-  <data name="ModuleUpdate_SearchMode" xml:space="preserve">
-    <value>Режим поиска</value>
-  </data>
-  <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>Выберите ветку репозитория перед проверкой обновлений.</value>
-  </data>
-  <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
-    <value>Выбранная цель</value>
-  </data>
-  <data name="ModuleUpdate_Status_CheckFailedFormat" xml:space="preserve">
-    <value>Проверка не удалась: {0}</value>
-  </data>
-  <data name="ModuleUpdate_Status_Checking" xml:space="preserve">
-    <value>Проверка обновлений...</value>
-  </data>
-  <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>Готово к проверке.</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>Актуально</value>
@@ -588,20 +633,17 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Обновлено</value>
   </data>
-  <data name="ModuleUpdate_Status_Updating" xml:space="preserve">
-    <value>Обновление...</value>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>Закрыть информацию о модуле</value>
   </data>
-  <data name="ModuleUpdate_SubtitleFormat" xml:space="preserve">
-    <value>{0} - {1}</value>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить каталог модулей</value>
   </data>
-  <data name="ModuleUpdate_Title_Configure" xml:space="preserve">
-    <value>Настройка обновлений модулей</value>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>Поиск доступных модулей</value>
   </data>
-  <data name="ModuleUpdate_Title_Update" xml:space="preserve">
-    <value>Обновление модуля</value>
-  </data>
-  <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
-    <value>Источник обновлений</value>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>Бета</value>
   </data>
   <data name="Modules_CheckUpdates" xml:space="preserve">
     <value>Проверить обновления</value>
@@ -612,11 +654,74 @@
   <data name="Modules_Empty" xml:space="preserve">
     <value>Модули не найдены. Установите их в мастере настройки</value>
   </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>Экспериментальный</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>Устанавливается как зависимость</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>Устанавливается как зависимость для {0}</value>
+  </data>
   <data name="Modules_Launch" xml:space="preserve">
     <value>Запустить</value>
   </data>
   <data name="Modules_NotVerified" xml:space="preserve">
     <value>Не проверен</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>В очереди как зависимость</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>В очереди как зависимость для {0}</value>
+  </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>Переустановить</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>Переустановить {0}?</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>Не удалось переустановить модуль</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>Перед удалением модуля дождитесь завершения настройки, запуска, обновлений или загрузок модулей</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>Модуль удалён из списка установленных, но некоторые файлы удалить не удалось. Они остались в: {0}</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>Модуль удалён</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>Все данные, связанные с модулем {0}, будут удалены</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>Удалить {0}?</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>Не удалось удалить модуль</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>От этого модуля зависят: {0}. Сначала удалите эти модули</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>Другой установленный модуль использует файлы в каталоге этого модуля. Удаление отменено, чтобы сохранить эти файлы</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>Этот модуль уже удалён. Обновите список модулей, прежде чем продолжить</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>Некоторые манифесты установленных модулей отсутствуют, недоступны для чтения или содержат повторяющиеся идентификаторы. Удаление отменено, поскольку не удалось безопасно проверить общие зависимости</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>Удаление отменено: путь выходит за пределы управляемого каталога или содержит символическую ссылку</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>Удаление</value>
   </data>
   <data name="Modules_Restart" xml:space="preserve">
     <value>Перезапустить</value>
@@ -639,6 +744,9 @@
   <data name="Modules_Updating" xml:space="preserve">
     <value>Обновление</value>
   </data>
+  <data name="Modules_ViewLogs" xml:space="preserve">
+    <value>Просмотреть логи</value>
+  </data>
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Действие не выполнено</value>
   </data>
@@ -646,10 +754,10 @@
     <value>Доступно обновление ASLM</value>
   </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
-    <value>Обновлений ASLM сейчас нет.</value>
+    <value>Обновлений ASLM сейчас нет</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailed" xml:space="preserve">
-    <value>Не удалось загрузить обновление ASLM.</value>
+    <value>Не удалось загрузить обновление ASLM</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailedStatus" xml:space="preserve">
     <value>Подготовка не удалась</value>
@@ -669,23 +777,23 @@
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Нет уведомлений</value>
   </data>
-  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
-    <value>установленная версия</value>
-  </data>
-  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>Этот модуль больше не установлен.</value>
-  </data>
   <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
     <value>Доступно обновление движка</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
-    <value>Не удалось применить обновление движка.</value>
+    <value>Не удалось применить обновление движка</value>
   </data>
   <data name="Notifications_EngineUpdateNotAvailable" xml:space="preserve">
-    <value>Сейчас обновлений движка нет.</value>
+    <value>Сейчас обновлений движка нет</value>
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Обновление движка</value>
+  </data>
+  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
+    <value>установленная версия</value>
+  </data>
+  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
+    <value>Этот модуль больше не установлен</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>Доступно обновление модуля</value>
@@ -714,11 +822,47 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Обновить сейчас</value>
   </data>
+  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
+    <value>Учётная запись ASLM</value>
+  </data>
+  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
+    <value>Учётная запись GitHub</value>
+  </data>
+  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
+    <value>Учётная запись Ollama</value>
+  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
     <value>Включить ASLM Mirror Server</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>Канал обновлений ASLM</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>Не удалось войти в облачную учётную запись: {0}</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>Ожидание входа в браузере...</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>Локальная учётная запись. Данные профиля хранятся только на этом устройстве</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>Использовать облачную</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>Использовать локальную</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>Использовать локальную учётную запись</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>Будет выполнен выход из облачного аккаунта SUNRISE</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>Выйти из SUNRISE?</value>
+  </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>Учётная запись ASLM</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Интервал в часах между фоновыми проверками обновлений</value>
@@ -737,69 +881,6 @@
   </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>Учётные записи</value>
-  </data>
-  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
-    <value>Учётная запись ASLM</value>
-  </data>
-  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
-    <value>Учётная запись GitHub</value>
-  </data>
-  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
-    <value>Учётная запись Ollama</value>
-  </data>
-  <data name="Settings_AslmAccount_Title" xml:space="preserve">
-    <value>Учётная запись ASLM</value>
-  </data>
-  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>Локальная учётная запись. Данные профиля хранятся только на этом устройстве.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
-    <value>Использовать облачную</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
-    <value>Использовать локальную</value>
-  </data>
-  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
-    <value>Ожидание входа в браузере...</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>Переключиться на локальную учётную запись?</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>Данные авторизации SUNRISE будут удалены с этого устройства. Локальный профиль ASLM останется доступен.</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
-    <value>Использовать локальную учётную запись</value>
-  </data>
-  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
-    <value>Не удалось войти в облачную учётную запись: {0}</value>
-  </data>
-  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
-    <value>Подключите, чтобы повысить лимит API с 60 до 5 000 запросов в час</value>
-  </data>
-  <data name="Settings_GitHub_Connect" xml:space="preserve">
-    <value>Подключить</value>
-  </data>
-  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
-    <value>Отключить</value>
-  </data>
-  <data name="Settings_GitHub_Connecting" xml:space="preserve">
-    <value>Подключение…</value>
-  </data>
-  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
-    <value>ghp_... или github_pat_...</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>Вставьте токен GitHub</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>Должна была открыться страница GitHub со сроком действия токена на 1 год. Для проверки публичных обновлений оставьте права по умолчанию, создайте токен и вставьте его сюда.</value>
-  </data>
-  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
-    <value>Учётная запись GitHub</value>
-  </data>
-  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
-    <value>Не удалось подключиться: {0}</value>
   </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
@@ -822,17 +903,26 @@
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
     <value>Показывать страницу «Консоли»</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>Отключить главную страницу (WIP)</value>
+  </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>Отменить изменения</value>
   </data>
   <data name="Settings_DiscardDialog_Message" xml:space="preserve">
-    <value>В этом разделе есть несохранённые изменения. Отменить их и перейти?</value>
+    <value>Несохранённые изменения будут потеряны</value>
   </data>
   <data name="Settings_DiscardDialog_Title" xml:space="preserve">
     <value>Несохранённые изменения</value>
   </data>
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>Отображаемое имя</value>
+  </data>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>Скачать обновление</value>
+  </data>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>Загрузка</value>
   </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>В этой категории нет параметров</value>
@@ -843,11 +933,50 @@
   <data name="Settings_Engine_NotInstalled" xml:space="preserve">
     <value>Не установлено</value>
   </data>
+  <data name="Settings_GitHub_Connect" xml:space="preserve">
+    <value>Подключить</value>
+  </data>
+  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
+    <value>Не удалось подключиться: {0}</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
+    <value>Создайте персональный токен доступа GitHub и вставьте его сюда</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
+    <value>Токен GitHub</value>
+  </data>
+  <data name="Settings_GitHub_Connecting" xml:space="preserve">
+    <value>Подключение…</value>
+  </data>
+  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
+    <value>Отключить</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
+    <value>Аккаунт GitHub будет отключён от ASLM</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
+    <value>Отключить GitHub?</value>
+  </data>
+  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
+    <value>Подключите, чтобы повысить лимит API с 60 до 5 000 запросов в час</value>
+  </data>
+  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
+    <value>ghp_... или github_pat_...</value>
+  </data>
+  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
+    <value>Учётная запись GitHub</value>
+  </data>
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>МОДУЛИ</value>
   </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
     <value>Показывать отдельные консоли процессов модулей</value>
+  </data>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>Установить и перезапустить</value>
+  </data>
+  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
+    <value>Автоматически принимать обновления политики</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>Загрузить по умолчанию</value>
@@ -858,11 +987,14 @@
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>У этого модуля нет параметров в текущем состоянии</value>
   </data>
-  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
-    <value>Параметры недоступны</value>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>Другие параметры</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>Начальный порт модулей</value>
+  </data>
+  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
+    <value>Параметры недоступны</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Учётная запись Ollama</value>
@@ -871,10 +1003,10 @@
     <value>Выйти</value>
   </data>
   <data name="Settings_OllamaSignOut_Message" xml:space="preserve">
-    <value>Текущий сеанс ollama.com для этого профиля Windows будет удалён. Продолжить?</value>
+    <value>Будет выполнен выход из аккаунта Ollama</value>
   </data>
   <data name="Settings_OllamaSignOut_Title" xml:space="preserve">
-    <value>Выйти из Ollama</value>
+    <value>Выйти из Ollama?</value>
   </data>
   <data name="Settings_Ollama_CheckingAccount" xml:space="preserve">
     <value>Проверка учётной записи</value>
@@ -930,15 +1062,6 @@
   <data name="Settings_Personalization_ImportPickerTitle" xml:space="preserve">
     <value>Импорт темы</value>
   </data>
-  <data name="Settings_Personalization_InheritDark" xml:space="preserve">
-    <value>Тёмная (встроенная)</value>
-  </data>
-  <data name="Settings_Personalization_InheritLight" xml:space="preserve">
-    <value>Светлая (встроенная)</value>
-  </data>
-  <data name="Settings_Personalization_InheritTitle" xml:space="preserve">
-    <value>Наследовать цвета от</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>Язык</value>
   </data>
@@ -960,9 +1083,6 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>Порты</value>
   </data>
-  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
-    <value>Отключить главную страницу (WIP)</value>
-  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>Открывать последнюю посещённую страницу при запуске ASLM</value>
   </data>
@@ -981,7 +1101,7 @@
     <value>Нет изменений для сохранения</value>
   </data>
   <data name="Settings_SaveMessage_Saved" xml:space="preserve">
-    <value>Настройки сохранены и применены.</value>
+    <value>Настройки сохранены и применены</value>
   </data>
   <data name="Settings_SavedTitle" xml:space="preserve">
     <value>Настройки сохранены</value>
@@ -998,9 +1118,6 @@
   <data name="Settings_SubGroup_Legal" xml:space="preserve">
     <value>Условия</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>Автоматически принимать обновления политики</value>
-  </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>Удалить</value>
   </data>
@@ -1016,11 +1133,11 @@
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>Очистить</value>
   </data>
-  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
-    <value>Редактор темы: {0}</value>
-  </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>Выбрать</value>
+  </data>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>Редактор темы: {0}</value>
   </data>
   <data name="Settings_ThemeExport_Failed" xml:space="preserve">
     <value>Не удалось экспортировать тему: {0}</value>
@@ -1055,59 +1172,50 @@
   <data name="Settings_Title" xml:space="preserve">
     <value>Настройки</value>
   </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>Доступная версия: {0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>Установленная версия: {0}</value>
+  </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>Не удалось подготовить обновление ASLM</value>
   </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>Перезапуск не удался: {0}</value>
   </data>
-  <data name="Settings_DownloadUpdate" xml:space="preserve">
-    <value>Скачать обновление</value>
-  </data>
-  <data name="Settings_Downloading" xml:space="preserve">
-    <value>Загрузка</value>
-  </data>
-  <data name="Settings_InstallAndRestart" xml:space="preserve">
-    <value>Установить и перезапустить</value>
-  </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>Ошибка проверки</value>
-  </data>
-  <data name="SetupWizard_Canceled" xml:space="preserve">
-    <value>Установка отменена.</value>
   </data>
   <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
     <value>Выберите тип учётной записи</value>
   </data>
-  <data name="SetupWizard_LocalAccount" xml:space="preserve">
-    <value>Локальная учётная запись</value>
-  </data>
-  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>Хранить профиль ASLM только на этом устройстве.</value>
+  <data name="SetupWizard_Canceled" xml:space="preserve">
+    <value>Установка отменена</value>
   </data>
   <data name="SetupWizard_CloudAccount" xml:space="preserve">
     <value>Облачная учётная запись</value>
   </data>
-  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>Войти через SUNRISE и синхронизировать профиль ASLM.</value>
-  </data>
   <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
     <value>Войти через SUNRISE</value>
   </data>
-  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
-    <value>Ожидание входа в браузере...</value>
-  </data>
-  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>Чтобы продолжить, войдите в учётную запись через браузер.</value>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>Не удалось войти в облачную учётную запись: {0}</value>
   </data>
   <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
     <value>Выполнен вход как {0}</value>
   </data>
-  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>Завершите вход через SUNRISE, прежде чем продолжить.</value>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>Ожидание входа в браузере...</value>
   </data>
-  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
-    <value>Не удалось войти в облачную учётную запись: {0}</value>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>Войти через SUNRISE и синхронизировать профиль ASLM</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>Чтобы продолжить, войдите в учётную запись через браузер</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>Завершите вход через SUNRISE, прежде чем продолжить</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>Ваше имя</value>
@@ -1122,10 +1230,13 @@
     <value>Быстрая настройка</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>Быстрая настройка использует параметры по умолчанию.</value>
+    <value>Быстрая настройка использует параметры по умолчанию</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>Готово</value>
+  </data>
+  <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
+    <value>Не удалось завершить первоначальную настройку: {0}</value>
   </data>
   <data name="SetupWizard_HideLog" xml:space="preserve">
     <value>Скрыть журнал</value>
@@ -1133,11 +1244,20 @@
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Установка</value>
   </data>
-  <data name="SetupWizard_Next_Install" xml:space="preserve">
-    <value>Установить</value>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>Локальная учётная запись</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>Хранить профиль ASLM только на этом устройстве</value>
+  </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>Не поддерживается на {0}</value>
   </data>
   <data name="SetupWizard_ModulesPortLabel" xml:space="preserve">
     <value>Начальный порт модулей</value>
+  </data>
+  <data name="SetupWizard_Next_Install" xml:space="preserve">
+    <value>Установить</value>
   </data>
   <data name="SetupWizard_OverallProgress" xml:space="preserve">
     <value>Общий ход</value>
@@ -1204,143 +1324,5 @@
   </data>
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>Непрозрачность</value>
-  </data>
-  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
-    <value>Не поддерживается на {0}</value>
-  </data>
-  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
-    <value>Другие параметры</value>
-  </data>
-  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
-    <value>Доступная версия: {0}</value>
-  </data>
-  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
-    <value>Установленная версия: {0}</value>
-  </data>
-  <data name="ModulesDownloads_Search" xml:space="preserve">
-    <value>Поиск доступных модулей</value>
-  </data>
-  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>Не удалось загрузить каталог модулей.</value>
-  </data>
-  <data name="ModulesDownloads_Close" xml:space="preserve">
-    <value>Закрыть информацию о модуле</value>
-  </data>
-  <data name="Modules_Remove" xml:space="preserve">
-    <value>Удалить</value>
-  </data>
-  <data name="Modules_Removing" xml:space="preserve">
-    <value>Удаление</value>
-  </data>
-  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
-    <value>Удалить {0}?</value>
-  </data>
-  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>Удалить {0} и его локальные данные? Движки, окружения и модели, используемые только этим модулем, также будут удалены. Общие зависимости будут сохранены.</value>
-  </data>
-  <data name="Modules_RemoveFailed" xml:space="preserve">
-    <value>Не удалось удалить модуль</value>
-  </data>
-  <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>Перед удалением модуля дождитесь завершения настройки, запуска, обновлений или загрузок модулей.</value>
-  </data>
-  <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>Этот модуль уже удалён. Обновите список модулей, прежде чем продолжить.</value>
-  </data>
-  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>Некоторые манифесты установленных модулей отсутствуют, недоступны для чтения или содержат повторяющиеся идентификаторы. Удаление отменено, поскольку не удалось безопасно проверить общие зависимости.</value>
-  </data>
-  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>От этого модуля зависят: {0}. Сначала удалите эти модули.</value>
-  </data>
-  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>Удаление отменено: путь выходит за пределы управляемого каталога или содержит символическую ссылку.</value>
-  </data>
-  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>Другой установленный модуль использует файлы в каталоге этого модуля. Удаление отменено, чтобы сохранить эти файлы.</value>
-  </data>
-  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
-    <value>Модуль удалён</value>
-  </data>
-  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
-    <value>Модуль удалён из списка установленных, но некоторые файлы удалить не удалось. Они остались в: {0}</value>
-  </data>
-  <data name="ModuleInfo_Version" xml:space="preserve">
-    <value>Версия</value>
-  </data>
-  <data name="ModuleInfo_Author" xml:space="preserve">
-    <value>Автор</value>
-  </data>
-  <data name="ModuleInfo_Id" xml:space="preserve">
-    <value>Идентификатор модуля</value>
-  </data>
-  <data name="ModuleInfo_Type" xml:space="preserve">
-    <value>Тип</value>
-  </data>
-  <data name="ModuleInfo_Categories" xml:space="preserve">
-    <value>Категории</value>
-  </data>
-  <data name="ModuleInfo_Platforms" xml:space="preserve">
-    <value>Поддерживаемые платформы</value>
-  </data>
-  <data name="ModuleInfo_Channel" xml:space="preserve">
-    <value>Канал загрузки</value>
-  </data>
-  <data name="ModuleInfo_Engines" xml:space="preserve">
-    <value>Необходимые движки</value>
-  </data>
-  <data name="ModuleInfo_Modules" xml:space="preserve">
-    <value>Необходимые модули</value>
-  </data>
-  <data name="ModuleInfo_Models" xml:space="preserve">
-    <value>Необходимые категории моделей</value>
-  </data>
-  <data name="ModuleInfo_Loading" xml:space="preserve">
-    <value>Загрузка информации о модуле…</value>
-  </data>
-  <data name="ModuleInfo_Downloading" xml:space="preserve">
-    <value>Загрузка и настройка {0}…</value>
-  </data>
-  <data name="ModuleInfo_Installed" xml:space="preserve">
-    <value>Установлен</value>
-  </data>
-  <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>Для этого модуля нет поддерживаемого источника загрузки.</value>
-  </data>
-  <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>Установка отменена.</value>
-  </data>
-  <data name="ModuleInfo_Failed" xml:space="preserve">
-    <value>Операция завершилась с ошибкой: {0}</value>
-  </data>
-  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>Модуль {0} больше не доступен в локальном каталоге.</value>
-  </data>
-  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>Не удалось определить источник загрузки для {0}.</value>
-  </data>
-  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>Не удалось завершить установку {0}. Подробности — в уведомлениях или консоли модуля.</value>
-  </data>
-  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>Обнаружена циклическая зависимость модулей, включающая {0}. Установка отменена.</value>
-  </data>
-  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>Необходимый модуль {0} отсутствует в локальном каталоге.</value>
-  </data>
-  <data name="ModuleInfo_InfoTab" xml:space="preserve">
-    <value>Информация</value>
-  </data>
-  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
-    <value>Конфигурация</value>
-  </data>
-  <data name="ModuleInfo_StatusTab" xml:space="preserve">
-    <value>Статус</value>
-  </data>
-  <data name="ModuleInfo_StateTitle" xml:space="preserve">
-    <value>Состояние модуля</value>
-  </data>
-  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
-    <value>Не установлен</value>
   </data>
 </root>

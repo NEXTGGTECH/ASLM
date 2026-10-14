@@ -9,6 +9,95 @@ namespace ASLM.Tests.Services;
 [Collection("ModuleManifestDiscovery")]
 public sealed class ModuleRegistryAndRemovalTests
 {
+    [Theory]
+    [InlineData(DownloadOperationState.Queued, true, "ASLM Code", true)]
+    [InlineData(DownloadOperationState.Running, true, "ASLM Code, Example", true)]
+    [InlineData(DownloadOperationState.Removing, true, "ASLM Code", false)]
+    [InlineData(DownloadOperationState.Running, false, "ASLM Code", false)]
+    [InlineData(DownloadOperationState.Queued, true, "", false)]
+    public void Download_dependency_status_includes_requester_only_for_dependency_installation(
+        DownloadOperationState phase, bool dependency, string requester, bool includesRequester)
+    {
+        var state = new ModuleInstaller.InstallationState(phase, dependency, requester);
+        if (includesRequester)
+        {
+            state.LabelWithRequester.Should().Contain(requester).And.NotContain("{0}");
+            state.Label.Should().NotContain(requester, "dashboard statuses stay compact");
+        }
+        else state.LabelWithRequester.Should().Be(state.Label);
+    }
+
+    [Theory]
+    [InlineData("aslm-chat", true)]
+    [InlineData("ASLM-CHAT", true)]
+    [InlineData("aslm-code", false)]
+    [InlineData("aslm-chat-example", false)]
+    public void Required_modules_are_matched_by_exact_case_insensitive_id(string id, bool required)
+    {
+        ModuleRegistry.IsRequired(id).Should().Be(required);
+    }
+
+    [Theory]
+    [InlineData("aslm-chat")]
+    [InlineData("ASLM-CHAT")]
+    public async Task Uninstall_skips_required_modules_without_changing_content_or_registry(string id)
+    {
+        using var fixture = new InstalledFixture(id);
+        var manifest = File.ReadAllText(fixture.Module.SourcePath);
+        var engineManifest = File.ReadAllText(fixture.Engine.SourcePath);
+        var registryPath = Path.Combine(AppRoot.Directory, "Data", "App", "ASLM_Modules.json");
+        var registry = File.ReadAllText(registryPath);
+        var changes = 0;
+        fixture.Installer.ModulesChanged += (_, _) => changes++;
+
+        (await fixture.Installer.UninstallAsync(fixture.Module)).Should().BeNull();
+
+        File.ReadAllText(fixture.Module.SourcePath).Should().Be(manifest);
+        File.ReadAllText(fixture.Engine.SourcePath).Should().Be(engineManifest);
+        File.ReadAllText(registryPath).Should().Be(registry);
+        File.ReadAllText(fixture.Payload).Should().Be("installed content");
+        Directory.Exists(fixture.Runtime).Should().BeTrue();
+        Directory.Exists(fixture.Environment).Should().BeTrue();
+        Directory.Exists(fixture.Models).Should().BeTrue();
+        changes.Should().Be(0);
+        // A rejected uninstall must not hold the global content-operation lock.
+        using var operation = ModuleInstaller.BeginContentOperation();
+    }
+
+    /// <summary>
+    /// Reinstall may clean a required module, while retaining installed consumers and their shared storage.
+    /// </summary>
+    [Theory]
+    [InlineData("aslm-chat")]
+    [InlineData("ASLM-CHAT")]
+    [InlineData("optional-module")]
+    public async Task Reinstall_cleans_owned_data_and_preserves_consumers_even_for_required_modules(string id)
+    {
+        using var fixture = new InstalledFixture(id);
+        var consumer = fixture.AddModule("consumer");
+        consumer.Dependencies.Modules.Add(new() { Id = fixture.Module.Id });
+        consumer.Dependencies.Engines.Add(new() { Id = fixture.Engine.Id });
+        fixture.Installer.SaveModuleConfig(consumer);
+        var selected = UpdateManager.CreateReinstallConfig(fixture.Module,
+            new() { Mode = "pre-release", SelectedReleaseTag = "v2-beta" });
+        using var request = fixture.Installer.BeginCatalogInstallation(selected, [selected], reinstall: true);
+        fixture.Installer.GetInstallationState(id)!.IsDependency.Should().BeFalse();
+        fixture.Installer.GetInstallationState(id)!.Phase.Should().Be(DownloadOperationState.Queued);
+        await fixture.Installer.RemoveForReinstallAsync(selected, CancellationToken.None);
+
+        File.Exists(fixture.Payload).Should().BeFalse();
+        Directory.Exists(fixture.Environment).Should().BeFalse();
+        Directory.Exists(fixture.Runtime).Should().BeTrue();
+        Directory.Exists(fixture.Models).Should().BeTrue();
+        fixture.Installer.Registry.ReadIds().Should().Contain(consumer.Id).And.NotContain(id);
+        var catalog = (await fixture.Installer.LoadModuleConfig(selected.SourcePath))!;
+        catalog.Update.Mode.Should().Be("pre-release");
+        catalog.Update.SelectedReleaseTag.Should().Be("v2-beta");
+        catalog.Status.Installed.Should().BeFalse();
+        (await fixture.Installer.DiscoverInstalledModulesAsync(includeInstalling: true)).Should().Contain(module => module.Id == id);
+        (await fixture.Installer.DiscoverAvailableModulesAsync()).Should().Contain(module => module.Id == id);
+    }
+
     [Fact]
     public void Registry_migrates_installed_manifests_once_and_respects_an_empty_registry()
     {
@@ -173,6 +262,62 @@ public sealed class ModuleRegistryAndRemovalTests
     }
 
     [Fact]
+    public async Task Notification_failure_after_reinstall_does_not_block_future_launch_state_saves()
+    {
+        using var fixture = new InstalledFixture();
+        await fixture.Installer.UninstallAsync(fixture.Module);
+        var downloaded = (await fixture.Installer.LoadModuleConfig(fixture.Module.SourcePath))!;
+        File.WriteAllText(fixture.Payload, "reinstalled content");
+        EventHandler brokenObserver = (_, _) => throw new InvalidOperationException("Observer failed");
+        fixture.Installer.ModulesChanged += brokenObserver;
+        try
+        {
+            await FluentActions.Awaiting(() => fixture.Installer.SaveInstalledContentAsync(downloaded))
+                .Should().ThrowAsync<InvalidOperationException>().WithMessage("Observer failed");
+        }
+        finally { fixture.Installer.ModulesChanged -= brokenObserver; }
+
+        fixture.Installer.Registry.ReadIds().Should().Contain(downloaded.Id);
+        var fresh = (await fixture.Installer.LoadModuleConfig(downloaded.SourcePath))!;
+        fresh.Status.Installed.Should().BeTrue();
+        fresh.Status.Enabled = true;
+        // This is the persistence step shared by UI launches and module-to-module launch requests.
+        await FluentActions.Awaiting(() => fixture.Installer.SaveConfigAsync(fresh)).Should().NotThrowAsync();
+        (await fixture.Installer.LoadModuleConfig(downloaded.SourcePath))!.Status.Enabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Installed_engine_lookup_does_not_lose_engines_during_concurrent_cache_invalidation()
+    {
+        using var fixture = new InstalledFixture();
+        var engines = new EngineInstaller();
+        engines.GetEngineConfig(fixture.Engine.Id).Should().NotBeNull();
+        using var stop = new CancellationTokenSource();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var invalidator = Task.Run(() =>
+        {
+            started.SetResult();
+            while (!stop.IsCancellationRequested)
+            {
+                engines.InvalidateCache();
+                Thread.Yield();
+            }
+        });
+        try
+        {
+            await started.Task;
+            var missing = 0;
+            await Task.Run(() => Parallel.For(0, 256, _ =>
+            {
+                if (engines.GetEngineConfig(fixture.Engine.Id) == null) Interlocked.Increment(ref missing);
+                if (!engines.HasEngine(fixture.Engine.Id)) Interlocked.Increment(ref missing);
+            }));
+            missing.Should().Be(0, "invalidating a cache must not make an installed runtime appear missing");
+        }
+        finally { stop.Cancel(); await invalidator; }
+    }
+
+    [Fact]
     public async Task Uninstall_refuses_to_race_a_download_or_guess_missing_dependencies()
     {
         using var fixture = new InstalledFixture();
@@ -235,6 +380,124 @@ public sealed class ModuleRegistryAndRemovalTests
             .Should().Equal(Path.Combine(root, "Models", "shared-weights"));
     }
 
+    [Fact]
+    public async Task Unrelated_content_operations_do_not_block_removal_but_shared_engines_and_paths_do()
+    {
+        using var fixture = new InstalledFixture();
+        var unrelated = fixture.AddModule("unrelated");
+        fixture.Installer.SaveModuleConfig(unrelated);
+        using (ModuleInstaller.BeginContentOperation(unrelated))
+        {
+            using var sameEngine = ModuleInstaller.BeginContentOperation(new ModuleConfig
+            {
+                Id = "active-engine-consumer",
+                Dependencies = new() { Engines = [new() { Id = fixture.Engine.Id }] }
+            });
+            await FluentActions.Awaiting(() => fixture.Installer.UninstallAsync(fixture.Module))
+                .Should().ThrowAsync<InvalidOperationException>();
+        }
+        var pathConsumer = new ModuleConfig { Id = "active-path-consumer" };
+        pathConsumer.Settings.Add(new ModuleSetting
+        {
+            Type = "path", UseCustomValue = true, Value = Path.Combine(fixture.Runtime, "tool.exe")
+        });
+        using (ModuleInstaller.BeginContentOperation(pathConsumer))
+            await FluentActions.Awaiting(() => fixture.Installer.UninstallAsync(fixture.Module))
+                .Should().ThrowAsync<InvalidOperationException>();
+        using (ModuleInstaller.BeginContentOperation(unrelated))
+        {
+            (await fixture.Installer.UninstallQueuedAsync(fixture.Module, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5))).Should().BeNull();
+            File.Exists(fixture.Payload).Should().BeFalse();
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    public async Task Cancel_rollback_removes_only_fresh_dependencies_not_preinstalled_or_manually_requested(
+        bool preinstalled, bool manuallyRequested, bool shouldRemain)
+    {
+        using var fixture = new InstalledFixture();
+        var root = fixture.AddModule("root");
+        root.Status.Installed = false;
+        root.Dependencies.Modules.Add(new() { Id = fixture.Module.Id });
+        fixture.Installer.SaveModuleConfig(root);
+        using var request = fixture.Installer.BeginCatalogInstallation(root, [fixture.Module, root]);
+        if (!preinstalled) request.TrackNewContent(fixture.Module);
+        if (manuallyRequested) fixture.Installer.RecordManualRequest(fixture.Module.Id);
+
+        await fixture.Installer.RollbackCatalogInstallationAsync(request, new Progress<string>());
+
+        fixture.Installer.Registry.ReadIds().Contains(fixture.Module.Id).Should().Be(shouldRemain);
+        File.Exists(fixture.Payload).Should().Be(shouldRemain);
+        Directory.Exists(fixture.Runtime).Should().Be(shouldRemain);
+        File.Exists(fixture.Module.SourcePath).Should().BeTrue("the local catalog manifest is retained");
+    }
+
+    [Fact]
+    public async Task Cancel_removes_the_fresh_root_before_removing_its_fresh_dependencies()
+    {
+        using var fixture = new InstalledFixture();
+        var root = fixture.AddModule("root");
+        root.Dependencies.Modules.Add(new() { Id = fixture.Module.Id });
+        fixture.Installer.SaveModuleConfig(root);
+        using var request = fixture.Installer.BeginCatalogInstallation(root, [fixture.Module, root]);
+        request.TrackNewContent(root);
+        request.TrackNewContent(fixture.Module);
+
+        await fixture.Installer.RollbackCatalogInstallationAsync(request, new Progress<string>());
+
+        fixture.Installer.Registry.ReadIds().Should().NotContain(root.Id).And.NotContain(fixture.Module.Id);
+        File.Exists(fixture.Payload).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Shared_fresh_dependency_survives_first_cancel_and_is_cleaned_when_last_consumer_cancels()
+    {
+        using var fixture = new InstalledFixture();
+        var first = fixture.AddModule("first");
+        var second = fixture.AddModule("second");
+        foreach (var root in new[] { first, second })
+        {
+            root.Status.Installed = false;
+            root.Dependencies.Modules.Add(new() { Id = fixture.Module.Id });
+            fixture.Installer.SaveModuleConfig(root);
+        }
+        using var firstRequest = fixture.Installer.BeginCatalogInstallation(first, [fixture.Module, first]);
+        firstRequest.TrackNewContent(fixture.Module);
+        using var secondRequest = fixture.Installer.BeginCatalogInstallation(second, [fixture.Module, second]);
+
+        await fixture.Installer.RollbackCatalogInstallationAsync(firstRequest, new Progress<string>());
+        File.Exists(fixture.Payload).Should().BeTrue();
+        firstRequest.Dispose();
+        await fixture.Installer.RollbackCatalogInstallationAsync(secondRequest, new Progress<string>());
+
+        fixture.Installer.Registry.ReadIds().Should().NotContain(fixture.Module.Id);
+        File.Exists(fixture.Payload).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Cancel_keeps_a_dependency_required_by_another_installed_module()
+    {
+        using var fixture = new InstalledFixture();
+        var root = fixture.AddModule("root");
+        root.Status.Installed = false;
+        root.Dependencies.Modules.Add(new() { Id = fixture.Module.Id });
+        fixture.Installer.SaveModuleConfig(root);
+        var installedConsumer = fixture.AddModule("consumer");
+        installedConsumer.Dependencies.Modules.Add(new() { Id = fixture.Module.Id });
+        fixture.Installer.SaveModuleConfig(installedConsumer);
+        using var request = fixture.Installer.BeginCatalogInstallation(root, [fixture.Module, root]);
+        request.TrackNewContent(fixture.Module);
+
+        await fixture.Installer.RollbackCatalogInstallationAsync(request, new Progress<string>());
+
+        fixture.Installer.Registry.ReadIds().Should().Contain(fixture.Module.Id);
+        File.Exists(fixture.Payload).Should().BeTrue();
+    }
+
     private static ModuleConfig MakeModule(string root, string id) => new()
     {
         Id = id,
@@ -274,12 +537,13 @@ public sealed class ModuleRegistryAndRemovalTests
         public string Models { get; }
         public string Payload { get; }
 
-        public InstalledFixture()
+        public InstalledFixture(string? moduleId = null)
         {
             using var layout = new AslmFileSystemLayout();
             File.WriteAllText(Path.Combine(layout.DataAppDir, "ASLM_Modules.json"), "[]");
             var id = "removal-test-" + Guid.NewGuid().ToString("N");
             Module = MakeModule(layout.Root, id);
+            Module.Id = moduleId ?? id;
             Module.Status.Installed = true;
             Module.Icon = "icon.png";
             Engine = MakeEngine(layout.Root, id + "-engine");

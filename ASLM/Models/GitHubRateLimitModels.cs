@@ -41,6 +41,15 @@ namespace ASLM.Models
         [JsonPropertyName("resetUtc")]
         public string? ResetUtc { get; set; }
 
+        [JsonPropertyName("authenticated")]
+        public bool? Authenticated { get; set; }
+
+        [JsonPropertyName("lastAnonymousNoticeResetUtc")]
+        public string? LastAnonymousNoticeResetUtc { get; set; }
+
+        [JsonPropertyName("lastAuthenticatedNoticeResetUtc")]
+        public string? LastAuthenticatedNoticeResetUtc { get; set; }
+
         [JsonPropertyName("requests")]
         public List<GitHubRequestRecord> Requests { get; set; } = [];
 
@@ -56,6 +65,7 @@ namespace ASLM.Models
 
             KnownLimit = Math.Clamp(KnownLimit <= 0 ? 60 : KnownLimit, 1, 15000);
             KnownRemaining = Math.Clamp(KnownRemaining, 0, KnownLimit);
+            Authenticated ??= KnownLimit > 60;
             ResetUtc = string.IsNullOrWhiteSpace(ResetUtc) ? null : ResetUtc.Trim();
 
             Requests ??= [];

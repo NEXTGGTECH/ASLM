@@ -69,6 +69,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>取消</value>
   </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>關閉</value>
+  </data>
   <data name="Common_Discard" xml:space="preserve">
     <value>捨棄</value>
   </data>
@@ -118,13 +121,13 @@
     <value>所有模組 / 統一主控台</value>
   </data>
   <data name="Consoles_EmptySelectionDescription" xml:space="preserve">
-    <value>模組啟動、設定、設定同步、服務和執行子程序的主控台輸出將顯示在此處。</value>
+    <value>模組啟動、設定、設定同步、服務和執行子程序的主控台輸出將顯示在此處</value>
   </data>
   <data name="Consoles_EmptySelectionFooter" xml:space="preserve">
-    <value>正在等待模組活動。</value>
+    <value>正在等待模組活動</value>
   </data>
   <data name="Consoles_EmptySelectionStatus" xml:space="preserve">
-    <value>啟動或選取模組以查看主控台活動。</value>
+    <value>啟動或選取模組以查看主控台活動</value>
   </data>
   <data name="Consoles_EmptySelectionTitle" xml:space="preserve">
     <value>未選取主控台</value>
@@ -163,7 +166,7 @@
     <value>沒有主控台</value>
   </data>
   <data name="Consoles_NoOutputYet" xml:space="preserve">
-    <value>暫無輸出。</value>
+    <value>暫無輸出</value>
   </data>
   <data name="Consoles_PidFormat" xml:space="preserve">
     <value> – PID {0}</value>
@@ -187,10 +190,10 @@
     <value>{0} 工作階段正在執行{1}</value>
   </data>
   <data name="Consoles_SessionObservedDescription" xml:space="preserve">
-    <value>模組啟動的被監視子程序。ASLM 可以將其作為服務保持可見，但對於第三方可執行檔，可能無法直接擷取 stdout/stderr。</value>
+    <value>模組啟動的被監視子程序。ASLM 可以將其作為服務保持可見，但對於第三方可執行檔，可能無法直接擷取 stdout/stderr</value>
   </data>
   <data name="Consoles_SessionObservedPreview" xml:space="preserve">
-    <value>被監視的子程序。可能無法直接擷取 stdout/stderr。</value>
+    <value>被監視的子程序。可能無法直接擷取 stdout/stderr</value>
   </data>
   <data name="Consoles_SessionStageFormat" xml:space="preserve">
     <value>{0} 工作階段</value>
@@ -238,10 +241,19 @@
     <value>所有活動模組的統一主控台</value>
   </data>
   <data name="Consoles_UnifiedPreview" xml:space="preserve">
-    <value>包含來自活動模組的統一記錄和已完成程序歷程記錄。</value>
+    <value>包含來自活動模組的統一記錄和已完成程序歷程記錄</value>
   </data>
   <data name="Consoles_VisibleLinesFormat" xml:space="preserve">
     <value>{0} 行可見</value>
+  </data>
+  <data name="Dialog_ActionFailedFormat" xml:space="preserve">
+    <value>無法完成操作：{0}</value>
+  </data>
+  <data name="Dialog_InvalidValue" xml:space="preserve">
+    <value>請輸入有效值</value>
+  </data>
+  <data name="Dialog_Required" xml:space="preserve">
+    <value>此欄位為必填</value>
   </data>
   <data name="Downloads_CatalogColumnTitle" xml:space="preserve">
     <value>目錄</value>
@@ -264,14 +276,14 @@
   <data name="Downloads_ImagePlaceholderFormat" xml:space="preserve">
     <value>[圖片：{0}]</value>
   </data>
+  <data name="Downloads_NoItems" xml:space="preserve">
+    <value>沒有項目</value>
+  </data>
   <data name="Downloads_OpenLink" xml:space="preserve">
     <value>開啟連結</value>
   </data>
-  <data name="Downloads_SelectVariant" xml:space="preserve">
-    <value>選取要下載的變體：</value>
-  </data>
-  <data name="Downloads_NoItems" xml:space="preserve">
-    <value>沒有項目</value>
+  <data name="Downloads_Queued" xml:space="preserve">
+    <value>排隊中</value>
   </data>
   <data name="Downloads_SearchPlaceholder" xml:space="preserve">
     <value>搜尋提供者的目錄</value>
@@ -279,8 +291,26 @@
   <data name="Downloads_SelectItem" xml:space="preserve">
     <value>選取項目</value>
   </data>
+  <data name="Downloads_SelectVariant" xml:space="preserve">
+    <value>選取要下載的變體：</value>
+  </data>
   <data name="Downloads_Title" xml:space="preserve">
     <value>下載</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectAccount" xml:space="preserve">
+    <value>連結 GitHub 帳戶</value>
+  </data>
+  <data name="GitHubRateLimit_ConnectHint" xml:space="preserve">
+    <value>連結您的 GitHub 帳戶以提高每小時的請求上限</value>
+  </data>
+  <data name="GitHubRateLimit_Message" xml:space="preserve">
+    <value>ASLM 已達 GitHub API 每小時的請求上限。在配額重設之前，模組搜尋、下載與更新，以及 ASLM 和引擎更新可能無法正常進行</value>
+  </data>
+  <data name="GitHubRateLimit_RemindLater" xml:space="preserve">
+    <value>稍後提醒我</value>
+  </data>
+  <data name="GitHubRateLimit_Title" xml:space="preserve">
+    <value>已達 GitHub 請求上限</value>
   </data>
   <data name="Home_Badge_DiskFormat" xml:space="preserve">
     <value>磁碟 {0}</value>
@@ -472,22 +502,22 @@
     <value>接受並繼續</value>
   </data>
   <data name="Legal_AcceptDocumentFormat" xml:space="preserve">
-    <value>我已閱讀並接受{0}。</value>
+    <value>我已閱讀並接受{0}</value>
   </data>
   <data name="Legal_AcceptRequired" xml:space="preserve">
-    <value>請先接受此協議後再繼續。</value>
+    <value>請先接受此協議後再繼續</value>
   </data>
   <data name="Legal_Decline" xml:space="preserve">
     <value>拒絕</value>
   </data>
   <data name="Legal_DocumentsUpdated" xml:space="preserve">
-    <value>條款已更新，請重新查閱並接受。</value>
+    <value>條款已更新，請重新查閱並接受</value>
   </data>
   <data name="Legal_StepFormat" xml:space="preserve">
     <value>條款 {0} / {1}</value>
   </data>
   <data name="Legal_Subtitle" xml:space="preserve">
-    <value>接受使用 ASLM 所需的條款。</value>
+    <value>接受使用 ASLM 所需的條款</value>
   </data>
   <data name="Legal_Title" xml:space="preserve">
     <value>條款與授權</value>
@@ -495,29 +525,89 @@
   <data name="Loading_Text" xml:space="preserve">
     <value>載入中...</value>
   </data>
+  <data name="ModuleInfo_Author" xml:space="preserve">
+    <value>作者</value>
+  </data>
+  <data name="ModuleInfo_Canceled" xml:space="preserve">
+    <value>安裝已取消</value>
+  </data>
+  <data name="ModuleInfo_Categories" xml:space="preserve">
+    <value>分類</value>
+  </data>
+  <data name="ModuleInfo_Channel" xml:space="preserve">
+    <value>下載管道</value>
+  </data>
+  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
+    <value>組態</value>
+  </data>
+  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
+    <value>偵測到包含 {0} 的模組循環相依關係。安裝已取消</value>
+  </data>
+  <data name="ModuleInfo_Downloading" xml:space="preserve">
+    <value>正在下載並設定 {0}…</value>
+  </data>
+  <data name="ModuleInfo_Engines" xml:space="preserve">
+    <value>所需引擎</value>
+  </data>
+  <data name="ModuleInfo_Failed" xml:space="preserve">
+    <value>操作失敗：{0}</value>
+  </data>
+  <data name="ModuleInfo_Id" xml:space="preserve">
+    <value>模組 ID</value>
+  </data>
+  <data name="ModuleInfo_InfoTab" xml:space="preserve">
+    <value>資訊</value>
+  </data>
+  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
+    <value>無法完成 {0} 的安裝。請查看通知或模組主控台以瞭解詳情</value>
+  </data>
+  <data name="ModuleInfo_Installed" xml:space="preserve">
+    <value>已安裝</value>
+  </data>
+  <data name="ModuleInfo_Loading" xml:space="preserve">
+    <value>正在載入模組資訊…</value>
+  </data>
+  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
+    <value>本機目錄中缺少所需模組 {0}</value>
+  </data>
+  <data name="ModuleInfo_Models" xml:space="preserve">
+    <value>所需模型分類</value>
+  </data>
+  <data name="ModuleInfo_Modules" xml:space="preserve">
+    <value>所需模組</value>
+  </data>
+  <data name="ModuleInfo_NoSource" xml:space="preserve">
+    <value>此模組沒有可用的受支援下載來源</value>
+  </data>
+  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
+    <value>模組 {0} 已不在本機目錄中</value>
+  </data>
+  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
+    <value>未安裝</value>
+  </data>
+  <data name="ModuleInfo_Platforms" xml:space="preserve">
+    <value>支援的平台</value>
+  </data>
+  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
+    <value>無法判定 {0} 的下載來源</value>
+  </data>
+  <data name="ModuleInfo_StateTitle" xml:space="preserve">
+    <value>模組狀態</value>
+  </data>
+  <data name="ModuleInfo_StatusTab" xml:space="preserve">
+    <value>狀態</value>
+  </data>
+  <data name="ModuleInfo_Type" xml:space="preserve">
+    <value>類型</value>
+  </data>
+  <data name="ModuleInfo_Version" xml:space="preserve">
+    <value>版本</value>
+  </data>
   <data name="ModuleUpdate_ActivityTitle_Activity" xml:space="preserve">
     <value>更新活動</value>
   </data>
-  <data name="ModuleUpdate_ActivityTitle_Status" xml:space="preserve">
-    <value>更新狀態</value>
-  </data>
-  <data name="ModuleUpdate_Activity_FailedFormat" xml:space="preserve">
-    <value>{0} 更新失敗。</value>
-  </data>
-  <data name="ModuleUpdate_Activity_SuccessFormat" xml:space="preserve">
-    <value>{0} 已成功更新。</value>
-  </data>
-  <data name="ModuleUpdate_CheckUpdates" xml:space="preserve">
-    <value>檢查更新</value>
-  </data>
-  <data name="ModuleUpdate_CloseTooltip" xml:space="preserve">
-    <value>關閉模組更新</value>
-  </data>
-  <data name="ModuleUpdate_CurrentVersion" xml:space="preserve">
-    <value>目前版本</value>
-  </data>
   <data name="ModuleUpdate_InstallUpdate" xml:space="preserve">
-    <value>安裝更新</value>
+    <value>更新</value>
   </data>
   <data name="ModuleUpdate_LoadOptionsFailedFormat" xml:space="preserve">
     <value>載入更新選項失敗：{0}</value>
@@ -525,56 +615,11 @@
   <data name="ModuleUpdate_Log_CheckingFormat" xml:space="preserve">
     <value>正在檢查 {0} 的更新...</value>
   </data>
-  <data name="ModuleUpdate_Log_Failed" xml:space="preserve">
-    <value>更新未成功完成。</value>
-  </data>
-  <data name="ModuleUpdate_Log_InstallingFormat" xml:space="preserve">
-    <value>正在安裝 {0} 的更新...</value>
-  </data>
-  <data name="ModuleUpdate_Log_StartingFormat" xml:space="preserve">
-    <value>正在啟動 {0} 的更新。</value>
-  </data>
-  <data name="ModuleUpdate_Log_SuccessFormat" xml:space="preserve">
-    <value>更新完成。已安裝 {0}。</value>
-  </data>
-  <data name="ModuleUpdate_NoModuleSelected" xml:space="preserve">
-    <value>未選取模組</value>
-  </data>
-  <data name="ModuleUpdate_NoVersionSelected" xml:space="preserve">
-    <value>未選取版本</value>
-  </data>
-  <data name="ModuleUpdate_OverallProgress" xml:space="preserve">
-    <value>整體進度</value>
-  </data>
-  <data name="ModuleUpdate_PrefsAutoSaved" xml:space="preserve">
-    <value>偏好設定會自動儲存</value>
-  </data>
-  <data name="ModuleUpdate_ReadyDefault" xml:space="preserve">
-    <value>就緒。</value>
-  </data>
   <data name="ModuleUpdate_ReleaseVersion" xml:space="preserve">
     <value>發行版本</value>
   </data>
   <data name="ModuleUpdate_RepositoryBranch" xml:space="preserve">
     <value>儲存庫分支</value>
-  </data>
-  <data name="ModuleUpdate_SearchMode" xml:space="preserve">
-    <value>搜尋模式</value>
-  </data>
-  <data name="ModuleUpdate_SelectBranchRequired" xml:space="preserve">
-    <value>檢查更新前請選取存放庫分支。</value>
-  </data>
-  <data name="ModuleUpdate_SelectedTarget" xml:space="preserve">
-    <value>選取的目標</value>
-  </data>
-  <data name="ModuleUpdate_Status_CheckFailedFormat" xml:space="preserve">
-    <value>檢查失敗：{0}</value>
-  </data>
-  <data name="ModuleUpdate_Status_Checking" xml:space="preserve">
-    <value>正在檢查更新...</value>
-  </data>
-  <data name="ModuleUpdate_Status_ReadyToCheck" xml:space="preserve">
-    <value>準備檢查。</value>
   </data>
   <data name="ModuleUpdate_Status_UpToDate" xml:space="preserve">
     <value>已是最新</value>
@@ -588,20 +633,17 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>已更新</value>
   </data>
-  <data name="ModuleUpdate_Status_Updating" xml:space="preserve">
-    <value>正在更新...</value>
+  <data name="ModulesDownloads_Close" xml:space="preserve">
+    <value>關閉模組資訊</value>
   </data>
-  <data name="ModuleUpdate_SubtitleFormat" xml:space="preserve">
-    <value>{0} - {1}</value>
+  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
+    <value>無法載入模組目錄</value>
   </data>
-  <data name="ModuleUpdate_Title_Configure" xml:space="preserve">
-    <value>設定模組更新</value>
+  <data name="ModulesDownloads_Search" xml:space="preserve">
+    <value>搜尋可用模組</value>
   </data>
-  <data name="ModuleUpdate_Title_Update" xml:space="preserve">
-    <value>模組更新</value>
-  </data>
-  <data name="ModuleUpdate_UpdateSource" xml:space="preserve">
-    <value>更新來源</value>
+  <data name="Modules_Beta" xml:space="preserve">
+    <value>Beta 版</value>
   </data>
   <data name="Modules_CheckUpdates" xml:space="preserve">
     <value>檢查更新</value>
@@ -612,11 +654,74 @@
   <data name="Modules_Empty" xml:space="preserve">
     <value>找不到模組。請透過安裝精靈安裝模組</value>
   </data>
+  <data name="Modules_Experimental" xml:space="preserve">
+    <value>實驗性</value>
+  </data>
+  <data name="Modules_InstallingDependency" xml:space="preserve">
+    <value>正在安裝相依模組</value>
+  </data>
+  <data name="Modules_InstallingDependencyFor" xml:space="preserve">
+    <value>正在安裝 {0} 的相依模組</value>
+  </data>
   <data name="Modules_Launch" xml:space="preserve">
     <value>啟動</value>
   </data>
   <data name="Modules_NotVerified" xml:space="preserve">
     <value>未驗證</value>
+  </data>
+  <data name="Modules_QueuedDependency" xml:space="preserve">
+    <value>作為相依模組排隊中</value>
+  </data>
+  <data name="Modules_QueuedDependencyFor" xml:space="preserve">
+    <value>作為 {0} 的相依模組排隊中</value>
+  </data>
+  <data name="Modules_Reinstall" xml:space="preserve">
+    <value>重新安裝</value>
+  </data>
+  <data name="Modules_ReinstallConfirmTitle" xml:space="preserve">
+    <value>重新安裝 {0}？</value>
+  </data>
+  <data name="Modules_ReinstallFailed" xml:space="preserve">
+    <value>無法重新安裝模組</value>
+  </data>
+  <data name="Modules_Remove" xml:space="preserve">
+    <value>解除安裝</value>
+  </data>
+  <data name="Modules_RemoveBusy" xml:space="preserve">
+    <value>請等待模組設定、啟動、更新或下載完成後，再移除模組</value>
+  </data>
+  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
+    <value>模組已從已安裝清單中移除，但部分檔案無法刪除。這些檔案仍位於：{0}</value>
+  </data>
+  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
+    <value>模組已移除</value>
+  </data>
+  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
+    <value>與 {0} 相關的所有資料都將被刪除</value>
+  </data>
+  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
+    <value>解除安裝 {0}？</value>
+  </data>
+  <data name="Modules_RemoveFailed" xml:space="preserve">
+    <value>無法移除模組</value>
+  </data>
+  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
+    <value>下列模組需要此模組：{0}。請先移除這些模組</value>
+  </data>
+  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
+    <value>另一個已安裝的模組正在使用此模組目錄中的檔案。為保護這些檔案，已取消移除</value>
+  </data>
+  <data name="Modules_RemoveStale" xml:space="preserve">
+    <value>此模組已被移除。請重新整理模組清單後再繼續</value>
+  </data>
+  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
+    <value>部分已安裝模組的資訊清單檔案遺失、無法讀取或包含重複的 ID。由於無法安全檢查共用相依項目，已取消移除</value>
+  </data>
+  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
+    <value>由於某個路徑位於其受管理目錄之外或包含符號連結，已取消移除</value>
+  </data>
+  <data name="Modules_Removing" xml:space="preserve">
+    <value>正在解除安裝</value>
   </data>
   <data name="Modules_Restart" xml:space="preserve">
     <value>重新啟動</value>
@@ -639,6 +744,9 @@
   <data name="Modules_Updating" xml:space="preserve">
     <value>更新中</value>
   </data>
+  <data name="Modules_ViewLogs" xml:space="preserve">
+    <value>檢視記錄</value>
+  </data>
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>動作失敗</value>
   </data>
@@ -646,10 +754,10 @@
     <value>ASLM 更新可用</value>
   </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
-    <value>目前沒有可用的 ASLM 更新。</value>
+    <value>目前沒有可用的 ASLM 更新</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailed" xml:space="preserve">
-    <value>無法下載 ASLM 更新。</value>
+    <value>無法下載 ASLM 更新</value>
   </data>
   <data name="Notifications_AslmUpdatePrepareFailedStatus" xml:space="preserve">
     <value>準備失敗</value>
@@ -669,23 +777,23 @@
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>沒有通知</value>
   </data>
-  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
-    <value>已安裝版本</value>
-  </data>
-  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
-    <value>該模組已不再安裝。</value>
-  </data>
   <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
     <value>引擎更新可用</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
-    <value>無法套用引擎更新。</value>
+    <value>無法套用引擎更新</value>
   </data>
   <data name="Notifications_EngineUpdateNotAvailable" xml:space="preserve">
-    <value>目前沒有可用的引擎更新。</value>
+    <value>目前沒有可用的引擎更新</value>
   </data>
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>引擎更新</value>
+  </data>
+  <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
+    <value>已安裝版本</value>
+  </data>
+  <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
+    <value>該模組已不再安裝</value>
   </data>
   <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
     <value>模組更新可用</value>
@@ -714,11 +822,47 @@
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>立即更新</value>
   </data>
+  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
+    <value>ASLM 帳戶</value>
+  </data>
+  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
+    <value>GitHub 帳戶</value>
+  </data>
+  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
+    <value>Ollama 帳戶</value>
+  </data>
   <data name="Settings_ApiServer_Title" xml:space="preserve">
     <value>啟用 ASLM 鏡像伺服器</value>
   </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>ASLM 更新通道</value>
+  </data>
+  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
+    <value>雲端帳戶登入失敗：{0}</value>
+  </data>
+  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
+    <value>正在等候您透過瀏覽器登入...</value>
+  </data>
+  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
+    <value>本機帳戶。個人檔案資料僅儲存在此裝置上</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
+    <value>使用雲端帳戶</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
+    <value>使用本機帳戶</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
+    <value>使用本機帳戶</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
+    <value>將登出 SUNRISE 雲端帳號</value>
+  </data>
+  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
+    <value>登出 SUNRISE？</value>
+  </data>
+  <data name="Settings_AslmAccount_Title" xml:space="preserve">
+    <value>ASLM 帳戶</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>背景更新檢查的間隔（小時）</value>
@@ -737,42 +881,6 @@
   </data>
   <data name="Settings_Category_Accounts" xml:space="preserve">
     <value>帳戶</value>
-  </data>
-  <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
-    <value>ASLM 帳戶</value>
-  </data>
-  <data name="Settings_Accounts_SectionGitHub" xml:space="preserve">
-    <value>GitHub 帳戶</value>
-  </data>
-  <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
-    <value>Ollama 帳戶</value>
-  </data>
-  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
-    <value>連線可將 API 上限從每小時 60 次提升至 5,000 次</value>
-  </data>
-  <data name="Settings_GitHub_Connect" xml:space="preserve">
-    <value>連線</value>
-  </data>
-  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
-    <value>中斷連線</value>
-  </data>
-  <data name="Settings_GitHub_Connecting" xml:space="preserve">
-    <value>連線中…</value>
-  </data>
-  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
-    <value>ghp_... 或 github_pat_...</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
-    <value>貼上 GitHub 權杖</value>
-  </data>
-  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
-    <value>GitHub 應已開啟並預填 1 年有效期限。公開更新檢查請保留預設權限，產生權杖後貼到這裡。</value>
-  </data>
-  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
-    <value>GitHub 帳戶</value>
-  </data>
-  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
-    <value>連線失敗：{0}</value>
   </data>
   <data name="Settings_Category_Ollama" xml:space="preserve">
     <value>Ollama</value>
@@ -795,17 +903,26 @@
   <data name="Settings_ConsolesPage_Title" xml:space="preserve">
     <value>顯示「主控台」頁面</value>
   </data>
+  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
+    <value>停用首頁 (WIP)</value>
+  </data>
   <data name="Settings_DiscardChanges" xml:space="preserve">
     <value>捨棄變更</value>
   </data>
   <data name="Settings_DiscardDialog_Message" xml:space="preserve">
-    <value>此區段有未儲存的變更。要捨棄並切換嗎？</value>
+    <value>未儲存的變更將遺失</value>
   </data>
   <data name="Settings_DiscardDialog_Title" xml:space="preserve">
     <value>未儲存的變更</value>
   </data>
   <data name="Settings_DisplayName" xml:space="preserve">
     <value>顯示名稱</value>
+  </data>
+  <data name="Settings_DownloadUpdate" xml:space="preserve">
+    <value>下載更新</value>
+  </data>
+  <data name="Settings_Downloading" xml:space="preserve">
+    <value>正在下載</value>
   </data>
   <data name="Settings_EmptyCategory" xml:space="preserve">
     <value>此分類沒有設定</value>
@@ -816,11 +933,50 @@
   <data name="Settings_Engine_NotInstalled" xml:space="preserve">
     <value>未安裝</value>
   </data>
+  <data name="Settings_GitHub_Connect" xml:space="preserve">
+    <value>連線</value>
+  </data>
+  <data name="Settings_GitHub_ConnectFailed" xml:space="preserve">
+    <value>連線失敗：{0}</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Message" xml:space="preserve">
+    <value>建立 GitHub 個人存取權杖，然後貼到此處</value>
+  </data>
+  <data name="Settings_GitHub_ConnectPrompt_Title" xml:space="preserve">
+    <value>GitHub 權杖</value>
+  </data>
+  <data name="Settings_GitHub_Connecting" xml:space="preserve">
+    <value>連線中…</value>
+  </data>
+  <data name="Settings_GitHub_Disconnect" xml:space="preserve">
+    <value>中斷連線</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectMessage" xml:space="preserve">
+    <value>GitHub 帳號與 ASLM 的連結將被解除</value>
+  </data>
+  <data name="Settings_GitHub_DisconnectTitle" xml:space="preserve">
+    <value>解除 GitHub 連結？</value>
+  </data>
+  <data name="Settings_GitHub_NotConnectedHint" xml:space="preserve">
+    <value>連線可將 API 上限從每小時 60 次提升至 5,000 次</value>
+  </data>
+  <data name="Settings_GitHub_TokenPlaceholder" xml:space="preserve">
+    <value>ghp_... 或 github_pat_...</value>
+  </data>
+  <data name="Settings_GitHub_TokenTitle" xml:space="preserve">
+    <value>GitHub 帳戶</value>
+  </data>
   <data name="Settings_Header_Modules" xml:space="preserve">
     <value>模組</value>
   </data>
   <data name="Settings_IndividualConsoles_Title" xml:space="preserve">
     <value>為模組程序顯示獨立主控台</value>
+  </data>
+  <data name="Settings_InstallAndRestart" xml:space="preserve">
+    <value>安裝並重新啟動</value>
+  </data>
+  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
+    <value>自動接受政策更新</value>
   </data>
   <data name="Settings_LoadDefault" xml:space="preserve">
     <value>載入預設值</value>
@@ -831,11 +987,14 @@
   <data name="Settings_ModuleNoSettings" xml:space="preserve">
     <value>此模組在目前狀態下沒有設定</value>
   </data>
-  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
-    <value>沒有可用的設定</value>
+  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
+    <value>其他設定</value>
   </data>
   <data name="Settings_ModulePortTitle" xml:space="preserve">
     <value>模組起始連接埠</value>
+  </data>
+  <data name="Settings_NoSettingsAvailable" xml:space="preserve">
+    <value>沒有可用的設定</value>
   </data>
   <data name="Settings_OllamaAccount_Title" xml:space="preserve">
     <value>Ollama 帳戶</value>
@@ -844,10 +1003,10 @@
     <value>登出</value>
   </data>
   <data name="Settings_OllamaSignOut_Message" xml:space="preserve">
-    <value>這會移除此 Windows 設定檔目前的 ollama.com 工作階段。要繼續嗎？</value>
+    <value>將登出 Ollama 帳號</value>
   </data>
   <data name="Settings_OllamaSignOut_Title" xml:space="preserve">
-    <value>從 Ollama 登出</value>
+    <value>登出 Ollama？</value>
   </data>
   <data name="Settings_Ollama_CheckingAccount" xml:space="preserve">
     <value>正在檢查帳戶</value>
@@ -903,15 +1062,6 @@
   <data name="Settings_Personalization_ImportPickerTitle" xml:space="preserve">
     <value>匯入佈景主題</value>
   </data>
-  <data name="Settings_Personalization_InheritDark" xml:space="preserve">
-    <value>深色（內建）</value>
-  </data>
-  <data name="Settings_Personalization_InheritLight" xml:space="preserve">
-    <value>淺色（內建）</value>
-  </data>
-  <data name="Settings_Personalization_InheritTitle" xml:space="preserve">
-    <value>繼承顏色來源</value>
-  </data>
   <data name="Settings_Personalization_Language" xml:space="preserve">
     <value>語言</value>
   </data>
@@ -933,9 +1083,6 @@
   <data name="Settings_Ports" xml:space="preserve">
     <value>連接埠</value>
   </data>
-  <data name="Settings_DisableHomePage_Title" xml:space="preserve">
-    <value>停用首頁 (WIP)</value>
-  </data>
   <data name="Settings_RestoreLastPage_Title" xml:space="preserve">
     <value>ASLM 啟動時開啟上次造訪的頁面</value>
   </data>
@@ -954,7 +1101,7 @@
     <value>沒有可儲存的變更</value>
   </data>
   <data name="Settings_SaveMessage_Saved" xml:space="preserve">
-    <value>設定已儲存並套用。</value>
+    <value>設定已儲存並套用</value>
   </data>
   <data name="Settings_SavedTitle" xml:space="preserve">
     <value>設定已儲存</value>
@@ -971,9 +1118,6 @@
   <data name="Settings_SubGroup_Legal" xml:space="preserve">
     <value>條款</value>
   </data>
-  <data name="Settings_Legal_AutoAcceptUpdates_Title" xml:space="preserve">
-    <value>自動接受政策更新</value>
-  </data>
   <data name="Settings_ThemeDelete_Accept" xml:space="preserve">
     <value>刪除</value>
   </data>
@@ -989,11 +1133,11 @@
   <data name="Settings_ThemeEditor_Clear" xml:space="preserve">
     <value>清除</value>
   </data>
-  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
-    <value>佈景主題編輯器：{0}</value>
-  </data>
   <data name="Settings_ThemeEditor_Pick" xml:space="preserve">
     <value>挑選</value>
+  </data>
+  <data name="Settings_ThemeEditor_TitleFormat" xml:space="preserve">
+    <value>佈景主題編輯器：{0}</value>
   </data>
   <data name="Settings_ThemeExport_Failed" xml:space="preserve">
     <value>無法匯出佈景主題：{0}</value>
@@ -1028,26 +1172,50 @@
   <data name="Settings_Title" xml:space="preserve">
     <value>設定</value>
   </data>
+  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
+    <value>可用版本：{0}</value>
+  </data>
+  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
+    <value>已安裝版本：{0}</value>
+  </data>
   <data name="Settings_UpdateStatus_CouldNotPrepare" xml:space="preserve">
     <value>無法準備 ASLM 更新</value>
   </data>
   <data name="Settings_UpdateStatus_RestartFailed" xml:space="preserve">
     <value>重新啟動失敗：{0}</value>
   </data>
-  <data name="Settings_DownloadUpdate" xml:space="preserve">
-    <value>下載更新</value>
-  </data>
-  <data name="Settings_Downloading" xml:space="preserve">
-    <value>正在下載</value>
-  </data>
-  <data name="Settings_InstallAndRestart" xml:space="preserve">
-    <value>安裝並重新啟動</value>
-  </data>
   <data name="Settings_ValidationError" xml:space="preserve">
     <value>驗證錯誤</value>
   </data>
+  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
+    <value>選擇帳戶類型</value>
+  </data>
   <data name="SetupWizard_Canceled" xml:space="preserve">
-    <value>安裝已取消。</value>
+    <value>安裝已取消</value>
+  </data>
+  <data name="SetupWizard_CloudAccount" xml:space="preserve">
+    <value>雲端帳戶</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
+    <value>使用 SUNRISE 登入</value>
+  </data>
+  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
+    <value>雲端帳戶登入失敗：{0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
+    <value>已連線：{0}</value>
+  </data>
+  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
+    <value>正在等候您透過瀏覽器登入...</value>
+  </data>
+  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
+    <value>使用 SUNRISE 登入並同步您的 ASLM 個人檔案</value>
+  </data>
+  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
+    <value>請透過瀏覽器登入以繼續</value>
+  </data>
+  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
+    <value>繼續之前，請完成 SUNRISE 登入</value>
   </data>
   <data name="SetupWizard_DisplayNamePlaceholder" xml:space="preserve">
     <value>您的名稱</value>
@@ -1062,10 +1230,13 @@
     <value>快速安裝</value>
   </data>
   <data name="SetupWizard_FastSetupHint" xml:space="preserve">
-    <value>快速設定使用預設設定。</value>
+    <value>快速設定使用預設設定</value>
   </data>
   <data name="SetupWizard_Finish" xml:space="preserve">
     <value>完成</value>
+  </data>
+  <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
+    <value>無法完成初始設定：{0}</value>
   </data>
   <data name="SetupWizard_HideLog" xml:space="preserve">
     <value>隱藏記錄</value>
@@ -1073,11 +1244,20 @@
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>正在安裝</value>
   </data>
-  <data name="SetupWizard_Next_Install" xml:space="preserve">
-    <value>安裝</value>
+  <data name="SetupWizard_LocalAccount" xml:space="preserve">
+    <value>本機帳戶</value>
+  </data>
+  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
+    <value>僅在此裝置上保留您的 ASLM 個人檔案</value>
+  </data>
+  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
+    <value>不支援 {0}</value>
   </data>
   <data name="SetupWizard_ModulesPortLabel" xml:space="preserve">
     <value>模組起始連接埠</value>
+  </data>
+  <data name="SetupWizard_Next_Install" xml:space="preserve">
+    <value>安裝</value>
   </data>
   <data name="SetupWizard_OverallProgress" xml:space="preserve">
     <value>整體進度</value>
@@ -1144,203 +1324,5 @@
   </data>
   <data name="ThemeColorPicker_Opacity" xml:space="preserve">
     <value>不透明度</value>
-  </data>
-  <data name="Settings_AslmAccount_Title" xml:space="preserve">
-    <value>ASLM 帳戶</value>
-  </data>
-  <data name="Settings_AslmAccount_LocalStatus" xml:space="preserve">
-    <value>本機帳戶。個人檔案資料僅儲存在此裝置上。</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToCloud" xml:space="preserve">
-    <value>使用雲端帳戶</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocal" xml:space="preserve">
-    <value>使用本機帳戶</value>
-  </data>
-  <data name="Settings_AslmAccount_Connecting" xml:space="preserve">
-    <value>正在等候您透過瀏覽器登入...</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalTitle" xml:space="preserve">
-    <value>切換到本機帳戶？</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalMessage" xml:space="preserve">
-    <value>SUNRISE 認證資訊將從此裝置移除。您的本機 ASLM 個人檔案仍可使用。</value>
-  </data>
-  <data name="Settings_AslmAccount_SwitchToLocalConfirm" xml:space="preserve">
-    <value>使用本機帳戶</value>
-  </data>
-  <data name="Settings_AslmAccount_AuthenticationFailed" xml:space="preserve">
-    <value>雲端帳戶登入失敗：{0}</value>
-  </data>
-  <data name="SetupWizard_AccountTypeTitle" xml:space="preserve">
-    <value>選擇帳戶類型</value>
-  </data>
-  <data name="SetupWizard_LocalAccount" xml:space="preserve">
-    <value>本機帳戶</value>
-  </data>
-  <data name="SetupWizard_LocalAccountDescription" xml:space="preserve">
-    <value>僅在此裝置上保留您的 ASLM 個人檔案。</value>
-  </data>
-  <data name="SetupWizard_CloudAccount" xml:space="preserve">
-    <value>雲端帳戶</value>
-  </data>
-  <data name="SetupWizard_CloudAccountDescription" xml:space="preserve">
-    <value>使用 SUNRISE 登入並同步您的 ASLM 個人檔案。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAction" xml:space="preserve">
-    <value>使用 SUNRISE 登入</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnecting" xml:space="preserve">
-    <value>正在等候您透過瀏覽器登入...</value>
-  </data>
-  <data name="SetupWizard_CloudAccountNotConnected" xml:space="preserve">
-    <value>請透過瀏覽器登入以繼續。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountConnected" xml:space="preserve">
-    <value>已連線：{0}</value>
-  </data>
-  <data name="SetupWizard_CloudAccountRequired" xml:space="preserve">
-    <value>繼續之前，請完成 SUNRISE 登入。</value>
-  </data>
-  <data name="SetupWizard_CloudAccountAuthenticationFailed" xml:space="preserve">
-    <value>雲端帳戶登入失敗：{0}</value>
-  </data>
-  <data name="SetupWizard_ModuleUnsupported" xml:space="preserve">
-    <value>不支援 {0}</value>
-  </data>
-  <data name="Settings_ModuleOtherSettings" xml:space="preserve">
-    <value>其他設定</value>
-  </data>
-  <data name="Settings_UpdateCard_AvailableVersion" xml:space="preserve">
-    <value>可用版本：{0}</value>
-  </data>
-  <data name="Settings_UpdateCard_InstalledVersion" xml:space="preserve">
-    <value>已安裝版本：{0}</value>
-  </data>
-  <data name="ModulesDownloads_Search" xml:space="preserve">
-    <value>搜尋可用模組</value>
-  </data>
-  <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
-    <value>無法載入模組目錄。</value>
-  </data>
-  <data name="ModulesDownloads_Close" xml:space="preserve">
-    <value>關閉模組資訊</value>
-  </data>
-  <data name="Modules_Remove" xml:space="preserve">
-    <value>解除安裝</value>
-  </data>
-  <data name="Modules_Removing" xml:space="preserve">
-    <value>正在解除安裝</value>
-  </data>
-  <data name="Modules_RemoveConfirmTitle" xml:space="preserve">
-    <value>解除安裝 {0}？</value>
-  </data>
-  <data name="Modules_RemoveConfirmFormat" xml:space="preserve">
-    <value>是否移除 {0} 及其本機資料？僅供此模組使用的引擎、環境和模型也將被移除。共用相依項目將會保留。</value>
-  </data>
-  <data name="Modules_RemoveFailed" xml:space="preserve">
-    <value>無法移除模組</value>
-  </data>
-  <data name="Modules_RemoveBusy" xml:space="preserve">
-    <value>請等待模組設定、啟動、更新或下載完成後，再移除模組。</value>
-  </data>
-  <data name="Modules_RemoveStale" xml:space="preserve">
-    <value>此模組已被移除。請重新整理模組清單後再繼續。</value>
-  </data>
-  <data name="Modules_RemoveUnknownDependencies" xml:space="preserve">
-    <value>部分已安裝模組的資訊清單檔案遺失、無法讀取或包含重複的 ID。由於無法安全檢查共用相依項目，已取消移除。</value>
-  </data>
-  <data name="Modules_RemoveRequiredFormat" xml:space="preserve">
-    <value>下列模組需要此模組：{0}。請先移除這些模組。</value>
-  </data>
-  <data name="Modules_RemoveUnsafePath" xml:space="preserve">
-    <value>由於某個路徑位於其受管理目錄之外或包含符號連結，已取消移除。</value>
-  </data>
-  <data name="Modules_RemoveSharedFiles" xml:space="preserve">
-    <value>另一個已安裝的模組正在使用此模組目錄中的檔案。為保護這些檔案，已取消移除。</value>
-  </data>
-  <data name="Modules_RemoveCleanupTitle" xml:space="preserve">
-    <value>模組已移除</value>
-  </data>
-  <data name="Modules_RemoveCleanupFormat" xml:space="preserve">
-    <value>模組已從已安裝清單中移除，但部分檔案無法刪除。這些檔案仍位於：{0}</value>
-  </data>
-  <data name="ModuleInfo_Version" xml:space="preserve">
-    <value>版本</value>
-  </data>
-  <data name="ModuleInfo_Author" xml:space="preserve">
-    <value>作者</value>
-  </data>
-  <data name="ModuleInfo_Id" xml:space="preserve">
-    <value>模組 ID</value>
-  </data>
-  <data name="ModuleInfo_Type" xml:space="preserve">
-    <value>類型</value>
-  </data>
-  <data name="ModuleInfo_Categories" xml:space="preserve">
-    <value>分類</value>
-  </data>
-  <data name="ModuleInfo_Platforms" xml:space="preserve">
-    <value>支援的平台</value>
-  </data>
-  <data name="ModuleInfo_Channel" xml:space="preserve">
-    <value>下載管道</value>
-  </data>
-  <data name="ModuleInfo_Engines" xml:space="preserve">
-    <value>所需引擎</value>
-  </data>
-  <data name="ModuleInfo_Modules" xml:space="preserve">
-    <value>所需模組</value>
-  </data>
-  <data name="ModuleInfo_Models" xml:space="preserve">
-    <value>所需模型分類</value>
-  </data>
-  <data name="ModuleInfo_Loading" xml:space="preserve">
-    <value>正在載入模組資訊…</value>
-  </data>
-  <data name="ModuleInfo_Downloading" xml:space="preserve">
-    <value>正在下載並設定 {0}…</value>
-  </data>
-  <data name="ModuleInfo_Installed" xml:space="preserve">
-    <value>已安裝</value>
-  </data>
-  <data name="ModuleInfo_NoSource" xml:space="preserve">
-    <value>此模組沒有可用的受支援下載來源。</value>
-  </data>
-  <data name="ModuleInfo_Canceled" xml:space="preserve">
-    <value>安裝已取消。</value>
-  </data>
-  <data name="ModuleInfo_Failed" xml:space="preserve">
-    <value>操作失敗：{0}</value>
-  </data>
-  <data name="ModuleInfo_NotAvailable" xml:space="preserve">
-    <value>模組 {0} 已不在本機目錄中。</value>
-  </data>
-  <data name="ModuleInfo_SourceUnavailable" xml:space="preserve">
-    <value>無法判定 {0} 的下載來源。</value>
-  </data>
-  <data name="ModuleInfo_InstallFailed" xml:space="preserve">
-    <value>無法完成 {0} 的安裝。請查看通知或模組主控台以瞭解詳情。</value>
-  </data>
-  <data name="ModuleInfo_DependencyCycle" xml:space="preserve">
-    <value>偵測到包含 {0} 的模組循環相依關係。安裝已取消。</value>
-  </data>
-  <data name="ModuleInfo_MissingDependency" xml:space="preserve">
-    <value>本機目錄中缺少所需模組 {0}。</value>
-  </data>
-  <data name="ModuleInfo_InfoTab" xml:space="preserve">
-    <value>資訊</value>
-  </data>
-  <data name="ModuleInfo_ConfigurationTab" xml:space="preserve">
-    <value>組態</value>
-  </data>
-  <data name="ModuleInfo_StatusTab" xml:space="preserve">
-    <value>狀態</value>
-  </data>
-  <data name="ModuleInfo_StateTitle" xml:space="preserve">
-    <value>模組狀態</value>
-  </data>
-  <data name="ModuleInfo_NotInstalled" xml:space="preserve">
-    <value>未安裝</value>
   </data>
 </root>

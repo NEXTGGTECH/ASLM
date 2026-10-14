@@ -19,6 +19,12 @@ namespace ASLM.Services.Internal
         private readonly ILogger<GitHubRateLimitStore> _logger;
         private readonly object _sync = new();
         private readonly SemaphoreSlim _saveGate = new(1, 1);
+        private readonly TimeProvider _clock;
+        private ExhaustionNotice? _activeNotice;
+
+        public event EventHandler? StateChanged;
+
+        internal sealed record ExhaustionNotice(DateTimeOffset ResetUtc, bool Authenticated);
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
@@ -34,10 +40,15 @@ namespace ASLM.Services.Internal
         /// Creates the store and resolves the persisted data file path.
         /// </summary>
         public GitHubRateLimitStore(ILogger<GitHubRateLimitStore> logger)
+            : this(logger, Path.Combine(GetRootDirectory(), "Data", "App", "ASLM_GitHubRateLimit.json"), TimeProvider.System)
+        {
+        }
+
+        internal GitHubRateLimitStore(ILogger<GitHubRateLimitStore> logger, string filePath, TimeProvider clock)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            var rootDir = GetRootDirectory();
-            _filePath = Path.Combine(rootDir, "Data", "App", "ASLM_GitHubRateLimit.json");
+            _filePath = filePath;
+            _clock = clock;
         }
 
         /// <summary>
@@ -99,21 +110,85 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Updates the known GitHub rate-limit window from response headers.
         /// </summary>
-        public void UpdateFromHeaders(int limit, int remaining, long resetEpochSeconds)
+        public void UpdateFromHeaders(int limit, int remaining, long resetEpochSeconds, bool? authenticated = null)
+        {
+            if (limit <= 0 || remaining < 0 || remaining > limit || resetEpochSeconds <= 0 ||
+                resetEpochSeconds > DateTimeOffset.MaxValue.ToUnixTimeSeconds())
+                return;
+            var reset = DateTimeOffset.FromUnixTimeSeconds(resetEpochSeconds);
+            lock (_sync)
+            {
+                Data.Normalize();
+                // A response sent before connecting/disconnecting belongs to the old quota.
+                if (authenticated.HasValue && authenticated != Data.Authenticated)
+                    return;
+                var hasPrevious = DateTimeOffset.TryParse(Data.ResetUtc, out var previous);
+                if (hasPrevious && reset < previous)
+                    return;
+                Data.KnownLimit = Math.Clamp(limit, 1, 15000);
+                Data.KnownRemaining = hasPrevious && reset == previous
+                    ? Math.Min(Data.KnownRemaining, remaining)
+                    : Math.Clamp(remaining, 0, Data.KnownLimit);
+                Data.ResetUtc = reset.UtcDateTime.ToString("o");
+            }
+
+            try { Save(); }
+            finally { PublishStateChanged(); }
+        }
+
+        /// <summary>Tracks the hourly REST quota, not search or secondary throttling.</summary>
+        internal void UpdateFromResponse(HttpResponseMessage response, bool authenticated)
+        {
+            if (response.Headers.TryGetValues("X-RateLimit-Resource", out var resources) &&
+                !string.Equals(resources.FirstOrDefault(), "core", StringComparison.OrdinalIgnoreCase))
+                return;
+            if (response.Headers.TryGetValues("X-RateLimit-Limit", out var limits) &&
+                int.TryParse(limits.FirstOrDefault(), out var limit) &&
+                response.Headers.TryGetValues("X-RateLimit-Remaining", out var remainingValues) &&
+                int.TryParse(remainingValues.FirstOrDefault(), out var remaining) &&
+                response.Headers.TryGetValues("X-RateLimit-Reset", out var resets) &&
+                long.TryParse(resets.FirstOrDefault(), out var reset))
+                UpdateFromHeaders(limit, remaining, reset, authenticated);
+        }
+
+        /// <summary>Reserves one notice across page transitions and concurrent responses.</summary>
+        internal ExhaustionNotice? TryBeginExhaustionNotice()
         {
             lock (_sync)
             {
-                if (limit > 0)
-                {
-                    Data.KnownLimit = Math.Clamp(limit, 1, 15000);
-                }
-
-                Data.KnownRemaining = Math.Clamp(remaining, 0, Data.KnownLimit);
-                Data.ResetUtc = DateTimeOffset.FromUnixTimeSeconds(resetEpochSeconds).UtcDateTime.ToString("o");
                 Data.Normalize();
+                if (_activeNotice != null || Data.KnownRemaining != 0 ||
+                    !DateTimeOffset.TryParse(Data.ResetUtc, out var reset) || reset <= _clock.GetUtcNow())
+                    return null;
+                var authenticated = Data.Authenticated == true;
+                var last = authenticated ? Data.LastAuthenticatedNoticeResetUtc : Data.LastAnonymousNoticeResetUtc;
+                if (DateTimeOffset.TryParse(last, out var acknowledged) &&
+                    (reset <= acknowledged || acknowledged > _clock.GetUtcNow()))
+                    return null;
+                return _activeNotice = new ExhaustionNotice(reset, authenticated);
             }
+        }
 
-            Save();
+        /// <summary>Only a button acknowledges the window; unloading merely releases its reservation.</summary>
+        internal async Task EndExhaustionNoticeAsync(ExhaustionNotice notice, bool acknowledged)
+        {
+            lock (_sync)
+            {
+                if (!ReferenceEquals(_activeNotice, notice)) return;
+                _activeNotice = null;
+                if (acknowledged)
+                {
+                    var value = notice.ResetUtc.UtcDateTime.ToString("o");
+                    if (notice.Authenticated) Data.LastAuthenticatedNoticeResetUtc = value;
+                    else Data.LastAnonymousNoticeResetUtc = value;
+                }
+            }
+            if (acknowledged)
+            {
+                try { await SaveAsync().ConfigureAwait(false); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Could not persist the GitHub rate-limit notice acknowledgment."); }
+            }
+            PublishStateChanged();
         }
 
         /// <summary>
@@ -225,12 +300,28 @@ namespace ASLM.Services.Internal
         {
             lock (_sync)
             {
-                Data.KnownLimit = isAuthenticated ? 5000 : 60;
-                Data.KnownRemaining = Math.Min(Data.KnownRemaining, Data.KnownLimit);
                 Data.Normalize();
+                if (Data.Authenticated != isAuthenticated)
+                {
+                    Data.Authenticated = isAuthenticated;
+                    Data.KnownLimit = isAuthenticated ? 5000 : 60;
+                    Data.KnownRemaining = Data.KnownLimit;
+                    Data.ResetUtc = null;
+                }
             }
 
             Save();
+            PublishStateChanged();
+        }
+
+        private void PublishStateChanged()
+        {
+            if (StateChanged is not { } handlers) return;
+            foreach (EventHandler handler in handlers.GetInvocationList())
+            {
+                try { handler(this, EventArgs.Empty); }
+                catch (Exception ex) { _logger.LogWarning(ex, "GitHub rate-limit UI notification failed."); }
+            }
         }
 
         /// <summary>

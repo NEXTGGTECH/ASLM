@@ -39,7 +39,7 @@ namespace ASLM.Pages
         private bool _hasLoaded;
         private bool _isInternalModulesSelected = true;
         private bool _isBusy;
-        private bool _isInstalling;
+        private readonly HashSet<string> _pendingResourceKeys = new(StringComparer.OrdinalIgnoreCase);
         private string _searchText = string.Empty;
         private readonly Dictionary<string, DownloadCategoryState> _categoryStates = new(StringComparer.OrdinalIgnoreCase);
         private DownloadCategoryState _activeCategoryState = new();
@@ -109,6 +109,11 @@ namespace ASLM.Pages
             BridgeContent.InstallRequested += OnInstallClicked;
             BridgeContent.OpenRequested += OnOpenClicked;
             BridgeContent.RemoveRequested += OnDeleteClicked;
+            BridgeContent.CancelRequested += (_, _) =>
+            {
+                if (_selectedItem != null && _selectedVariant != null)
+                    _installer.Cancel(DownloadInstaller.GetResourceKey(_selectedItem.Item, _selectedVariant.Variant));
+            };
             BridgeContent.VariantSelectorToggleRequested += OnVariantSelectorToggleRequested;
 
             LocalizableAttach.Hook(this, _localization, this);
@@ -136,6 +141,7 @@ namespace ASLM.Pages
             DetailEmptyTitleLabel.Text = L.Get(LocalizationKeys.Downloads_SelectItem);
             InstallButton.Text = L.Get(LocalizationKeys.Common_Download);
             RemoveButton.Text = L.Get(LocalizationKeys.Common_Remove);
+            BridgeContent.CancelAction.Text = L.Get(LocalizationKeys.Common_Cancel);
             VariantSectionLabel.Text = L.Get(LocalizationKeys.Downloads_SelectVariant);
             BridgeContent.ItemDetailsTitle.Text = L.Get(LocalizationKeys.Downloads_DetailsLabel);
             BridgeContent.ItemFeaturesTitle.Text = L.Get(LocalizationKeys.Downloads_FeaturesLabel);
@@ -183,18 +189,9 @@ namespace ASLM.Pages
             }
         }
 
-        public bool IsInstalling
-        {
-            get => _isInstalling;
-            private set
-            {
-                if (_isInstalling == value) return;
-                _isInstalling = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(ShowInstallButton));
-                OnPropertyChanged(nameof(ShowDeleteButton));
-            }
-        }
+        public bool IsInstalling => _selectedItem != null && _selectedVariant != null &&
+            (_pendingResourceKeys.Contains(DownloadInstaller.GetResourceKey(_selectedItem.Item, _selectedVariant.Variant)) ||
+             _installer.IsPending(_selectedItem.Item, _selectedVariant.Variant));
 
         public string ActiveCategoryTitle => _activeCategory?.Title ?? L.Get(LocalizationKeys.Downloads_CatalogColumnTitle);
         public string ActiveCategoryDescription => _activeCategory?.Description ?? string.Empty;
@@ -256,6 +253,8 @@ namespace ASLM.Pages
         public bool HasSelectedVariantSummary => !string.IsNullOrWhiteSpace(SelectedVariantSummary);
         public bool ShowInstallButton => _selectedVariant != null && !_selectedVariant.Variant.Installed && !IsInstalling;
         public bool ShowDeleteButton => _selectedVariant?.Variant.Installed == true && !IsInstalling;
+        public bool ShowCancelButton => _selectedItem != null && _selectedVariant != null &&
+            _installer.IsPending(_selectedItem.Item, _selectedVariant.Variant);
         public bool ShowOpenVariantButton => !string.IsNullOrWhiteSpace(GetSelectedVariantHomepageUrl());
         public bool HasInfoBlocks => InfoBlocks.Count > 0;
         public bool HasMultipleInfoBlocks => InfoBlocks.Count > 1;
@@ -331,6 +330,9 @@ namespace ASLM.Pages
         /// </summary>
         private void OnLoaded(object? sender, EventArgs e)
         {
+            _installer.OperationsChanged -= OnDownloadOperationsChanged;
+            _installer.OperationsChanged += OnDownloadOperationsChanged;
+            RaiseVariantProperties();
             AttachThemeHandlers();
             if (_hasLoaded) return;
             _hasLoaded = true;
@@ -339,8 +341,12 @@ namespace ASLM.Pages
 
         private void OnUnloaded(object? sender, EventArgs e)
         {
+            _installer.OperationsChanged -= OnDownloadOperationsChanged;
             DetachThemeHandlers();
         }
+
+        private void OnDownloadOperationsChanged(object? sender, EventArgs e) =>
+            MainThread.BeginInvokeOnMainThread(RaiseVariantProperties);
 
         private void AttachThemeHandlers()
         {
@@ -865,7 +871,7 @@ namespace ASLM.Pages
             Variants.Clear();
             foreach (var variant in detail.Variants)
             {
-                Variants.Add(new DownloadVariantViewModel(variant, SelectVariant));
+                Variants.Add(new DownloadVariantViewModel(variant, SelectVariant, _installer));
             }
 
             InfoBlocks.Clear();
@@ -1008,15 +1014,17 @@ namespace ASLM.Pages
         /// </summary>
         private async Task InstallSelectedVariantAsync()
         {
-            if (_selectedItem == null || _selectedVariant == null || IsInstalling) return;
-
-            IsInstalling = true;
+            if (_selectedItem == null || _selectedVariant == null || IsInstalling || _selectedVariant.Variant.Installed) return;
+            var item = _selectedItem.Item;
+            var variant = _selectedVariant.Variant;
+            var resourceKey = DownloadInstaller.GetResourceKey(item, variant);
+            _pendingResourceKeys.Add(resourceKey);
 
             try
             {
-                var item = _selectedItem.Item;
-                var variant = _selectedVariant.Variant;
-                var result = await Task.Run(() => _installer.InstallAsync(item, variant));
+                var installation = _installer.InstallAsync(item, variant);
+                RaiseVariantProperties();
+                var result = await installation;
                 if (result.Success)
                 {
                     await LoadCatalogAsync(preferCached: true, forceRefresh: false, preserveSelection: true, showBusyIndicator: false, silentRefresh: false);
@@ -1031,7 +1039,8 @@ namespace ASLM.Pages
             }
             finally
             {
-                IsInstalling = false;
+                _pendingResourceKeys.Remove(resourceKey);
+                RaiseVariantProperties();
             }
         }
 
@@ -1041,14 +1050,16 @@ namespace ASLM.Pages
         private async Task DeleteSelectedVariantAsync()
         {
             if (_selectedItem == null || _selectedVariant == null || IsInstalling) return;
-
-            IsInstalling = true;
+            var item = _selectedItem.Item;
+            var variant = _selectedVariant.Variant;
+            var resourceKey = DownloadInstaller.GetResourceKey(item, variant);
+            _pendingResourceKeys.Add(resourceKey);
 
             try
             {
-                var item = _selectedItem.Item;
-                var variant = _selectedVariant.Variant;
-                var result = await Task.Run(() => _installer.UninstallAsync(item, variant));
+                var removal = _installer.UninstallAsync(item, variant);
+                RaiseVariantProperties();
+                var result = await removal;
                 if (result.Success)
                 {
                     await LoadCatalogAsync(preferCached: true, forceRefresh: false, preserveSelection: true, showBusyIndicator: false, silentRefresh: false);
@@ -1063,7 +1074,8 @@ namespace ASLM.Pages
             }
             finally
             {
-                IsInstalling = false;
+                _pendingResourceKeys.Remove(resourceKey);
+                RaiseVariantProperties();
             }
         }
 
@@ -1534,6 +1546,7 @@ namespace ASLM.Pages
         /// </summary>
         private void RaiseVariantProperties()
         {
+            OnPropertyChanged(nameof(IsInstalling));
             OnPropertyChanged(nameof(HasSelectedVariant));
             OnPropertyChanged(nameof(SelectedVariantCard));
             OnPropertyChanged(nameof(SelectedVariantTitle));
@@ -1541,6 +1554,8 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(HasSelectedVariantSummary));
             OnPropertyChanged(nameof(ShowInstallButton));
             OnPropertyChanged(nameof(ShowDeleteButton));
+            OnPropertyChanged(nameof(ShowCancelButton));
+            foreach (var variant in Variants) variant.RefreshLocalizedText();
             OnPropertyChanged(nameof(ShowOpenVariantButton));
         }
 
@@ -1771,6 +1786,7 @@ namespace ASLM.Pages
         public sealed class DownloadVariantViewModel : INotifyPropertyChanged
         {
             private readonly Action<DownloadVariantViewModel?> _selectAction;
+            private readonly DownloadInstaller _installer;
             private bool _isSelected;
 
 
@@ -1779,10 +1795,11 @@ namespace ASLM.Pages
             /// <summary>
             /// Binds one variant to its select action.
             /// </summary>
-            public DownloadVariantViewModel(DownloadCatalogVariant variant, Action<DownloadVariantViewModel?> selectAction)
+            public DownloadVariantViewModel(DownloadCatalogVariant variant, Action<DownloadVariantViewModel?> selectAction, DownloadInstaller installer)
             {
                 Variant = variant;
                 _selectAction = selectAction;
+                _installer = installer;
                 SelectCommand = new Command(() => _selectAction(this));
             }
 
@@ -1793,7 +1810,15 @@ namespace ASLM.Pages
             public string Summary => Variant.Summary;
             public bool HasSummary => !string.IsNullOrWhiteSpace(Summary);
             public string SizeLabel => Variant.HasSize ? FormatDownloadSize(Variant.Size) : "-";
-            public bool IsDownloaded => Variant.Installed;
+            public bool IsDownloaded => Variant.Installed && _installer.GetState(Variant.ResourceKey) == null;
+            public bool HasStatus => Variant.Installed || _installer.GetState(Variant.ResourceKey) != null;
+            public string StatusText => _installer.GetState(Variant.ResourceKey) switch
+            {
+                DownloadOperationState.Queued => L.Get(LocalizationKeys.Downloads_Queued),
+                DownloadOperationState.Running => L.Get(LocalizationKeys.Settings_Downloading),
+                DownloadOperationState.Removing => L.Get(LocalizationKeys.Modules_Removing),
+                _ => Variant.Installed ? DownloadedLabel : string.Empty
+            };
             public string DownloadedLabel => L.Get(LocalizationKeys.Downloads_Downloaded);
             public ICommand SelectCommand { get; }
 
@@ -1810,6 +1835,9 @@ namespace ASLM.Pages
 
             public void RefreshLocalizedText()
             {
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(HasStatus));
+                OnPropertyChanged(nameof(IsDownloaded));
                 OnPropertyChanged(nameof(DownloadedLabel));
                 OnPropertyChanged(nameof(SizeLabel));
             }

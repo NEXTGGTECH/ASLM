@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    <Style x:Key="DialogCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource BackgroundPrimary}" />
+        <Setter Property="Stroke" Value="{DynamicResource Separator}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 10" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style x:Key="DialogTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+    </Style>
+    <Style x:Key="DialogTextStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+    </Style>
+    <Style x:Key="DialogButtonStyle" TargetType="Button" BasedOn="{StaticResource SettingsFooterButtonStyle}" />
+    <Style x:Key="DialogPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SettingsFooterPrimaryButtonStyle}" />
+    <Style x:Key="DialogDangerButtonStyle" TargetType="Button" BasedOn="{StaticResource SettingsFooterDangerButtonStyle}" />
+</ResourceDictionary>

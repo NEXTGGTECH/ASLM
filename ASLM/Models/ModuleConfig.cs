@@ -33,6 +33,15 @@ namespace ASLM.Models
         [JsonPropertyName("version")]
         public string Version { get; set; } = string.Empty;
 
+        // Optional development-stage badges, independent of trust and the update channel.
+        [JsonPropertyName("is_beta")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool IsBeta { get; set; }
+
+        [JsonPropertyName("is_experemental")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool IsExperimental { get; set; }
+
         // Module author displayed to the user.
         [JsonPropertyName("author")]
         public string Author { get; set; } = string.Empty;
@@ -326,11 +335,11 @@ namespace ASLM.Models
         [JsonPropertyName("runFirstRunAfterUpdate")]
         public bool RunFirstRunAfterUpdate { get; set; } = true;
 
-        // Last branch commit installed by the updater.
+        // Commit identifying the current branch installation; null after installing a release.
         [JsonPropertyName("installedCommitSha")]
         public string? InstalledCommitSha { get; set; }
 
-        // Last release tag installed by the updater.
+        // Tag identifying the current release installation; null after installing a branch.
         [JsonPropertyName("installedReleaseTag")]
         public string? InstalledReleaseTag { get; set; }
 

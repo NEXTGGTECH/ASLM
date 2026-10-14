@@ -48,12 +48,20 @@
                     </VerticalStackLayout>
 
                     <Label Grid.Column="1"
-                           Text="{Binding DownloadedLabel}"
-                           IsVisible="{Binding IsDownloaded}"
+                           Text="{Binding StatusText}"
+                           IsVisible="{Binding HasStatus}"
                            FontSize="14"
-                           TextColor="{DynamicResource ActionGreen}"
+                           TextColor="{DynamicResource LabelPrimary}"
                            HorizontalTextAlignment="End"
-                           VerticalOptions="Center" />
+                           VerticalOptions="Center">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding IsDownloaded}"
+                                         Value="True">
+                                <Setter Property="TextColor" Value="{DynamicResource ActionGreen}" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
 
                     <Label Grid.Column="2"
                            Text="{Binding SizeLabel}"
@@ -329,6 +337,16 @@
                                                             TextColor="{DynamicResource White}"
                                                             FontSize="14"
                                                             Clicked="OnDeleteClicked" />
+                                                    <Button x:Name="CancelButton"
+                                                            IsVisible="{Binding ShowCancelButton}"
+                                                            HeightRequest="32"
+                                                            MinimumHeightRequest="32"
+                                                            CornerRadius="6"
+                                                            Padding="8,0"
+                                                            BackgroundColor="{DynamicResource ActionRed}"
+                                                            TextColor="{DynamicResource White}"
+                                                            FontSize="14"
+                                                            Clicked="OnCancelClicked" />
                                                 </HorizontalStackLayout>
                                             </Grid>
 

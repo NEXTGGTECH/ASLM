@@ -120,7 +120,7 @@
                     <VisualState x:Name="Normal" />
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
-                            <Setter Property="TextColor" Value="{DynamicResource LabelTertiary}" />
+                            <Setter Property="TextColor" Value="{DynamicResource SystemGray2}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>

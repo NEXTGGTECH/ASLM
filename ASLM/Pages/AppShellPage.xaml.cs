@@ -14,6 +14,7 @@ namespace ASLM.Pages
     public partial class AppShellPage : ContentPage, INotifyPropertyChanged, ILocalizable
     {
         private const double PanelExpandedWidth = 240;
+        private readonly GitHubRateLimitNotice _gitHubLimitNotice;
         private const double PanelCollapsedWidth = 48;
         private const double SidebarIconLogicalSize = 20;
 
@@ -56,7 +57,7 @@ namespace ASLM.Pages
         private View? _notificationsView;
         private View? _downloadsView;
         private View? _settingsView;
-        private View? _moduleUpdateView;
+        private ModuleInfo? _moduleInfoView;
 
         private Button? _activeNavButton;
         private Button[] _navButtons = [];
@@ -103,6 +104,10 @@ namespace ASLM.Pages
             _services = services;
 
             InitializeComponent();
+            Dialogs.Initialize(this, ShellSurface, _services);
+            _gitHubLimitNotice = new(this, Dialogs, _services,
+                () => OpenSettingsOverlay(SettingsCategoryKind.Accounts),
+                () => !_legalAcceptance.ManualAcceptanceRequired);
             LocalizableAttach.Hook(this, _localization, this);
             BindingContext = this;
             Loaded += OnPageLoaded;
@@ -172,7 +177,7 @@ namespace ASLM.Pages
             }
 
             _hasLoaded = true;
-            _ = LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
+            _ = PresentStartupOverlaysAsync();
             ScheduleSidebarButtonLayoutRefresh();
             await RefreshModulesAsync();
             ApplyAslmApiNavigationState();
@@ -181,6 +186,12 @@ namespace ASLM.Pages
             ScheduleEnsureModuleBrowserLeftToRight();
             RestoreInitialPage();
             _ = StartEnabledModulesAsync();
+        }
+
+        private async Task PresentStartupOverlaysAsync()
+        {
+            await LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
+            _gitHubLimitNotice.Refresh();
         }
 
         /// <summary>
@@ -292,7 +303,7 @@ namespace ASLM.Pages
                 do
                 {
                     Interlocked.Exchange(ref _moduleRefreshQueued, 0);
-                    var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
+                    var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync(includeInstalling: true));
                     await MainThread.InvokeOnMainThreadAsync(() => ApplyModules(modules));
                 }
                 while (Interlocked.Exchange(ref _moduleRefreshQueued, 0) == 1);
@@ -495,7 +506,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Opens the shared settings overlay and refreshes it before showing.
         /// </summary>
-        private void OpenSettingsOverlay()
+        private void OpenSettingsOverlay(SettingsCategoryKind? category = null)
         {
             _settingsView ??= _services.GetRequiredService<SettingsView>();
             if (_settingsView is SettingsView settingsView)
@@ -511,7 +522,10 @@ namespace ASLM.Pages
 
             if (_settingsView is SettingsView visibleSettingsView)
             {
-                _ = visibleSettingsView.RefreshAsync();
+                if (category.HasValue)
+                    visibleSettingsView.SelectCategory(category.Value);
+                else
+                    _ = visibleSettingsView.RefreshAsync();
             }
         }
 
@@ -551,30 +565,24 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Opens the shared module update overlay for the selected module.
+        /// Opens module metadata or configuration without starting a maintenance operation.
         /// </summary>
-        internal void OpenModuleUpdateOverlay(ModuleViewModel module, ModuleUpdateMode mode)
+        internal void OpenModuleInfoOverlay(ModuleConfig module, ModuleInfo.Section section)
         {
-            _ = OpenModuleUpdateOverlayAsync(module, mode);
+            _ = OpenModuleInfoOverlayAsync(module, section);
         }
 
         /// <summary>
-        /// Loads and shows the module update overlay before binding it to the selected module.
+        /// Hosts the same ModuleInfo view used by Downloads, with an explicit entry section.
         /// </summary>
-        private async Task OpenModuleUpdateOverlayAsync(ModuleViewModel module, ModuleUpdateMode mode)
+        private async Task OpenModuleInfoOverlayAsync(ModuleConfig module, ModuleInfo.Section section)
         {
-            _moduleUpdateView ??= _services.GetRequiredService<ModuleUpdateView>();
-            if (_moduleUpdateView is not ModuleUpdateView moduleUpdateView)
-            {
-                return;
-            }
-
-            moduleUpdateView.CloseRequested -= OnModuleUpdateCloseRequested;
-            moduleUpdateView.CloseRequested += OnModuleUpdateCloseRequested;
-            OverlayContainer.Content = _moduleUpdateView;
+            _moduleInfoView ??= _services.GetRequiredService<ModuleInfo>();
+            _moduleInfoView.CloseRequested -= OnModuleInfoCloseRequested;
+            _moduleInfoView.CloseRequested += OnModuleInfoCloseRequested;
+            OverlayContainer.Content = _moduleInfoView;
             OverlayContainer.IsVisible = true;
-
-            await moduleUpdateView.OpenAsync(module, mode);
+            await _moduleInfoView.OpenAsync(module, section);
         }
 
         /// <summary>
@@ -614,11 +622,12 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Hides the overlay container when the module update view requests close.
+        /// Hides ModuleInfo and refreshes card preferences and any newly discovered update badge.
         /// </summary>
-        private void OnModuleUpdateCloseRequested(object? sender, EventArgs e)
+        private void OnModuleInfoCloseRequested(object? sender, EventArgs e)
         {
             OverlayContainer.IsVisible = false;
+            OnModuleStateChanged();
         }
 
 
@@ -868,7 +877,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Opens the module update overlay in configure mode for the module referenced by the notification.
+        /// Opens ModuleInfo for the installed module referenced by an update notification.
         /// </summary>
         private async Task OpenModuleUpdateFromNotificationAsync(string moduleId)
         {
@@ -886,23 +895,7 @@ namespace ASLM.Pages
                 return;
             }
 
-            ModuleViewModel? viewModel = null;
-            if (_modulesView is ModulesView modulesView)
-            {
-                viewModel = modulesView.Modules.FirstOrDefault(module =>
-                    string.Equals(module.SourcePath, config.SourcePath, StringComparison.OrdinalIgnoreCase));
-            }
-
-            viewModel ??= ModulesView.CreateViewModelForDeferredUpdateOverlay(
-                config,
-                _moduleInstaller,
-                _moduleRunner,
-                _moduleLaunchCoordinator,
-                _updateManager,
-                _moduleTrustService,
-                OnModuleStateChanged);
-
-            OpenModuleUpdateOverlay(viewModel, ModuleUpdateMode.Configure);
+            OpenModuleInfoOverlay(config, ModuleInfo.Section.Status);
         }
 
         /// <summary>
@@ -1180,10 +1173,16 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Opens the consoles page and optionally focuses one module.
+        /// Opens the enabled consoles page and optionally focuses one module's merged output.
         /// </summary>
         internal void OpenConsoles(string? moduleSourcePath = null)
         {
+            // Programmatic shortcuts must respect the same preference as the sidebar.
+            if (!_appData.Data.Consoles.SidebarVisible)
+            {
+                return;
+            }
+
             NavigateTo(ConsolesButton);
 
             if (_consolesView is not ConsolesView consolesView)
@@ -1481,12 +1480,15 @@ namespace ASLM.Pages
                 return;
             }
 
+            // A full page switch must load a fresh document even when the native browser kept the same URL.
+            var forceNavigation = !Browser.IsVisible ||
+                !string.Equals(_activeModule?.Id, resolved.Id, StringComparison.OrdinalIgnoreCase);
             _activeModule = resolved;
             var url = _ports.GetModuleUrl(resolved);
 
             ContentArea.Content = null;
             EnsureModuleBrowserLeftToRight();
-            NavigateModuleBrowser(url);
+            NavigateModuleBrowser(url, force: forceNavigation);
             Browser.IsVisible = true;
             ScheduleEnsureModuleBrowserLeftToRight();
 
@@ -1650,9 +1652,9 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Navigates the shared module browser to one local module URL.
+        /// Navigates the shared module browser, optionally reloading its URL after a full page switch.
         /// </summary>
-        private void NavigateModuleBrowser(string url)
+        private void NavigateModuleBrowser(string url, bool force = false)
         {
             if (string.IsNullOrWhiteSpace(url))
             {
@@ -1664,7 +1666,7 @@ namespace ASLM.Pages
 #endif
             var sequence = Interlocked.Increment(ref _moduleBrowserNavigationSequence);
             _moduleBrowserExpectedUrl = url;
-            MainThread.BeginInvokeOnMainThread(() => ApplyModuleBrowserNavigation(sequence, url));
+            MainThread.BeginInvokeOnMainThread(() => ApplyModuleBrowserNavigation(sequence, url, force));
         }
 
         /// <summary>

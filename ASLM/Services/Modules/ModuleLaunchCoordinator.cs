@@ -138,7 +138,7 @@ namespace ASLM.Services.Modules
             var launchSlotAcquired = false;
             try
             {
-                using var operation = ModuleInstaller.BeginContentOperation();
+                using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, discovered).ConfigureAwait(false);
                 await _startThrottle.WaitAsync(ct);
                 launchSlotAcquired = true;
                 return await LaunchOrEnsureRunningCoreAsync(discovered, log, ct);

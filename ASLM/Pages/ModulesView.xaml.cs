@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Windows.Input;
 using ASLM.Localization;
 using ASLM.Models;
@@ -18,15 +17,21 @@ namespace ASLM.Pages
     public partial class ModulesView : ContentView, INotifyPropertyChanged, ILocalizable
     {
         private const double MinCardWidth = 440;
+        private bool _confirmingRemoval;
+        private bool _confirmingReinstall;
+        private ModuleViewModel? _menuModule;
+        private Rect _menuAnchor;
 
         private readonly UpdateManager _updateManager;
         private readonly ModuleTrustService _moduleTrustService;
         private readonly ModuleLaunchCoordinator _launchCoordinator;
         private readonly AppLocalizationService _localization;
+        private readonly AppDataStore _appData;
         private AppShellPage? _shell;
+        private ModuleConsoleStore? _consoleStore;
         private int _gridSpan = 1;
         private ImageSource _moreIconSource = null!;
-        private string? _removingSourcePath;
+        private readonly HashSet<string> _removingSourcePaths = new(StringComparer.OrdinalIgnoreCase);
 
 
         // View data
@@ -35,6 +40,11 @@ namespace ASLM.Pages
         /// Stores the module cards shown in the dashboard.
         /// </summary>
         public ObservableCollection<ModuleViewModel> Modules { get; } = new();
+
+        /// <summary>
+        /// Shows the logs action only while the consoles page is enabled in saved settings.
+        /// </summary>
+        public bool ShowLogsAction => _appData.Data.Consoles.SidebarVisible;
 
 
         // Layout state
@@ -85,16 +95,18 @@ namespace ASLM.Pages
             UpdateManager updateManager,
             ModuleTrustService moduleTrustService,
             ModuleLaunchCoordinator launchCoordinator,
-            AppLocalizationService localization)
+            AppLocalizationService localization,
+            AppDataStore appData)
         {
             _updateManager = updateManager;
             _moduleTrustService = moduleTrustService;
             _launchCoordinator = launchCoordinator;
             _localization = localization;
+            _appData = appData;
             InitializeComponent();
-            UninstallConfirmation.Initialize(_localization);
             BindingContext = this;
             DashboardView.HandlerChanged += OnDashboardViewHandlerChanged;
+            DashboardView.Scrolled += OnDashboardScrolled;
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
             SizeChanged += OnSizeChanged;
@@ -143,6 +155,9 @@ namespace ASLM.Pages
             ModuleRunner runner)
         {
             _shell = shell;
+            if (_consoleStore != null) _consoleStore.StateChanged -= OnMaintenanceChanged;
+            _consoleStore = runner.ConsoleStore;
+            if (IsLoaded) _consoleStore.StateChanged += OnMaintenanceChanged;
             PopulateModules(modules, installer, runner);
         }
 
@@ -188,6 +203,8 @@ namespace ASLM.Pages
             ModuleInstaller installer,
             ModuleRunner runner)
         {
+            // A rebuilt or recycled card must not leave actions bound to its previous view model.
+            CloseAllMenus();
             Modules.Clear();
 
             foreach (var module in modules)
@@ -202,37 +219,16 @@ namespace ASLM.Pages
                     OnModuleStateChanged,
                     OnMenuToggleRequested,
                     OpenConfigureUpdates,
-                    OpenUpdateDialog,
-                    OnRemoveRequested);
-                viewModel.SetRemoving(string.Equals(_removingSourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase));
+                    UpdateModule,
+                    CheckModuleUpdates,
+                    OnRemoveRequested,
+                    OnReinstallRequested,
+                    OpenModuleInfo,
+                    OpenModuleLogs);
+                viewModel.SetRemoving(_removingSourcePaths.Contains(module.SourcePath));
                 Modules.Add(viewModel);
             }
         }
-
-        /// <summary>
-        /// Builds a card view model for overlay flows when the modules dashboard has not created one yet.
-        /// </summary>
-        internal static ModuleViewModel CreateViewModelForDeferredUpdateOverlay(
-            ModuleConfig config,
-            ModuleInstaller installer,
-            ModuleRunner runner,
-            ModuleLaunchCoordinator launchCoordinator,
-            UpdateManager updateManager,
-            ModuleTrustService moduleTrustService,
-            Action onStateChanged) =>
-            new ModuleViewModel(
-                config,
-                installer,
-                runner,
-                launchCoordinator,
-                updateManager,
-                moduleTrustService,
-                onStateChanged,
-                static _ => { },
-                static _ => { },
-                static _ => { },
-                static _ => { });
-
 
         // State callback
 
@@ -248,15 +244,102 @@ namespace ASLM.Pages
         // Menu flow
 
         /// <summary>
+        /// Captures the tapped button's bounds in dashboard coordinates before opening the shared menu.
+        /// </summary>
+        private void OnModuleMenuTapped(object? sender, TappedEventArgs e)
+        {
+            if (sender is not View { BindingContext: ModuleViewModel module } anchor ||
+                e.GetPosition(DashboardRoot) is not { } dashboardPoint ||
+                e.GetPosition(anchor) is not { } localPoint)
+            {
+                return;
+            }
+
+            // Native gesture coordinates include collection scrolling and recycled item offsets on both platforms.
+            _menuAnchor = new Rect(dashboardPoint.X - localPoint.X, dashboardPoint.Y - localPoint.Y,
+                anchor.Width, anchor.Height);
+            module.ToggleMenuCommand.Execute(null);
+        }
+
+        /// <summary>
         /// Opens or closes the mini action menu for the selected module card.
         /// </summary>
         private void OnMenuToggleRequested(ModuleViewModel module)
         {
-            foreach (var candidate in Modules)
+            var shouldOpen = !module.IsMenuOpen;
+            CloseAllMenus();
+            if (!shouldOpen)
             {
-                var shouldStayOpen = ReferenceEquals(candidate, module) && !candidate.IsMenuOpen;
-                candidate.SetMenuOpen(shouldStayOpen);
+                return;
             }
+
+            // Read saved settings on every opening so a cached dashboard never exposes disabled consoles.
+            OnPropertyChanged(nameof(ShowLogsAction));
+
+            // One dashboard-level menu can extend beyond a card without affecting the card's size.
+            _menuModule = module;
+            module.PropertyChanged += OnMenuModulePropertyChanged;
+            ModuleMenuPopup.BindingContext = module;
+            module.SetMenuOpen(true);
+            ModuleMenuLayer.IsVisible = true;
+            UpdateModuleMenuPosition();
+            Dispatcher.Dispatch(UpdateModuleMenuPosition);
+        }
+
+        /// <summary>
+        /// Closes the shared layer when a command or lifecycle transition closes its owning card menu.
+        /// </summary>
+        private void OnMenuModulePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ModuleViewModel.IsMenuOpen) && _menuModule?.IsMenuOpen == false)
+            {
+                CloseAllMenus();
+            }
+        }
+
+        /// <summary>
+        /// Dismisses card actions when the user taps the surrounding dashboard.
+        /// </summary>
+        private void OnMenuBackdropTapped(object? sender, TappedEventArgs e) => CloseAllMenus();
+
+        /// <summary>
+        /// Measures visible actions and fits the popup to the dashboard, scrolling only when necessary.
+        /// </summary>
+        private void UpdateModuleMenuPosition()
+        {
+            if (_menuModule == null || DashboardRoot.Width <= 0 || DashboardRoot.Height <= 0)
+            {
+                return;
+            }
+
+            // Measure content without a height limit so adding actions never silently hides the last one.
+            const double inset = 10; // Border padding and stroke on both sides.
+            var viewport = new Size(DashboardRoot.Width, DashboardRoot.Height);
+            var content = ModuleMenuItems.Measure(double.PositiveInfinity, double.PositiveInfinity);
+            var needsScroll = content.Height + inset > viewport.Height - 8;
+            var desired = new Size(content.Width + inset + (needsScroll ? 12 : 0), content.Height + inset);
+            var bounds = CalculateModuleMenuBounds(_menuAnchor, viewport, desired);
+            AbsoluteLayout.SetLayoutBounds(ModuleMenuPopup, bounds);
+        }
+
+        /// <summary>
+        /// Aligns a menu to its button and keeps every edge inside the available dashboard viewport.
+        /// </summary>
+        internal static Rect CalculateModuleMenuBounds(Rect anchor, Size viewport, Size desired)
+        {
+            const double edge = 4;
+            const double gap = 4;
+            var width = Math.Min(desired.Width, Math.Max(0, viewport.Width - edge * 2));
+            var height = Math.Min(desired.Height, Math.Max(0, viewport.Height - edge * 2));
+            var maxX = Math.Max(edge, viewport.Width - width - edge);
+            var maxY = Math.Max(edge, viewport.Height - height - edge);
+            var below = anchor.Bottom + gap;
+            var above = anchor.Top - gap - height;
+
+            // Prefer below the button, then above it; tiny windows constrain the menu's scroll viewport.
+            var y = below > maxY && above >= edge ? above : below;
+            return new Rect(Math.Clamp(anchor.Right - width, edge, maxX),
+                Math.Clamp(y, edge, maxY), width, height);
         }
 
         /// <summary>
@@ -265,16 +348,61 @@ namespace ASLM.Pages
         private void OpenConfigureUpdates(ModuleViewModel module)
         {
             CloseAllMenus();
-            _shell?.OpenModuleUpdateOverlay(module, ModuleUpdateMode.Configure);
+            _shell?.OpenModuleInfoOverlay(module.Config, ModuleInfo.Section.Configuration);
         }
 
         /// <summary>
-        /// Opens the module update details overlay for the selected card.
+        /// Checks and applies the selected update without opening an overlay or changing navigation.
         /// </summary>
-        private void OpenUpdateDialog(ModuleViewModel module)
+        private async void UpdateModule(ModuleViewModel module)
+        {
+            if (module.IsBusy || module.IsRemoving)
+            {
+                return;
+            }
+
+            CloseAllMenus();
+            await _updateManager.UpdateModuleAsync(module.Config);
+            // Refresh persisted version and pending-update badges after success, failure or an empty check.
+            OnModuleStateChanged();
+        }
+
+        /// <summary>
+        /// Checks the module source without installing a previously found or newly discovered update.
+        /// </summary>
+        private async void CheckModuleUpdates(ModuleViewModel module)
+        {
+            if (module.IsBusy || module.IsRemoving)
+            {
+                return;
+            }
+
+            // Checking and updating are separate menu actions with separate service entry points.
+            CloseAllMenus();
+            await _updateManager.CheckModuleUpdatesAsync(module.Config);
+            OnModuleStateChanged();
+        }
+
+        /// <summary>
+        /// Opens public module metadata without starting any maintenance operation.
+        /// </summary>
+        private void OpenModuleInfo(ModuleViewModel module)
         {
             CloseAllMenus();
-            _shell?.OpenModuleUpdateOverlay(module, ModuleUpdateMode.Update);
+            _shell?.OpenModuleInfoOverlay(module.Config, ModuleInfo.Section.Info);
+        }
+
+        /// <summary>
+        /// Opens a running module's merged console when console navigation is enabled.
+        /// </summary>
+        private void OpenModuleLogs(ModuleViewModel module)
+        {
+            // Recheck both conditions in case the module stopped after the menu was opened.
+            CloseAllMenus();
+            if (ShowLogsAction && module.IsRunning)
+            {
+                _shell?.OpenConsoles(module.SourcePath);
+            }
         }
 
         /// <summary>
@@ -282,21 +410,41 @@ namespace ASLM.Pages
         /// </summary>
         private void CloseAllMenus()
         {
+            // Detach before resetting the view model to avoid recursive close notifications.
+            if (_menuModule != null)
+            {
+                _menuModule.PropertyChanged -= OnMenuModulePropertyChanged;
+                _menuModule = null;
+            }
+            ModuleMenuLayer.IsVisible = false;
+            ModuleMenuPopup.BindingContext = null;
             foreach (var module in Modules)
             {
                 module.SetMenuOpen(false);
             }
         }
 
-        /// <summary>Confirms uninstall in the dashboard overlay and keeps the card busy throughout removal.</summary>
+        /// <summary>
+        /// Confirms uninstall in the dashboard overlay and keeps the card busy throughout removal.
+        /// </summary>
         private async void OnRemoveRequested(ModuleViewModel module)
         {
-            if (_removingSourcePath != null || UninstallConfirmation.IsOpen) return;
+            if (_confirmingRemoval || _confirmingReinstall || !module.RemoveCommand.CanExecute(null)) return;
             CloseAllMenus();
-            if (!await UninstallConfirmation.ConfirmAsync(module.Name)) return;
+            _confirmingRemoval = true;
+            bool confirmed;
+            try
+            {
+                confirmed = await DialogService.For(this).ConfirmAsync(this,
+                    DialogText.Localized(LocalizationKeys.Modules_RemoveConfirmTitle, module.Name),
+                    DialogText.Localized(LocalizationKeys.Modules_RemoveConfirmFormat, module.Name),
+                    DialogText.Localized(LocalizationKeys.Modules_Remove), danger: true);
+            }
+            finally { _confirmingRemoval = false; }
+            if (!confirmed) return;
             if (!module.RemoveCommand.CanExecute(null)) return;
 
-            SetRemovingModule(module.SourcePath);
+            SetRemovingModule(module.SourcePath, true);
             string? retainedFiles = null;
             Exception? failure = null;
             try
@@ -311,21 +459,65 @@ namespace ASLM.Pages
             {
                 // A manifest refresh may have replaced the card while the uninstall was running.
                 module.SetRemoving(false);
-                SetRemovingModule(null);
+                SetRemovingModule(module.SourcePath, false);
             }
 
             if (!IsLoaded) return;
             if (failure != null)
-                await UninstallConfirmation.ShowFailureAsync(failure.Message);
+                await DialogService.For(this).AlertAsync(this, DialogText.Localized(LocalizationKeys.Modules_RemoveFailed), failure.Message);
             else if (retainedFiles != null)
-                await UninstallConfirmation.ShowCleanupAsync(retainedFiles);
+                await DialogService.For(this).AlertAsync(this, DialogText.Localized(LocalizationKeys.Modules_RemoveCleanupTitle),
+                    DialogText.Localized(LocalizationKeys.Modules_RemoveCleanupFormat, retainedFiles));
         }
 
-        private void SetRemovingModule(string? sourcePath)
+        /// <summary>
+        /// Confirms a clean reinstall with a detached copy of the latest saved update preferences.
+        /// </summary>
+        private async void OnReinstallRequested(ModuleViewModel module)
         {
-            _removingSourcePath = sourcePath;
+            if (_confirmingRemoval || _confirmingReinstall || !module.ReinstallCommand.CanExecute(null)) return;
+            CloseAllMenus();
+            _confirmingReinstall = true;
+            try
+            {
+                ModuleUpdateConfig selection;
+                // Dispose the form as soon as it closes; the queued job owns its own preferences snapshot.
+                try
+                {
+                    using var form = new ModuleReinstallForm(await module.LoadReinstallConfigAsync(), _updateManager);
+                    if (!IsLoaded) return;
+                    var dialog = DialogService.For(this).ShowAsync(this, form.Request);
+                    _ = form.LoadOptionsAsync();
+                    var result = await dialog;
+                    if (result.IsCancelled) return;
+                    selection = form.BuildSelection(result.Values);
+                }
+                finally { _confirmingReinstall = false; }
+
+                if (!module.ReinstallCommand.CanExecute(null)) return;
+                var launch = await module.ReinstallAsync(selection);
+                if (IsLoaded && launch.Status is not (ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning or ModuleLaunchStatus.NoRunCommands))
+                    await DialogService.For(this).AlertAsync(this,
+                        module.Name,
+                        DialogText.Localized(LocalizationKeys.ModuleInfo_Failed, launch.Message ?? launch.Status.ToString()));
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (IsLoaded) await DialogService.For(this).AlertAsync(this,
+                    DialogText.Localized(LocalizationKeys.Modules_ReinstallFailed), ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Keeps removal state consistent if manifest discovery replaces a visible card.
+        /// </summary>
+        private void SetRemovingModule(string sourcePath, bool removing)
+        {
+            if (removing) _removingSourcePaths.Add(sourcePath);
+            else _removingSourcePaths.Remove(sourcePath);
             foreach (var module in Modules)
-                module.SetRemoving(string.Equals(sourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase));
+                module.SetRemoving(_removingSourcePaths.Contains(module.SourcePath));
         }
 
 
@@ -336,14 +528,28 @@ namespace ASLM.Pages
         /// </summary>
         private void OnSizeChanged(object? sender, EventArgs e)
         {
+            CloseAllMenus();
             RecalculateGridSpan();
         }
+
+        /// <summary>
+        /// Dismisses actions before collection scrolling moves or recycles their anchor card.
+        /// </summary>
+        private void OnDashboardScrolled(object? sender, ItemsViewScrolledEventArgs e) => CloseAllMenus();
 
         /// <summary>
         /// Reapplies native list behavior after the platform view enters the visual tree.
         /// </summary>
         private void OnLoaded(object? sender, EventArgs e)
         {
+            _updateManager.ModuleUpdateStateChanged -= OnMaintenanceChanged;
+            _updateManager.ModuleUpdateStateChanged += OnMaintenanceChanged;
+            if (_consoleStore != null)
+            {
+                _consoleStore.StateChanged -= OnMaintenanceChanged;
+                _consoleStore.StateChanged += OnMaintenanceChanged;
+                foreach (var module in Modules) module.RefreshMaintenanceState();
+            }
             ThemeService.PaletteApplied -= OnPaletteAppliedForMoreIcon;
             ThemeService.PaletteApplied += OnPaletteAppliedForMoreIcon;
             if (Application.Current is { } app)
@@ -361,13 +567,24 @@ namespace ASLM.Pages
         /// </summary>
         private void OnUnloaded(object? sender, EventArgs e)
         {
-            UninstallConfirmation.Dismiss();
+            CloseAllMenus();
+            _updateManager.ModuleUpdateStateChanged -= OnMaintenanceChanged;
+            if (_consoleStore != null) _consoleStore.StateChanged -= OnMaintenanceChanged;
             ThemeService.PaletteApplied -= OnPaletteAppliedForMoreIcon;
             if (Application.Current is { } app)
             {
                 app.RequestedThemeChanged -= OnApplicationRequestedThemeChanged;
             }
         }
+
+        /// <summary>
+        /// Keeps existing cards in sync with updates started outside the dashboard.
+        /// </summary>
+        private void OnMaintenanceChanged(object? sender, EventArgs e) => MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (!IsLoaded) return;
+            foreach (var module in Modules) module.RefreshMaintenanceState();
+        });
 
         /// <summary>
         /// Refreshes the more-menu icon after a custom palette is applied.
@@ -474,9 +691,6 @@ namespace ASLM.Pages
     /// </summary>
     public class ModuleViewModel : INotifyPropertyChanged
     {
-        private static readonly IReadOnlyList<string> SharedSourceModeOptions = ["release", "pre-release", "branch"];
-        private const string LatestReleaseSelection = ModuleUpdateConfig.LatestReleaseTag;
-
         private readonly ModuleConfig _config;
         private readonly ModuleInstaller _installer;
         private readonly ModuleRunner _runner;
@@ -485,46 +699,25 @@ namespace ASLM.Pages
         private readonly Action _onStateChanged;
         private readonly Action<ModuleViewModel> _onMenuToggleRequested;
         private readonly Action<ModuleViewModel> _onConfigureUpdatesRequested;
-        private readonly Action<ModuleViewModel> _onUpdateDialogRequested;
+        private readonly Action<ModuleViewModel> _onUpdateRequested;
+        private readonly Action<ModuleViewModel> _onCheckUpdatesRequested;
         private readonly Action<ModuleViewModel> _onRemoveRequested;
-        private readonly ObservableCollection<string> _branchOptions = [];
-        private readonly ObservableCollection<UpdateCandidate> _releaseOptions = [];
+        private readonly Action<ModuleViewModel>? _onReinstallRequested;
+        private readonly Action<ModuleViewModel>? _onLogsRequested;
         private readonly Command _launchCommand;
         private readonly Command _stopCommand;
         private readonly Command _restartCommand;
         private readonly Command _checkUpdateCommand;
-        private readonly Command _updateCommand;
         private readonly Command _closeMenuCommand;
         private readonly Command _removeCommand;
+        private readonly Command _reinstallCommand;
         private bool _isRemoving;
-
-        private string _selectedSourceMode = "release";
-        private string _selectedBranch = "main";
-        private UpdateStatusPhase _updateStatusPhase = UpdateStatusPhase.ReadyToCheck;
-        private string? _updateStatusFormatArg;
-        private string _updateStatus = string.Empty;
-        private UpdateCandidate? _updateCandidate;
-        private UpdateCandidate? _selectedReleaseOption;
-        private bool _hasUpdate;
-        private bool _isCheckingUpdate;
-        private bool _isUpdating;
         private bool _isRestarting;
         private bool _isStarting;
         private bool _isMenuOpen;
-        private bool _hasLoadedBranchOptions;
-        private bool _hasLoadedReleaseOptions;
-        private bool _isRefreshingBranchOptions;
-        private bool _isRefreshingReleaseOptions;
-        private string _loadedReleaseMode = string.Empty;
-        private readonly StringBuilder _updateLogBuffer = new();
-        private string _updateActivityStatus = string.Empty;
-        private string _updateDownloadDetail = string.Empty;
-        private double _updateOverallProgress;
-        private double _updateFileProgress;
-        private bool _hasUpdateProgress;
-        private long _lastDownloadedBytes;
-        private DateTime _lastSpeedUpdate = DateTime.UtcNow;
-        private double _lastSpeed;
+        private ModuleActivity? _lastMaintenanceActivity;
+        private bool _lastUpdatePending;
+        private bool _lastCheckingUpdates;
 
 
         // Notifications
@@ -551,8 +744,12 @@ namespace ASLM.Pages
             Action onStateChanged,
             Action<ModuleViewModel> onMenuToggleRequested,
             Action<ModuleViewModel> onConfigureUpdatesRequested,
-            Action<ModuleViewModel> onUpdateDialogRequested,
-            Action<ModuleViewModel> onRemoveRequested)
+            Action<ModuleViewModel> onUpdateRequested,
+            Action<ModuleViewModel> onCheckUpdatesRequested,
+            Action<ModuleViewModel> onRemoveRequested,
+            Action<ModuleViewModel>? onReinstallRequested = null,
+            Action<ModuleViewModel>? onInfoRequested = null,
+            Action<ModuleViewModel>? onLogsRequested = null)
         {
             _config = config;
             _installer = installer;
@@ -563,14 +760,14 @@ namespace ASLM.Pages
             _onStateChanged = onStateChanged;
             _onMenuToggleRequested = onMenuToggleRequested;
             _onConfigureUpdatesRequested = onConfigureUpdatesRequested;
-            _onUpdateDialogRequested = onUpdateDialogRequested;
+            _onUpdateRequested = onUpdateRequested;
+            _onCheckUpdatesRequested = onCheckUpdatesRequested;
             _onRemoveRequested = onRemoveRequested;
+            _onReinstallRequested = onReinstallRequested;
+            _onLogsRequested = onLogsRequested;
 
             // Normalize once so every card starts from the persisted update preferences.
             _config.Normalize();
-            _selectedSourceMode = _config.Update.Mode;
-            _selectedBranch = _config.Update.Branch;
-            _branchOptions.Add(_selectedBranch);
             
             _launchCommand = new Command(OnLaunch, CanLaunch);
             _stopCommand = new Command(OnStop, CanStop);
@@ -578,87 +775,42 @@ namespace ASLM.Pages
             ToggleMenuCommand = new Command(ExecuteToggleMenuCommand);
             _closeMenuCommand = new Command(ExecuteCloseMenuCommand);
             OpenConfigureUpdatesCommand = new Command(ExecuteOpenConfigureUpdatesCommand);
-            OpenUpdateDialogCommand = new Command(ExecuteOpenUpdateDialogCommand);
+            OpenInfoCommand = new Command(() => { SetMenuOpen(false); onInfoRequested?.Invoke(this); });
+            ViewLogsCommand = new Command(ExecuteViewLogsCommand);
+            UpdateCommand = new Command(ExecuteUpdateCommand);
             _checkUpdateCommand = new Command(ExecuteCheckUpdateCommand, CanCheckOrUpdate);
-            _updateCommand = new Command(ExecuteApplyUpdateCommand, CanApplyUpdate);
-            _removeCommand = new Command(OnRemove, () => !IsRemoving && !IsBusy && !IsStarting && !IsRestarting);
+            _removeCommand = new Command(OnRemove, () => CanUninstall && !IsRemoving && !IsBusy && !IsStarting && !IsRestarting);
+            _reinstallCommand = new Command(OnReinstall, () => !IsRemoving && !IsBusy && !IsStarting && !IsRestarting &&
+                string.IsNullOrEmpty(_installer.GetPendingConsumers(_config.Id)));
 
             LaunchCommand = _launchCommand;
             StopCommand = _stopCommand;
             RestartCommand = _restartCommand;
             CheckUpdateCommand = _checkUpdateCommand;
-            UpdateCommand = _updateCommand;
             CloseMenuCommand = _closeMenuCommand;
-            TryHydratePendingUpdateFromConfig();
-            if (_updateStatusPhase == UpdateStatusPhase.ReadyToCheck && string.IsNullOrEmpty(_updateStatus))
-            {
-                SetUpdatePhase(UpdateStatusPhase.ReadyToCheck);
-            }
-
             RefreshLocalizedLabels();
         }
-
-
-        // Update status
-
-        /// <summary>
-        /// Describes the update badge phases shown on the module card.
-        /// </summary>
-        private enum UpdateStatusPhase
-        {
-            ReadyToCheck,
-            Checking,
-            UpToDate,
-            Available,
-            CheckFailed,
-            Updating,
-            Updated,
-            Failed
-        }
-
-        /// <summary>
-        /// Updates the cached update phase and refreshes the status text shown on the card.
-        /// </summary>
-        private void SetUpdatePhase(UpdateStatusPhase phase, string? formatArg = null)
-        {
-            _updateStatusPhase = phase;
-            _updateStatusFormatArg = formatArg;
-            var text = FormatUpdateStatus(phase, formatArg);
-            UpdateStatus = text;
-        }
-
-        /// <summary>
-        /// Formats the localized update status text for the requested phase.
-        /// </summary>
-        private static string FormatUpdateStatus(UpdateStatusPhase phase, string? formatArg) =>
-            phase switch
-            {
-                UpdateStatusPhase.ReadyToCheck => L.Get(LocalizationKeys.ModuleUpdate_Status_ReadyToCheck),
-                UpdateStatusPhase.Checking => L.Get(LocalizationKeys.ModuleUpdate_Status_Checking),
-                UpdateStatusPhase.UpToDate => L.Get(LocalizationKeys.ModuleUpdate_Status_UpToDate),
-                UpdateStatusPhase.Available => L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateAvailableFormat, formatArg ?? string.Empty),
-                UpdateStatusPhase.CheckFailed => L.Get(LocalizationKeys.ModuleUpdate_Status_CheckFailedFormat, formatArg ?? string.Empty),
-                UpdateStatusPhase.Updating => L.Get(LocalizationKeys.ModuleUpdate_Status_Updating),
-                UpdateStatusPhase.Updated => L.Get(LocalizationKeys.ModuleUpdate_Status_Updated),
-                UpdateStatusPhase.Failed => L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed),
-                _ => L.Get(LocalizationKeys.ModuleUpdate_Status_ReadyToCheck)
-            };
-
-        /// <summary>
-        /// Reapplies localization to the current update status phase.
-        /// </summary>
-        private void RefreshUpdateStatusLocalization() =>
-            SetUpdatePhase(_updateStatusPhase, _updateStatusFormatArg);
 
 
         // Localized card labels
 
         public ICommand RemoveCommand => _removeCommand;
+        internal ModuleConfig Config => _config;
+        public ICommand OpenInfoCommand { get; }
+        public string InfoLabel => L.Get(LocalizationKeys.ModuleInfo_InfoTab);
+        public bool CanUninstall => !ModuleRegistry.IsRequired(_config.Id) && string.IsNullOrEmpty(_installer.GetPendingConsumers(_config.Id));
         public string RemoveLabel => L.Get(LocalizationKeys.Modules_Remove);
-        public string RemovingLabel => L.Get(LocalizationKeys.Modules_Removing);
-        public bool IsRemoving => _isRemoving;
+        public ICommand ReinstallCommand => _reinstallCommand;
+        public string ReinstallLabel => L.Get(LocalizationKeys.Modules_Reinstall);
+        public string RemovingLabel => L.Get(_installer.GetRemovalState(_config.Id) == DownloadOperationState.Queued
+            ? LocalizationKeys.Downloads_Queued : LocalizationKeys.Modules_Removing);
+        public bool IsRemoving => _isRemoving || _installer.GetRemovalState(_config.Id) != null ||
+            _installer.GetInstallationState(_config.Id)?.Phase == DownloadOperationState.Removing;
         public bool IsNotRemoving => !IsRemoving;
 
+        /// <summary>
+        /// Updates the removal reservation and all card actions affected by it.
+        /// </summary>
         internal void SetRemoving(bool removing)
         {
             if (_isRemoving == removing) return;
@@ -669,12 +821,40 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(CanShowLaunchAction));
             OnPropertyChanged(nameof(ShowRunningActions));
             OnPropertyChanged(nameof(ShowCardUpdateAction));
-            OnPropertyChanged(nameof(ShowUpdatingStatus));
+            OnPropertyChanged(nameof(ShowMaintenanceStatus));
             OnPropertyChanged(nameof(ShowStartingStatus));
             RefreshCommandStates();
         }
 
-        internal Task<string?> UninstallAsync() => Task.Run(() => _installer.UninstallAsync(_config));
+        /// <summary>
+        /// Queues removal through the shared module lifecycle.
+        /// </summary>
+        internal Task<string?> UninstallAsync() => _updateManager.UninstallModuleAsync(_config);
+
+        /// <summary>
+        /// Reads persisted preferences rather than potentially stale selections cached by the card.
+        /// </summary>
+        internal async Task<ModuleConfig> LoadReinstallConfigAsync() =>
+            await _installer.LoadModuleConfig(_config.SourcePath)
+                ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, Name));
+
+        /// <summary>
+        /// Runs reinstallation through the shared queues and keeps failures visible in the module console.
+        /// </summary>
+        internal async Task<ModuleLaunchResult> ReinstallAsync(ModuleUpdateConfig selection)
+        {
+            var log = _runner.ConsoleStore.CreateMaintenanceLog(_config, null, reset: true);
+            try
+            {
+                return await _updateManager.ReinstallModuleAsync(_config, selection, log);
+            }
+            catch (Exception ex)
+            {
+                log.Report(ex is OperationCanceledException ? L.Get(LocalizationKeys.ModuleInfo_Canceled)
+                    : L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
+                throw;
+            }
+        }
 
         /// <summary>
         /// Gets the localized not-verified badge text.
@@ -711,6 +891,9 @@ namespace ASLM.Pages
         /// </summary>
         public string UpdatingLabel { get; private set; } = string.Empty;
 
+        public bool IsInstalling => _installer.IsInstalling(_config.Id);
+        public string MaintenanceLabel => _installer.GetInstallationState(_config.Id)?.Label ?? UpdatingLabel;
+
         /// <summary>
         /// Gets the localized launch action label.
         /// </summary>
@@ -727,6 +910,11 @@ namespace ASLM.Pages
         public string ConfigureUpdatesLabel { get; private set; } = string.Empty;
 
         /// <summary>
+        /// Gets the localized action label for opening the module's console output.
+        /// </summary>
+        public string ViewLogsLabel => L.Get(LocalizationKeys.Modules_ViewLogs);
+
+        /// <summary>
         /// Refreshes localized strings shown on the module card template.
         /// </summary>
         internal void RefreshLocalizedLabels()
@@ -741,19 +929,24 @@ namespace ASLM.Pages
             LaunchLabel = L.Get(LocalizationKeys.Modules_Launch);
             CheckUpdatesLabel = L.Get(LocalizationKeys.Modules_CheckUpdates);
             ConfigureUpdatesLabel = L.Get(LocalizationKeys.Modules_ConfigureUpdates);
-            RefreshUpdateStatusLocalization();
 
             OnPropertyChanged(nameof(NotVerifiedLabel));
+            OnPropertyChanged(nameof(BetaLabel));
+            OnPropertyChanged(nameof(ExperimentalLabel));
             OnPropertyChanged(nameof(UpdateLabel));
             OnPropertyChanged(nameof(StopLabel));
             OnPropertyChanged(nameof(RestartLabel));
             OnPropertyChanged(nameof(RestartingLabel));
             OnPropertyChanged(nameof(StartingLabel));
             OnPropertyChanged(nameof(UpdatingLabel));
+            OnPropertyChanged(nameof(MaintenanceLabel));
             OnPropertyChanged(nameof(LaunchLabel));
             OnPropertyChanged(nameof(CheckUpdatesLabel));
             OnPropertyChanged(nameof(ConfigureUpdatesLabel));
             OnPropertyChanged(nameof(RemoveLabel));
+            OnPropertyChanged(nameof(ReinstallLabel));
+            OnPropertyChanged(nameof(InfoLabel));
+            OnPropertyChanged(nameof(ViewLogsLabel));
             OnPropertyChanged(nameof(RemovingLabel));
         }
 
@@ -794,6 +987,12 @@ namespace ASLM.Pages
         /// Gets the formatted version label shown on the card.
         /// </summary>
         public string VersionString => $"v{_config.Version}";
+
+        public bool IsBeta => _config.IsBeta;
+        public bool IsExperimental => _config.IsExperimental;
+        public bool HasDevelopmentStatus => IsBeta || IsExperimental;
+        public string BetaLabel => L.Get(LocalizationKeys.Modules_Beta);
+        public string ExperimentalLabel => L.Get(LocalizationKeys.Modules_Experimental);
 
         /// <summary>
         /// Gets the resolved module icon path.
@@ -842,312 +1041,59 @@ namespace ASLM.Pages
         public bool IsNotRestarting => !IsRestarting;
 
 
-        // Update options
+        // Maintenance state shared with ModuleInfo and automatic updates
 
         /// <summary>
-        /// Gets selectable module update source modes.
+        /// Uses the persisted candidate so rebuilding a card does not lose its update badge.
         /// </summary>
-        public IReadOnlyList<string> SourceModeOptions => SharedSourceModeOptions;
+        public bool HasUpdate => _updateManager.TryRestorePendingUpdateCandidate(_config, out _);
 
         /// <summary>
-        /// Gets repository branches loaded from GitHub.
+        /// Reads the lightweight activity state without formatting console output.
         /// </summary>
-        public ObservableCollection<string> BranchOptions => _branchOptions;
+        public bool IsUpdating => _runner.ConsoleStore.GetActivity(SourcePath) == ModuleActivity.Updating;
 
         /// <summary>
-        /// Gets selectable release versions loaded from GitHub.
+        /// Shows the header spinner for metadata checks, including checks initiated in ModuleInfo.
         /// </summary>
-        public ObservableCollection<UpdateCandidate> ReleaseOptions => _releaseOptions;
+        public bool IsCheckingUpdates => _updateManager.IsCheckingModuleUpdate(SourcePath);
 
         /// <summary>
-        /// Gets or sets the selected module update mode.
+        /// Blocks conflicting card actions during an installation or update.
         /// </summary>
-        public string SelectedSourceMode
+        public bool IsBusy => IsUpdating || IsInstalling || _updateManager.IsModuleUpdatePending(SourcePath);
+
+        /// <summary>
+        /// Refreshes only state bindings when background maintenance changes.
+        /// </summary>
+        internal void RefreshMaintenanceState()
         {
-            get => _selectedSourceMode;
-            set
+            // Console output is frequent; only an actual phase change needs to redraw card controls.
+            var activity = _runner.ConsoleStore.GetActivity(SourcePath);
+            var updatePending = _updateManager.IsModuleUpdatePending(SourcePath);
+            var checking = IsCheckingUpdates;
+            if (_lastMaintenanceActivity == activity && _lastUpdatePending == updatePending &&
+                _lastCheckingUpdates == checking)
             {
-                var normalized = string.IsNullOrWhiteSpace(value) ? "release" : value;
-                if (string.Equals(_selectedSourceMode, normalized, StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-
-                _selectedSourceMode = normalized;
-                _config.Update.Mode = _selectedSourceMode;
-                _config.Update.Channel = string.Equals(_selectedSourceMode, "pre-release", StringComparison.OrdinalIgnoreCase)
-                    ? "pre-release"
-                    : "release";
-                _updateCandidate = null;
-                HasUpdate = false;
-                PersistPendingUpdateSnapshot();
-                SetUpdatePhase(UpdateStatusPhase.ReadyToCheck);
-                SetUpdateActivityStatus(UpdateStatus);
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(UpdateCandidate));
-                OnPropertyChanged(nameof(AvailableUpdateLabel));
-                OnPropertyChanged(nameof(IsBranchMode));
-                OnPropertyChanged(nameof(IsReleaseMode));
-                OnPropertyChanged(nameof(SelectedTargetLabel));
-                OnPropertyChanged(nameof(CanInstallSelectedUpdate));
-                OnPropertyChanged(nameof(ShowInstallAction));
+                return;
             }
+            _lastMaintenanceActivity = activity;
+            _lastUpdatePending = updatePending;
+            _lastCheckingUpdates = checking;
+            OnPropertyChanged(nameof(IsCheckingUpdates));
+            OnPropertyChanged(nameof(IsUpdating));
+            OnPropertyChanged(nameof(IsBusy));
+            OnPropertyChanged(nameof(ShowCardUpdateAction));
+            OnPropertyChanged(nameof(ShowMaintenanceStatus));
+            OnPropertyChanged(nameof(CanShowLaunchAction));
+            OnPropertyChanged(nameof(ShowRunningActions));
+            RefreshCommandStates();
         }
-
-        /// <summary>
-        /// Gets or sets the selected branch.
-        /// </summary>
-        public string SelectedBranch
-        {
-            get => _selectedBranch;
-            set
-            {
-                SetBranchSelection(value, ignoreRefreshGuard: false);
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the selected release target.
-        /// </summary>
-        public UpdateCandidate? SelectedReleaseOption
-        {
-            get => _selectedReleaseOption;
-            set
-            {
-                if (_isRefreshingReleaseOptions)
-                {
-                    return;
-                }
-
-                var selectedKey = ResolveReleaseSelectionKey(value);
-                if (string.Equals(
-                    ResolveReleaseSelectionKey(_selectedReleaseOption),
-                    selectedKey,
-                    StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-
-                _selectedReleaseOption = value;
-                _config.Update.SelectedReleaseTag = selectedKey;
-                PersistPendingUpdateSnapshot();
-
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(SelectedTargetLabel));
-                OnPropertyChanged(nameof(CanInstallSelectedUpdate));
-                OnPropertyChanged(nameof(ShowInstallAction));
-                RefreshCommandStates();
-            }
-        }
-
-        /// <summary>
-        /// Gets whether branch update controls should be visible.
-        /// </summary>
-        public bool IsBranchMode => string.Equals(SelectedSourceMode, "branch", StringComparison.OrdinalIgnoreCase);
-
-        /// <summary>
-        /// Gets whether release channel controls should be visible.
-        /// </summary>
-        public bool IsReleaseMode => !IsBranchMode;
-
-
-        // Update state
-
-        /// <summary>
-        /// Gets update status text shown on the module card.
-        /// </summary>
-        public string UpdateStatus
-        {
-            get => _updateStatus;
-            private set
-            {
-                if (_updateStatus == value)
-                {
-                    return;
-                }
-
-                _updateStatus = value;
-                OnPropertyChanged();
-            }
-        }
-
-        /// <summary>
-        /// Gets the current update candidate loaded for the card.
-        /// </summary>
-        public UpdateCandidate? UpdateCandidate => _updateCandidate;
-
-        /// <summary>
-        /// Gets whether an update candidate is available.
-        /// </summary>
-        public bool HasUpdate
-        {
-            get => _hasUpdate;
-            private set
-            {
-                if (_hasUpdate == value)
-                {
-                    return;
-                }
-
-                _hasUpdate = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanUpdate));
-                OnPropertyChanged(nameof(AvailableUpdateLabel));
-                OnPropertyChanged(nameof(ShowInstallAction));
-                OnPropertyChanged(nameof(ShowCardUpdateAction));
-                RefreshCommandStates();
-            }
-        }
-
-        /// <summary>
-        /// Gets a short label for the currently available update.
-        /// </summary>
-        public string AvailableUpdateLabel => _updateCandidate == null
-            ? "No update detected"
-            : _updateCandidate.RemoteVersion;
-
-        /// <summary>
-        /// Gets the currently selected install target for the dialog header.
-        /// </summary>
-        public string SelectedTargetLabel => IsBranchMode
-            ? SelectedBranch
-            : FormatSelectedReleaseTarget(_selectedReleaseOption)
-                ?? "No version selected";
-
-        /// <summary>
-        /// Gets whether an update operation can be started.
-        /// </summary>
-        public bool CanUpdate => CanInstallSelectedUpdate;
-
-        /// <summary>
-        /// Gets whether the current selection can be installed.
-        /// </summary>
-        public bool CanInstallSelectedUpdate => IsBranchMode
-            ? !IsBusy &&
-              !string.IsNullOrWhiteSpace(SelectedBranch) &&
-              _updateCandidate != null
-            : ResolveSelectedReleaseInstallCandidate() != null && !IsBusy;
-
-        /// <summary>
-        /// Gets whether update checking is in progress.
-        /// </summary>
-        public bool IsCheckingUpdate
-        {
-            get => _isCheckingUpdate;
-            private set
-            {
-                if (_isCheckingUpdate == value)
-                {
-                    return;
-                }
-
-                _isCheckingUpdate = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(IsBusy));
-                OnPropertyChanged(nameof(CanUpdate));
-                OnPropertyChanged(nameof(CanCheckUpdates));
-                OnPropertyChanged(nameof(HasUpdateProgress));
-                OnPropertyChanged(nameof(ShowInstallAction));
-                OnPropertyChanged(nameof(ShowHeaderBusyIndicator));
-                RefreshCommandStates();
-            }
-        }
-
-        /// <summary>
-        /// Gets whether update installation is in progress.
-        /// </summary>
-        public bool IsUpdating
-        {
-            get => _isUpdating;
-            private set
-            {
-                if (_isUpdating == value)
-                {
-                    return;
-                }
-
-                _isUpdating = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(IsBusy));
-                OnPropertyChanged(nameof(CanUpdate));
-                OnPropertyChanged(nameof(CanCheckUpdates));
-                OnPropertyChanged(nameof(HasUpdateProgress));
-                OnPropertyChanged(nameof(ShowInstallAction));
-                OnPropertyChanged(nameof(ShowUpdatingStatus));
-                OnPropertyChanged(nameof(CanShowLaunchAction));
-                OnPropertyChanged(nameof(ShowRunningActions));
-                OnPropertyChanged(nameof(ShowCardUpdateAction));
-                OnPropertyChanged(nameof(ShowHeaderBusyIndicator));
-                RefreshCommandStates();
-            }
-        }
-
-        /// <summary>
-        /// Gets whether any update-related work is currently running.
-        /// </summary>
-        public bool IsBusy => IsCheckingUpdate || IsUpdating;
-
-        /// <summary>
-        /// Gets whether the update check action should be enabled.
-        /// </summary>
-        public bool CanCheckUpdates => !IsBusy;
-
-        /// <summary>
-        /// Gets whether the install action should stay visible for the current target selection.
-        /// </summary>
-        public bool ShowInstallAction => CanInstallSelectedUpdate && !IsUpdating;
-
-        /// <summary>
-        /// Gets the activity status cached for the module update dialog.
-        /// </summary>
-        public string UpdateActivityStatus => string.IsNullOrWhiteSpace(_updateActivityStatus)
-            ? UpdateStatus
-            : _updateActivityStatus;
-
-        /// <summary>
-        /// Gets whether the update dialog should show progress bars.
-        /// </summary>
-        public bool HasUpdateProgress => _hasUpdateProgress || IsBusy;
-
-        /// <summary>
-        /// Gets the cached overall update progress fraction.
-        /// </summary>
-        public double UpdateOverallProgress => _updateOverallProgress;
-
-        /// <summary>
-        /// Gets the cached file download progress fraction.
-        /// </summary>
-        public double UpdateFileProgress => _updateFileProgress;
-
-        /// <summary>
-        /// Gets the cached transfer detail line.
-        /// </summary>
-        public string UpdateDownloadDetail => _updateDownloadDetail;
-
-        /// <summary>
-        /// Gets whether the cached transfer detail line should be shown.
-        /// </summary>
-        public bool HasUpdateDownloadDetail => !string.IsNullOrWhiteSpace(UpdateDownloadDetail);
-
-        /// <summary>
-        /// Gets the cached update console text.
-        /// </summary>
-        public string UpdateLogText => _updateLogBuffer.ToString();
-
-        /// <summary>
-        /// Gets whether the update console already contains lines.
-        /// </summary>
-        public bool HasUpdateLog => _updateLogBuffer.Length > 0;
-
-        /// <summary>
-        /// Gets whether the header should show the lightweight check spinner.
-        /// </summary>
-        public bool ShowHeaderBusyIndicator => IsCheckingUpdate;
 
         /// <summary>
         /// Gets whether the compact update action should stay visible in the card header.
         /// </summary>
-        public bool ShowCardUpdateAction => HasUpdate && !IsUpdating && !IsRemoving;
+        public bool ShowCardUpdateAction => HasUpdate && !IsBusy && !IsRemoving;
 
         /// <summary>
         /// Gets or sets whether the module is currently starting.
@@ -1174,22 +1120,22 @@ namespace ASLM.Pages
         /// <summary>
         /// Gets whether the launch button should stay visible.
         /// </summary>
-        public bool CanShowLaunchAction => IsStopped && !IsUpdating && !IsStarting && !IsRemoving;
+        public bool CanShowLaunchAction => IsStopped && !IsUpdating && !IsStarting && !IsRemoving && !IsInstalling;
 
         /// <summary>
         /// Gets whether the running action buttons should stay visible.
         /// </summary>
-        public bool ShowRunningActions => IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsRemoving;
+        public bool ShowRunningActions => IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsRemoving && !IsInstalling;
 
         /// <summary>
-        /// Gets whether the updating status pill should be visible.
+        /// Uses one status pill for installation and updating.
         /// </summary>
-        public bool ShowUpdatingStatus => IsUpdating && !IsRemoving;
+        public bool ShowMaintenanceStatus => (IsUpdating || IsInstalling) && !IsRemoving;
 
         /// <summary>
         /// Gets whether the starting status pill should be visible.
         /// </summary>
-        public bool ShowStartingStatus => IsStarting && !IsRemoving;
+        public bool ShowStartingStatus => IsStarting && !IsRemoving && !IsInstalling;
 
 
         // Card menu
@@ -1251,15 +1197,14 @@ namespace ASLM.Pages
         public ICommand OpenConfigureUpdatesCommand { get; }
 
         /// <summary>
-        /// Gets the command that opens the update details dialog.
+        /// Gets the command that opens the merged console output for this module.
         /// </summary>
-        public ICommand OpenUpdateDialogCommand { get; }
+        public ICommand ViewLogsCommand { get; }
 
         /// <summary>
-        /// Gets the command that applies an available module update.
+        /// Gets the command that starts an available update without opening a view.
         /// </summary>
         public ICommand UpdateCommand { get; }
-
 
         // Menu helpers
 
@@ -1268,7 +1213,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ExecuteToggleMenuCommand()
         {
-            if (IsRemoving) return;
+            if (IsRemoving || IsInstalling) return;
             _onMenuToggleRequested(this);
         }
 
@@ -1285,23 +1230,33 @@ namespace ASLM.Pages
         /// </summary>
         private void ExecuteOpenConfigureUpdatesCommand()
         {
-            if (IsRemoving) return;
+            if (IsRemoving || IsInstalling) return;
             SetMenuOpen(false);
             _onConfigureUpdatesRequested(this);
         }
 
         /// <summary>
-        /// Opens the update details dialog when an update exists.
+        /// Closes the card menu before navigating to the module's console.
         /// </summary>
-        private void ExecuteOpenUpdateDialogCommand()
+        private void ExecuteViewLogsCommand()
         {
-            if (!HasUpdate || IsRemoving)
+            // Console navigation is read-only and does not participate in module lifecycle operations.
+            SetMenuOpen(false);
+            _onLogsRequested?.Invoke(this);
+        }
+
+        /// <summary>
+        /// Starts the selected update when the card has an available candidate.
+        /// </summary>
+        private void ExecuteUpdateCommand()
+        {
+            if (!HasUpdate || !CanCheckOrUpdate())
             {
                 return;
             }
 
             SetMenuOpen(false);
-            _onUpdateDialogRequested(this);
+            _onUpdateRequested(this);
         }
 
         /// <summary>
@@ -1320,15 +1275,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanCheckOrUpdate()
         {
-            return !_isRemoving && !IsCheckingUpdate && !IsUpdating;
-        }
-
-        /// <summary>
-        /// Returns whether the apply-update command may run.
-        /// </summary>
-        private bool CanApplyUpdate()
-        {
-            return CanInstallSelectedUpdate && CanCheckOrUpdate();
+            return !IsRemoving && !IsBusy;
         }
 
         /// <summary>
@@ -1336,7 +1283,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanLaunch()
         {
-            return !_isRemoving && IsStopped && !IsStarting && !IsUpdating;
+            return !IsRemoving && IsStopped && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -1344,7 +1291,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanStop()
         {
-            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
+            return !IsRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -1352,7 +1299,7 @@ namespace ASLM.Pages
         /// </summary>
         private bool CanRestart()
         {
-            return !_isRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating;
+            return !IsRemoving && IsRunning && !IsRestarting && !IsStarting && !IsUpdating && !IsInstalling;
         }
 
         /// <summary>
@@ -1364,578 +1311,45 @@ namespace ASLM.Pages
             _stopCommand.ChangeCanExecute();
             _restartCommand.ChangeCanExecute();
             _checkUpdateCommand.ChangeCanExecute();
-            _updateCommand.ChangeCanExecute();
             _removeCommand.ChangeCanExecute();
+            _reinstallCommand.ChangeCanExecute();
         }
 
         /// <summary>
-        /// Persists the module update preferences after one setting changes.
+        /// Checks for updates without applying a candidate or opening ModuleInfo.
         /// </summary>
-        private void PersistUpdatePreferences()
+        private void ExecuteCheckUpdateCommand()
         {
-            // Normalize once so the in-memory fields mirror the persisted representation exactly.
-            _config.Update.Normalize();
-            _selectedSourceMode = _config.Update.Mode;
-            _selectedBranch = _config.Update.Branch;
-            _config.Update.SelectedReleaseTag = string.IsNullOrWhiteSpace(_config.Update.SelectedReleaseTag)
-                ? null
-                : _config.Update.SelectedReleaseTag;
-            _updateManager.SaveModuleUpdatePreferences(_config);
-        }
-
-        /// <summary>
-        /// Writes <see cref="ModuleUpdateConfig.PendingUpdate"/> so the card badge survives dashboard rebuilds and app restarts.
-        /// </summary>
-        private void PersistPendingUpdateSnapshot()
-        {
-            try
-            {
-                if (_hasUpdate && _updateCandidate != null)
-                {
-                    _config.Update.PendingUpdate = ModulePendingUpdate.FromCandidate(_config, _updateCandidate);
-                }
-                else
-                {
-                    _config.Update.PendingUpdate = null;
-                }
-
-                PersistUpdatePreferences();
-            }
-            catch
-            {
-                // Preference persistence must never break the module card UI.
-            }
-        }
-
-        /// <summary>
-        /// Restores update badge state from the manifest after startup or when a stale snapshot is on disk.
-        /// </summary>
-        private void TryHydratePendingUpdateFromConfig()
-        {
-            if (_hasUpdate || _updateCandidate != null)
+            if (!CanCheckOrUpdate())
             {
                 return;
             }
 
-            if (!_updateManager.TryRestorePendingUpdateCandidate(_config, out var candidate))
-            {
-                ClearStalePendingUpdateOnDisk();
-                return;
-            }
-
-            _updateCandidate = candidate;
-            HasUpdate = true;
-            SetUpdatePhase(UpdateStatusPhase.Available, candidate.RemoteVersion);
-            SetUpdateActivityStatus(UpdateStatus);
-            OnPropertyChanged(nameof(UpdateCandidate));
-            OnPropertyChanged(nameof(AvailableUpdateLabel));
-            ApplyCheckResultSelection();
-        }
-
-        /// <summary>
-        /// Removes an invalid <see cref="ModuleUpdateConfig.PendingUpdate"/> block from disk when it no longer applies.
-        /// </summary>
-        private void ClearStalePendingUpdateOnDisk()
-        {
-            if (_config.Update.PendingUpdate == null)
-            {
-                return;
-            }
-
-            _config.Update.PendingUpdate = null;
-            try
-            {
-                PersistUpdatePreferences();
-            }
-            catch
-            {
-            }
-        }
-
-        /// <summary>
-        /// Synchronizes the latest UI selection into the backing update config before check or install operations.
-        /// </summary>
-        private void SynchronizeSelectionForUpdateOperation()
-        {
-            _config.Update.Mode = _selectedSourceMode;
-            _config.Update.Channel = string.Equals(_selectedSourceMode, "pre-release", StringComparison.OrdinalIgnoreCase)
-                ? "pre-release"
-                : "release";
-
-            if (string.Equals(_selectedSourceMode, "branch", StringComparison.OrdinalIgnoreCase))
-            {
-                _config.Update.Branch = string.IsNullOrWhiteSpace(_selectedBranch)
-                    ? _config.Update.Branch
-                    : _selectedBranch.Trim();
-            }
-            else if (_selectedReleaseOption != null)
-            {
-                _config.Update.SelectedReleaseTag = ResolveReleaseSelectionKey(_selectedReleaseOption);
-            }
-
-            // Normalize validates and cleans the config, but may reset Branch to "main" if it was empty.
-            // We preserve the user's selected branch to avoid losing their choice during subsequent operations.
-            var branchBeforeNormalize = _config.Update.Branch;
-            _config.Update.Normalize();
-            
-            // Restore the user's selected branch if Normalize() changed it due to empty/whitespace validation
-            if (string.Equals(_selectedSourceMode, "branch", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(_selectedBranch) &&
-                !string.Equals(branchBeforeNormalize, _config.Update.Branch, StringComparison.OrdinalIgnoreCase))
-            {
-                _config.Update.Branch = _selectedBranch.Trim();
-            }
-            
-            _selectedSourceMode = _config.Update.Mode;
-            _selectedBranch = _config.Update.Branch;
-        }
-
-        /// <summary>
-        /// Applies the branch selection from a dialog picker without the list-refresh guard so the
-        /// backing config is guaranteed to carry the user's choice before a check or install runs.
-        /// </summary>
-        internal void ApplyBranchSelection(string branch)
-        {
-            SetBranchSelection(branch, ignoreRefreshGuard: true);
-        }
-
-        /// <summary>
-        /// Stores the selected repository branch and invalidates stale update candidates.
-        /// </summary>
-        private void SetBranchSelection(string branch, bool ignoreRefreshGuard)
-        {
-            if (!ignoreRefreshGuard && _isRefreshingBranchOptions)
-            {
-                return;
-            }
-
-            var normalized = string.IsNullOrWhiteSpace(branch) ? "main" : branch.Trim();
-            if (string.Equals(_selectedBranch, normalized, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(_config.Update.Branch, normalized, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            _selectedBranch = normalized;
-            _config.Update.Branch = normalized;
-            _updateCandidate = null;
-            HasUpdate = false;
-            PersistPendingUpdateSnapshot();
-            SetUpdatePhase(UpdateStatusPhase.ReadyToCheck);
-            SetUpdateActivityStatus(UpdateStatus);
-            OnPropertyChanged(nameof(SelectedBranch));
-            OnPropertyChanged(nameof(UpdateCandidate));
-            OnPropertyChanged(nameof(AvailableUpdateLabel));
-            OnPropertyChanged(nameof(SelectedTargetLabel));
-            OnPropertyChanged(nameof(CanInstallSelectedUpdate));
-            OnPropertyChanged(nameof(ShowInstallAction));
-            RefreshCommandStates();
-        }
-
-        /// <summary>
-        /// Bridges the check-update command into the asynchronous workflow.
-        /// </summary>
-        private async void ExecuteCheckUpdateCommand()
-        {
             SetMenuOpen(false);
-            await RefreshUpdateStateAsync(forceOptionLoad: false);
-        }
-
-        /// <summary>
-        /// Bridges the apply-update command into the asynchronous workflow.
-        /// </summary>
-        private async void ExecuteApplyUpdateCommand()
-        {
-            await ApplyUpdateAsync();
-        }
-
-        /// <summary>
-        /// Refreshes the update candidate state for this module.
-        /// </summary>
-        internal async Task RefreshUpdateStateAsync(bool forceOptionLoad)
-        {
-            if (IsCheckingUpdate)
-            {
-                return;
-            }
-
-            IsCheckingUpdate = true;
-            SetUpdatePhase(UpdateStatusPhase.Checking);
-            SetUpdateActivityStatus(UpdateStatus);
-
-            try
-            {
-                await EnsureSelectionOptionsLoadedAsync(forceOptionLoad);
-                SynchronizeSelectionForUpdateOperation();
-
-                _updateCandidate = await Task.Run(() => _updateManager.CheckModuleUpdateAsync(
-                    _config,
-                    isManualRequest: true));
-                HasUpdate = _updateCandidate != null;
-                OnPropertyChanged(nameof(UpdateCandidate));
-                OnPropertyChanged(nameof(AvailableUpdateLabel));
-                ApplyCheckResultSelection();
-
-                if (_updateCandidate == null)
-                {
-                    SetUpdatePhase(UpdateStatusPhase.UpToDate);
-                }
-                else
-                {
-                    SetUpdatePhase(UpdateStatusPhase.Available, _updateCandidate.RemoteVersion);
-                }
-
-                SetUpdateActivityStatus(UpdateStatus);
-            }
-            catch (Exception ex)
-            {
-                _updateCandidate = null;
-                HasUpdate = false;
-                OnPropertyChanged(nameof(UpdateCandidate));
-                OnPropertyChanged(nameof(AvailableUpdateLabel));
-                SetUpdatePhase(UpdateStatusPhase.CheckFailed, ex.Message);
-                SetUpdateActivityStatus(UpdateStatus);
-            }
-            finally
-            {
-                PersistPendingUpdateSnapshot();
-                IsCheckingUpdate = false;
-            }
-        }
-
-        /// <summary>
-        /// Ensures the dialog pickers have the data required by the currently selected update mode.
-        /// </summary>
-        internal async Task EnsureSelectionOptionsLoadedAsync(bool forceRefresh)
-        {
-            if (IsBranchMode)
-            {
-                if (forceRefresh || !_hasLoadedBranchOptions || BranchOptions.Count == 0)
-                {
-                    await LoadBranchesAsync();
-                }
-
-                return;
-            }
-
-            if (forceRefresh ||
-                !_hasLoadedReleaseOptions ||
-                ReleaseOptions.Count == 0 ||
-                !string.Equals(_loadedReleaseMode, _selectedSourceMode, StringComparison.OrdinalIgnoreCase))
-            {
-                await LoadReleaseOptionsAsync();
-            }
-        }
-
-        /// <summary>
-        /// Loads branch names for the configured GitHub repository.
-        /// </summary>
-        private async Task LoadBranchesAsync()
-        {
-            if (_isRefreshingBranchOptions)
-            {
-                return;
-            }
-
-            _isRefreshingBranchOptions = true;
-
-            try
-            {
-                var branches = await Task.Run(() => _updateManager.GetModuleBranchesAsync(
-                    _config,
-                    isManualRequest: true));
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    var selectedBranch = string.IsNullOrWhiteSpace(_selectedBranch)
-                        ? _config.Update.Branch
-                        : _selectedBranch;
-
-                    selectedBranch = string.IsNullOrWhiteSpace(selectedBranch)
-                        ? "main"
-                        : selectedBranch.Trim();
-
-                    BranchOptions.Clear();
-                    BranchOptions.Add(selectedBranch);
-
-                    foreach (var branch in branches
-                                 .Where(branch => !string.IsNullOrWhiteSpace(branch.Name))
-                                 .Select(branch => branch.Name.Trim())
-                                 .Where(branch => !string.Equals(branch, selectedBranch, StringComparison.OrdinalIgnoreCase))
-                                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                                 .OrderBy(branch => branch, StringComparer.OrdinalIgnoreCase))
-                    {
-                        BranchOptions.Add(branch);
-                    }
-
-                    _selectedBranch = selectedBranch;
-                    _config.Update.Branch = selectedBranch;
-                    _hasLoadedBranchOptions = true;
-                    OnPropertyChanged(nameof(SelectedBranch));
-                    OnPropertyChanged(nameof(SelectedTargetLabel));
-                    OnPropertyChanged(nameof(BranchOptions));
-                    PersistPendingUpdateSnapshot();
-                });
-            }
-            catch
-            {
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    var selectedBranch = string.IsNullOrWhiteSpace(_selectedBranch)
-                        ? _config.Update.Branch
-                        : _selectedBranch;
-
-                    selectedBranch = string.IsNullOrWhiteSpace(selectedBranch)
-                        ? "main"
-                        : selectedBranch.Trim();
-
-                    if (!BranchOptions.Any(branch =>
-                            string.Equals(branch, selectedBranch, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        BranchOptions.Add(selectedBranch);
-                    }
-
-                    _selectedBranch = selectedBranch;
-                    _config.Update.Branch = selectedBranch;
-                    // A failed load should stay retryable the next time the dialog opens.
-                    _hasLoadedBranchOptions = false;
-                    OnPropertyChanged(nameof(SelectedBranch));
-                    OnPropertyChanged(nameof(SelectedTargetLabel));
-                    OnPropertyChanged(nameof(BranchOptions));
-                    PersistPendingUpdateSnapshot();
-                });
-            }
-            finally
-            {
-                _isRefreshingBranchOptions = false;
-            }
-        }
-
-        /// <summary>
-        /// Loads release versions for the current release stream without forcing an update check.
-        /// </summary>
-        private async Task LoadReleaseOptionsAsync()
-        {
-            if (_isRefreshingReleaseOptions)
-            {
-                return;
-            }
-
-            _isRefreshingReleaseOptions = true;
-
-            try
-            {
-                var releases = await Task.Run(() => _updateManager.GetModuleReleaseCandidatesAsync(
-                    _config,
-                    isManualRequest: true));
-                var releaseOptions = BuildReleaseOptions(releases);
-
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    var preferredKey = ResolvePreferredReleaseSelectionKey(releaseOptions);
-                    ReleaseOptions.Clear();
-
-                    foreach (var release in releaseOptions)
-                    {
-                        ReleaseOptions.Add(release);
-                    }
-
-                    _selectedReleaseOption = ReleaseOptions.FirstOrDefault(candidate =>
-                        string.Equals(
-                            ResolveReleaseSelectionKey(candidate),
-                            preferredKey,
-                            StringComparison.OrdinalIgnoreCase));
-
-                    _hasLoadedReleaseOptions = true;
-                    _loadedReleaseMode = _selectedSourceMode;
-                    if (_selectedReleaseOption != null)
-                    {
-                        _config.Update.SelectedReleaseTag = ResolveReleaseSelectionKey(_selectedReleaseOption);
-                    }
-
-                    OnPropertyChanged(nameof(ReleaseOptions));
-                    OnPropertyChanged(nameof(SelectedReleaseOption));
-                    OnPropertyChanged(nameof(SelectedTargetLabel));
-                    OnPropertyChanged(nameof(CanInstallSelectedUpdate));
-                    OnPropertyChanged(nameof(ShowInstallAction));
-                    RefreshCommandStates();
-                    PersistPendingUpdateSnapshot();
-                });
-            }
-            finally
-            {
-                _isRefreshingReleaseOptions = false;
-            }
-        }
-
-        /// <summary>
-        /// Builds picker options and prepends the virtual latest target when releases are available.
-        /// </summary>
-        private static List<UpdateCandidate> BuildReleaseOptions(IReadOnlyList<UpdateCandidate> releases)
-        {
-            if (releases.Count == 0)
-            {
-                return [];
-            }
-
-            var options = new List<UpdateCandidate>
-            {
-                BuildLatestReleaseOption(releases[0])
-            };
-            options.AddRange(releases);
-            return options;
-        }
-
-        /// <summary>
-        /// Creates the virtual latest option while keeping the concrete release tag for installation.
-        /// </summary>
-        private static UpdateCandidate BuildLatestReleaseOption(UpdateCandidate latest)
-        {
-            return new UpdateCandidate
-            {
-                TargetKind = latest.TargetKind,
-                TargetId = latest.TargetId,
-                Name = latest.Name,
-                DisplayName = LatestReleaseSelection,
-                CurrentVersion = latest.CurrentVersion,
-                RemoteVersion = latest.RemoteVersion,
-                Channel = latest.Channel,
-                Mode = latest.Mode,
-                DownloadUrl = latest.DownloadUrl,
-                ReferenceName = latest.ReferenceName,
-                ReleaseTag = latest.ReleaseTag,
-                CommitSha = latest.CommitSha,
-                IsVirtualLatest = true,
-                IsPrerelease = latest.IsPrerelease,
-                PublishedAt = latest.PublishedAt,
-                Module = latest.Module
-            };
-        }
-
-        /// <summary>
-        /// Picks the release selection key that should stay selected after a version list refresh.
-        /// </summary>
-        private string ResolvePreferredReleaseSelectionKey(IEnumerable<UpdateCandidate> releases)
-        {
-            if (!string.IsNullOrWhiteSpace(_config.Update.SelectedReleaseTag) &&
-                releases.Any(candidate =>
-                    string.Equals(
-                        ResolveReleaseSelectionKey(candidate),
-                        _config.Update.SelectedReleaseTag,
-                        StringComparison.OrdinalIgnoreCase)))
-            {
-                return _config.Update.SelectedReleaseTag;
-            }
-
-            return LatestReleaseSelection;
-        }
-
-        /// <summary>
-        /// Refreshes release action state after an update check.
-        /// </summary>
-        private void ApplyCheckResultSelection()
-        {
-            OnPropertyChanged(nameof(CanInstallSelectedUpdate));
-            OnPropertyChanged(nameof(ShowInstallAction));
-            RefreshCommandStates();
-        }
-
-        /// <summary>
-        /// Applies the latest available update candidate.
-        /// </summary>
-        internal async Task<bool> ApplyUpdateAsync(
-            IProgress<string>? log = null,
-            IProgress<DownloadProgress>? progress = null)
-        {
-            if (IsUpdating)
-            {
-                return false;
-            }
-
-            var installCandidate = await ResolveSelectedInstallCandidateAsync();
-            if (installCandidate == null)
-            {
-                return false;
-            }
-
-            IsUpdating = true;
-            SetUpdatePhase(UpdateStatusPhase.Updating);
-            SetUpdateActivityStatus(UpdateStatus);
-
-            IProgress<string> debugLog = new Progress<string>(message =>
-                Debug.WriteLine($"[ModuleUpdate:{Name}] {message}"));
-
-            var success = false;
-            var enteredApply = false;
-            try
-            {
-                enteredApply = true;
-                var logSink = log;
-                var progressSink = progress;
-
-                // Forward messages into both the debug output and the optional dialog log.
-                var combinedLog = new Progress<string>(message =>
-                {
-                    debugLog.Report(message);
-                    AppendUpdateLog(message);
-                    AdvanceProgressFromLog(message);
-                    SetUpdateActivityStatus(message);
-                    logSink?.Report(message);
-                });
-
-                var combinedProgress = new Progress<DownloadProgress>(download =>
-                {
-                    UpdateCachedDownloadProgress(download);
-                    progressSink?.Report(download);
-                });
-
-                success = await Task.Run(() => _updateManager.ApplyModuleUpdateAsync(
-                    installCandidate,
-                    combinedLog,
-                    combinedProgress,
-                    isManualRequest: true,
-                    ct: CancellationToken.None));
-
-                if (success)
-                {
-                    await ReloadInstalledConfigAsync();
-                }
-
-                SetUpdatePhase(success ? UpdateStatusPhase.Updated : UpdateStatusPhase.Failed);
-                SetUpdateActivityStatus(UpdateStatus);
-                SetOverallProgress(success ? 1.0 : Math.Max(_updateOverallProgress, 0.15));
-                HasUpdate = false;
-                _updateCandidate = null;
-                OnPropertyChanged(nameof(UpdateCandidate));
-                OnPropertyChanged(nameof(AvailableUpdateLabel));
-                await EnsureSelectionOptionsLoadedAsync(forceRefresh: false);
-                await RefreshUpdateStateAsync(forceOptionLoad: false);
-            }
-            finally
-            {
-                if (enteredApply)
-                {
-                    IsUpdating = false;
-                    OnPropertyChanged(nameof(ShowUpdatingStatus));
-                    OnPropertyChanged(nameof(CanShowLaunchAction));
-                }
-            }
-
-            if (enteredApply)
-            {
-                _onStateChanged?.Invoke();
-            }
-
-            return success;
+            _onCheckUpdatesRequested(this);
         }
 
 
         // Launch flow
 
+        /// <summary>
+        /// Opens the uninstall confirmation for a removable, idle module.
+        /// </summary>
         private void OnRemove()
         {
             if (!_removeCommand.CanExecute(null)) return;
             SetMenuOpen(false);
             _onRemoveRequested(this);
+        }
+
+        /// <summary>
+        /// Opens reinstall confirmation without applying the mandatory-module uninstall restriction.
+        /// </summary>
+        private void OnReinstall()
+        {
+            if (!_reinstallCommand.CanExecute(null)) return;
+            SetMenuOpen(false);
+            _onReinstallRequested?.Invoke(this);
         }
 
         /// <summary>
@@ -2003,12 +1417,20 @@ namespace ASLM.Pages
                 return;
             }
 
-            await Task.Run(() => _runner.StopModuleAsync(_config.SourcePath));
-
-            _config.Status.Enabled = false;
-            await Task.Run(() => _installer.SaveConfigAsync(_config));
-            NotifyStateChanged();
-            _onStateChanged?.Invoke();
+            try
+            {
+                using var operation = await ModuleInstaller.BeginContentOperationAsync(CancellationToken.None, _config);
+                await Task.Run(() => _runner.StopModuleAsync(_config.SourcePath));
+                _config.Status.Enabled = false;
+                await Task.Run(() => _installer.SaveConfigAsync(_config));
+                NotifyStateChanged();
+                _onStateChanged?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                _runner.ConsoleStore.AppendOverviewLine(_config, ex.Message);
+                Debug.WriteLine($"Stop failed: {ex}");
+            }
         }
 
 
@@ -2024,13 +1446,13 @@ namespace ASLM.Pages
                 return;
             }
 
-            await ReloadEditableConfigAsync();
-
             IsRestarting = true;
             using var activity = _runner.ConsoleStore.BeginActivity(_config.SourcePath, ModuleActivity.Restarting);
 
             try
             {
+                using var operation = await ModuleInstaller.BeginContentOperationAsync(CancellationToken.None, _config);
+                await ReloadEditableConfigAsync();
                 await Task.Run(() => _runner.StopModuleAsync(_config.SourcePath));
                 await Task.Delay(1000);
 
@@ -2051,6 +1473,11 @@ namespace ASLM.Pages
                     NotifyStateChanged();
                     _onStateChanged?.Invoke();
                 }
+            }
+            catch (Exception ex)
+            {
+                _runner.ConsoleStore.AppendOverviewLine(_config, ex.Message);
+                Debug.WriteLine($"Restart failed: {ex}");
             }
             finally
             {
@@ -2078,70 +1505,6 @@ namespace ASLM.Pages
             _config.Commands = freshConfig.Commands;
         }
 
-        /// <summary>
-        /// Reloads the installed manifest after a module update changed files on disk.
-        /// </summary>
-        private async Task ReloadInstalledConfigAsync()
-        {
-            var freshConfig = await _installer.LoadModuleConfig(_config.SourcePath);
-            if (freshConfig == null)
-            {
-                return;
-            }
-
-            ApplyReloadedConfig(freshConfig);
-        }
-
-        /// <summary>
-        /// Copies the refreshed manifest data back into the live card view model.
-        /// </summary>
-        private void ApplyReloadedConfig(ModuleConfig freshConfig)
-        {
-            // The card keeps the same backing object reference, so we copy new manifest data into it.
-            _config.FileVersion = freshConfig.FileVersion;
-            _config.Id = freshConfig.Id;
-            _config.Name = freshConfig.Name;
-            _config.Description = freshConfig.Description;
-            _config.Version = freshConfig.Version;
-            _config.Author = freshConfig.Author;
-            _config.Type = freshConfig.Type;
-            _config.Category = freshConfig.Category;
-            _config.SupportedPlatforms = freshConfig.SupportedPlatforms;
-            _config.Engines = freshConfig.Engines;
-            _config.Source = freshConfig.Source;
-            _config.Dependencies = freshConfig.Dependencies;
-            _config.Commands = freshConfig.Commands;
-            _config.HasPage = freshConfig.HasPage;
-            _config.Icon = freshConfig.Icon;
-            _config.SidebarIcon = freshConfig.SidebarIcon;
-            _config.Settings = freshConfig.Settings;
-            _config.SettingCategories = freshConfig.SettingCategories;
-            _config.DownloadsBridge = freshConfig.DownloadsBridge;
-            _config.ModuleInterop = freshConfig.ModuleInterop;
-            _config.Update = freshConfig.Update;
-            _config.Status = freshConfig.Status;
-            _config.SourcePath = freshConfig.SourcePath;
-
-            _config.ResolveForPlatform(PlatformInfo.OsKey, PlatformInfo.ArchKey);
-
-            _config.Update.Normalize();
-            _selectedSourceMode = _config.Update.Mode;
-            _selectedBranch = _config.Update.Branch;
-            _selectedReleaseOption = null;
-            _hasLoadedReleaseOptions = false;
-            _loadedReleaseMode = string.Empty;
-
-            // Rebuild branches so the picker keeps the persisted value after a release-based update.
-            BranchOptions.Clear();
-            BranchOptions.Add(_selectedBranch);
-            _hasLoadedBranchOptions = false;
-
-            NotifyModuleMetadataChanged();
-            NotifyStateChanged();
-            TryHydratePendingUpdateFromConfig();
-        }
-
-
         // UI state refresh
 
         /// <summary>
@@ -2153,325 +1516,9 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(IsStopped));
             OnPropertyChanged(nameof(CanShowLaunchAction));
             OnPropertyChanged(nameof(ShowRunningActions));
-            OnPropertyChanged(nameof(ShowUpdatingStatus));
+            OnPropertyChanged(nameof(ShowMaintenanceStatus));
             RefreshCommandStates();
         }
-
-        /// <summary>
-        /// Raises property changes for module metadata that may change after an update.
-        /// </summary>
-        private void NotifyModuleMetadataChanged()
-        {
-            OnPropertyChanged(nameof(Name));
-            OnPropertyChanged(nameof(Description));
-            OnPropertyChanged(nameof(VersionString));
-            OnPropertyChanged(nameof(IconFullPath));
-            OnPropertyChanged(nameof(HasIcon));
-            OnPropertyChanged(nameof(SourceModeOptions));
-            OnPropertyChanged(nameof(ReleaseOptions));
-            OnPropertyChanged(nameof(BranchOptions));
-            OnPropertyChanged(nameof(SelectedSourceMode));
-            OnPropertyChanged(nameof(SelectedReleaseOption));
-            OnPropertyChanged(nameof(SelectedBranch));
-            OnPropertyChanged(nameof(IsBranchMode));
-            OnPropertyChanged(nameof(IsReleaseMode));
-            OnPropertyChanged(nameof(SelectedTargetLabel));
-            OnPropertyChanged(nameof(CanInstallSelectedUpdate));
-            OnPropertyChanged(nameof(ShowInstallAction));
-            OnPropertyChanged(nameof(ShowCardUpdateAction));
-            OnPropertyChanged(nameof(ShowHeaderBusyIndicator));
-        }
-
-        /// <summary>
-        /// Returns the update candidate represented by the current UI selection.
-        /// </summary>
-        private async Task<UpdateCandidate?> ResolveSelectedInstallCandidateAsync()
-        {
-            SynchronizeSelectionForUpdateOperation();
-
-            if (IsBranchMode)
-            {
-                return await Task.Run(() => _updateManager.ResolveModuleInstallCandidateAsync(
-                    _config,
-                    isManualRequest: true));
-            }
-
-            return ResolveSelectedReleaseInstallCandidate();
-        }
-
-        /// <summary>
-        /// Returns the release candidate represented by the current picker selection.
-        /// </summary>
-        private UpdateCandidate? ResolveSelectedReleaseInstallCandidate()
-        {
-            if (_selectedReleaseOption == null || string.IsNullOrWhiteSpace(_selectedReleaseOption.ReleaseTag))
-            {
-                return null;
-            }
-
-            if (!UpdateManager.HasRecordedRemoteSourceInstall(_config))
-            {
-                return _selectedReleaseOption;
-            }
-
-            var installedRef = !string.IsNullOrWhiteSpace(_config.Update.InstalledReleaseTag)
-                ? _config.Update.InstalledReleaseTag
-                : (_config.Status.InstalledVersion ?? _config.Version);
-
-            return ReleaseTagOrdering.AreEquivalentVersionReferences(installedRef, _selectedReleaseOption.ReleaseTag)
-                ? null
-                : _selectedReleaseOption;
-        }
-
-        /// <summary>
-        /// Returns the persisted selection key for a release picker option.
-        /// </summary>
-        private static string? ResolveReleaseSelectionKey(UpdateCandidate? candidate)
-        {
-            if (candidate == null)
-            {
-                return null;
-            }
-
-            return IsLatestReleaseOption(candidate)
-                ? LatestReleaseSelection
-                : candidate.ReleaseTag;
-        }
-
-        /// <summary>
-        /// Returns whether the release picker option represents the moving latest target.
-        /// </summary>
-        private static bool IsLatestReleaseOption(UpdateCandidate? candidate)
-        {
-            return candidate?.IsVirtualLatest == true;
-        }
-
-        /// <summary>
-        /// Formats the selected release target without losing the concrete tag behind latest.
-        /// </summary>
-        private static string? FormatSelectedReleaseTarget(UpdateCandidate? candidate)
-        {
-            if (candidate == null)
-            {
-                return null;
-            }
-
-            if (candidate.IsVirtualLatest)
-            {
-                return string.IsNullOrWhiteSpace(candidate.RemoteVersion)
-                    ? LatestReleaseSelection
-                    : $"{LatestReleaseSelection} ({candidate.RemoteVersion})";
-            }
-
-            return !string.IsNullOrWhiteSpace(candidate.DisplayName)
-                ? candidate.DisplayName
-                : candidate.RemoteVersion;
-        }
-
-        /// <summary>
-        /// Resets the cached update session before a new dialog action begins.
-        /// </summary>
-        internal void ResetUpdateSession(bool clearLog)
-        {
-            if (clearLog)
-            {
-                _updateLogBuffer.Clear();
-                OnPropertyChanged(nameof(UpdateLogText));
-                OnPropertyChanged(nameof(HasUpdateLog));
-            }
-
-            _updateDownloadDetail = string.Empty;
-            _updateOverallProgress = 0;
-            _updateFileProgress = 0;
-            _hasUpdateProgress = false;
-            _lastDownloadedBytes = 0;
-            _lastSpeedUpdate = DateTime.UtcNow;
-            _lastSpeed = 0;
-            _updateActivityStatus = UpdateStatus;
-
-            OnPropertyChanged(nameof(UpdateActivityStatus));
-            OnPropertyChanged(nameof(UpdateDownloadDetail));
-            OnPropertyChanged(nameof(HasUpdateDownloadDetail));
-            OnPropertyChanged(nameof(UpdateOverallProgress));
-            OnPropertyChanged(nameof(UpdateFileProgress));
-            OnPropertyChanged(nameof(HasUpdateProgress));
-        }
-
-        /// <summary>
-        /// Clears finished update output before reopening the dialog while preserving active sessions.
-        /// </summary>
-        internal void ResetCompletedUpdateSession()
-        {
-            if (IsBusy)
-            {
-                return;
-            }
-
-            // Do not wipe in-flight install UI if flags were lost but status still reflects an active update.
-            if (_updateStatusPhase == UpdateStatusPhase.Updating)
-            {
-                return;
-            }
-
-            if (_updateStatusPhase is UpdateStatusPhase.Updated or UpdateStatusPhase.Failed)
-            {
-                SetUpdatePhase(UpdateStatusPhase.ReadyToCheck);
-            }
-
-            ResetUpdateSession(clearLog: true);
-            SetUpdateActivityStatus(UpdateStatus);
-        }
-
-        /// <summary>
-        /// Appends one line to the cached module update console.
-        /// </summary>
-        internal void AppendUpdateLog(string message)
-        {
-            _updateLogBuffer.AppendLine(message);
-            OnPropertyChanged(nameof(UpdateLogText));
-            OnPropertyChanged(nameof(HasUpdateLog));
-        }
-
-        /// <summary>
-        /// Updates the cached activity status shown in the update dialog.
-        /// </summary>
-        internal void SetUpdateActivityStatus(string value)
-        {
-            if (string.Equals(_updateActivityStatus, value, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _updateActivityStatus = value;
-            OnPropertyChanged(nameof(UpdateActivityStatus));
-        }
-
-        /// <summary>
-        /// Advances the coarse overall progress based on high-level installer log lines.
-        /// </summary>
-        private void AdvanceProgressFromLog(string message)
-        {
-            if (message.Contains("Stopping", StringComparison.OrdinalIgnoreCase))
-            {
-                SetOverallProgress(0.18);
-            }
-            else if (message.Contains("Preserved", StringComparison.OrdinalIgnoreCase) ||
-                     message.Contains("Restored", StringComparison.OrdinalIgnoreCase))
-            {
-                SetOverallProgress(Math.Max(_updateOverallProgress, 0.62));
-            }
-            else if (message.Contains("Running first-run setup", StringComparison.OrdinalIgnoreCase))
-            {
-                SetOverallProgress(Math.Max(_updateOverallProgress, 0.84));
-            }
-            else if (message.Contains("updated", StringComparison.OrdinalIgnoreCase))
-            {
-                SetOverallProgress(1.0);
-            }
-        }
-
-        /// <summary>
-        /// Updates the cached transfer progress shown in the module update dialog.
-        /// </summary>
-        private void UpdateCachedDownloadProgress(DownloadProgress progress)
-        {
-            if (progress.TotalBytes <= 0)
-            {
-                return;
-            }
-
-            var now = DateTime.UtcNow;
-            var elapsed = (now - _lastSpeedUpdate).TotalSeconds;
-            if (elapsed >= 0.5)
-            {
-                _lastSpeed = (progress.DownloadedBytes - _lastDownloadedBytes) / elapsed;
-                _lastDownloadedBytes = progress.DownloadedBytes;
-                _lastSpeedUpdate = now;
-            }
-
-            var detail = $"{FormatBytes(progress.DownloadedBytes)} / {FormatBytes(progress.TotalBytes)}";
-            if (_lastSpeed > 0)
-            {
-                detail += $" - {FormatBytes((long)_lastSpeed)}/s";
-            }
-
-            SetOverallProgress(Math.Max(_updateOverallProgress, 0.12 + (progress.Fraction * 0.38)));
-            SetFileProgress(progress.Fraction);
-            SetDownloadDetail(detail);
-        }
-
-        /// <summary>
-        /// Updates the cached overall progress fraction.
-        /// </summary>
-        private void SetOverallProgress(double value)
-        {
-            var clamped = Math.Max(0, Math.Min(1, value));
-            if (Math.Abs(_updateOverallProgress - clamped) < 0.0001)
-            {
-                return;
-            }
-
-            _updateOverallProgress = clamped;
-            _hasUpdateProgress = true;
-            OnPropertyChanged(nameof(UpdateOverallProgress));
-            OnPropertyChanged(nameof(HasUpdateProgress));
-        }
-
-        /// <summary>
-        /// Updates the cached file progress fraction.
-        /// </summary>
-        private void SetFileProgress(double value)
-        {
-            var clamped = Math.Max(0, Math.Min(1, value));
-            if (Math.Abs(_updateFileProgress - clamped) < 0.0001)
-            {
-                return;
-            }
-
-            _updateFileProgress = clamped;
-            _hasUpdateProgress = true;
-            OnPropertyChanged(nameof(UpdateFileProgress));
-            OnPropertyChanged(nameof(HasUpdateProgress));
-        }
-
-        /// <summary>
-        /// Updates the cached download detail line.
-        /// </summary>
-        private void SetDownloadDetail(string value)
-        {
-            if (string.Equals(_updateDownloadDetail, value, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _updateDownloadDetail = value;
-            OnPropertyChanged(nameof(UpdateDownloadDetail));
-            OnPropertyChanged(nameof(HasUpdateDownloadDetail));
-        }
-
-        /// <summary>
-        /// Formats byte counts into readable size labels.
-        /// </summary>
-        private static string FormatBytes(long bytes)
-        {
-            if (bytes >= 1_073_741_824)
-            {
-                return $"{bytes / 1_073_741_824.0:F1} GB";
-            }
-
-            if (bytes >= 1_048_576)
-            {
-                return $"{bytes / 1_048_576.0:F1} MB";
-            }
-
-            if (bytes >= 1024)
-            {
-                return $"{bytes / 1024.0:F1} KB";
-            }
-
-            return $"{bytes} B";
-        }
-
 
         // Property change
 

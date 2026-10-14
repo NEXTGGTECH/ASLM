@@ -73,6 +73,16 @@ namespace ASLM.Services.Modules
             return new MaintenanceProgress(this, module.SourcePath, downstream);
         }
 
+        /// <summary>
+        /// Returns maintenance state without allocating console text for module cards
+        /// </summary>
+        internal ModuleActivity? GetActivity(string sourcePath)
+        {
+            lock (_sync)
+                return _activities.TryGetValue(sourcePath, out var active) && active.Count > 0
+                    ? active.Values.Max() : null;
+        }
+
         internal ModuleMaintenanceSnapshot GetMaintenanceSnapshot(string sourcePath)
         {
             lock (_sync)
