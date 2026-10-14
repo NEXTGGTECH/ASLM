@@ -77,10 +77,7 @@ namespace ASLM.Pages
             OpenServerButton.Text = L.Get(LocalizationKeys.AslmApi_Open);
             HostsHeaderLabel.Text = L.Get(LocalizationKeys.AslmApi_Hosts);
 
-            if (HostsCollection.EmptyView is Label empty)
-            {
-                empty.Text = L.Get(LocalizationKeys.AslmApi_NoHosts);
-            }
+            EmptyHostsLabel.Text = L.Get(LocalizationKeys.AslmApi_NoHosts);
 
             foreach (var host in Hosts)
             {
