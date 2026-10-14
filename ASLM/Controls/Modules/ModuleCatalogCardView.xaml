@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!-- Copyright NEXTGGTECH. Apache License 2.0. -->
+
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:services="clr-namespace:ASLM.Services.Internal"
+             x:DataType="services:ModuleCatalogCardViewModel"
+             x:Class="ASLM.Controls.Modules.ModuleCatalogCardView">
+    <Border StrokeShape="RoundRectangle 8"
+            Padding="8">
+        <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="Auto,*"
+                  RowDefinitions="*,Auto"
+                  ColumnSpacing="8"
+                  BackgroundColor="Transparent"
+                  MinimumHeightRequest="164">
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnModuleTapped" />
+                </Grid.GestureRecognizers>
+                <Border IsVisible="{Binding HasIcon}"
+                        Grid.RowSpan="2"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 4"
+                        BackgroundColor="{DynamicResource BackgroundSecondary}"
+                        WidthRequest="164"
+                        HeightRequest="164"
+                        Padding="0">
+                    <Image Source="{Binding IconSource}"
+                           Aspect="AspectFit" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1"
+                                     Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto,Auto"
+                          ColumnSpacing="4"
+                          HorizontalOptions="Start">
+                        <Label Text="{Binding Name}"
+                               FontSize="16"
+                               HeightRequest="24"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource LabelPrimary}"
+                               VerticalOptions="Center"
+                               MaxLines="1"
+                               LineBreakMode="TailTruncation" />
+                        <Image Grid.Column="1"
+                               IsVisible="{Binding ShowVerifiedBadge}"
+                               Source="icon_verified.png"
+                               WidthRequest="24"
+                               HeightRequest="24" />
+                        <Border Grid.Column="2"
+                                IsVisible="{Binding ShowUnverifiedWarning}"
+                                BackgroundColor="{DynamicResource ActionRed}"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 2"
+                                Padding="4,0">
+                            <HorizontalStackLayout Spacing="4">
+                                <Image Source="icon_warning.png"
+                                       WidthRequest="20"
+                                       HeightRequest="20" />
+                                <Label Text="{Binding NotVerifiedLabel}"
+                                       FontSize="14"
+                                       TextColor="{DynamicResource White}"
+                                       VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                        </Border>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto"
+                          HorizontalOptions="Start">
+                        <Label Text="{Binding VersionString}"
+                               FontSize="14"
+                               TextColor="{DynamicResource LabelSecondary}"
+                               VerticalOptions="Center"
+                               MaxLines="1"
+                               LineBreakMode="TailTruncation" />
+                        <ContentView Grid.Column="1"
+                                     IsVisible="{Binding HasDevelopmentStatus}"
+                                     ControlTemplate="{StaticResource ModuleDevelopmentBadgesTemplate}"
+                                     VerticalOptions="Center"
+                                     Margin="4,0,0,0" />
+                    </Grid>
+                    <Label Text="{Binding UnsupportedLabel}"
+                           IsVisible="{Binding ShowUnsupported}"
+                           FontSize="12"
+                           TextColor="{DynamicResource ActionRed}"
+                           LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+                <ContentView Grid.Column="1"
+                             Grid.Row="1"
+                             IsVisible="{Binding ShowMaintenanceStatus}"
+                             ControlTemplate="{StaticResource ModuleMaintenanceStatusTemplate}" />
+            </Grid>
+            <CheckBox Grid.Column="1"
+                      IsVisible="{Binding ShowSelection}"
+                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                      IsEnabled="{Binding CanSelect}"
+                      Color="{DynamicResource LabelPrimary}"
+                      VerticalOptions="Center"
+                      Margin="8,0,0,0" />
+        </Grid>
+    </Border>
+</ContentView>

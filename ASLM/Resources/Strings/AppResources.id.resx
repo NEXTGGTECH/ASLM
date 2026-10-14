@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>Tidak dapat menyelesaikan penyiapan awal: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>Sembunyikan Log</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Memasang</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>Penyiapan selesai!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>Tampilkan Log</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>Lewati</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>Langkah {0} dari {1} - {2}</value>

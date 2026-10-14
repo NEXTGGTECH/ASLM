@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>Die Ersteinrichtung konnte nicht abgeschlossen werden: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>Protokoll ausblenden</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Installation</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>Einrichtung abgeschlossen!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>Protokoll anzeigen</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>Überspringen</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>Schritt {0} von {1} – {2}</value>

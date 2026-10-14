@@ -411,7 +411,6 @@ public static class LocalizationKeys
     public const string SetupWizard_FastSetupHint = "SetupWizard_FastSetupHint";
     public const string SetupWizard_Finish = "SetupWizard_Finish";
     public const string SetupWizard_FinishFailedFormat = "SetupWizard_FinishFailedFormat";
-    public const string SetupWizard_HideLog = "SetupWizard_HideLog";
     public const string SetupWizard_Installing = "SetupWizard_Installing";
     public const string SetupWizard_LocalAccount = "SetupWizard_LocalAccount";
     public const string SetupWizard_LocalAccountDescription = "SetupWizard_LocalAccountDescription";
@@ -425,7 +424,7 @@ public static class LocalizationKeys
     public const string SetupWizard_SelectLanguage = "SetupWizard_SelectLanguage";
     public const string SetupWizard_Setup = "SetupWizard_Setup";
     public const string SetupWizard_SetupComplete = "SetupWizard_SetupComplete";
-    public const string SetupWizard_ShowLog = "SetupWizard_ShowLog";
+    public const string SetupWizard_Skip = "SetupWizard_Skip";
     public const string SetupWizard_StepFormat = "SetupWizard_StepFormat";
     public const string SetupWizard_Step_ModuleSelection = "SetupWizard_Step_ModuleSelection";
     public const string SetupWizard_Step_Modules = "SetupWizard_Step_Modules";

@@ -3735,15 +3735,6 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Hide Log.
-        /// </summary>
-        public static string SetupWizard_HideLog {
-            get {
-                return ResourceManager.GetString("SetupWizard_HideLog", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Installing.
         /// </summary>
         public static string SetupWizard_Installing {
@@ -3861,11 +3852,11 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Show Log.
+        ///   Ищет локализованную строку, похожую на Skip.
         /// </summary>
-        public static string SetupWizard_ShowLog {
+        public static string SetupWizard_Skip {
             get {
-                return ResourceManager.GetString("SetupWizard_ShowLog", resourceCulture);
+                return ResourceManager.GetString("SetupWizard_Skip", resourceCulture);
             }
         }
         

@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>प्रारंभिक सेटअप पूरा नहीं हो सका: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>लॉग छिपाएँ</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>इंस्टॉल हो रहा है</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>सेटअप पूर्ण!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>लॉग दिखाएँ</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>छोड़ें</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>चरण {0} / {1} - {2}</value>

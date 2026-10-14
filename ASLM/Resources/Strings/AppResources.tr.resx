@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>İlk kurulum tamamlanamadı: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>Günlüğü gizle</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Yükleniyor</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>Kurulum tamamlandı!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>Günlüğü göster</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>Atla</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>Adım {0} / {1} - {2}</value>

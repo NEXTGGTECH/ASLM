@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>Impossibile completare la configurazione iniziale: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>Nascondi log</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Installazione</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>Configurazione completata!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>Mostra log</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>Salta</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>Passaggio {0} di {1} - {2}</value>

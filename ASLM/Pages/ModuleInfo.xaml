@@ -384,6 +384,7 @@
             </Grid>
 
             <Grid Grid.Row="4"
+                  IsVisible="{Binding AllowInstallationActions}"
                   RowDefinitions="Auto,Auto">
                 <BoxView HeightRequest="1"
                          Color="{DynamicResource Separator}" />

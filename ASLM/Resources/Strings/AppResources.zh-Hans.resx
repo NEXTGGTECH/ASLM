@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>无法完成初始设置：{0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>隐藏日志</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>正在安装</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>安装完成！</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>显示日志</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>跳过</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>第 {0} 步，共 {1} 步 - {2}</value>

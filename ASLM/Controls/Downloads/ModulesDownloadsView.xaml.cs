@@ -14,11 +14,11 @@ namespace ASLM.Controls.Downloads
         private ModuleInstaller? _installer;
         private ModuleTrustService? _trust;
         private UpdateManager? _updates;
-        private List<ModuleCard> _catalog = [];
+        private List<ModuleCatalogCardViewModel> _catalog = [];
         private int _refreshVersion;
         private CancellationTokenSource? _refreshCts;
 
-        public ObservableCollection<ModuleCard> Modules { get; } = [];
+        public ObservableCollection<ModuleCatalogCardViewModel> Modules { get; } = [];
         public event EventHandler<ModuleConfig>? ModuleSelected;
 
         /// <summary>
@@ -43,6 +43,9 @@ namespace ASLM.Controls.Downloads
             };
         }
 
+        /// <summary>
+        /// Attaches the shared catalog, presentation and localization services.
+        /// </summary>
         internal void Initialize(ModuleInstaller installer, ModuleTrustService trust, AppLocalizationService localization,
             UpdateManager updates)
         {
@@ -52,6 +55,9 @@ namespace ASLM.Controls.Downloads
             LocalizableAttach.Hook(this, localization, this);
         }
 
+        /// <summary>
+        /// Refreshes the catalog labels and translated card badges.
+        /// </summary>
         public void ApplyLocalization()
         {
             TitleLabel.Text = L.Get(LocalizationKeys.Modules_Title);
@@ -60,6 +66,9 @@ namespace ASLM.Controls.Downloads
             ApplySearch();
         }
 
+        /// <summary>
+        /// Rebuilds the available catalog and publishes each card's presentation independently.
+        /// </summary>
         internal async Task RefreshAsync()
         {
             if (_installer == null) return;
@@ -72,7 +81,7 @@ namespace ASLM.Controls.Downloads
                 var modules = await Task.Run(_installer.DiscoverAvailableModulesAsync);
                 if (version != _refreshVersion || cts.IsCancellationRequested) return;
                 foreach (var module in modules) _updates!.ApplyCatalogDefaults(module, installed: false);
-                _catalog = modules.Select(module => new ModuleCard(module, _trust!.Resolve(module), _installer)).ToList();
+                _catalog = modules.Select(module => new ModuleCatalogCardViewModel(module, _trust!.Resolve(module), _installer)).ToList();
                 EmptyLabel.Text = L.Get(LocalizationKeys.Downloads_NoItems);
                 ApplySearch();
                 // Each card publishes its icon and version independently, as soon as either is ready.
@@ -93,11 +102,20 @@ namespace ASLM.Controls.Downloads
             }
         }
 
+        /// <summary>
+        /// Refreshes catalog membership after installation or removal state changes.
+        /// </summary>
         private void OnModulesChanged(object? sender, EventArgs e) =>
             MainThread.BeginInvokeOnMainThread(async () => await RefreshAsync());
 
+        /// <summary>
+        /// Applies the search text without repeating repository lookups.
+        /// </summary>
         private void OnSearchTextChanged(object? sender, TextChangedEventArgs e) => ApplySearch();
 
+        /// <summary>
+        /// Filters existing cards by module identity, title or description.
+        /// </summary>
         private void ApplySearch()
         {
             var query = SearchEntry.Text?.Trim() ?? string.Empty;
@@ -113,61 +131,10 @@ namespace ASLM.Controls.Downloads
             EmptyLabel.IsVisible = Modules.Count == 0;
         }
 
-        private void OnModuleTapped(object? sender, TappedEventArgs e)
-        {
-            if (sender is BindableObject { BindingContext: ModuleCard card })
-                ModuleSelected?.Invoke(this, card.Module);
-        }
-
-        public sealed class ModuleCard(ModuleConfig module, ModuleTrustLevel trust, ModuleInstaller installer) : BindableObject
-        {
-            public ModuleConfig Module { get; } = module;
-            private readonly ModuleTrustLevel Trust = trust;
-            private string _version = module.Version;
-            public ImageSource? IconSource { get; private set; } = File.Exists(module.IconFullPath)
-                ? ImageSource.FromFile(module.IconFullPath) : null;
-            public string Name => Module.Name;
-            public string VersionString => string.IsNullOrWhiteSpace(_version) ? string.Empty
-                : _version.StartsWith('v') ? _version : $"v{_version}";
-            public bool HasIcon => IconSource != null;
-            public bool IsBeta => Module.IsBeta;
-            public bool IsExperimental => Module.IsExperimental;
-            public bool HasDevelopmentStatus => IsBeta || IsExperimental;
-            public string BetaLabel => L.Get(LocalizationKeys.Modules_Beta);
-            public string ExperimentalLabel => L.Get(LocalizationKeys.Modules_Experimental);
-            public bool ShowVerifiedBadge => Trust == ModuleTrustLevel.Official;
-            public bool ShowUnverifiedWarning => Trust == ModuleTrustLevel.Unreviewed;
-            public string NotVerifiedLabel => L.Get(LocalizationKeys.Modules_NotVerified);
-            public bool ShowMaintenanceStatus => installer.GetInstallationState(Module.Id) != null;
-            public bool IsRemoving => installer.GetInstallationState(Module.Id)?.Phase == DownloadOperationState.Removing;
-            public string MaintenanceLabel => installer.GetInstallationState(Module.Id)?.LabelWithRequester ?? string.Empty;
-            internal void RefreshLocalization()
-            {
-                OnPropertyChanged(nameof(NotVerifiedLabel));
-                OnPropertyChanged(nameof(BetaLabel));
-                OnPropertyChanged(nameof(ExperimentalLabel));
-                OnPropertyChanged(nameof(MaintenanceLabel));
-            }
-
-            internal Task RefreshPresentationAsync(UpdateManager updates, CancellationToken ct)
-            {
-                async Task LoadIconAsync()
-                {
-                    var artwork = await updates.GetModuleCatalogArtworkAsync(Module, ct);
-                    if (ct.IsCancellationRequested || artwork == null) return;
-                    IconSource = artwork.Icon is { } bytes ? ImageSource.FromStream(() => new MemoryStream(bytes)) : null;
-                    OnPropertyChanged(nameof(IconSource));
-                    OnPropertyChanged(nameof(HasIcon));
-                }
-                async Task LoadVersionAsync()
-                {
-                    var version = await updates.GetModuleCatalogVersionAsync(Module, false, ct);
-                    if (ct.IsCancellationRequested || _version == version) return;
-                    _version = version;
-                    OnPropertyChanged(nameof(VersionString));
-                }
-                return Task.WhenAll(LoadIconAsync(), LoadVersionAsync());
-            }
-        }
+        /// <summary>
+        /// Forwards the shared card's navigation action to the catalog host.
+        /// </summary>
+        private void OnModuleSelected(object? sender, ModuleConfig module) =>
+            ModuleSelected?.Invoke(this, module);
     }
 }

@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>De eerste configuratie kon niet worden voltooid: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>Log verbergen</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Installeren</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>Installatie voltooid!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>Log tonen</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>Overslaan</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>Stap {0} van {1} - {2}</value>

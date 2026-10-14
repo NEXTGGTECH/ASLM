@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>تعذّر إكمال الإعداد الأولي: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>إخفاء السجل</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>جارٍ التثبيت</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>اكتمل الإعداد!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>إظهار السجل</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>تخطي</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>الخطوة {0} من {1} - {2}</value>
