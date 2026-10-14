@@ -245,7 +245,7 @@ namespace ASLM.Services.API
         // Host listing
 
         /// <summary>
-        /// Returns the currently declared module hosts from the dynamic ASLM port map.
+        /// Returns assigned hosts only for modules present in the installed registry.
         /// </summary>
         public IReadOnlyList<AslmMirrorHostInfo> GetHosts()
         {
@@ -1528,7 +1528,7 @@ namespace ASLM.Services.API
             string moduleId,
             IReadOnlyDictionary<string, bool> moduleStates)
         {
-            if (!moduleStates.TryGetValue(moduleId, out var isEnabled) || isEnabled)
+            if (moduleStates.TryGetValue(moduleId, out var isEnabled) && isEnabled)
             {
                 return;
             }
@@ -1566,12 +1566,25 @@ namespace ASLM.Services.API
         // Port map loading
 
         /// <summary>
-        /// Loads the current port map from disk and supports the older flat module-to-port shape.
+        /// Loads registered module routes from disk, including the older flat module-to-port shape.
         /// </summary>
         private Dictionary<string, Dictionary<string, int>> LoadPortMap()
         {
             if (!File.Exists(_portMapPath))
             {
+                return new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            HashSet<string> installed;
+            try
+            {
+                // The registry is authoritative even when an old assignment or catalog manifest remains.
+                // Apply this to routing as well as listings: a recycled port may now belong to another module.
+                installed = _moduleInstaller.Registry.ReadIds();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+            {
+                _logger.LogWarning(ex, "Failed to read installed modules for ASLM API routes.");
                 return new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
             }
 
@@ -1581,7 +1594,7 @@ namespace ASLM.Services.API
                 var nested = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, int>>>(json, _jsonOptions);
                 if (nested != null)
                 {
-                    return NormalizePortMap(nested);
+                    return NormalizePortMap(nested, installed);
                 }
             }
             catch
@@ -1594,7 +1607,7 @@ namespace ASLM.Services.API
                 var json = File.ReadAllText(_portMapPath);
                 var flat = JsonSerializer.Deserialize<Dictionary<string, int>>(json, _jsonOptions);
                 return flat?
-                    .Where(static pair => IsPublicModulePortOwner(pair.Key) && IsValidPort(pair.Value))
+                    .Where(pair => installed.Contains(pair.Key) && IsPublicModulePortOwner(pair.Key) && IsValidPort(pair.Value))
                     .ToDictionary(
                         static pair => pair.Key,
                         static pair => new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["port"] = pair.Value },
@@ -1608,12 +1621,13 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Removes invalid module and host entries from a deserialized port map.
+        /// Removes uninstalled owners and invalid host entries from a deserialized port map.
         /// </summary>
-        private static Dictionary<string, Dictionary<string, int>> NormalizePortMap(Dictionary<string, Dictionary<string, int>> source)
+        private static Dictionary<string, Dictionary<string, int>> NormalizePortMap(
+            Dictionary<string, Dictionary<string, int>> source, IReadOnlySet<string> installed)
         {
             return source
-                .Where(static module => IsPublicModulePortOwner(module.Key) && module.Value != null)
+                .Where(module => installed.Contains(module.Key) && IsPublicModulePortOwner(module.Key) && module.Value != null)
                 .ToDictionary(
                     static module => module.Key,
                     static module => module.Value

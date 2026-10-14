@@ -7,6 +7,65 @@ namespace ASLM.Tests.Services;
 
 public sealed class PortRegistryTests
 {
+    /// <summary>
+    /// Startup discards legacy reservations for removed modules even when their catalog manifests remain.
+    /// </summary>
+    [Fact]
+    public void Redistribution_removes_unregistered_catalog_ports_but_keeps_installed_and_internal_owners()
+    {
+        using var layout = new AslmFileSystemLayout();
+        File.WriteAllText(Path.Combine(layout.DataAppDir, "ASLM_Modules.json"), """["kept"]""");
+        var catalog = ModuleConfigBuilder.Create(id: "removed-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.GetDirectoryName(catalog.SourcePath)!;
+        Directory.CreateDirectory(directory);
+        try
+        {
+            // A retained uninstalled manifest is the regression that defeated the old directory scan.
+            File.WriteAllText(catalog.SourcePath, System.Text.Json.JsonSerializer.Serialize(catalog));
+            layout.WritePortsJson(System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, Dictionary<string, int>>
+            {
+                ["kept"] = new() { ["http"] = 25001 },
+                [catalog.Id] = new() { ["http"] = 25002 },
+                ["__aslm-mirror"] = new() { ["mirror-port"] = 25000 }
+            }));
+            var appData = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+            var registry = new PortRegistry(appData);
+
+            registry.RedistributePorts(reserveAslmMirrorServer: true);
+
+            registry.TryGetAssignedPorts(catalog.Id).Should().BeNull();
+            registry.TryGetAssignedPorts("kept").Should().NotBeNull();
+            registry.TryGetAssignedPorts(PortRegistry.AslmMirrorServiceId).Should().NotBeNull();
+            registry.TryGetAssignedPorts(PortRegistry.AslmModuleInteropServiceId).Should().NotBeNull();
+            new PortRegistry(appData).TryGetAssignedPorts(catalog.Id).Should().BeNull();
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Cleanup preserves reservations made by first-run commands before registration is committed.
+    /// </summary>
+    [Fact]
+    public void Cleanup_keeps_pending_installation_ports_until_explicit_removal()
+    {
+        using var layout = new AslmFileSystemLayout();
+        File.WriteAllText(Path.Combine(layout.DataAppDir, "ASLM_Modules.json"), "[]");
+        var appData = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+        var registry = new PortRegistry(appData);
+        var module = ModuleConfigBuilder.Create(id: "installing");
+        registry.GetOrAssignPorts(module);
+
+        registry.RedistributePorts(reserveAslmMirrorServer: false);
+        registry.TryGetAssignedPorts(module.Id).Should().NotBeNull();
+
+        registry.RemoveModulePorts(module.Id);
+        registry.RedistributePorts(reserveAslmMirrorServer: false);
+        registry.TryGetAssignedPorts(module.Id).Should().BeNull();
+    }
+
     [Fact]
     public void ResolveModulePagePortKey_prefers_http_setting()
     {

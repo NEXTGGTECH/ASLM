@@ -200,6 +200,17 @@ public partial class ModuleInstaller
             var result = await Task.Run(() => RemoveInstalledFiles(target, moduleDirectory, plan), ct).ConfigureAwait(false);
             _removedModuleIds[target.Id] = 0;
             changed = true;
+            // Removal is committed before releasing assignments, so a failed file transaction keeps its ports.
+            try
+            {
+                _ports?.RemoveModulePorts(target.Id);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // The installed registry already excludes this module from API routes.
+                // Startup orphan cleanup retries persistence without reporting a completed uninstall as failed.
+                System.Diagnostics.Debug.WriteLine($"[ModuleInstaller] Could not remove ports for '{target.Id}': {ex}");
+            }
             return result;
         }
         finally

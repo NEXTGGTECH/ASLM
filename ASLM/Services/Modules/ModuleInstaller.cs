@@ -24,6 +24,7 @@ namespace ASLM.Services.Modules
         private readonly ModuleTrustService _moduleTrustService;
         private readonly ModuleEngineReconciler _moduleEngineReconciler;
         private readonly EngineInstaller _engineInstaller;
+        private readonly PortRegistry? _ports;
         internal ModuleRegistry Registry { get; } = new();
         private readonly object _installationLock = new();
         private readonly Dictionary<Guid, CatalogInstallation> _catalogInstallations = [];
@@ -53,13 +54,15 @@ namespace ASLM.Services.Modules
             ModuleTrustService moduleTrustService,
             ModuleEngineReconciler moduleEngineReconciler,
             EngineInstaller? engineInstaller = null,
-            GitHubUpdateClient? github = null)
+            GitHubUpdateClient? github = null,
+            PortRegistry? ports = null)
         {
             _moduleRunner = moduleRunner;
             _github = github;
             _moduleTrustService = moduleTrustService;
             _moduleEngineReconciler = moduleEngineReconciler;
             _engineInstaller = engineInstaller ?? new EngineInstaller();
+            _ports = ports;
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ASLM-ModuleInstaller");
         }
 

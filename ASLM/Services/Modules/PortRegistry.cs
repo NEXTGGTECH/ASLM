@@ -41,6 +41,8 @@ namespace ASLM.Services.Modules
         private Dictionary<string, Dictionary<string, int>> _portMap = [];
         private bool _loaded;
         private DateTimeOffset _lastOrphanCleanupUtc = DateTimeOffset.MinValue;
+        private readonly ModuleRegistry _modules = new();
+        private readonly HashSet<string> _sessionPortOwners = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Raised after runtime port assignments are redistributed and persisted.
@@ -71,6 +73,8 @@ namespace ASLM.Services.Modules
             {
                 EnsureLoaded();
 
+                // First-run commands can reserve ports before installation is committed to the registry.
+                _sessionPortOwners.Add(module.Id);
                 CleanupOrphanedPortsIfDue();
 
                 var portSettings = module.Settings?
@@ -217,6 +221,8 @@ namespace ASLM.Services.Modules
             lock (_lock)
             {
                 EnsureLoaded();
+                // Startup must also retire assignments left by versions that retained removed catalog manifests.
+                CleanupOrphanedPortsIfDue(force: true);
 
                 if (reserveAslmMirrorServer)
                 {
@@ -429,6 +435,7 @@ namespace ASLM.Services.Modules
             lock (_lock)
             {
                 EnsureLoaded();
+                _sessionPortOwners.Remove(moduleId);
 
                 if (_portMap.Remove(moduleId))
                 {
@@ -468,54 +475,28 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Periodically removes stale assignments without scanning Modules on every port lookup.
+        /// Removes unregistered owners while preserving ports reserved by installations in this process.
         /// </summary>
-        private void CleanupOrphanedPortsIfDue()
+        private void CleanupOrphanedPortsIfDue(bool force = false)
         {
             var now = DateTimeOffset.UtcNow;
-            if (now - _lastOrphanCleanupUtc < TimeSpan.FromSeconds(30))
+            if (!force && now - _lastOrphanCleanupUtc < TimeSpan.FromSeconds(30))
             {
                 return;
             }
 
-            _lastOrphanCleanupUtc = now;
-
-            var modulesRoot = Path.Combine(AppRoot.Directory, "Modules");
-
-            if (!Directory.Exists(modulesRoot))
+            try
             {
-                return;
+                // Catalog manifests survive uninstall and do not establish installed ownership.
+                var retained = _modules.ReadIds();
+                retained.UnionWith(_sessionPortOwners);
+                CleanupOrphanedPorts(retained);
+                _lastOrphanCleanupUtc = now;
             }
-
-            CleanupOrphanedPorts(DiscoverInstalledModuleIds(modulesRoot));
-        }
-
-        /// <summary>
-        /// Reads stable module ids from installed manifests under <paramref name="modulesRoot"/>.
-        /// </summary>
-        private static IEnumerable<string> DiscoverInstalledModuleIds(string modulesRoot)
-        {
-            foreach (var jsonFile in ModuleManifestDiscovery.EnumerateInstalledManifests(modulesRoot))
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
             {
-                string? moduleId = null;
-                try
-                {
-                    using var stream = File.OpenRead(jsonFile);
-                    using var document = JsonDocument.Parse(stream);
-                    if (document.RootElement.TryGetProperty("id", out var idProperty))
-                    {
-                        moduleId = idProperty.GetString()?.Trim();
-                    }
-                }
-                catch
-                {
-                    // Skip unreadable manifests during best-effort orphan cleanup.
-                }
-
-                if (!string.IsNullOrWhiteSpace(moduleId))
-                {
-                    yield return moduleId;
-                }
+                // An unreadable registry is not evidence that its module assignments are orphaned.
+                System.Diagnostics.Debug.WriteLine($"[PortRegistry] Could not clean orphaned ports: {ex}");
             }
         }
 
