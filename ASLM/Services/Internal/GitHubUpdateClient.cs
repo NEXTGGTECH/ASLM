@@ -12,7 +12,7 @@ namespace ASLM.Services.Internal
     /// <summary>
     /// Provides the GitHub API calls needed by ASLM update checks.
     /// </summary>
-    public sealed class GitHubUpdateClient
+    public sealed partial class GitHubUpdateClient
     {
         private static readonly TimeSpan ReleaseCacheLifetime = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan BranchCacheLifetime = TimeSpan.FromMinutes(5);

@@ -184,6 +184,7 @@ public partial class ModuleInfo : ContentView, ILocalizable
         // View-owned lookups cannot update detached selectors; service-owned jobs continue normally.
         CancelOptionsLoad();
         _presentationCts?.Cancel();
+        CancelDocumentRequests();
     }
 
     /// <summary>
@@ -206,6 +207,8 @@ public partial class ModuleInfo : ContentView, ILocalizable
         OnPropertyChanged(nameof(AllowInstallationActions));
         // Invalidate older lookups before publishing the immediate local selection.
         var version = ++_openVersion;
+        _isLoading = true;
+        ResetDocuments();
         ++_stateRefreshVersion;
         CancelOptionsLoad();
         _loadedOptionsKey = null;
@@ -219,7 +222,6 @@ public partial class ModuleInfo : ContentView, ILocalizable
         _module.Normalize();
         _displayVersion = module.Version;
         _iconSource = File.Exists(module.IconFullPath) ? ImageSource.FromFile(module.IconFullPath) : null;
-        _isLoading = true;
         _registered = false;
         if (section.HasValue) SelectSection(section.Value);
         ResetConfigurationOptions();
@@ -253,6 +255,7 @@ public partial class ModuleInfo : ContentView, ILocalizable
                 ResetConfigurationOptions();
                 RefreshContent();
                 _ = RefreshPresentationAsync();
+                if (IsInfoSelected) _ = LoadDocumentsAsync();
                 _ = LoadConfigurationOptionsAsync(checkForUpdates: _registered && checkForUpdates);
             }
         }
@@ -274,6 +277,8 @@ public partial class ModuleInfo : ContentView, ILocalizable
         ChannelLabel.Text = L.Get(LocalizationKeys.ModuleInfo_Channel);
         ReleaseLabel.Text = L.Get(LocalizationKeys.ModuleUpdate_ReleaseVersion);
         BranchLabel.Text = L.Get(LocalizationKeys.ModuleUpdate_RepositoryBranch);
+        DocumentRetryButton.Text = L.Get(LocalizationKeys.SetupWizard_Retry);
+        RaiseDocumentProperties();
         var linkText = L.Get(LocalizationKeys.Downloads_OpenLink);
         ToolTipProperties.SetText(SourceLinkButton, linkText);
         SemanticProperties.SetDescription(SourceLinkButton, linkText);
@@ -424,6 +429,8 @@ public partial class ModuleInfo : ContentView, ILocalizable
             _ = LoadConfigurationOptionsAsync();
         }
         if (IsStatusSelected && HasLog) RefreshLogLayout();
+        if (IsInfoSelected && !_isLoading && !_documentsLoaded && _documentListCts == null)
+            _ = LoadDocumentsAsync();
     }
 
     /// <summary>
@@ -1033,6 +1040,8 @@ public partial class ModuleInfo : ContentView, ILocalizable
         _isOpen = false;
         CancelOptionsLoad();
         _presentationCts?.Cancel();
+        CancelDocumentRequests();
+        DocumentPreview.SetDocument(null);
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 

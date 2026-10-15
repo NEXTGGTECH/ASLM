@@ -883,6 +883,19 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Lists optional repository documents without requiring a local module installation.
+        /// </summary>
+        internal Task<IReadOnlyList<ModuleRepositoryDocument>> GetModuleDocumentsAsync(ModuleConfig module, CancellationToken ct) =>
+            CanDownloadModule(module) ? _github.GetModuleDocumentsAsync(module.Source.Repo, ct)
+                : Task.FromResult<IReadOnlyList<ModuleRepositoryDocument>>([]);
+
+        /// <summary>
+        /// Loads one selected document through the authenticated, quota-aware GitHub client.
+        /// </summary>
+        internal Task<string> GetModuleDocumentHtmlAsync(ModuleConfig module, ModuleRepositoryDocument document, CancellationToken ct) =>
+            _github.GetModuleDocumentHtmlAsync(module.Source.Repo, document, ct);
+
+        /// <summary>
         /// Accepts supported GitHub repository coordinates without path or query fragments.
         /// </summary>
         internal static bool CanDownloadModule(ModuleConfig module)

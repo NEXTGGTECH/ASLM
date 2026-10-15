@@ -8,6 +8,7 @@
              xmlns:models="clr-namespace:ASLM.Models"
              xmlns:settings="clr-namespace:ASLM.Controls.Settings"
              xmlns:controls="clr-namespace:ASLM.Controls"
+             xmlns:downloads="clr-namespace:ASLM.Controls.Downloads"
              xmlns:services="clr-namespace:ASLM.Services.Internal"
              x:Class="ASLM.Pages.ModuleInfo"
              x:DataType="pages:ModuleInfo"
@@ -252,37 +253,92 @@
                     <ScrollView x:Name="InfoScroll"
                                 VerticalScrollBarVisibility="Never"
                                 HorizontalScrollBarVisibility="Never">
-                        <Border Style="{StaticResource ModuleInfoCardStyle}"
-                                VerticalOptions="Start">
+                        <VerticalStackLayout Spacing="12">
+                            <Border Style="{StaticResource ModuleInfoCardStyle}"
+                                    VerticalOptions="Start">
+                                <VerticalStackLayout Spacing="8"
+                                                     BindableLayout.ItemsSource="{Binding Fields}">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="pages:ModuleInfo+InfoField">
+                                            <Grid ColumnDefinitions="180,*"
+                                                  ColumnSpacing="8">
+                                                <Label Text="{Binding Title}"
+                                                       Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                                                <VerticalStackLayout Grid.Column="1"
+                                                                     Spacing="4"
+                                                                     BindableLayout.ItemsSource="{Binding Items}">
+                                                    <BindableLayout.ItemTemplate>
+                                                        <DataTemplate x:DataType="pages:ModuleInfo+InfoValue">
+                                                            <FlexLayout Direction="Row"
+                                                                        AlignItems="Start">
+                                                                <Label Text="{Binding Text}"
+                                                                       FlexLayout.Shrink="1"
+                                                                       Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                                                                <settings:SettingsInfoButton Description="{Binding Description}"
+                                                                                             FlexLayout.Shrink="0" />
+                                                            </FlexLayout>
+                                                        </DataTemplate>
+                                                    </BindableLayout.ItemTemplate>
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                            </Border>
                             <VerticalStackLayout Spacing="8"
-                                                 BindableLayout.ItemsSource="{Binding Fields}">
-                                <BindableLayout.ItemTemplate>
-                                    <DataTemplate x:DataType="pages:ModuleInfo+InfoField">
-                                        <Grid ColumnDefinitions="180,*"
-                                              ColumnSpacing="8">
-                                            <Label Text="{Binding Title}"
-                                                   Style="{StaticResource ModuleInfoFieldLabelStyle}" />
-                                            <VerticalStackLayout Grid.Column="1"
-                                                                 Spacing="4"
-                                                                 BindableLayout.ItemsSource="{Binding Items}">
-                                                <BindableLayout.ItemTemplate>
-                                                    <DataTemplate x:DataType="pages:ModuleInfo+InfoValue">
-                                                        <FlexLayout Direction="Row"
-                                                                    AlignItems="Start">
-                                                            <Label Text="{Binding Text}"
-                                                                   FlexLayout.Shrink="1"
-                                                                   Style="{StaticResource ModuleInfoFieldLabelStyle}" />
-                                                            <settings:SettingsInfoButton Description="{Binding Description}"
-                                                                                         FlexLayout.Shrink="0" />
-                                                        </FlexLayout>
-                                                    </DataTemplate>
-                                                </BindableLayout.ItemTemplate>
-                                            </VerticalStackLayout>
-                                        </Grid>
-                                    </DataTemplate>
-                                </BindableLayout.ItemTemplate>
+                                                 IsVisible="{Binding HasDocumentSection}">
+                                <ScrollView Orientation="Vertical"
+                                            VerticalScrollBarVisibility="Never"
+                                            MaximumHeightRequest="76"
+                                            IsVisible="{Binding HasMultipleDocuments}">
+                                    <FlexLayout BindableLayout.ItemsSource="{Binding Documents}"
+                                                Direction="Row"
+                                                Wrap="Wrap"
+                                                AlignItems="Start"
+                                                JustifyContent="Start">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="pages:ModuleInfo+DocumentTab">
+                                                <Border Background="{DynamicResource BackgroundSecondary}"
+                                                        StrokeThickness="0"
+                                                        StrokeShape="RoundRectangle 12"
+                                                        Padding="8"
+                                                        Margin="0,0,4,4">
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding SelectCommand}" />
+                                                    </Border.GestureRecognizers>
+
+                                                    <Label Text="{Binding Name}"
+                                                           FontSize="12"
+                                                           TextColor="{DynamicResource LabelPrimary}"
+                                                           MaxLines="1"
+                                                           LineBreakMode="TailTruncation" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </FlexLayout>
+                                </ScrollView>
+                                <Label Text="{Binding SelectedDocumentName}"
+                                       IsVisible="{Binding HasSelectedDocument}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="{DynamicResource LabelPrimary}" />
+                                <Label Text="{Binding DocumentError}"
+                                       IsVisible="{Binding HasDocumentError}"
+                                       Style="{StaticResource ModuleInfoFieldLabelStyle}" />
+                                <Button x:Name="DocumentRetryButton"
+                                        IsVisible="{Binding HasDocumentError}"
+                                        HorizontalOptions="Start"
+                                        Style="{StaticResource SettingsFooterButtonStyle}"
+                                        Clicked="OnDocumentRetryClicked" />
+                                <Border IsVisible="{Binding HasDocumentContent}"
+                                        Background="{DynamicResource BackgroundSecondary}"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 6"
+                                        Padding="0">
+                                    <downloads:RepositoryDocumentView x:Name="DocumentPreview" />
+                                </Border>
                             </VerticalStackLayout>
-                        </Border>
+                        </VerticalStackLayout>
                     </ScrollView>
                     <controls:AppScrollBar Grid.Column="1"
                                            Target="{x:Reference InfoScroll}" />
