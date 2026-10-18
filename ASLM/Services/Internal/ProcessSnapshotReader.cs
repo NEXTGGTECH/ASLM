@@ -40,7 +40,7 @@ public sealed class ProcessSnapshotReader
     // Snapshot capture
 
     /// <summary>
-    /// Captures the current OS process table, or an empty list on non-Windows platforms.
+    /// Captures the current OS process table using the platform's native process source.
     /// </summary>
     private static IReadOnlyList<ProcessSnapshotEntry> CaptureSnapshot()
     {
@@ -79,6 +79,8 @@ public sealed class ProcessSnapshotReader
         return entries;
 #elif MACCATALYST
         return MacProcessSnapshot.Capture();
+#elif LINUX
+        return LinuxProcessSnapshot.Capture();
 #else
         return [];
 #endif

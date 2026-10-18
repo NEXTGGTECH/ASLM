@@ -84,7 +84,12 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets whether a prepared ASLM self-update is waiting for restart.
         /// </summary>
-        public bool HasPendingAppUpdate => File.Exists(GetPendingUpdatePath());
+        public bool HasPendingAppUpdate => SupportsSelfUpdate && File.Exists(GetPendingUpdatePath());
+
+        /// <summary>
+        /// Enables in-place updates only on platforms with a packaged, verified launcher and patcher.
+        /// </summary>
+        public static bool SupportsSelfUpdate => !OperatingSystem.IsLinux();
 
         /// <summary>
         /// Returns the current ASLM app version.
@@ -141,6 +146,9 @@ namespace ASLM.Services.Internal
             bool publishUpdateNotification = true,
             bool isManualRequest = false)
         {
+            // Linux preview packages are replaced manually; never stage a Windows payload in the XDG data root.
+            if (!SupportsSelfUpdate) return null;
+
             // Resolve channel, repository, and the platform-specific release asset name.
             var source = await LoadAppUpdateSourceAsync(ct);
             if (!IsValidAppGitHubSource(source))
@@ -719,6 +727,9 @@ namespace ASLM.Services.Internal
             bool isManualRequest = false,
             CancellationToken ct = default)
         {
+            if (!SupportsSelfUpdate)
+                throw new PlatformNotSupportedException("This ASLM package must be updated using its distribution mechanism.");
+
             // Reserve the target before asynchronous work so manual and automatic requests cannot race.
             return _updateOperations.RunAsync(NotificationCenter.BuildOperationKey("app", candidate.TargetId),
                 candidate.ReleaseTag ?? candidate.RemoteVersion,
@@ -2275,6 +2286,8 @@ namespace ASLM.Services.Internal
         /// </summary>
         private string? TryReadPendingAppUpdateVersion()
         {
+            // Pending packages prepared by another desktop platform cannot be applied by this head.
+            if (!SupportsSelfUpdate) return null;
             try
             {
                 var path = GetPendingUpdatePath();
@@ -2340,19 +2353,19 @@ namespace ASLM.Services.Internal
         // File system helpers
 
         /// <summary>
-        /// Keeps the source archive extension so extraction can pick zip or tar handling.
+        /// Preserves compression extensions even when a download URL contains a query or fragment.
         /// </summary>
-        private static string GetArchiveFileName(string? downloadUrl, string baseName)
+        internal static string GetArchiveFileName(string? downloadUrl, string baseName)
         {
-            var url = downloadUrl ?? string.Empty;
-            if (url.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
-            {
-                return baseName + ".tar.gz";
-            }
+            var path = Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri)
+                ? uri.AbsolutePath
+                : (downloadUrl ?? string.Empty).Split('?', '#')[0];
 
-            if (url.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase))
+            // Test compound extensions before the fallback: treating a .tar.zst as ZIP breaks engine updates.
+            foreach (var extension in new[] { ".tar.zst", ".tar.gz", ".tgz", ".tar" })
             {
-                return baseName + ".tgz";
+                if (path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                    return baseName + extension;
             }
 
             return baseName + ".zip";

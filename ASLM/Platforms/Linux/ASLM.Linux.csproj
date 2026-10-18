@@ -1,0 +1,112 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- GTK needs a plain .NET head; the shared application remains the MAUI single project. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">linux-x64</RuntimeIdentifier>
+    <RootNamespace>ASLM</RootNamespace>
+    <AssemblyName>ASLM</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NeutralLanguage>en</NeutralLanguage>
+    <DefineConstants>$(DefineConstants);LINUX</DefineConstants>
+    <MauiVersion>10.0.41</MauiVersion>
+    <MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
+    <EnableDefaultMauiItems>false</EnableDefaultMauiItems>
+    <EnableDefaultMauiResourceItems>false</EnableDefaultMauiResourceItems>
+    <PublishTrimmed>false</PublishTrimmed>
+    <ASLMSourceRoot>$(MSBuildThisFileDirectory)../../</ASLMSourceRoot>
+    <ASLMRepositoryRoot>$(ASLMSourceRoot)../</ASLMRepositoryRoot>
+
+    <!-- Keep platform versions explicit; the existing release stamping script updates both heads. -->
+    <ApplicationTitle>ASLM</ApplicationTitle>
+    <ApplicationId>com.nextggtech.aslm</ApplicationId>
+    <ApplicationDisplayVersion>0.10.0</ApplicationDisplayVersion>
+    <ApplicationVersion>19</ApplicationVersion>
+    <Version>$(ApplicationDisplayVersion).$(ApplicationVersion)</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <ASLMAccountEnabled>true</ASLMAccountEnabled>
+    <ASLMAccountEnabled Condition="'$(Configuration)' == 'Release'">false</ASLMAccountEnabled>
+    <DefineConstants Condition="'$(ASLMAccountEnabled)' == 'true'">$(DefineConstants);ASLM_ACCOUNT_ENABLED</DefineConstants>
+  </PropertyGroup>
+
+  <Import Project="../../../ASLM.Build.props" />
+  <Import Project="../../Installer/Build/Installer.Build.targets" />
+
+  <!-- Match the main application: Release includes .NET unless the caller explicitly opts out. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(SelfContained)' == ''">
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <OutputPath>$(ASLMBuildOutputRoot)App/</OutputPath>
+    <ASLMLegalOutputFile>$(MSBuildProjectDirectory)/obj/$(Configuration)/$(TargetFramework)/$(RuntimeIdentifier)/legal-documents.json</ASLMLegalOutputFile>
+  </PropertyGroup>
+
+  <!-- Only the shared application and this platform folder participate in the GTK build. -->
+  <ItemGroup>
+    <Compile Include="$(ASLMSourceRoot)*.cs;$(ASLMSourceRoot)Controls/**/*.cs;$(ASLMSourceRoot)Localization/**/*.cs;$(ASLMSourceRoot)Models/**/*.cs;$(ASLMSourceRoot)Pages/**/*.cs;$(ASLMSourceRoot)Services/**/*.cs;$(ASLMSourceRoot)Resources/Strings/*.cs" LinkBase="Shared" />
+    <MauiXaml Include="$(ASLMSourceRoot)App.xaml" Link="App.xaml" />
+    <MauiXaml Include="$(ASLMSourceRoot)Controls/**/*.xaml" Link="Controls/%(RecursiveDir)%(Filename)%(Extension)" />
+    <MauiXaml Include="$(ASLMSourceRoot)Pages/**/*.xaml" Link="Pages/%(RecursiveDir)%(Filename)%(Extension)" />
+    <MauiXaml Include="$(ASLMSourceRoot)Resources/Styles/**/*.xaml" Link="Resources/Styles/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(ASLMSourceRoot)Resources/Strings/*.resx" Link="Resources/Strings/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(ASLMLegalOutputFile)" LogicalName="legal-documents.json" />
+    <MauiFont Include="$(ASLMSourceRoot)Resources/Fonts/*" />
+    <MauiImage Include="$(ASLMSourceRoot)Resources/Images/*" />
+    <MauiIcon Include="$(ASLMSourceRoot)Resources/AppIcon/appicon.svg" />
+    <MauiAsset Include="$(ASLMSourceRoot)Resources/Raw/**" Exclude="$(ASLMSourceRoot)Resources/Raw/legal-documents.json" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Ship templates rather than credentials, generated state, installed engines or module source code. -->
+  <ItemGroup>
+    <Content Include="$(ASLMRepositoryRoot)Data/App/ASLM_Data.json;$(ASLMRepositoryRoot)Data/App/ASLM_ModuleTrustSource.json;$(ASLMRepositoryRoot)Data/App/ASLM_UpdateSource.json;$(ASLMRepositoryRoot)Data/App/SUNRISE_Domains.json;$(ASLMRepositoryRoot)Data/App/SUNRISE_URLs.json"
+             Link="seed/Data/App/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ASLMRepositoryRoot)Engines/*/ASLM_Engine.json" Link="seed/Engines/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ASLMRepositoryRoot)Modules/*/ASLM_Module.json" Link="seed/Modules/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Maui.Platforms.Linux.Gtk4" Version="0.1.0-preview.13.26512.5" />
+    <PackageReference Include="Microsoft.Maui.Platforms.Linux.Gtk4.Essentials" Version="0.1.0-preview.13.26512.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
+    <PackageReference Include="System.Management" Version="9.0.0" />
+    <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
+    <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.9" />
+    <InternalsVisibleTo Include="ASLM.Tests" />
+    <Using Include="Microsoft.Maui" />
+    <Using Include="Microsoft.Maui.Controls" />
+    <Using Include="Microsoft.Maui.Dispatching" />
+    <Using Include="Microsoft.Maui.Graphics" />
+    <Using Include="Microsoft.Maui.Hosting" />
+    <Using Include="Microsoft.Maui.ApplicationModel" />
+    <Using Include="Microsoft.Maui.Storage" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="ASLM.Services.Internal.LinuxMainThread" Alias="MainThread" />
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>linux</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <Target Name="GenerateAslmLegalDocuments" BeforeTargets="BeforeBuild;BeforeCompile;CoreCompile">
+    <GenerateInstallerLegalDocuments SourceDir="$(ASLMSourceRoot)Installer/Legal" OutputFile="$(ASLMLegalOutputFile)" />
+  </Target>
+
+  <!-- The desktop Resizetizer profile produces the plain PNG names used by the shared application. -->
+  <Target Name="GenerateLinuxIcons" BeforeTargets="GetCopyToOutputDirectoryItems;ComputeFilesToPublish">
+    <ResizetizeImages PlatformType="wpf" IntermediateOutputPath="$(IntermediateOutputPath)icons/" Images="@(MauiImage)">
+      <Output TaskParameter="CopiedResources" ItemName="_LinuxIcons" />
+    </ResizetizeImages>
+    <ItemGroup>
+      <ContentWithTargetPath Include="@(_LinuxIcons)" TargetPath="%(Filename)%(Extension)"
+                             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <FileWrites Include="@(_LinuxIcons)" />
+    </ItemGroup>
+  </Target>
+</Project>

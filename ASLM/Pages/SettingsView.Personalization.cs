@@ -472,7 +472,10 @@ namespace ASLM.Pages
                         [DevicePlatform.MacCatalyst] = new[] { "public.json" },
                         [DevicePlatform.macOS] = new[] { "json" },
                         [DevicePlatform.iOS] = new[] { "public.json" },
-                        [DevicePlatform.Android] = new[] { "application/json" }
+                        [DevicePlatform.Android] = new[] { "application/json" },
+#if LINUX
+                        [DevicePlatform.Create("Linux")] = new[] { ".json" },
+#endif
                     })
                 });
 
@@ -534,6 +537,8 @@ namespace ASLM.Pages
                 await File.WriteAllTextAsync(path, json);
 #elif MACCATALYST
                 await MacThemeFileExporter.ExportAsync(SanitizeThemeFileName(t.Name), json);
+#elif LINUX
+                await LinuxThemeFileExporter.ExportAsync(SanitizeThemeFileName(t.Name), json);
 #endif
             }
             catch (Exception ex)

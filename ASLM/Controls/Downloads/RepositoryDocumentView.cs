@@ -20,6 +20,9 @@ public sealed class RepositoryDocumentView : ContentView
     private IDisposable? _sizeObserver;
     private WebKit.WKWebView? _webKit;
     private string? _loadedHtml;
+#elif LINUX
+    private LinuxDocumentPreview? _linuxPreview;
+    private object? _linuxBrowser;
 #endif
 
     /// <summary>
@@ -80,6 +83,10 @@ public sealed class RepositoryDocumentView : ContentView
         _sizeObserver = null;
         _webKit = null;
         _loadedHtml = null;
+#elif LINUX
+        _linuxPreview?.Dispose();
+        _linuxPreview = null;
+        _linuxBrowser = null;
 #endif
     }
 
@@ -120,6 +127,12 @@ public sealed class RepositoryDocumentView : ContentView
                     if (ReferenceEquals(native, _webKit)) SetHeight(native.ScrollView.ContentSize.Height);
                 }));
         }
+#elif LINUX
+        var native = _browser.Handler?.PlatformView;
+        if (ReferenceEquals(native, _linuxBrowser)) return;
+        _linuxPreview?.Dispose();
+        _linuxBrowser = native;
+        _linuxPreview = LinuxDocumentPreview.Create(_browser, SetHeight);
 #endif
     }
 

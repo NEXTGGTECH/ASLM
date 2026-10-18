@@ -12,7 +12,7 @@ namespace ASLM
     public partial class App : Application
     {
         private readonly IServiceProvider _services;
-        private bool _isShuttingDown;
+        private Task? _shutdownTask;
 
         // Initialization
 
@@ -21,6 +21,9 @@ namespace ASLM
         /// </summary>
         public App(IServiceProvider services)
         {
+#if LINUX
+            LinuxMainThread.Initialize(Dispatcher);
+#endif
             InitializeComponent();
             _services = services;
         }
@@ -42,7 +45,11 @@ namespace ASLM
             };
 
             // Trigger graceful shutdown cleanup when the main window is destroyed.
+#if LINUX
+            window.Destroying += OnLinuxWindowDestroying;
+#else
             window.Destroying += OnWindowDestroying;
+#endif
 
             return window;
         }
@@ -65,18 +72,21 @@ namespace ASLM
         /// </summary>
         private void OnWindowDestroying(object? sender, EventArgs e)
         {
-            if (_isShuttingDown)
-            {
-                return;
-            }
+            ShutdownAsync(sender as Window).GetAwaiter().GetResult();
+        }
 
-            _isShuttingDown = true;
+        /// <summary>
+        /// Saves navigation on the UI thread and starts one shared cleanup operation for close and quit requests.
+        /// </summary>
+        private Task ShutdownAsync(Window? window)
+        {
+            if (_shutdownTask != null) return _shutdownTask;
 
             try
             {
                 // Persist navigation only after the shell has finished loading; closing during LoadingPage
                 // must never overwrite existing application data with a not-yet-loaded default model.
-                if (sender is Window { Page: AppShellPage })
+                if (window is { Page: AppShellPage })
                 {
                     _services.GetRequiredService<AppDataStore>().Save();
                 }
@@ -86,32 +96,47 @@ namespace ASLM
                 System.Diagnostics.Debug.WriteLine($"[App] Failed to save app data during shutdown: {ex}");
             }
 
+            // Native event loops must remain available while services finish outstanding UI-dispatched work.
+            // Blocking disposal belongs on a worker too: both API servers synchronously wait for StopAsync.
+            return _shutdownTask = Task.Run(StopServicesAsync);
+        }
+
+        /// <summary>
+        /// Stops producers before module processes and releases each service even if another cleanup step fails.
+        /// </summary>
+        private async Task StopServicesAsync()
+        {
+            DisposeService<UpdateScheduler>();
+            ModuleRunner? runner = null;
             try
             {
                 // Stop module processes first so the tracker can dispose after active work ends.
-                var runner = _services.GetRequiredService<ModuleRunner>();
-                runner.StopAllModulesAsync().GetAwaiter().GetResult();
-                runner.Dispose();
-
-                var tracker = _services.GetRequiredService<ProcessTracker>();
-                tracker.Dispose();
-
-                var updateScheduler = _services.GetService<UpdateScheduler>();
-                updateScheduler?.Dispose();
-
-                var mirrorServer = _services.GetService<AslmMirrorServer>();
-                mirrorServer?.Dispose();
-
-                var moduleInteropServer = _services.GetService<AslmModuleInteropServer>();
-                moduleInteropServer?.Dispose();
-
-                var sunriseService = _services.GetService<SunriseService>();
-                sunriseService?.Dispose();
+                runner = _services.GetRequiredService<ModuleRunner>();
+                await runner.StopAllModulesAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[App] Shutdown cleanup failed: {ex}");
             }
+            finally
+            {
+                try { runner?.Dispose(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[App] Module runner disposal failed: {ex}"); }
+            }
+
+            DisposeService<ProcessTracker>();
+            DisposeService<AslmMirrorServer>();
+            DisposeService<AslmModuleInteropServer>();
+            DisposeService<SunriseService>();
+        }
+
+        /// <summary>
+        /// Releases one service without preventing the remaining shutdown cleanup after a disposal failure.
+        /// </summary>
+        private void DisposeService<T>() where T : class, IDisposable
+        {
+            try { _services.GetService<T>()?.Dispose(); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[App] {typeof(T).Name} disposal failed: {ex}"); }
         }
     }
 }

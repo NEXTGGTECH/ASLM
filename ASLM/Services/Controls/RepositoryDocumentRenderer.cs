@@ -18,7 +18,7 @@ internal static class RepositoryDocumentRenderer
         <meta name="referrer" content="no-referrer">
         <style>
         html,body { margin:0; padding:0; background:{{background}}; color:{{foreground}}; }
-        body { padding:14px; font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; overflow-wrap:anywhere; }
+        body { padding:14px; font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; overflow-wrap:anywhere; }
         * { box-sizing:border-box; max-width:100%; }
         a { color:{{link}}; } img { height:auto; } svg { max-width:100%; }
         h1,h2 { border-bottom:1px solid {{separator}}; padding-bottom:.3em; }

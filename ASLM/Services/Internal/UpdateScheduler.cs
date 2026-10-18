@@ -66,6 +66,8 @@ namespace ASLM.Services.Internal
         /// </summary>
         public UpdateCandidate? GetAvailableAppUpdate()
         {
+            // A copied data directory must not enable self-update on a head without a compatible patcher.
+            if (!UpdateManager.SupportsSelfUpdate) return null;
             lock (_stateGate)
             {
                 var persisted = _appData.Data.Updates.AvailableAppUpdate;

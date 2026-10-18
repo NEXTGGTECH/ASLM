@@ -1931,10 +1931,11 @@ namespace ASLM.Pages
         // Native alignment
 
         /// <summary>
-        /// Aligns WinUI button content to the left to match the sidebar layout.
+        /// Aligns native button content to the left to match the sidebar layout.
         /// </summary>
         private void UpdateButtonAlignment(Button button)
         {
+            ApplyPlatformButtonAlignment(button);
 #if WINDOWS
             if (button.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.Button nativeButton)
             {
@@ -1943,6 +1944,11 @@ namespace ASLM.Pages
             }
 #endif
         }
+
+        /// <summary>
+        /// Applies optional sidebar content alignment supplied by the active platform folder.
+        /// </summary>
+        partial void ApplyPlatformButtonAlignment(Button button);
 
 #if WINDOWS
         /// <summary>

@@ -9,6 +9,7 @@ import sys
 # MAUI apps: ApplicationDisplayVersion (G.S.Z) + ApplicationVersion (W).
 MAUI_PROJECTS = [
     "ASLM/ASLM.csproj",
+    "ASLM/Platforms/Linux/ASLM.Linux.csproj",
     "ASLM/Patcher/Patcher/ASLM.Patcher.csproj",
     "ASLM/Installer/Installer/ASLM.Installer.csproj",
 ]

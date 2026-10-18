@@ -249,6 +249,7 @@ public sealed class ModuleRepositoryDocumentsTests
         html.Should().Contain("<h1>Readme</h1>").And.Contain("<table>");
         html.Should().Contain("default-src 'none'").And.Contain("base-uri 'none'").And.Contain("form-action 'none'");
         html.Should().Contain("color:#eeeeee").And.Contain("background:#111111");
+        html.Should().Contain("system-ui,");
         html.Should().NotContain("script-src 'unsafe-inline'");
     }
 
