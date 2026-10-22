@@ -25,8 +25,8 @@
 		<ApplicationId>com.nextggtech.aslm</ApplicationId>
 
 		<!-- Versions -->
-		<ApplicationDisplayVersion>0.10.0</ApplicationDisplayVersion>
-		<ApplicationVersion>19</ApplicationVersion>
+		<ApplicationDisplayVersion>0.11.0</ApplicationDisplayVersion>
+		<ApplicationVersion>6</ApplicationVersion>
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
