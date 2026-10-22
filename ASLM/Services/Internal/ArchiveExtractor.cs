@@ -3,11 +3,12 @@
 using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
+using ZstdSharp;
 
 namespace ASLM.Services.Internal
 {
     /// <summary>
-    /// Extracts release archives: zip everywhere, plus tar.gz/tgz used by macOS engine and app assets.
+    /// Extracts ZIP and TAR release archives, including GZIP and Zstandard engine packages.
     /// </summary>
     /// <remarks>
     /// Tar extraction preserves Unix file modes and symlinks, which zip extraction cannot guarantee -
@@ -16,11 +17,12 @@ namespace ASLM.Services.Internal
     public static class ArchiveExtractor
     {
         /// <summary>
-        /// Returns whether the archive is a (gzipped) tarball based on its file name.
+        /// Identifies supported uncompressed, GZIP and Zstandard TAR file names.
         /// </summary>
         public static bool IsTarArchive(string archivePath)
         {
             return archivePath.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase)
+                || archivePath.EndsWith(".tar.zst", StringComparison.OrdinalIgnoreCase)
                 || archivePath.EndsWith(".tgz", StringComparison.OrdinalIgnoreCase)
                 || archivePath.EndsWith(".tar", StringComparison.OrdinalIgnoreCase);
         }
@@ -42,10 +44,20 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Extracts a tarball, decompressing gzip when the file name calls for it.
+        /// Decompresses TAR packages while retaining the existing macOS extended-attribute handling.
         /// </summary>
         private static void ExtractTar(string archivePath, string destination)
         {
+            // Linux Ollama packages use Zstandard. Stream decompression avoids another full archive on disk
+            // and retains TarFile's path/link validation, Unix modes and symbolic-link handling.
+            if (archivePath.EndsWith(".tar.zst", StringComparison.OrdinalIgnoreCase))
+            {
+                using var compressed = File.OpenRead(archivePath);
+                using var decompressed = new DecompressionStream(compressed);
+                TarFile.ExtractToDirectory(decompressed, destination, overwriteFiles: true);
+                return;
+            }
+
             // Apple bsdtar puts LIBARCHIVE.xattr.* PAX records into its tarballs, which
             // System.Formats.Tar cannot parse - macOS extraction goes through the system tar.
             if (OperatingSystem.IsMacCatalyst() || OperatingSystem.IsMacOS())

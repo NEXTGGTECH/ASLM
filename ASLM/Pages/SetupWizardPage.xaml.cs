@@ -1,5 +1,6 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -29,15 +30,19 @@ namespace ASLM.Pages
         private readonly SunriseService _sunriseService;
         private readonly IServiceProvider _services;
 
-        private readonly List<(ModuleConfig Module, CheckBox Check)> _moduleChecks = [];
+        private readonly CancellationTokenSource _modulePresentationCts = new();
+        private Task? _moduleListLoadTask;
+        private string _moduleListMessageKey = LocalizationKeys.Downloads_NoItems;
+        private ModuleInfo? _moduleInfo;
+        private ModuleCatalogCardViewModel? _selectedModuleCard;
+        public ObservableCollection<ModuleCatalogCardViewModel> ModuleCards { get; } = [];
         private readonly StringBuilder _logBuffer = new();
 
         private int _currentStep;
         private bool _isStartingSetup;
         private CancellationTokenSource? _cts;
-        private bool _logVisible;
         private string _installLogSessionKey = string.Empty;
-        private bool _moduleListLoaded;
+        private InstallationState _installState;
         private readonly object _logLock = new();
         private int _logFlushQueued;
         private int _logFlushRequested;
@@ -49,6 +54,11 @@ namespace ASLM.Pages
         private long _lastDownloadedBytes;
         private DateTime _lastSpeedUpdate = DateTime.UtcNow;
         private double _lastSpeed;
+
+        /// <summary>
+        /// Preserves navigation actions when localization is reapplied during or after installation.
+        /// </summary>
+        private enum InstallationState { NotStarted, Running, Failed, Completed }
 
         // Initialization
 
@@ -108,11 +118,16 @@ namespace ASLM.Pages
 
             // Loaded is more reliable than OnAppearing for this WinUI startup flow.
             Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
+            ApplyLocalization();
         }
 
 
         // Initial load
 
+        /// <summary>
+        /// Opens account settings above the wizard and any module information overlay.
+        /// </summary>
         private void OpenGitHubAccounts()
         {
             // Keep setup and any installation progress intact underneath settings.
@@ -122,6 +137,9 @@ namespace ASLM.Pages
             GitHubAccountsOverlay.Content = settings;
             GitHubAccountsOverlay.IsVisible = true;
 
+            /// <summary>
+            /// Restores the underlying wizard when account settings are closed.
+            /// </summary>
             void OnClose(object? sender, EventArgs e)
             {
                 settings.CloseRequested -= OnClose;
@@ -135,13 +153,8 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnLoaded(object? sender, EventArgs e)
         {
-            if (_moduleListLoaded)
-            {
-                return;
-            }
-
-            _moduleListLoaded = true;
-            await PopulateModuleListAsync();
+            // Multiple native Loaded events share discovery and never reset the user's selections.
+            await (_moduleListLoadTask ??= PopulateModuleListAsync());
         }
 
 
@@ -451,93 +464,111 @@ namespace ASLM.Pages
         // Module list
 
         /// <summary>
-        /// Builds the selectable module list shown on the last setup step.
+        /// Builds the shared catalog cards and defaults the selection to discovered required modules.
         /// </summary>
         private async Task PopulateModuleListAsync()
         {
-            ModuleList.Children.Clear();
-            _moduleChecks.Clear();
-
-            List<ModuleConfig> modules;
+            ModuleCards.Clear();
+            ModuleListMessageLabel.IsVisible = false;
             try
             {
-                modules = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync());
+                // Catalog discovery stays independent of repository artwork and version requests.
+                var modules = await Task.Run(_moduleInstaller.DiscoverModulesAsync);
+                if (_modulePresentationCts.IsCancellationRequested) return;
+                var trust = _services.GetRequiredService<ModuleTrustService>();
+                var registered = _moduleInstaller.Registry.ReadIds();
+                foreach (var module in modules)
+                {
+                    _updateManager.ApplyCatalogDefaults(module, registered.Contains(module.Id));
+                    ModuleCards.Add(new ModuleCatalogCardViewModel(module, trust.Resolve(module), _moduleInstaller,
+                        showSelection: true));
+                }
+                _moduleListMessageKey = LocalizationKeys.Downloads_NoItems;
+                ModuleListMessageLabel.Text = L.Get(_moduleListMessageKey);
+                ModuleListMessageLabel.IsVisible = ModuleCards.Count == 0;
+
+                // Display every local card immediately; cached icons and remote metadata arrive independently.
+                foreach (var card in ModuleCards)
+                    _ = RefreshModuleCardAsync(card);
             }
             catch (Exception ex)
             {
-                ModuleList.Children.Add(new Label
-                {
-                    Text = $"Failed to load module list: {ex.Message}",
-                    FontSize = 14,
-                    TextColor = GetColorResource("ActionRed", Color.FromArgb("#FF453A"))
-                });
-                return;
-            }
-
-            foreach (var module in modules)
-            {
-                var isSupported = module.IsSupportedOnCurrentPlatform;
-                var isRequired = ModuleRegistry.IsRequired(module.Id);
-                var check = new CheckBox
-                {
-                    IsChecked = isSupported || isRequired,
-                    IsEnabled = isSupported && !isRequired
-                };
-                check.SetDynamicResource(CheckBox.ColorProperty, "LabelPrimary");
-                var row = new HorizontalStackLayout { Spacing = 10 };
-
-                var nameLabel = new Label
-                {
-                    Text = module.Version.All(c => char.IsDigit(c) || c == '.')
-                        ? $"{module.Name} v{module.Version}"
-                        : $"{module.Name} {module.Version}",
-                    FontSize = 14,
-                    VerticalOptions = LayoutOptions.Center
-                };
-                nameLabel.SetDynamicResource(Label.TextColorProperty, "LabelPrimary");
-
-                var descLabel = new Label
-                {
-                    Text = module.Description,
-                    FontSize = 12,
-                    VerticalOptions = LayoutOptions.Center
-                };
-                descLabel.SetDynamicResource(Label.TextColorProperty, "SystemGray");
-
-                row.Children.Add(check);
-                row.Children.Add(nameLabel);
-                row.Children.Add(descLabel);
-
-                if (!isSupported)
-                {
-                    var unsupportedLabel = new Label
-                    {
-                        Text = L.Get(
-                            LocalizationKeys.SetupWizard_ModuleUnsupported,
-                            PlatformInfo.PlatformKey),
-                        FontSize = 12,
-                        VerticalOptions = LayoutOptions.Center
-                    };
-                    unsupportedLabel.SetDynamicResource(Label.TextColorProperty, "ActionRed");
-                    row.Children.Add(unsupportedLabel);
-                }
-
-                ModuleList.Children.Add(row);
-                _moduleChecks.Add((module, check));
-            }
-
-            if (modules.Count == 0)
-            {
-                var emptyLabel = new Label
-                {
-                    Text = "No modules found in Modules/ directory.",
-                    FontSize = 14
-                };
-                emptyLabel.SetDynamicResource(Label.TextColorProperty, "SystemGray");
-                ModuleList.Children.Add(emptyLabel);
+                Debug.WriteLine($"[SetupWizard] Failed to load module list: {ex}");
+                _moduleListMessageKey = LocalizationKeys.ModulesDownloads_LoadFailed;
+                ModuleListMessageLabel.Text = L.Get(_moduleListMessageKey);
+                ModuleListMessageLabel.IsVisible = true;
             }
         }
 
+        /// <summary>
+        /// Updates a card without blocking selection or allowing failed repository lookups to abort setup.
+        /// </summary>
+        private async Task RefreshModuleCardAsync(ModuleCatalogCardViewModel card)
+        {
+            try
+            {
+                await card.RefreshPresentationAsync(_updateManager, _modulePresentationCts.Token);
+            }
+            catch (OperationCanceledException) when (_modulePresentationCts.IsCancellationRequested)
+            {
+                // Leaving first-run setup invalidates its pending presentation requests.
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SetupWizard] Failed to refresh module '{card.Module.Id}': {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Opens the regular module information view with configuration enabled and installation actions hidden.
+        /// </summary>
+        private async void OnModuleSelected(object? sender, ModuleConfig module)
+        {
+            if (_installState != InstallationState.NotStarted) return;
+            if (_moduleInfo == null)
+            {
+                _moduleInfo = _services.GetRequiredService<ModuleInfo>();
+                _moduleInfo.CloseRequested += OnModuleInfoClosed;
+                ModuleInfoOverlay.Content = _moduleInfo;
+            }
+
+            _selectedModuleCard = ModuleCards.FirstOrDefault(card => card.Module == module);
+            ModuleInfoOverlay.IsVisible = true;
+            await _moduleInfo.OpenAsync(module, ModuleInfo.Section.Info, checkForUpdates: false,
+                allowInstallationActions: false);
+        }
+
+        /// <summary>
+        /// Restores the selection list and refreshes the changed target without resetting any checkboxes.
+        /// </summary>
+        private async void OnModuleInfoClosed(object? sender, EventArgs e)
+        {
+            ModuleInfoOverlay.IsVisible = false;
+            var card = _selectedModuleCard;
+            _selectedModuleCard = null;
+            if (card == null) return;
+            try
+            {
+                // ModuleInfo may edit a fresh manifest instance; copy only its saved download preferences.
+                var saved = await _moduleInstaller.LoadModuleConfig(card.Module.SourcePath);
+                if (saved == null || _modulePresentationCts.IsCancellationRequested) return;
+                card.Module.Update = saved.Update;
+                _updateManager.ApplyCatalogDefaults(card.Module, _moduleInstaller.Registry.ReadIds().Contains(card.Module.Id));
+                await RefreshModuleCardAsync(card);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[SetupWizard] Failed to refresh module configuration: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Stops view-owned presentation lookups when the wizard is removed from the window.
+        /// </summary>
+        private void OnUnloaded(object? sender, EventArgs e)
+        {
+            _modulePresentationCts.Cancel();
+        }
 
         // Navigation
 
@@ -667,9 +698,12 @@ namespace ASLM.Pages
             UsernameEntry.Placeholder = L.Get(LocalizationKeys.SetupWizard_DisplayNamePlaceholder);
             PortAllocationTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_PortAllocationTitle);
             ModulePortLabel.Text = L.Get(LocalizationKeys.SetupWizard_ModulesPortLabel);
-            InstallStatusLabel.Text = L.Get(LocalizationKeys.SetupWizard_Preparing);
+            if (_installState == InstallationState.NotStarted)
+                InstallStatusLabel.Text = L.Get(LocalizationKeys.SetupWizard_Preparing);
             OverallProgressLabel.Text = L.Get(LocalizationKeys.SetupWizard_OverallProgress);
-            BackButton.Text = L.Get(LocalizationKeys.Common_Back);
+            foreach (var card in ModuleCards) card.RefreshLocalization();
+            if (ModuleListMessageLabel.IsVisible)
+                ModuleListMessageLabel.Text = L.Get(_moduleListMessageKey);
             UpdateAccountSelectionUI();
             UpdateStepUI();
         }
@@ -688,12 +722,14 @@ namespace ASLM.Pages
             Step3Panel.IsVisible = _currentStep == 3;
 
             HeaderRow.IsVisible = _currentStep > 0;
-            ButtonPanel.IsVisible = _currentStep > 0;
+            ButtonPanel.IsVisible = _currentStep > 0 && _installState != InstallationState.Running;
             BackButton.IsVisible = _currentStep > FirstSetupStep;
             NextButton.Text = _currentStep == TotalSteps
                 ? L.Get(LocalizationKeys.SetupWizard_Next_Install)
                 : L.Get(LocalizationKeys.Common_Next);
             ResetNavigationButtons();
+            if (_installState == InstallationState.Completed) ConfigureFinishButton();
+            else if (_installState == InstallationState.Failed) ConfigureRetryAndSkipButtons();
 
             var visibleStepCount = TotalSteps - FirstSetupStep + 1;
             var visibleStep = _currentStep - FirstSetupStep + 1;
@@ -704,6 +740,15 @@ namespace ASLM.Pages
                 3 => L.Get(LocalizationKeys.SetupWizard_StepFormat, visibleStep, visibleStepCount, L.Get(LocalizationKeys.SetupWizard_Step_ModuleSelection)),
                 _ => string.Empty
             };
+            if (_installState != InstallationState.NotStarted)
+            {
+                StepLabel.Text = L.Get(_installState switch
+                {
+                    InstallationState.Running => LocalizationKeys.SetupWizard_Installing,
+                    InstallationState.Completed => LocalizationKeys.SetupWizard_SetupComplete,
+                    _ => LocalizationKeys.SetupWizard_Failed
+                });
+            }
         }
 
 
@@ -744,11 +789,6 @@ namespace ASLM.Pages
         public new event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
-        /// Gets whether the installation log panel is visible.
-        /// </summary>
-        public bool IsInstallLogVisible => _logVisible;
-
-        /// <summary>
         /// Gets the installation log text rendered by <see cref="ConsoleOutputView"/>.
         /// </summary>
         public string InstallLogText
@@ -766,19 +806,6 @@ namespace ASLM.Pages
         /// Gets the session key used to reset console scroll position for a new install run.
         /// </summary>
         public string InstallLogSessionKey => _installLogSessionKey;
-
-        /// <summary>
-        /// Shows or hides the installation log panel.
-        /// </summary>
-        private void OnToggleLogClicked(object? sender, EventArgs e)
-        {
-            _logVisible = !_logVisible;
-            OnPropertyChanged(nameof(IsInstallLogVisible));
-            ToggleLogButton.Text = _logVisible
-                ? L.Get(LocalizationKeys.SetupWizard_HideLog)
-                : L.Get(LocalizationKeys.SetupWizard_ShowLog);
-            QueueInstallLogLayoutRefresh();
-        }
 
         /// <summary>
         /// Schedules layout refresh passes so the native console host measures like <see cref="ConsolesView"/>.
@@ -801,7 +828,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Invalidates the install panel and console host after log visibility or text changes.
+        /// Invalidates the install panel and console host after text changes.
         /// </summary>
         private void RefreshInstallLogLayout()
         {
@@ -817,6 +844,34 @@ namespace ASLM.Pages
         /// </summary>
         private async Task StartInstallAsync()
         {
+            if (_installState == InstallationState.Running) return;
+            _installState = InstallationState.Running;
+            ButtonPanel.IsVisible = false;
+            try
+            {
+                await InstallSelectedModulesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Early persistence/discovery failures still need a visible log and a retry action.
+                ModuleSelectionPanel.IsVisible = false;
+                InstallPanel.IsVisible = true;
+                var message = L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message);
+                AddLog(message);
+                UpdateInstallStatus(message);
+                StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Failed);
+                ConfigureRetryAndSkipButtons();
+                ButtonPanel.IsVisible = true;
+            }
+        }
+
+        /// <summary>
+        /// Persists setup choices and installs their dependency graph using saved module download preferences.
+        /// </summary>
+        private async Task InstallSelectedModulesAsync()
+        {
+            await (_moduleListLoadTask ??= PopulateModuleListAsync());
+
             // Persist the profile and port values before any installation begins.
             if (SunriseService.IsEnabled && _appData.Data.User.AccountMode == AppAccountMode.Local &&
                 SettingsService.TryValidateDisplayName(UsernameEntry.Text, out var validatedUserName, out _))
@@ -834,16 +889,15 @@ namespace ASLM.Pages
 
             await _appData.SaveAsync();
 
-            var selectedIds = _moduleChecks
-                .Where(moduleCheck => moduleCheck.Check.IsChecked && moduleCheck.Module.IsSupportedOnCurrentPlatform)
-                .Select(moduleCheck => moduleCheck.Module.Id)
+            var selectedIds = ModuleCards
+                .Where(card => card.IsSelected && card.Module.IsSupportedOnCurrentPlatform)
+                .Select(card => card.Module.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // Switch the final wizard step from selection mode into install mode.
             ButtonPanel.IsVisible = false;
-            ModuleListScroll.IsVisible = false;
+            ModuleSelectionPanel.IsVisible = false;
             InstallPanel.IsVisible = true;
-            ToggleLogButton.IsVisible = true;
             StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Installing);
 
             lock (_logLock)
@@ -856,6 +910,7 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(InstallLogText));
             QueueInstallLogLayoutRefresh();
 
+            _cts?.Dispose();
             _cts = new CancellationTokenSource();
             var logProgress = new InlineProgress<string>(AddLog);
 
@@ -963,7 +1018,7 @@ namespace ASLM.Pages
                         continue;
                     }
 
-                    UpdateInstallStatus($"Installing engine: {engine.Name}...");
+                    UpdateInstallStatus($"{engine.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
                     ResetFileProgress();
                     await Task.Run(
                         () => _engineInstaller.InstallAsync(engine, logProgress, downloadProgress, _cts.Token),
@@ -987,7 +1042,7 @@ namespace ASLM.Pages
 
                     if (ShouldUseConfiguredUpdateInstall(module))
                     {
-                        UpdateInstallStatus($"Installing {module.Name}...");
+                        UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
                         ResetFileProgress();
                         ResetDownloadMetrics();
 
@@ -1010,7 +1065,7 @@ namespace ASLM.Pages
                         continue;
                     }
 
-                    UpdateInstallStatus($"Downloading {module.Name}...");
+                    UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.Settings_Downloading)}");
                     ResetFileProgress();
                     ResetDownloadMetrics();
 
@@ -1049,7 +1104,7 @@ namespace ASLM.Pages
                         downloadProgress,
                         _cts.Token);
 
-                    UpdateInstallStatus($"Setting up {installedModule.Name}...");
+                    UpdateInstallStatus($"{installedModule.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
                     var success = await Task.Run(
                         () => _moduleRunner.ExecuteFirstRunAsync(installedModule, logProgress, _cts.Token),
                         _cts.Token);
@@ -1076,13 +1131,13 @@ namespace ASLM.Pages
             catch (OperationCanceledException)
             {
                 hasFailures = true;
-                UpdateInstallStatus("Installation canceled.");
+                UpdateInstallStatus(L.Get(LocalizationKeys.SetupWizard_Canceled));
                 StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Canceled);
             }
             catch (Exception ex)
             {
                 hasFailures = true;
-                UpdateInstallStatus($"Error: {ex.Message}");
+                UpdateInstallStatus(L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
                 StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Failed);
                 AddLog($"Error: {ex.Message}");
             }
@@ -1118,7 +1173,7 @@ namespace ASLM.Pages
 
             NextButton.BackgroundColor = GetColorResource("ActionBlue", Color.FromArgb("#007AFF"));
             BackButton.BackgroundColor = GetColorResource("BackgroundTertiary", Color.FromArgb("#3A3A3C"));
-            BackButton.Text = "Back";
+            BackButton.Text = L.Get(LocalizationKeys.Common_Back);
         }
 
         /// <summary>
@@ -1126,6 +1181,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ConfigureFinishButton()
         {
+            _installState = InstallationState.Completed;
             ResetNavigationButtons();
             BackButton.IsVisible = false;
             NextButton.Text = L.Get(LocalizationKeys.SetupWizard_Finish);
@@ -1138,13 +1194,14 @@ namespace ASLM.Pages
         /// </summary>
         private void ConfigureRetryAndSkipButtons()
         {
+            _installState = InstallationState.Failed;
             ResetNavigationButtons();
 
             NextButton.Text = L.Get(LocalizationKeys.SetupWizard_Retry);
             NextButton.Clicked -= OnNextClicked;
             NextButton.Clicked += OnRetryInstallClicked;
 
-            BackButton.Text = "Skip";
+            BackButton.Text = L.Get(LocalizationKeys.SetupWizard_Skip);
             BackButton.IsVisible = true;
             BackButton.Clicked -= OnBackClicked;
             BackButton.Clicked += OnSkipClicked;
@@ -1425,6 +1482,9 @@ namespace ASLM.Pages
         /// </summary>
         private sealed class InlineProgress<T>(Action<T> handler) : IProgress<T>
         {
+            /// <summary>
+            /// Forwards a producer update immediately to the wizard's buffered log.
+            /// </summary>
             public void Report(T value)
             {
                 handler(value);

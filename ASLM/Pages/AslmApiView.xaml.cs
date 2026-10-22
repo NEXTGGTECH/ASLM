@@ -25,6 +25,7 @@ namespace ASLM.Pages
         private Dictionary<string, AslmApiModuleDisplayState> _moduleDisplayStates = new(StringComparer.OrdinalIgnoreCase);
         private Task? _moduleDisplayStatesLoadTask;
         private int _moduleDisplayStateLoadVersion;
+        private int _hostRefreshVersion;
         private bool _moduleDisplayStatesLoaded;
         private DateTime _moduleDisplayStatesLoadedAt = DateTime.MinValue;
         private CancellationTokenSource? _refreshLoopCts;
@@ -77,10 +78,7 @@ namespace ASLM.Pages
             OpenServerButton.Text = L.Get(LocalizationKeys.AslmApi_Open);
             HostsHeaderLabel.Text = L.Get(LocalizationKeys.AslmApi_Hosts);
 
-            if (HostsCollection.EmptyView is Label empty)
-            {
-                empty.Text = L.Get(LocalizationKeys.AslmApi_NoHosts);
-            }
+            EmptyHostsLabel.Text = L.Get(LocalizationKeys.AslmApi_NoHosts);
 
             foreach (var host in Hosts)
             {
@@ -217,10 +215,13 @@ namespace ASLM.Pages
         /// </summary>
         internal async Task RefreshAsync()
         {
+            var refreshVersion = ++_hostRefreshVersion;
             ApplyServerState();
             EnsureModuleDisplayStatesLoading();
 
             var hosts = await Task.Run(_mirrorServer.GetHosts);
+            // A newer module-state snapshot or refresh supersedes this in-flight port-map read.
+            if (refreshVersion != _hostRefreshVersion) return;
             SynchronizeHostRows(hosts, _moduleDisplayStates);
         }
 
@@ -234,6 +235,7 @@ namespace ASLM.Pages
             var activeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var orderedHosts = hosts
+                .Where(host => moduleStates.ContainsKey(host.ModuleId))
                 .OrderBy(
                     host => ResolveModuleDisplayState(host.ModuleId, moduleStates).Name,
                     StringComparer.OrdinalIgnoreCase)
@@ -293,7 +295,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Resolves the human-readable module state used by the host list.
         /// </summary>
-        private static AslmApiModuleDisplayState ResolveModuleDisplayState(
+        internal static AslmApiModuleDisplayState ResolveModuleDisplayState(
             string moduleId,
             IReadOnlyDictionary<string, AslmApiModuleDisplayState> moduleStates)
         {
@@ -303,7 +305,7 @@ namespace ASLM.Pages
                 return moduleState;
             }
 
-            return new AslmApiModuleDisplayState(AslmApiHostViewModel.NormalizeDisplayName(moduleId), true);
+            return new AslmApiModuleDisplayState(AslmApiHostViewModel.NormalizeDisplayName(moduleId), false);
         }
 
         /// <summary>
@@ -365,15 +367,10 @@ namespace ASLM.Pages
                 _moduleDisplayStatesLoaded = true;
                 _moduleDisplayStatesLoadedAt = DateTime.UtcNow;
 
-                foreach (var row in Hosts)
-                {
-                    row.UpdateModuleState(ResolveModuleDisplayState(row.ModuleId, _moduleDisplayStates));
-                }
-
-                if (Hosts.Count > 0)
-                {
-                    SynchronizeHostRows(_mirrorServer.GetHosts(), _moduleDisplayStates);
-                }
+                // Reconcile even an empty list: the initial port-map read may have preceded discovery.
+                // Invalidate older reads so they cannot restore rows removed by this snapshot.
+                ++_hostRefreshVersion;
+                SynchronizeHostRows(_mirrorServer.GetHosts(), _moduleDisplayStates);
             });
         }
 

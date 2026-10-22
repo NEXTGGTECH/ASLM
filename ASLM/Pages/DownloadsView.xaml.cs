@@ -59,6 +59,9 @@ namespace ASLM.Pages
         private bool _themeHandlersAttached;
 #if WINDOWS
         private DownloadInfoPreviewHost? _infoBlockPreview;
+#elif LINUX
+        private ASLM.Services.Controls.LinuxDocumentPreview? _infoBlockPreview;
+        private object? _linuxPreviewBrowser;
 #endif
 
         private Entry SearchEntry => BridgeContent.SearchInput;
@@ -1244,6 +1247,14 @@ namespace ASLM.Pages
             _infoBlockPreview = native == null ? null : new DownloadInfoPreviewHost(
                 native, Dispatcher, height => SelectedInfoBlockWebHeight = height);
             UpdateInfoBlockPreviewSource();
+#elif LINUX
+            var view = sender as WebView;
+            var native = view?.Handler?.PlatformView;
+            if (ReferenceEquals(native, _linuxPreviewBrowser)) return;
+            _infoBlockPreview?.Dispose();
+            _linuxPreviewBrowser = native;
+            _infoBlockPreview = view == null ? null
+                : ASLM.Services.Controls.LinuxDocumentPreview.Create(view, height => SelectedInfoBlockWebHeight = height);
 #endif
         }
 
@@ -1265,9 +1276,12 @@ namespace ASLM.Pages
 
         private void OnInfoBlockWebViewUnloaded(object? sender, EventArgs e)
         {
-#if WINDOWS
+#if WINDOWS || LINUX
             _infoBlockPreview?.Dispose();
             _infoBlockPreview = null;
+#endif
+#if LINUX
+            _linuxPreviewBrowser = null;
 #endif
         }
 

@@ -9,7 +9,8 @@ namespace ASLM.Services.Internal
     /// <remarks>
     /// - Windows: the parent of the deployed <c>App/</c> folder (dual-location and monolithic layouts).
     /// - macOS: <c>~/Library/Application Support/ASLM</c>; the .app bundle stays read-only in /Applications.
-    /// - The <c>ASLM_ROOT</c> environment variable overrides both (development and tests).
+    /// - Linux: <c>$XDG_DATA_HOME/ASLM</c>, falling back to <c>~/.local/share/ASLM</c>.
+    /// - The <c>ASLM_ROOT</c> environment variable overrides platform defaults (development and tests).
     /// </remarks>
     public static class AppRoot
     {
@@ -44,8 +45,13 @@ namespace ASLM.Services.Internal
                     "Library", "Application Support", AppName);
             }
 
+#if LINUX
+            return LinuxAppDataSeeder.ResolveDataDirectory(Environment.GetEnvironmentVariable("XDG_DATA_HOME"),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+#else
             var appDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
             return System.IO.Directory.GetParent(appDir)?.FullName ?? appDir;
+#endif
         }
     }
 }

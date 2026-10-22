@@ -422,6 +422,9 @@ namespace ASLM.Services.Internal
 #if MACCATALYST
             MacAppRelauncher.StartDetachedRelaunch();
             return;
+#elif LINUX
+            LinuxAppRelauncher.StartDetachedRelaunch();
+            return;
 #else
             var root = ResolveInstallRoot();
             var launcherPath = Path.Combine(root, "ASLM.exe");

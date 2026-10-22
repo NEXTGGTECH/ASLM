@@ -5,6 +5,8 @@
              xmlns:services="clr-namespace:ASLM.Services.Internal"
              xmlns:settings="clr-namespace:ASLM.Controls.Settings"
              xmlns:dialogs="clr-namespace:ASLM.Controls.Dialogs"
+             xmlns:controls="clr-namespace:ASLM.Controls"
+             xmlns:modules="clr-namespace:ASLM.Controls.Modules"
              x:Class="ASLM.Pages.SetupWizardPage"
              x:Name="RootView"
              Title="ASLM Setup"
@@ -15,7 +17,7 @@
         <Grid RowDefinitions="Auto, *, Auto" Padding="16">
 
         <!-- Header (hidden on welcome step) -->
-        <Grid x:Name="HeaderRow" Grid.Row="0" ColumnDefinitions="*, Auto"
+        <Grid x:Name="HeaderRow" Grid.Row="0"
               Margin="0,0,0,16" IsVisible="False">
             <VerticalStackLayout Grid.Column="0" Spacing="5">
                 <Label x:Name="HeaderTitleLabel"
@@ -28,17 +30,6 @@
                        FontSize="14"
                        TextColor="{DynamicResource LabelSecondary}" />
             </VerticalStackLayout>
-            <Button x:Name="ToggleLogButton"
-                    Grid.Column="1"
-                    Text="Show Log"
-                    BackgroundColor="{DynamicResource SystemGray4}"
-                    TextColor="{DynamicResource LabelSecondary}"
-                    FontSize="12"
-                    HeightRequest="30"
-                    WidthRequest="120"
-                    VerticalOptions="End"
-                    IsVisible="False"
-                    Clicked="OnToggleLogClicked" />
         </Grid>
 
         <!-- Step Content -->
@@ -187,7 +178,6 @@
                            HorizontalTextAlignment="Center"
                            LineBreakMode="WordWrap" />
                     <Button x:Name="CloudAccountActionButton"
-                            Text="Sign in with SUNRISE"
                             BackgroundColor="{DynamicResource ActionBlue}"
                             TextColor="{DynamicResource White}"
                             FontSize="14"
@@ -223,16 +213,34 @@
             </VerticalStackLayout>
 
             <!-- Step 3: Module Selection + Install -->
-            <Grid x:Name="Step3Panel" IsVisible="False"
-                  RowDefinitions="Auto, *">
+            <Grid x:Name="Step3Panel" IsVisible="False">
 
                 <!-- Module selection list -->
-                <ScrollView x:Name="ModuleListScroll" Grid.Row="1">
-                    <VerticalStackLayout x:Name="ModuleList" Spacing="8" />
-                </ScrollView>
+                <Grid x:Name="ModuleSelectionPanel" ColumnDefinitions="*,Auto">
+                    <ScrollView x:Name="ModuleListScroll"
+                                VerticalScrollBarVisibility="Never"
+                                HorizontalScrollBarVisibility="Never">
+                        <VerticalStackLayout x:Name="ModuleList" Spacing="8"
+                                             BindableLayout.ItemsSource="{Binding ModuleCards, Source={x:Reference RootView}}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <modules:ModuleCatalogCardView ModuleSelected="OnModuleSelected" />
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </ScrollView>
+                    <controls:AppScrollBar Grid.Column="1" Target="{x:Reference ModuleListScroll}" />
+                    <Label x:Name="ModuleListMessageLabel"
+                           IsVisible="False"
+                           FontSize="14"
+                           TextColor="{DynamicResource LabelSecondary}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           LineBreakMode="WordWrap" />
+                </Grid>
 
                 <!-- Install view (progress + log) -->
-                <Grid x:Name="InstallPanel" Grid.Row="0" Grid.RowSpan="2"
+                <Grid x:Name="InstallPanel"
                       IsVisible="False"
                       RowDefinitions="Auto, Auto, Auto, Auto, Auto, *">
 
@@ -272,20 +280,20 @@
                                  HeightRequest="4"
                                  Margin="0,0,0,8" />
 
-                    <Border Grid.Row="5"
-                            BackgroundColor="{DynamicResource BackgroundSecondary}"
-                            Stroke="{DynamicResource Separator}"
-                            StrokeThickness="1"
-                            StrokeShape="RoundRectangle 8"
-                            Padding="8"
-                            IsVisible="{Binding IsInstallLogVisible, Source={x:Reference RootView}}"
-                            Margin="0,8,0,0">
-                        <services:ConsoleOutputView x:Name="InstallLogConsole"
-                                                    Text="{Binding InstallLogText, Source={x:Reference RootView}}"
-                                                    SessionKey="{Binding InstallLogSessionKey, Source={x:Reference RootView}}"
-                                                    HorizontalOptions="Fill"
-                                                    VerticalOptions="Fill" />
-                    </Border>
+                    <Grid Grid.Row="5" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                        <Border BackgroundColor="{DynamicResource BackgroundSecondary}"
+                                Stroke="{DynamicResource Separator}"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 8"
+                                Padding="8">
+                            <services:ConsoleOutputView x:Name="InstallLogConsole"
+                                                        Text="{Binding InstallLogText, Source={x:Reference RootView}}"
+                                                        SessionKey="{Binding InstallLogSessionKey, Source={x:Reference RootView}}"
+                                                        HorizontalOptions="Fill"
+                                                        VerticalOptions="Fill" />
+                        </Border>
+                        <controls:AppScrollBar Grid.Column="1" Target="{x:Reference InstallLogConsole}" />
+                    </Grid>
                 </Grid>
             </Grid>
 
@@ -297,19 +305,17 @@
                                Margin="0,20,0,0"
                                IsVisible="False">
             <Button x:Name="BackButton"
-                    Text="Back"
                     BackgroundColor="{DynamicResource SystemGray4}"
                     TextColor="{DynamicResource LabelPrimary}"
                     FontSize="14"
-                    WidthRequest="100"
+                    Padding="20,10"
                     IsVisible="False"
                     Clicked="OnBackClicked" />
             <Button x:Name="NextButton"
-                    Text="Next"
                     BackgroundColor="{DynamicResource ActionBlue}"
                     TextColor="{DynamicResource White}"
                     FontSize="14"
-                    WidthRequest="100"
+                    Padding="20,10"
                     Clicked="OnNextClicked" />
         </HorizontalStackLayout>
 
@@ -318,6 +324,7 @@
         <ContentView x:Name="OverlayContainer"
                      IsVisible="False"
                      BackgroundColor="Transparent" />
+        <ContentView x:Name="ModuleInfoOverlay" IsVisible="False" />
         <ContentView x:Name="GitHubAccountsOverlay" IsVisible="False" />
         </Grid>
         <dialogs:DialogHostView x:Name="Dialogs" />

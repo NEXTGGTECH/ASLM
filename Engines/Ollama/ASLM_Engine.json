@@ -25,6 +25,11 @@
             "os": "macos",
             "arch": "amd64",
             "key": "macos-amd64"
+        },
+        {
+            "os": "linux",
+            "arch": "amd64",
+            "key": "linux-amd64"
         }
     ],
     "windows-amd64": {
@@ -145,6 +150,35 @@
         "update": {
             "repo": "ollama/ollama",
             "assetName": "ollama-darwin.tgz"
+        }
+    },
+    "linux-amd64": {
+        "executablePath": "runtime/bin/ollama",
+        "requirements": {
+            "diskSpaceMb": 8192
+        },
+        "install": [
+            {
+                "action": "download",
+                "name": "Download Ollama Linux amd64 portable archive",
+                "url": "https://github.com/ollama/ollama/releases/latest/download/ollama-linux-amd64.tar.zst",
+                "dest": "{temp}/ollama-linux-amd64.tar.zst"
+            },
+            {
+                "action": "extract",
+                "name": "Extract executable and runtime libraries",
+                "source": "{temp}/ollama-linux-amd64.tar.zst",
+                "dest": "Engines/Ollama/runtime"
+            },
+            {
+                "action": "cleanup",
+                "target": "{temp}"
+            }
+        ],
+        "postInstall": [],
+        "update": {
+            "repo": "ollama/ollama",
+            "assetName": "ollama-linux-amd64.tar.zst"
         }
     },
     "status": {

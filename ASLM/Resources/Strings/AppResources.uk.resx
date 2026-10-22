@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>Не вдалося завершити початкове налаштування: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>Приховати журнал</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Встановлення</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>Налаштування завершено!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>Показати журнал</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>Пропустити</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>Крок {0} з {1} — {2}</value>

@@ -509,7 +509,7 @@
                     <VisualState x:Name="Disabled">
                         <VisualState.Setters>
                             <Setter Property="OnColor" Value="{DynamicResource SystemGray4}" />
-                            <Setter Property="ThumbColor" Value="{DynamicResource SystemGray4}" />
+                            <Setter Property="ThumbColor" Value="{DynamicResource White}" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="On">
@@ -520,7 +520,7 @@
                     </VisualState>
                     <VisualState x:Name="Off">
                         <VisualState.Setters>
-                            <Setter Property="ThumbColor" Value="{DynamicResource SystemGray2}" />
+                            <Setter Property="ThumbColor" Value="{DynamicResource White}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>

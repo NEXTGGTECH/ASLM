@@ -21,6 +21,7 @@ internal sealed class DownloadInfoPreviewHost : IDisposable
     private DownloadInfoPreview? _preview;
     private Task _initialization = Task.CompletedTask;
     private string? _source;
+    private string? _html;
     private int _generation;
     private int _navigationVersion;
     private bool _active;
@@ -43,14 +44,18 @@ internal sealed class DownloadInfoPreviewHost : IDisposable
 
     public WebView2 PlatformView => _view;
 
+    /// <summary>
+    /// Selects a local or remote preview URL, clearing any previous in-memory document.
+    /// </summary>
     public void SetSource(string? source)
     {
-        if (_active && string.Equals(_source, source, StringComparison.Ordinal))
+        if (_active && _html == null && string.Equals(_source, source, StringComparison.Ordinal))
         {
             RequestMeasure();
             return;
         }
 
+        _html = null;
         _source = source;
         _active = source != null;
         _generation++;
@@ -61,6 +66,28 @@ internal sealed class DownloadInfoPreviewHost : IDisposable
         if (_active) _ = NavigateAsync(_navigationVersion);
     }
 
+    /// <summary>
+    /// Displays a host-generated document using the same native measurement and wheel forwarding as URL previews.
+    /// </summary>
+    public void SetHtml(string html)
+    {
+        if (_active && _html == html) { RequestMeasure(); return; }
+
+        // NavigateToString avoids temporary files and the Unicode path round-trip in WinUI.Source.
+        _html = html;
+        _source = "about:blank";
+        _active = true;
+        _generation++;
+        _navigationVersion++;
+        _preview?.ResetDocument();
+        _timer.Stop();
+        _pending = false;
+        _ = NavigateAsync(_navigationVersion);
+    }
+
+    /// <summary>
+    /// Navigates only the latest request after the native browser and measurement protocol are ready.
+    /// </summary>
     private async Task NavigateAsync(int version)
     {
         try
@@ -71,7 +98,8 @@ internal sealed class DownloadInfoPreviewHost : IDisposable
 
             // WinUI's Source (Uri) round-trip can corrupt UTF-8 escapes in local paths.
             // Navigate with the original escaped string instead, keeping Unicode intact.
-            _core.Navigate(_source);
+            if (_html != null) _core.NavigateToString(_html);
+            else _core.Navigate(_source);
         }
         catch (Exception ex)
         {

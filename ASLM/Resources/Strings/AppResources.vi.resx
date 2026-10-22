@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>Không thể hoàn tất thiết lập ban đầu: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>Ẩn nhật ký</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>Đang cài</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>Thiết lập hoàn tất!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>Hiện nhật ký</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>Bỏ qua</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>Bước {0} / {1} - {2}</value>

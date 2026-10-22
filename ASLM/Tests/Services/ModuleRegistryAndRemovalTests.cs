@@ -194,6 +194,7 @@ public sealed class ModuleRegistryAndRemovalTests
     public async Task Uninstall_removes_only_owned_content_updates_registry_and_keeps_the_catalog_card()
     {
         using var fixture = new InstalledFixture();
+        fixture.Ports.GetOrAssignPorts(fixture.Module);
         var changes = 0;
         fixture.Installer.ModulesChanged += (_, _) => changes++;
         (await fixture.Installer.DiscoverInstalledModulesAsync()).Should().Contain(module => module.Id == fixture.Module.Id);
@@ -201,6 +202,9 @@ public sealed class ModuleRegistryAndRemovalTests
         (await fixture.Installer.UninstallAsync(fixture.Module)).Should().BeNull();
 
         fixture.Installer.Registry.ReadIds().Should().NotContain(fixture.Module.Id);
+        fixture.Ports.TryGetAssignedPorts(fixture.Module.Id).Should().BeNull();
+        var reloadedPorts = new PortRegistry(new AppDataStore(TestLoggerFactory.Create<AppDataStore>()));
+        reloadedPorts.TryGetAssignedPorts(fixture.Module.Id).Should().BeNull();
         File.Exists(fixture.Payload).Should().BeFalse();
         Directory.Exists(fixture.Runtime).Should().BeFalse();
         Directory.Exists(fixture.Environment).Should().BeFalse();
@@ -218,6 +222,7 @@ public sealed class ModuleRegistryAndRemovalTests
     public async Task Uninstall_rolls_back_files_and_engine_status_when_registry_commit_is_locked()
     {
         using var fixture = new InstalledFixture();
+        var ports = fixture.Ports.GetOrAssignPorts(fixture.Module).ToDictionary(pair => pair.Key, pair => pair.Value);
         var registryPath = Path.Combine(AppRoot.Directory, "Data", "App", "ASLM_Modules.json");
         using var locked = new FileStream(registryPath, FileMode.Open, FileAccess.Read, FileShare.Read);
         var uninstall = () => fixture.Installer.UninstallAsync(fixture.Module);
@@ -229,6 +234,7 @@ public sealed class ModuleRegistryAndRemovalTests
         Directory.Exists(fixture.Environment).Should().BeTrue();
         Directory.Exists(fixture.Models).Should().BeTrue();
         fixture.Installer.Registry.ReadIds().Should().Contain(fixture.Module.Id);
+        fixture.Ports.TryGetAssignedPorts(fixture.Module.Id).Should().BeEquivalentTo(ports);
         (await fixture.Installer.LoadModuleConfig(fixture.Module.SourcePath))!.Status.Installed.Should().BeTrue();
         new EngineInstaller().FindAvailableEngine(fixture.Engine.Id)!.Status.Installed.Should().BeTrue();
     }
@@ -529,7 +535,8 @@ public sealed class ModuleRegistryAndRemovalTests
     private sealed class InstalledFixture : IDisposable
     {
         private readonly List<string> _directories = [];
-        public ModuleInstaller Installer { get; } = new(null!, null!, null!);
+        public ModuleInstaller Installer { get; }
+        public PortRegistry Ports { get; }
         public ModuleConfig Module { get; }
         public EngineConfig Engine { get; }
         public string Runtime { get; }
@@ -541,6 +548,8 @@ public sealed class ModuleRegistryAndRemovalTests
         {
             using var layout = new AslmFileSystemLayout();
             File.WriteAllText(Path.Combine(layout.DataAppDir, "ASLM_Modules.json"), "[]");
+            Ports = new PortRegistry(new AppDataStore(TestLoggerFactory.Create<AppDataStore>()));
+            Installer = new ModuleInstaller(null!, null!, null!, ports: Ports);
             var id = "removal-test-" + Guid.NewGuid().ToString("N");
             Module = MakeModule(layout.Root, id);
             Module.Id = moduleId ?? id;

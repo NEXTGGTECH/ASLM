@@ -340,6 +340,9 @@ jobs:
           - name: macos
             runs-on: macos-15
             rid: maccatalyst
+          - name: linux-amd64
+            runs-on: ubuntu-26.04
+            rid: linux-x64
     steps:
       - name: Check out main
         uses: actions/checkout@v7
@@ -459,6 +462,40 @@ jobs:
 
           # Self-update asset: tar.gz preserves permissions and symlinks for the in-app updater.
           tar -C "$(dirname "$APP_BUNDLE")" -czf dist/ASLM-macos.tar.gz "$(basename "$APP_BUNDLE")"
+
+      - name: Install build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          # Resizetizer uses Skia to generate icons; GTK/WebKit are runtime dependencies, not build workloads.
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libfontconfig1 libfreetype6
+
+      - name: Build release (Linux; self-contained GTK application)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          # Publish directly into App/ so the archive has no nested publish folder or duplicate runtime.
+          dotnet publish ASLM/Platforms/Linux/ASLM.Linux.csproj -c Release -r "${{ matrix.rid }}" \
+            --self-contained true -o "$PWD/Build/Release/ASLM-${{ matrix.name }}/App" -v minimal
+
+      - name: Package artifacts (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          APP="Build/Release/ASLM-${{ matrix.name }}/App"
+          # Reject incomplete payloads instead of shipping an apphost that requires a system .NET installation.
+          test -x "$APP/ASLM"
+          test -f "$APP/libcoreclr.so"
+          test -f "$APP/libhostfxr.so"
+          test -f "$APP/libhostpolicy.so"
+          test -f "$APP/seed/Data/App/ASLM_Data.json"
+          for ENGINE in NodeJS Python Ollama; do
+            test -f "$APP/seed/Engines/$ENGINE/ASLM_Engine.json"
+          done
+          mkdir -p dist
+          # TAR preserves Unix executable bits and keeps the same ASLM-<platform>/App/ layout as the build.
+          tar -C Build/Release -czf "dist/ASLM-${{ matrix.name }}.tar.gz" "ASLM-${{ matrix.name }}"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

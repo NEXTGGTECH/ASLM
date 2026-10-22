@@ -822,7 +822,12 @@ namespace ASLM.Services.Engines
             if (Directory.Exists(dest))
                 Directory.Delete(dest, true);
 
+#if LINUX
+            // A portable installation can be on a different filesystem from the standard system temp directory.
+            ASLM.Services.Internal.LinuxFileOperations.MoveDirectory(source, dest);
+#else
             Directory.Move(source, dest);
+#endif
 
             log.Report("  ✓ Move complete.");
         }

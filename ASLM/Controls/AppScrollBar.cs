@@ -7,7 +7,7 @@ namespace ASLM.Controls;
 /// <summary>
 /// Displays a shared scrollbar for application scroll views and native consoles.
 /// </summary>
-public sealed class AppScrollBar : Grid
+public sealed partial class AppScrollBar : Grid
 {
     public static readonly BindableProperty TargetProperty = BindableProperty.Create(
         nameof(Target), typeof(VisualElement), typeof(AppScrollBar), null,
@@ -126,10 +126,11 @@ public sealed class AppScrollBar : Grid
     private void OnScrolled(object? sender, ScrolledEventArgs e) => Refresh();
 
     /// <summary>
-    /// Removes WinUI scroll chrome while retaining the target's constrained scrolling orientation.
+    /// Removes native scroll chrome while retaining the target's constrained scrolling orientation.
     /// </summary>
     private void ApplyNativeChrome()
     {
+        ApplyPlatformChrome();
 #if WINDOWS
         if (_connected is ScrollView { Handler.PlatformView: Microsoft.UI.Xaml.Controls.ScrollViewer viewer } scroll)
         {
@@ -143,6 +144,11 @@ public sealed class AppScrollBar : Grid
         }
 #endif
     }
+
+    /// <summary>
+    /// Applies optional platform chrome supplied by the active platform folder.
+    /// </summary>
+    partial void ApplyPlatformChrome();
 
     private (double Viewport, double Content, double Offset) Metrics => _connected switch
     {

@@ -2,6 +2,10 @@
 
 using ASLM.Pages;
 using Microsoft.Extensions.Logging;
+#if LINUX
+using Microsoft.Maui.Platforms.Linux.Gtk4.Hosting;
+using Microsoft.Maui.Platforms.Linux.Gtk4.Essentials.Hosting;
+#endif
 #if WINDOWS
 using Microsoft.Maui.Handlers;
 #endif
@@ -25,9 +29,17 @@ namespace ASLM
             var builder = MauiApp.CreateBuilder();
 
             // Configure the shared application host and bundled fonts.
-            builder
-                .UseMauiApp<App>()
-                .ConfigureMauiHandlers(handlers =>
+#if LINUX
+            App.ConfigureLinuxLifetime();
+            LinuxLayoutManager.Configure();
+            ASLM.Services.Controls.LinuxGestureManager.Configure();
+            ASLM.Services.Controls.LinuxControlStyles.Configure();
+            builder.UseMauiAppLinuxGtk4<App>();
+            builder.AddLinuxGtk4Essentials();
+#else
+            builder.UseMauiApp<App>();
+#endif
+            builder.ConfigureMauiHandlers(handlers =>
                 {
                     handlers.AddHandler<ConsoleOutputView, ConsoleOutputViewHandler>();
 #if MACCATALYST
@@ -35,6 +47,16 @@ namespace ASLM
 #endif
 #if WINDOWS
                     handlers.AddHandler<WebView, WebViewClipboardHandler>();
+#elif LINUX
+                    handlers.AddHandler<WebView, ASLM.Services.Controls.LinuxWebViewHandler>();
+                    handlers.AddHandler<Border, ASLM.Services.Controls.LinuxBorderHandler>();
+                    handlers.AddHandler<Editor, ASLM.Services.Controls.LinuxEditorHandler>();
+                    handlers.AddHandler<Picker, ASLM.Services.Controls.LinuxPickerHandler>();
+                    handlers.AddHandler<Button, ASLM.Services.Controls.LinuxButtonHandler>();
+                    handlers.AddHandler<CollectionView, ASLM.Services.Controls.LinuxCollectionViewHandler>();
+                    handlers.AddHandler<Entry, ASLM.Services.Controls.LinuxEntryHandler>();
+                    handlers.AddHandler<Switch, ASLM.Services.Controls.LinuxSwitchHandler>();
+                    handlers.AddHandler<Label, ASLM.Services.Controls.LinuxLabelHandler>();
 #endif
                 })
                 .ConfigureFonts(fonts =>

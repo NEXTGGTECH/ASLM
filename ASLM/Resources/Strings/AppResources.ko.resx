@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>초기 설정을 완료하지 못했습니다: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>로그 숨기기</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>설치 중</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>설정이 완료되었습니다!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>로그 표시</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>건너뛰기</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>{1}단계 중 {0}단계 - {2}</value>

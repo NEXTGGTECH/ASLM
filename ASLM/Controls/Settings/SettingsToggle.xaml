@@ -19,7 +19,7 @@
             HeightRequest="32"
             MinimumHeightRequest="32"
             OnColor="{DynamicResource ActionBlue}"
-            ThumbColor="{DynamicResource LabelPrimary}"
+            ThumbColor="{DynamicResource White}"
             HorizontalOptions="Center"
             VerticalOptions="Center" />
 </ContentView>

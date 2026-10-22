@@ -1238,9 +1238,6 @@
   <data name="SetupWizard_FinishFailedFormat" xml:space="preserve">
     <value>Não foi possível concluir a configuração inicial: {0}</value>
   </data>
-  <data name="SetupWizard_HideLog" xml:space="preserve">
-    <value>Ocultar registo</value>
-  </data>
   <data name="SetupWizard_Installing" xml:space="preserve">
     <value>A instalar</value>
   </data>
@@ -1280,8 +1277,8 @@
   <data name="SetupWizard_SetupComplete" xml:space="preserve">
     <value>Configuração concluída!</value>
   </data>
-  <data name="SetupWizard_ShowLog" xml:space="preserve">
-    <value>Mostrar registo</value>
+  <data name="SetupWizard_Skip" xml:space="preserve">
+    <value>Ignorar</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
     <value>Passo {0} de {1} - {2}</value>

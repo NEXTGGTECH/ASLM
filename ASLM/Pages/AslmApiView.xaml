@@ -2,6 +2,7 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:ASLM.Controls"
              x:Class="ASLM.Pages.AslmApiView">
 
     <Grid RowDefinitions="Auto,Auto,*"
@@ -58,87 +59,99 @@
                    TextColor="{DynamicResource LabelPrimary}"
                    Margin="0,4,0,0" />
 
-            <Border Grid.Row="1"
-                    BackgroundColor="{DynamicResource BackgroundSecondary}"
-                    Stroke="{DynamicResource Separator}"
-                    StrokeThickness="1"
-                    StrokeShape="RoundRectangle 8"
-                    Padding="0">
-                <CollectionView x:Name="HostsCollection"
-                                ItemsSource="{Binding Hosts}"
-                                SelectionMode="None">
-                    <CollectionView.EmptyView>
-                        <VerticalStackLayout HorizontalOptions="Center"
-                                             VerticalOptions="Center"
-                                             Spacing="6"
-                                             Margin="24">
-                            <Label Text="No hosts"
-                                   FontSize="18"
-                                   FontAttributes="Bold"
-                                   TextColor="{DynamicResource LabelPrimary}"
-                                   HorizontalOptions="Center" />
-                        </VerticalStackLayout>
-                    </CollectionView.EmptyView>
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                <Border BackgroundColor="{DynamicResource BackgroundSecondary}"
+                        Stroke="{DynamicResource Separator}"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 8"
+                        Padding="0">
+                    <Grid>
+                        <ScrollView x:Name="HostsScroll"
+                                    Orientation="Vertical"
+                                    VerticalScrollBarVisibility="Never"
+                                    HorizontalScrollBarVisibility="Never">
+                            <VerticalStackLayout Spacing="0"
+                                                 BindableLayout.ItemsSource="{Binding Hosts}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid RowDefinitions="Auto,Auto,Auto"
+                                              RowSpacing="4"
+                                              Padding="8">
+                                            <HorizontalStackLayout Spacing="8">
+                                                <Label Text="{Binding Title}"
+                                                       FontSize="14"
+                                                       FontAttributes="Bold"
+                                                       TextColor="{DynamicResource LabelPrimary}"
+                                                       LineBreakMode="TailTruncation"
+                                                       VerticalTextAlignment="Center" />
 
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <Grid RowDefinitions="Auto,Auto,Auto"
-                                  RowSpacing="4"
-                                  Padding="8">
-                                <HorizontalStackLayout Spacing="8">
-                                    <Label Text="{Binding Title}"
-                                           FontSize="14"
-                                           FontAttributes="Bold"
-                                           TextColor="{DynamicResource LabelPrimary}"
-                                           LineBreakMode="TailTruncation"
-                                           VerticalTextAlignment="Center" />
+                                                <Border BackgroundColor="{DynamicResource BackgroundTertiary}"
+                                                        Stroke="{DynamicResource Separator}"
+                                                        StrokeThickness="1"
+                                                        StrokeShape="RoundRectangle 4"
+                                                        Padding="4,1"
+                                                        IsVisible="{Binding IsModuleDisabled}"
+                                                        VerticalOptions="Center">
+                                                    <Label Text="{Binding ModuleStatusText}"
+                                                           FontSize="12"
+                                                           TextColor="{DynamicResource LabelPrimary}" />
+                                                </Border>
+                                            </HorizontalStackLayout>
 
-                                    <Border BackgroundColor="{DynamicResource BackgroundTertiary}"
-                                            Stroke="{DynamicResource Separator}"
-                                            StrokeThickness="1"
-                                            StrokeShape="RoundRectangle 4"
-                                            Padding="4,1"
-                                            IsVisible="{Binding IsModuleDisabled}"
-                                            VerticalOptions="Center">
-                                        <Label Text="{Binding ModuleStatusText}"
-                                               FontSize="12"
-                                               TextColor="{DynamicResource LabelSecondary}" />
-                                    </Border>
-                                </HorizontalStackLayout>
+                                            <Grid Grid.Row="1"
+                                                  ColumnDefinitions="Auto,*"
+                                                  ColumnSpacing="8">
+                                                <ImageButton Source="{Binding CopyIconSource}"
+                                                             WidthRequest="24"
+                                                             HeightRequest="24"
+                                                             MinimumWidthRequest="24"
+                                                             MinimumHeightRequest="24"
+                                                             Padding="4"
+                                                             CornerRadius="4"
+                                                             Command="{Binding CopyCommand}"
+                                                             ToolTipProperties.Text="Copy address"
+                                                             BackgroundColor="{Binding CopyButtonBackground}"
+                                                             VerticalOptions="Center" />
 
-                                <Grid Grid.Row="1"
-                                      ColumnDefinitions="Auto,*"
-                                      ColumnSpacing="8">
-                                    <ImageButton Source="{Binding CopyIconSource}"
-                                                 WidthRequest="24"
-                                                 HeightRequest="24"
-                                                 MinimumWidthRequest="24"
-                                                 MinimumHeightRequest="24"
-                                                 Padding="4"
-                                                 CornerRadius="4"
-                                                 Command="{Binding CopyCommand}"
-                                                 ToolTipProperties.Text="Copy address"
-                                                 BackgroundColor="{Binding CopyButtonBackground}"
-                                                 VerticalOptions="Center" />
+                                                <Label Grid.Column="1"
+                                                       Text="{Binding MirrorUrl}"
+                                                       FontSize="12"
+                                                       TextColor="{DynamicResource LabelSecondary}"
+                                                       VerticalTextAlignment="Center"
+                                                       LineBreakMode="TailTruncation" />
+                                            </Grid>
 
-                                    <Label Grid.Column="1"
-                                           Text="{Binding MirrorUrl}"
-                                           FontSize="12"
-                                           TextColor="{DynamicResource LabelSecondary}"
-                                           VerticalTextAlignment="Center"
-                                           LineBreakMode="TailTruncation" />
-                                </Grid>
-
-                                <BoxView Grid.Row="2"
-                                         HeightRequest="1"
-                                         Color="{DynamicResource Separator}"
-                                         Opacity="0.5"
-                                         Margin="0,2,0,-8" />
-                            </Grid>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-            </Border>
+                                            <BoxView Grid.Row="2"
+                                                     HeightRequest="1"
+                                                     Color="{DynamicResource Separator}"
+                                                     Opacity="0.5"
+                                                     Margin="0,2,0,-8" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </ScrollView>
+                        <Label x:Name="EmptyHostsLabel"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource LabelPrimary}"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"
+                               Margin="24"
+                               IsVisible="False">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding Hosts.Count}"
+                                             Value="0">
+                                    <Setter Property="IsVisible" Value="True" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+                    </Grid>
+                </Border>
+                <controls:AppScrollBar Grid.Column="1"
+                                       Target="{x:Reference HostsScroll}" />
+            </Grid>
         </Grid>
     </Grid>
 </ContentView>

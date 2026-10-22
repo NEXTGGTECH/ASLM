@@ -235,7 +235,10 @@ namespace ASLM.Pages
         /// </summary>
         private void UpdateResponsiveLayout(bool? showSessionList = null)
         {
-            var isCompact = Width > 0 && Width < CompactBreakpoint;
+            // A desktop sidebar can make this page narrower than the breakpoint without making the
+            // application window compact. Honor the host's minimum width before stacking console panels.
+            var minimumWindowWidth = Window?.MinimumWidth ?? 0;
+            var isCompact = Width > 0 && Width < CompactBreakpoint && minimumWindowWidth < CompactBreakpoint;
             var includeSessions = showSessionList ?? SessionsPanel.IsVisible;
 
             WorkspaceLayout.ColumnDefinitions.Clear();

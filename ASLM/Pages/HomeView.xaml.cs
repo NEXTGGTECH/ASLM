@@ -2012,7 +2012,9 @@ namespace ASLM.Pages
     {
         private static readonly Regex GpuInstanceRegex =
             new(@"pid_(\d+).*?phys_(\d+).*?eng_(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+#if WINDOWS
         private static IReadOnlyList<string>? _cachedGpuAdapterNames;
+#endif
 
         private readonly ProcessSnapshotReader _processSnapshots;
         private readonly Dictionary<int, HomeProcessSample> _processSamples = new();
@@ -2703,8 +2705,12 @@ namespace ASLM.Pages
         /// </summary>
         private double SampleSystemCpu(DateTimeOffset capturedUtc)
         {
-#if MACCATALYST
+#if MACCATALYST || LINUX
+#if LINUX
+            if (!LinuxSystemMetrics.TryGetSystemCpuTimes(out var idleTicks, out var kernelTicks, out var userTicks))
+#else
             if (!MacSystemMetrics.TryGetSystemCpuTimes(out var idleTicks, out var kernelTicks, out var userTicks))
+#endif
             {
                 return 0;
             }
@@ -2823,6 +2829,8 @@ namespace ASLM.Pages
         {
 #if MACCATALYST
             return MacSystemMetrics.SampleDiskStats();
+#elif LINUX
+            return LinuxSystemMetrics.SampleDiskStats();
 #else
             try
             {
@@ -2862,6 +2870,9 @@ namespace ASLM.Pages
         {
 #if MACCATALYST
             return MacSystemMetrics.QueryGpuUsage();
+#elif LINUX
+            // GPU providers are driver-specific; an empty sample keeps GPU usage explicitly unavailable.
+            return new HomeGpuQueryResult();
 #else
             var samples = new List<HomeGpuEngineSample>();
             var adapterNames = QueryGpuAdapterNames();
@@ -2973,6 +2984,9 @@ namespace ASLM.Pages
         /// </summary>
         private static IReadOnlyList<string> QueryGpuAdapterNames()
         {
+#if !WINDOWS
+            return [];
+#else
             if (_cachedGpuAdapterNames != null)
             {
                 return _cachedGpuAdapterNames;
@@ -2998,6 +3012,7 @@ namespace ASLM.Pages
                 _cachedGpuAdapterNames = [];
                 return _cachedGpuAdapterNames;
             }
+#endif
         }
 
         /// <summary>
@@ -3018,6 +3033,8 @@ namespace ASLM.Pages
             {
                 counts[pair.Key] = pair.Value;
             }
+#elif LINUX
+            counts = LinuxSystemMetrics.CountProcessSockets(trackedProcessIds);
 #else
             IncrementCountsFromTcpTable(counts, trackedProcessIds, AddressFamily.InterNetwork);
             IncrementCountsFromTcpTable(counts, trackedProcessIds, AddressFamily.InterNetworkV6);
@@ -3230,6 +3247,8 @@ namespace ASLM.Pages
         {
 #if MACCATALYST
             return MacSystemMetrics.GetMemoryStatus();
+#elif LINUX
+            return LinuxSystemMetrics.GetMemoryStatus();
 #else
             var status = new MemoryStatusEx();
             if (!GlobalMemoryStatusEx(status))
@@ -3257,6 +3276,9 @@ namespace ASLM.Pages
                 ReadTransferCount = readBytes,
                 WriteTransferCount = writeBytes
             };
+#elif LINUX
+            var (readBytes, writeBytes) = LinuxSystemMetrics.GetProcessDiskIo(process.Id);
+            return new IoCounters { ReadTransferCount = readBytes, WriteTransferCount = writeBytes };
 #else
             return GetProcessIoCounters(process.Handle, out var ioCounters)
                 ? ioCounters

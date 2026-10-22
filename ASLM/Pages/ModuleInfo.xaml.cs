@@ -72,6 +72,7 @@ public partial class ModuleInfo : ContentView, ILocalizable
     public string NotVerifiedText => L.Get(LocalizationKeys.Modules_NotVerified);
     public string? SourceUrl => _module == null ? null : GetSourceUrl(_module);
     public bool HasSourceLink => SourceUrl != null;
+    public bool AllowInstallationActions { get; private set; } = true;
     public IReadOnlyList<string> ChannelOptions { get; private set; } = ModuleDownloadOptions.InitialChannels;
     public IReadOnlyList<UpdateCandidate> ReleaseOptions { get; private set; } = [];
     public IReadOnlyList<string> BranchOptions { get; private set; } = [];
@@ -98,15 +99,15 @@ public partial class ModuleInfo : ContentView, ILocalizable
     // A local request may still be checking metadata, even if it will apply a discovered update.
     public bool IsCurrentInstallation => CurrentDownload?.RequestedActivity == ModuleActivity.Installing ||
         (CurrentDownload?.RequestedActivity == ModuleActivity.Updating && _activity?.Activity == ModuleActivity.Updating);
-    public bool CanCancelInstallation => (CurrentDownload?.RequestedActivity == ModuleActivity.Updating && IsCurrentInstallation) ||
+    public bool CanCancelInstallation => AllowInstallationActions && ((CurrentDownload?.RequestedActivity == ModuleActivity.Updating && IsCurrentInstallation) ||
         (_module != null && _updates.IsCatalogInstallPending(_module.Id) &&
-        _installer.GetInstallationState(_module.Id) is not { IsDependency: true });
-    public bool ShowInstallButton => !_registered && !IsBusy && _activity?.Activity != ModuleActivity.Installing;
+        _installer.GetInstallationState(_module.Id) is not { IsDependency: true }));
+    public bool ShowInstallButton => AllowInstallationActions && !_registered && !IsBusy && _activity?.Activity != ModuleActivity.Installing;
     public bool IsCheckingUpdates => _module != null && _updates.IsCheckingModuleUpdate(_module.SourcePath);
-    public bool CanCheckOrUpdate => _registered && CanConfigure && !IsLoadingOptions;
-    public bool ShowUpdateButton => _registered && !IsBusy && _activity?.Activity != ModuleActivity.Updating && _module != null &&
+    public bool CanCheckOrUpdate => AllowInstallationActions && _registered && CanConfigure && !IsLoadingOptions;
+    public bool ShowUpdateButton => AllowInstallationActions && _registered && !IsBusy && _activity?.Activity != ModuleActivity.Updating && _module != null &&
         _updates.TryRestorePendingUpdateCandidate(_module, out _);
-    public bool CanInstall => !_isLoading && !IsBusy && _activity?.Activity == null && _module is { IsSupportedOnCurrentPlatform: true } &&
+    public bool CanInstall => AllowInstallationActions && !_isLoading && !IsBusy && _activity?.Activity == null && _module is { IsSupportedOnCurrentPlatform: true } &&
                                (!_registered || !_module.Status.FirstRunCompleted) &&
                                UpdateManager.CanDownloadModule(_module);
     public double DownloadFraction => CurrentDownload?.Fraction ?? 0;
@@ -183,6 +184,7 @@ public partial class ModuleInfo : ContentView, ILocalizable
         // View-owned lookups cannot update detached selectors; service-owned jobs continue normally.
         CancelOptionsLoad();
         _presentationCts?.Cancel();
+        CancelDocumentRequests();
     }
 
     /// <summary>
@@ -197,10 +199,16 @@ public partial class ModuleInfo : ContentView, ILocalizable
     /// Loads current metadata and optionally navigates directly to a requested section.
     /// Maintenance completion reloads skip a redundant check so the operation log remains visible.
     /// </summary>
-    public async Task OpenAsync(ModuleConfig module, Section? section = null, bool checkForUpdates = true)
+    public async Task OpenAsync(ModuleConfig module, Section? section = null, bool checkForUpdates = true,
+        bool allowInstallationActions = true)
     {
+        // Setup can edit the same persisted preferences while reserving installation for its final step.
+        AllowInstallationActions = allowInstallationActions;
+        OnPropertyChanged(nameof(AllowInstallationActions));
         // Invalidate older lookups before publishing the immediate local selection.
         var version = ++_openVersion;
+        _isLoading = true;
+        ResetDocuments();
         ++_stateRefreshVersion;
         CancelOptionsLoad();
         _loadedOptionsKey = null;
@@ -214,7 +222,6 @@ public partial class ModuleInfo : ContentView, ILocalizable
         _module.Normalize();
         _displayVersion = module.Version;
         _iconSource = File.Exists(module.IconFullPath) ? ImageSource.FromFile(module.IconFullPath) : null;
-        _isLoading = true;
         _registered = false;
         if (section.HasValue) SelectSection(section.Value);
         ResetConfigurationOptions();
@@ -248,6 +255,7 @@ public partial class ModuleInfo : ContentView, ILocalizable
                 ResetConfigurationOptions();
                 RefreshContent();
                 _ = RefreshPresentationAsync();
+                if (IsInfoSelected) _ = LoadDocumentsAsync();
                 _ = LoadConfigurationOptionsAsync(checkForUpdates: _registered && checkForUpdates);
             }
         }
@@ -269,6 +277,8 @@ public partial class ModuleInfo : ContentView, ILocalizable
         ChannelLabel.Text = L.Get(LocalizationKeys.ModuleInfo_Channel);
         ReleaseLabel.Text = L.Get(LocalizationKeys.ModuleUpdate_ReleaseVersion);
         BranchLabel.Text = L.Get(LocalizationKeys.ModuleUpdate_RepositoryBranch);
+        DocumentRetryButton.Text = L.Get(LocalizationKeys.SetupWizard_Retry);
+        RaiseDocumentProperties();
         var linkText = L.Get(LocalizationKeys.Downloads_OpenLink);
         ToolTipProperties.SetText(SourceLinkButton, linkText);
         SemanticProperties.SetDescription(SourceLinkButton, linkText);
@@ -419,6 +429,8 @@ public partial class ModuleInfo : ContentView, ILocalizable
             _ = LoadConfigurationOptionsAsync();
         }
         if (IsStatusSelected && HasLog) RefreshLogLayout();
+        if (IsInfoSelected && !_isLoading && !_documentsLoaded && _documentListCts == null)
+            _ = LoadDocumentsAsync();
     }
 
     /// <summary>
@@ -935,7 +947,7 @@ public partial class ModuleInfo : ContentView, ILocalizable
     /// </summary>
     private async Task RunUpdateAsync(bool apply)
     {
-        if (!_registered || !CanConfigure || _module == null)
+        if (!AllowInstallationActions || !_registered || !CanConfigure || _module == null)
         {
             return;
         }
@@ -1028,6 +1040,8 @@ public partial class ModuleInfo : ContentView, ILocalizable
         _isOpen = false;
         CancelOptionsLoad();
         _presentationCts?.Cancel();
+        CancelDocumentRequests();
+        DocumentPreview.SetDocument(null);
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 

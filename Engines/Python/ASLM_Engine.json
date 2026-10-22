@@ -25,6 +25,11 @@
             "os": "macos",
             "arch": "amd64",
             "key": "macos-amd64"
+        },
+        {
+            "os": "linux",
+            "arch": "amd64",
+            "key": "linux-amd64"
         }
     ],
     "windows-amd64": {
@@ -203,6 +208,46 @@
                 "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-apple-darwin-install_only.tar.gz",
                 "dest": "{temp}/python-standalone.tar.gz",
                 "sha256": ""
+            },
+            {
+                "action": "extract",
+                "source": "{temp}/python-standalone.tar.gz",
+                "dest": "{temp}/python-extract"
+            },
+            {
+                "action": "move",
+                "source": "{temp}/python-extract/python",
+                "dest": "Engines/Python/runtime"
+            },
+            {
+                "action": "cleanup",
+                "target": "{temp}"
+            }
+        ],
+        "postInstall": []
+    },
+    "linux-amd64": {
+        "executablePath": "runtime/bin/python3.12",
+        "packageManager": {
+            "command": "-m pip install --no-warn-script-location"
+        },
+        "moduleEnvironment": {
+            "enabled": true,
+            "directoryPrefix": "venv-",
+            "kind": "python-venv",
+            "createCommand": "-m venv \"{environmentDir}\"",
+            "executablePath": "{environmentDir}/bin/python",
+            "packageManagerCommand": "-m pip install --no-warn-script-location"
+        },
+        "requirements": {
+            "diskSpaceMb": 512
+        },
+        "install": [
+            {
+                "action": "download",
+                "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20241206/cpython-3.12.8+20241206-x86_64-unknown-linux-gnu-install_only.tar.gz",
+                "dest": "{temp}/python-standalone.tar.gz",
+                "sha256": "b9d6ee5ddac1198e72d53112698773fc8bb597de095592eb849ca794306699ba"
             },
             {
                 "action": "extract",
