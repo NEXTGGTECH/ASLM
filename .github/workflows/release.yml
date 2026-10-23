@@ -498,9 +498,12 @@ jobs:
           for ENGINE in NodeJS Python Ollama; do
             test -f "$APP/seed/Engines/$ENGINE/ASLM_Engine.json"
           done
+          INSTALLER="Build/Release/ASLM-Installer-${{ matrix.name }}.sh"
+          test -x "$INSTALLER"
           mkdir -p dist
           # TAR preserves Unix executable bits and keeps the same ASLM-<platform>/App/ layout as the build.
           tar -C Build/Release -czf "dist/ASLM-${{ matrix.name }}.tar.gz" "ASLM-${{ matrix.name }}"
+          cp "$INSTALLER" "dist/ASLM-Installer-${{ matrix.name }}.sh"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

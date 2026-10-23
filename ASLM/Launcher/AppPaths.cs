@@ -4,11 +4,11 @@
 /// Resolves installation paths for both the shared launcher location and the per-user application directory.
 /// </summary>
 /// <remarks>
-/// Windows supports two installation layouts:
+/// Windows and Linux support two installation layouts:
 /// - Monolithic (Debug): Launcher lives next to App\, Patcher\, Data\, etc. in one directory.
 /// - Dual-location (Release): Launcher lives in a shared directory; the application and its data
 ///   live in the per-user local application data directory.
-/// Linux runs App/ beside the launcher while keeping its writable profile in the XDG data directory.
+/// Linux portable builds keep App/ beside the launcher; installed builds bootstrap App/ in the XDG profile.
 /// </remarks>
 internal static class AppPaths
 {
@@ -39,7 +39,7 @@ internal static class AppPaths
     {
         if (OperatingSystem.IsLinux())
         {
-            // Match AppRoot, including development overrides, without making application files part of the profile.
+            // Match AppRoot, including development overrides, for both installed and portable builds.
             var overridePath = Environment.GetEnvironmentVariable("ASLM_ROOT");
             if (!string.IsNullOrWhiteSpace(overridePath) && Path.IsPathFullyQualified(overridePath))
                 return Path.TrimEndingDirectorySeparator(Path.GetFullPath(overridePath));
@@ -59,7 +59,7 @@ internal static class AppPaths
     /// The archive is placed next to the Launcher during installation.
     /// </summary>
     public static string GetPayloadArchivePath(string sharedInstallDir)
-        => Path.Combine(sharedInstallDir, "aslm-base.zip");
+        => Path.Combine(sharedInstallDir, OperatingSystem.IsLinux() ? "aslm-base.tar.gz" : "aslm-base.zip");
 
     /// <summary>
     /// Returns true when the Launcher is running from a monolithic (Debug) layout where

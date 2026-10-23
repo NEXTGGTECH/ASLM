@@ -127,4 +127,11 @@
              RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifiers;Platform;PlatformTarget"
              Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true" />
   </Target>
+
+  <!-- Keep installer generation in the same Release publish pipeline as the application and its helpers. -->
+  <Target Name="PackageLinuxInstaller" AfterTargets="PublishLinuxHelpers"
+          Condition="'$(Configuration)' == 'Release' and '$(SelfContained)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(RuntimeIdentifier)' != 'linux-x64'" Text="The Linux installer currently supports linux-x64 only." />
+    <Exec Command="bash &quot;$(ASLMSourceRoot)Installer/Installer/Platforms/Linux/Package.sh&quot; &quot;$(ASLMRepositoryRoot)Build/$(Configuration)/$(ASLMBuildArtifactName)&quot; &quot;$(ASLMRepositoryRoot)Build/$(Configuration)/ASLM-Installer-linux-amd64.sh&quot; &quot;$(Version)&quot;" />
+  </Target>
 </Project>

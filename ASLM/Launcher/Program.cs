@@ -21,7 +21,8 @@ using System.Globalization;
 ///   %LOCALAPPDATA%\ASLM directory. If that directory is not yet populated the
 ///   Launcher bootstraps it from aslm-base.zip before starting the application.
 ///
-/// Linux: App/ and Patcher/ stay beside the Launcher; only user data lives in the XDG profile.
+/// Linux installed builds use aslm-base.tar.gz to initialize App/ and Patcher/ in the XDG profile.
+/// Portable Linux builds retain App/ beside the Launcher with a separate XDG data directory.
 /// </remarks>
 internal static class Program
 {
@@ -62,11 +63,6 @@ internal static class Program
             }
             else
             {
-                // Linux archives contain the application directly; Windows alone uses ZIP bootstrapping.
-                if (OperatingSystem.IsLinux())
-                    throw new FileNotFoundException("ASLM application was not found beside the launcher.",
-                        Path.Combine(sharedInstallDir, AppFolderName, ExeName));
-
                 // Release / dual-location layout: application lives in the per-user directory.
                 appRoot = AppPaths.GetUserAppDir();
 

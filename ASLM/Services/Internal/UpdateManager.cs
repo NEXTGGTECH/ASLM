@@ -810,12 +810,14 @@ namespace ASLM.Services.Internal
                     return ResolveSinglePayloadDirectory(extractDir);
                 }, ct);
 
-                // Unix installations live outside the data root; only Windows replaces its per-user app/data tree.
+                // macOS replaces its bundle; Linux replaces either its portable tree or the per-user program directories.
                 var macBundleRoot = MacBundleLocator.FindBundleRoot();
                 var targetRoot = macBundleRoot ?? rootDir;
+                var preserve = macBundleRoot != null ? [] : source.Preserve;
 #if LINUX
                 targetRoot = LinuxAppRelauncher.InstallDirectory;
                 LinuxAppRelauncher.ValidateUpdatePayload(payloadDir);
+                preserve = LinuxAppRelauncher.GetUpdatePreservePaths(preserve);
 #endif
                 var pending = new PendingAppUpdate
                 {
@@ -823,7 +825,7 @@ namespace ASLM.Services.Internal
                     StagingPath = payloadDir,
                     TargetRoot = targetRoot,
                     BackupPath = backupPath,
-                    Preserve = macBundleRoot != null ? [] : source.Preserve,
+                    Preserve = preserve,
                     CreatedUtc = DateTime.UtcNow.ToString("o")
                 };
 

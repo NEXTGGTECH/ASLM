@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Text.Json;
 
 namespace ASLM.Services.Internal;
 
@@ -19,24 +20,63 @@ internal static class LinuxAppRelauncher
     internal static string InstallDirectory => Directory.GetParent(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory))!.FullName;
 
     /// <summary>
-    /// Gets whether this package contains the launcher and CLI helper required for self-updates.
+    /// Gets whether the current installation has a launcher and CLI helper available for self-updates.
     /// </summary>
-    internal static bool SupportsSelfUpdate => File.Exists(Path.Combine(InstallDirectory, "ASLM")) &&
+    internal static bool SupportsSelfUpdate => ResolveLauncherPath() != null &&
         File.Exists(Path.Combine(InstallDirectory, "Patcher", "aslm-patcher"));
+
+    /// <summary>
+    /// Resolves either the portable launcher or the shared launcher recorded during profile initialization.
+    /// </summary>
+    private static string? ResolveLauncherPath()
+    {
+        // The running launcher identifies itself; direct portable runs still prefer their adjacent executable.
+        var inherited = Environment.GetEnvironmentVariable("ASLM_LAUNCHER_PATH");
+        if (!string.IsNullOrEmpty(inherited) && Path.IsPathFullyQualified(inherited) && File.Exists(inherited))
+            return inherited;
+        var adjacent = Path.Combine(InstallDirectory, "ASLM");
+        if (File.Exists(adjacent)) return adjacent;
+
+        try
+        {
+            using var reference = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppRoot.Directory, "launcher-ref.json")));
+            var launcher = reference.RootElement.GetProperty("launcherPath").GetString();
+            if (!string.IsNullOrEmpty(launcher) && Path.IsPathFullyQualified(launcher) && File.Exists(launcher))
+                return launcher;
+        }
+        catch
+        {
+            // Missing or stale references are expected in development runs and after removal of the shared installation.
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Keeps the shared launcher reference without installing a second, portable launcher into the user profile.
+    /// </summary>
+    internal static List<string> GetUpdatePreservePaths(IEnumerable<string> configuredPaths)
+    {
+        var launcher = ResolveLauncherPath();
+        if (launcher == null || string.Equals(Path.GetDirectoryName(launcher), InstallDirectory, StringComparison.Ordinal))
+            return configuredPaths.ToList();
+
+        // Portable archives contain a root launcher; installed builds continue using the system copy after updates.
+        return configuredPaths.Concat(["ASLM", "launcher-ref.json"]).Distinct(StringComparer.Ordinal).ToList();
+    }
 
     /// <summary>
     /// Starts a waiting instance without a shell, preserving paths containing spaces or non-ASCII characters.
     /// </summary>
     internal static void StartDetachedRelaunch()
     {
-        var launcher = Path.Combine(InstallDirectory, "ASLM");
-        var hasLauncher = File.Exists(launcher);
-        var executable = hasLauncher ? launcher : Environment.ProcessPath
+        var launcher = ResolveLauncherPath();
+        var hasLauncher = launcher != null;
+        var executable = launcher ?? Environment.ProcessPath
             ?? throw new InvalidOperationException("ASLM executable was not found.");
         var start = new ProcessStartInfo(executable)
         {
             UseShellExecute = false,
-            WorkingDirectory = hasLauncher ? InstallDirectory : AppContext.BaseDirectory
+            WorkingDirectory = hasLauncher ? Path.GetDirectoryName(launcher)! : AppContext.BaseDirectory
         };
 
         // Development runs without a packaged launcher retain their direct, framework-dependent restart path.
@@ -57,7 +97,7 @@ internal static class LinuxAppRelauncher
     {
         // The launcher already attempted the gate. Do not loop if its helper could not start and it opened this app instead.
         if (string.Equals(Environment.GetEnvironmentVariable("ASLM_LAUNCHER_PATH"),
-                Path.Combine(InstallDirectory, "ASLM"), StringComparison.Ordinal)) return false;
+                ResolveLauncherPath(), StringComparison.Ordinal)) return false;
         if (!SupportsSelfUpdate || !File.Exists(Path.Combine(AppRoot.Directory, ".aslm-update", "pending.json")))
             return false;
 
@@ -79,7 +119,7 @@ internal static class LinuxAppRelauncher
     /// </summary>
     internal static void EnsureUpdateTargetWritable()
     {
-        // Probe the installation itself, not the always-writable profile; never elevate the application or patcher.
+        // Probe the program directory in either layout; never elevate the application or patcher for an update.
         using var probe = new FileStream(Path.Combine(InstallDirectory, ".aslm-update-" + Guid.NewGuid().ToString("N")),
             FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose);
     }
