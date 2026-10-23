@@ -1,5 +1,6 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using System.Formats.Tar;
 using System.IO.Compression;
 using System.Text.Json;
 
@@ -15,20 +16,29 @@ using System.Text.Json;
 /// </remarks>
 internal static class UserBootstrapper
 {
-    private const string LauncherExeName = "ASLM.exe";
+    private static string LauncherExeName => AppPaths.ExecutableName;
     private const string LauncherRefFileName = "launcher-ref.json";
 
     /// <summary>
     /// Returns true when the per-user application directory is already initialized.
     /// </summary>
     public static bool IsUserAppDirReady(string userAppDir)
-        => File.Exists(Path.Combine(userAppDir, "App", LauncherExeName));
+    {
+        if (!File.Exists(Path.Combine(userAppDir, "App", LauncherExeName))) return false;
+        if (!OperatingSystem.IsLinux()) return true;
+
+        // An interrupted bootstrap must not be mistaken for a usable self-contained installation.
+        return File.Exists(Path.Combine(userAppDir, "App", "libcoreclr.so")) &&
+               File.Exists(Path.Combine(userAppDir, "App", "libhostfxr.so")) &&
+               File.Exists(Path.Combine(userAppDir, "App", "libhostpolicy.so")) &&
+               File.Exists(Path.Combine(userAppDir, "Patcher", "aslm-patcher"));
+    }
 
     /// <summary>
     /// Extracts the payload archive from the shared installation directory into the
     /// per-user application directory, skipping the root-level Launcher executable.
     /// </summary>
-    /// <param name="sharedInstallDir">Directory that contains the Launcher and aslm-base.zip.</param>
+    /// <param name="sharedInstallDir">Directory that contains the Launcher and the platform's base archive.</param>
     /// <param name="userAppDir">Per-user target directory (created if absent).</param>
     /// <param name="logPath">Path to the Launcher log file for progress messages.</param>
     /// <returns>True when bootstrapping completed successfully.</returns>
@@ -46,7 +56,8 @@ internal static class UserBootstrapper
         try
         {
             Directory.CreateDirectory(userAppDir);
-            ExtractPayload(archivePath, userAppDir, logPath);
+            if (OperatingSystem.IsLinux()) ExtractUnixPayload(archivePath, userAppDir);
+            else ExtractPayload(archivePath, userAppDir, logPath);
             Log("Bootstrap extraction complete.", logPath);
             return true;
         }
@@ -54,8 +65,8 @@ internal static class UserBootstrapper
         {
             Log($"Bootstrap failed: {ex.Message}", logPath);
 
-            // Remove a potentially partial extraction so the next launch retries cleanly.
-            TryDeleteDirectory(userAppDir);
+            // Linux profiles may already contain installed modules and models; never remove them on repair failure.
+            if (!OperatingSystem.IsLinux()) TryDeleteDirectory(userAppDir);
             return false;
         }
     }
@@ -85,6 +96,69 @@ internal static class UserBootstrapper
 
 
     // Extraction helpers
+
+    /// <summary>
+    /// Restores only program directories from the system tarball without overwriting the user's data directories.
+    /// </summary>
+    private static void ExtractUnixPayload(string archivePath, string userAppDir)
+    {
+        // Stage on the destination filesystem so the final directory renames cannot fail across mount points.
+        var staging = Path.Combine(userAppDir, ".aslm-update", "bootstrap", Guid.NewGuid().ToString("N"));
+        var payload = Path.Combine(staging, "payload");
+        var replaced = new List<string>();
+        var retainBackup = false;
+        Directory.CreateDirectory(payload);
+        try
+        {
+            using (var archive = File.OpenRead(archivePath))
+            using (var gzip = new GZipStream(archive, CompressionMode.Decompress))
+                TarFile.ExtractToDirectory(gzip, payload, overwriteFiles: false);
+
+            // The base archive carries application files and templates, not profile data or a second launcher.
+            var folders = new[] { "App", "Patcher" };
+            if (Directory.EnumerateFileSystemEntries(payload).Any(entry => !folders.Contains(Path.GetFileName(entry))) ||
+                !IsUserAppDirReady(payload) ||
+                folders.Any(folder => new DirectoryInfo(Path.Combine(payload, folder)).LinkTarget != null))
+                throw new InvalidOperationException("The ASLM base archive is incomplete or has an unexpected layout.");
+
+            foreach (var folder in folders)
+            {
+                var destination = Path.Combine(userAppDir, folder);
+                var backup = Path.Combine(staging, "previous-" + folder);
+                if (new DirectoryInfo(destination).LinkTarget != null)
+                    throw new IOException($"Cannot restore ASLM over a directory link: {destination}");
+
+                if (Directory.Exists(destination)) Directory.Move(destination, backup);
+                // Record the old directory before attempting the second rename so this step is also rolled back on failure.
+                replaced.Add(folder);
+                Directory.Move(Path.Combine(payload, folder), destination);
+            }
+        }
+        catch
+        {
+            // Roll back only App/ and Patcher/. Settings, engines, models and modules are never part of this transaction.
+            foreach (var folder in replaced.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    var destination = Path.Combine(userAppDir, folder);
+                    if (Directory.Exists(destination)) Directory.Move(destination, Path.Combine(staging, "failed-" + folder));
+                    var backup = Path.Combine(staging, "previous-" + folder);
+                    if (Directory.Exists(backup)) Directory.Move(backup, destination);
+                }
+                catch
+                {
+                    // Keep recoverable application files if a filesystem failure also prevents rollback.
+                    retainBackup = true;
+                }
+            }
+            throw;
+        }
+        finally
+        {
+            if (!retainBackup) TryDeleteDirectory(staging);
+        }
+    }
 
     /// <summary>
     /// Extracts archive entries into the target directory, skipping the root-level Launcher executable.

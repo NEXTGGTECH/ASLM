@@ -57,10 +57,10 @@
 		         Targets="Build"
 		         Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);TargetFramework=$(ASLMInstallerMauiTargetFramework);SelfContained=true" />
 
-		<MSBuild Projects="$(ASLMRepoRoot)ASLM\Patcher\Patcher.csproj"
+		<MSBuild Projects="$(ASLMRepoRoot)ASLM\Patcher\Patcher\ASLM.Patcher.csproj"
 		         Targets="Restore"
 		         Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);TargetFramework=$(ASLMInstallerMauiTargetFramework);SelfContained=true;MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
-		<MSBuild Projects="$(ASLMRepoRoot)ASLM\Patcher\Patcher.csproj"
+		<MSBuild Projects="$(ASLMRepoRoot)ASLM\Patcher\Patcher\ASLM.Patcher.csproj"
 		         Targets="Build"
 		         Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);TargetFramework=$(ASLMInstallerMauiTargetFramework);SelfContained=true" />
 

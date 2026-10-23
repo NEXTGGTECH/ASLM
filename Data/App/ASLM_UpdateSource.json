@@ -9,7 +9,8 @@
         "windows-amd64": "ASLM-windows-amd64.zip",
         "windows-arm64": "ASLM-windows-arm64.zip",
         "macos-arm64": "ASLM-macos.tar.gz",
-        "macos-amd64": "ASLM-macos.tar.gz"
+        "macos-amd64": "ASLM-macos.tar.gz",
+        "linux-amd64": "ASLM-linux-amd64.tar.gz"
     },
     "preserve": [
         ".aslm-update/logs",

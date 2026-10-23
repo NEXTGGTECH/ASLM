@@ -3,7 +3,7 @@
 using ASLM.Patcher;
 
 /// <summary>
-/// Console entry point for the headless patcher helper used on macOS.
+/// Console entry point for the shared headless patcher helper used on macOS and Linux.
 /// </summary>
 internal static class Program
 {

@@ -22,7 +22,7 @@
     <ApplicationTitle>ASLM</ApplicationTitle>
     <ApplicationId>com.nextggtech.aslm</ApplicationId>
     <ApplicationDisplayVersion>0.11.0</ApplicationDisplayVersion>
-    <ApplicationVersion>6</ApplicationVersion>
+    <ApplicationVersion>11</ApplicationVersion>
     <Version>$(ApplicationDisplayVersion).$(ApplicationVersion)</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
@@ -108,5 +108,30 @@
                              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <FileWrites Include="@(_LinuxIcons)" />
     </ItemGroup>
+  </Target>
+
+  <!-- Publish one complete installation; the launcher and helper must also be present in self-update archives. -->
+  <Target Name="PublishLinuxHelpers" AfterTargets="Publish" Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <_LinuxHelperProject Include="$(ASLMSourceRoot)Launcher/ASLM.Launcher.csproj">
+        <AdditionalProperties>PublishDir=$(ASLMBuildOutputRoot)</AdditionalProperties>
+      </_LinuxHelperProject>
+      <_LinuxHelperProject Include="$(ASLMSourceRoot)Patcher/Patcher-CLI/ASLM.Patcher.CLI.csproj">
+        <AdditionalProperties>PublishDir=$(ASLMBuildOutputRoot)Patcher/</AdditionalProperties>
+      </_LinuxHelperProject>
+    </ItemGroup>
+    <MSBuild Projects="@(_LinuxHelperProject)" Targets="Restore"
+             RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifiers;Platform;PlatformTarget"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true" />
+    <MSBuild Projects="@(_LinuxHelperProject)" Targets="Publish"
+             RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifiers;Platform;PlatformTarget"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true" />
+  </Target>
+
+  <!-- Keep installer generation in the same Release publish pipeline as the application and its helpers. -->
+  <Target Name="PackageLinuxInstaller" AfterTargets="PublishLinuxHelpers"
+          Condition="'$(Configuration)' == 'Release' and '$(SelfContained)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(RuntimeIdentifier)' != 'linux-x64'" Text="The Linux installer currently supports linux-x64 only." />
+    <Exec Command="bash &quot;$(ASLMSourceRoot)Installer/Installer/Platforms/Linux/Package.sh&quot; &quot;$(ASLMRepositoryRoot)Build/$(Configuration)/$(ASLMBuildArtifactName)&quot; &quot;$(ASLMRepositoryRoot)Build/$(Configuration)/ASLM-Installer-linux-amd64.sh&quot; &quot;$(Version)&quot;" />
   </Target>
 </Project>
