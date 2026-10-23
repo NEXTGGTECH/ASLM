@@ -89,7 +89,12 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Enables in-place updates only on platforms with a packaged, verified launcher and patcher.
         /// </summary>
-        public static bool SupportsSelfUpdate => !OperatingSystem.IsLinux();
+        public static bool SupportsSelfUpdate =>
+#if LINUX
+            LinuxAppRelauncher.SupportsSelfUpdate;
+#else
+            !OperatingSystem.IsLinux();
+#endif
 
         /// <summary>
         /// Returns the current ASLM app version.
@@ -146,7 +151,7 @@ namespace ASLM.Services.Internal
             bool publishUpdateNotification = true,
             bool isManualRequest = false)
         {
-            // Linux preview packages are replaced manually; never stage a Windows payload in the XDG data root.
+            // Development packages without a compatible launcher/helper cannot apply self-updates.
             if (!SupportsSelfUpdate) return null;
 
             // Resolve channel, repository, and the platform-specific release asset name.
@@ -779,9 +784,15 @@ namespace ASLM.Services.Internal
 
             var notificationProgress = operation.WrapProgress(
                 _notifications.CreateDownloadProgressBridge(operationKey, progress));
+            var prepared = false;
+            var pendingTemporaryPath = GetPendingUpdatePath() + ".tmp";
 
             try
             {
+#if LINUX
+                // Installed files may be read-only even though the separate XDG profile is writable.
+                LinuxAppRelauncher.EnsureUpdateTargetWritable();
+#endif
                 // Download, extract off the UI thread, then persist pending.json for the patcher.
                 operation.SetPhase(UpdateOperationPhase.Downloading);
                 await _github.DownloadFileAsync(
@@ -799,14 +810,18 @@ namespace ASLM.Services.Internal
                     return ResolveSinglePayloadDirectory(extractDir);
                 }, ct);
 
-                // On macOS the payload is the new .app bundle and user data lives outside it,
-                // so the swap targets the bundle and nothing needs preserving.
+                // Unix installations live outside the data root; only Windows replaces its per-user app/data tree.
                 var macBundleRoot = MacBundleLocator.FindBundleRoot();
+                var targetRoot = macBundleRoot ?? rootDir;
+#if LINUX
+                targetRoot = LinuxAppRelauncher.InstallDirectory;
+                LinuxAppRelauncher.ValidateUpdatePayload(payloadDir);
+#endif
                 var pending = new PendingAppUpdate
                 {
                     Version = candidate.RemoteVersion,
                     StagingPath = payloadDir,
-                    TargetRoot = macBundleRoot ?? rootDir,
+                    TargetRoot = targetRoot,
                     BackupPath = backupPath,
                     Preserve = macBundleRoot != null ? [] : source.Preserve,
                     CreatedUtc = DateTime.UtcNow.ToString("o")
@@ -814,7 +829,10 @@ namespace ASLM.Services.Internal
 
                 Directory.CreateDirectory(workDir);
                 var pendingJson = JsonSerializer.Serialize(pending, _jsonOptions);
-                await File.WriteAllTextAsync(GetPendingUpdatePath(), pendingJson, ct);
+                // Publish the marker atomically: the launcher must never observe a truncated pending operation.
+                await File.WriteAllTextAsync(pendingTemporaryPath, pendingJson, ct);
+                File.Move(pendingTemporaryPath, GetPendingUpdatePath(), overwrite: true);
+                prepared = true;
                 log?.Report("ASLM update prepared. It will be applied on restart.");
                 _notifications.CompleteDownload(operationKey, "ASLM update prepared.");
                 return true;
@@ -828,6 +846,12 @@ namespace ASLM.Services.Internal
             {
                 _notifications.FailDownload(operationKey, "ASLM update download failed.");
                 throw;
+            }
+            finally
+            {
+                // A canceled or invalid package is not a pending update and must not accumulate on disk.
+                if (!prepared) TryDeleteDirectory(stagingRoot);
+                if (File.Exists(pendingTemporaryPath)) File.Delete(pendingTemporaryPath);
             }
         }
 

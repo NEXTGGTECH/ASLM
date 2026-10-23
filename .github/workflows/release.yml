@@ -471,7 +471,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libfontconfig1 libfreetype6
 
-      - name: Build release (Linux; self-contained GTK application)
+      - name: Build release (Linux; self-contained application, launcher and CLI patcher)
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
@@ -486,10 +486,15 @@ jobs:
           APP="Build/Release/ASLM-${{ matrix.name }}/App"
           # Reject incomplete payloads instead of shipping an apphost that requires a system .NET installation.
           test -x "$APP/ASLM"
+          test -x "Build/Release/ASLM-${{ matrix.name }}/ASLM"
+          test -x "Build/Release/ASLM-${{ matrix.name }}/Patcher/aslm-patcher"
           test -f "$APP/libcoreclr.so"
           test -f "$APP/libhostfxr.so"
           test -f "$APP/libhostpolicy.so"
           test -f "$APP/seed/Data/App/ASLM_Data.json"
+          # The shipped source must resolve the same archive that the workflow publishes.
+          python3 -c 'import json, sys; assert json.load(open(sys.argv[1]))["assets"]["linux-amd64"] == "ASLM-linux-amd64.tar.gz"' \
+            "$APP/seed/Data/App/ASLM_UpdateSource.json"
           for ENGINE in NodeJS Python Ollama; do
             test -f "$APP/seed/Engines/$ENGINE/ASLM_Engine.json"
           done

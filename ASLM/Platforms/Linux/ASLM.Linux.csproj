@@ -109,4 +109,22 @@
       <FileWrites Include="@(_LinuxIcons)" />
     </ItemGroup>
   </Target>
+
+  <!-- Publish one complete installation; the launcher and helper must also be present in self-update archives. -->
+  <Target Name="PublishLinuxHelpers" AfterTargets="Publish" Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <_LinuxHelperProject Include="$(ASLMSourceRoot)Launcher/ASLM.Launcher.csproj">
+        <AdditionalProperties>PublishDir=$(ASLMBuildOutputRoot)</AdditionalProperties>
+      </_LinuxHelperProject>
+      <_LinuxHelperProject Include="$(ASLMSourceRoot)Patcher/Patcher-CLI/ASLM.Patcher.CLI.csproj">
+        <AdditionalProperties>PublishDir=$(ASLMBuildOutputRoot)Patcher/</AdditionalProperties>
+      </_LinuxHelperProject>
+    </ItemGroup>
+    <MSBuild Projects="@(_LinuxHelperProject)" Targets="Restore"
+             RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifiers;Platform;PlatformTarget"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true" />
+    <MSBuild Projects="@(_LinuxHelperProject)" Targets="Publish"
+             RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifiers;Platform;PlatformTarget"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true" />
+  </Target>
 </Project>

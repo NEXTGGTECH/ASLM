@@ -4,18 +4,21 @@
 /// Resolves installation paths for both the shared launcher location and the per-user application directory.
 /// </summary>
 /// <remarks>
-/// Two installation layouts are supported:
+/// Windows supports two installation layouts:
 /// - Monolithic (Debug): Launcher lives next to App\, Patcher\, Data\, etc. in one directory.
 /// - Dual-location (Release): Launcher lives in a shared directory; the application and its data
 ///   live in the per-user local application data directory.
-/// All path helpers are cross-platform by design: they rely on the .NET SpecialFolder API and
-/// Path combiners rather than hard-coded OS paths.
+/// Linux runs App/ beside the launcher while keeping its writable profile in the XDG data directory.
 /// </remarks>
 internal static class AppPaths
 {
     private const string AppName = "ASLM";
     private const string AppFolderName = "App";
-    private const string AppExeName = "ASLM.exe";
+
+    /// <summary>
+    /// Gets the native executable name shared by the launcher and application in different directories.
+    /// </summary>
+    public static string ExecutableName => OperatingSystem.IsWindows() ? "ASLM.exe" : "ASLM";
 
     /// <summary>
     /// Returns the directory that contains the currently running Launcher executable.
@@ -33,9 +36,23 @@ internal static class AppPaths
     /// On macOS:   ~/Library/Application Support/ASLM
     /// </summary>
     public static string GetUserAppDir()
-        => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppName);
+    {
+        if (OperatingSystem.IsLinux())
+        {
+            // Match AppRoot, including development overrides, without making application files part of the profile.
+            var overridePath = Environment.GetEnvironmentVariable("ASLM_ROOT");
+            if (!string.IsNullOrWhiteSpace(overridePath) && Path.IsPathFullyQualified(overridePath))
+                return Path.TrimEndingDirectorySeparator(Path.GetFullPath(overridePath));
+
+            var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            var dataRoot = !string.IsNullOrWhiteSpace(dataHome) && Path.IsPathFullyQualified(dataHome)
+                ? dataHome
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share");
+            return Path.GetFullPath(Path.Combine(dataRoot, AppName));
+        }
+
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
+    }
 
     /// <summary>
     /// Returns the path of the payload archive used to bootstrap a new user's application directory.
@@ -50,5 +67,5 @@ internal static class AppPaths
     /// logic is skipped and everything runs from the Launcher's own directory.
     /// </summary>
     public static bool IsMonolithicLayout(string launcherDir)
-        => File.Exists(Path.Combine(launcherDir, AppFolderName, AppExeName));
+        => File.Exists(Path.Combine(launcherDir, AppFolderName, ExecutableName));
 }

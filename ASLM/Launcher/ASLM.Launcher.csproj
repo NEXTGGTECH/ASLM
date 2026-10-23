@@ -3,6 +3,7 @@
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net10.0</TargetFramework>
+		<RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('linux'))">linux-x64</RuntimeIdentifier>
 		<Platforms>x64;ARM64</Platforms>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
@@ -17,6 +18,7 @@
 
 	<PropertyGroup>
 		<OutputPath>$(ASLMBuildOutputRoot)</OutputPath>
+		<OutputType Condition="'$(ASLMBuildOs)' == 'linux'">Exe</OutputType>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(SelfContained)' == 'true'">
@@ -30,7 +32,7 @@
 		<PublishDir Condition="'$(PublishDir)' == ''">$(ASLMBuildOutputRoot)</PublishDir>
 	</PropertyGroup>
 
-	<ItemGroup Condition="'$(Configuration)' == 'Debug'">
+	<ItemGroup Condition="'$(Configuration)' == 'Debug' and '$(ASLMBuildOs)' != 'linux'">
 		<Content Include="..\..\Data\**\*.*">
 			<Link>Data\%(RecursiveDir)%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -52,7 +54,7 @@
 		</Content>
 	</ItemGroup>
 	
-	<ItemGroup Condition="'$(Configuration)' == 'Release'">
+	<ItemGroup Condition="'$(Configuration)' == 'Release' and '$(ASLMBuildOs)' != 'linux'">
 		<Content Include="..\..\Data\**\*.*">
 			<Link>Data\%(RecursiveDir)%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

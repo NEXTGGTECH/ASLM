@@ -30,6 +30,9 @@ public sealed class Program : GtkMauiApplication
             return;
         }
 
+        // Opening App/ASLM directly must use the same pending-update gate as opening the packaged launcher.
+        if (LinuxAppRelauncher.TryHandOffPendingUpdate()) return;
+
         // The GTK font backend uses LocalApplicationData. Ensure it exists so .NET does not return an empty path.
         var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData,
             Environment.SpecialFolderOption.DoNotVerify);

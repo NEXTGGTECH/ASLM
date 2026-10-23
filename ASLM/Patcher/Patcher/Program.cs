@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
@@ -20,15 +21,18 @@ internal static class PatcherRunner
 {
     private const string PendingRelativePath = ".aslm-update/pending.json";
     private const string LogRelativePath = ".aslm-update/logs/Patcher.log";
-    private const string LauncherExeName = "ASLM.exe";
+    private static string LauncherExeName => OperatingSystem.IsWindows() ? "ASLM.exe" : "ASLM";
     private const string LauncherRefFileName = "launcher-ref.json";
     private const string WaitProcessArgument = "--wait-process";
+    private const string WaitStartArgument = "--wait-start";
     private const string LauncherArgument = "--launcher";
 
     // Paths and runtime state
 
     private static string _logPath = string.Empty;
     private static IProgress<PatcherProgress>? _progress;
+    private static StringComparison PathComparison => OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
 
     // Process startup
@@ -49,6 +53,7 @@ internal static class PatcherRunner
     {
         var root = ResolveRoot(args);
         _logPath = Path.Combine(root, LogRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        var mayRelaunch = false;
 
         try
         {
@@ -56,6 +61,7 @@ internal static class PatcherRunner
             Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
             Log("Patcher started.");
             WaitForRequestedProcessExit(args);
+            mayRelaunch = true;
 
             // Stop when there is nothing left to apply.
             var pendingPath = Path.Combine(root, PendingRelativePath.Replace('/', Path.DirectorySeparatorChar));
@@ -66,8 +72,13 @@ internal static class PatcherRunner
                 return 0;
             }
 
-            // Read and validate the pending update manifest.
-            var pending = LoadPendingUpdate(pendingPath);
+            // Lock the existing marker rather than creating a persistent lock file. A second launcher must not
+            // apply or rename the same pending update while another helper owns it; deletion remains allowed.
+            mayRelaunch = false;
+            var sharing = OperatingSystem.IsWindows() ? FileShare.Delete : FileShare.None;
+            using var pendingStream = new FileStream(pendingPath, FileMode.Open, FileAccess.Read, sharing);
+            mayRelaunch = true;
+            var pending = LoadPendingUpdate(pendingStream);
             ValidatePendingUpdate(pending);
 
             // Resolve target, staging, backup, and preserve paths.
@@ -82,8 +93,10 @@ internal static class PatcherRunner
             }
 
             var preservePatterns = NormalizePreservePatterns(pending.Preserve);
+            ValidateUpdatePaths(root, targetRoot, stagingPath, backupPath);
 
             // Replace application files with backup and rollback support.
+            var replacementStarted = false;
             try
             {
                 Log($"Target root: {targetRoot}");
@@ -95,6 +108,7 @@ internal static class PatcherRunner
                 CopyDirectory(targetRoot, backupPath, relativePath => ShouldReplacePath(relativePath, preservePatterns));
 
                 Log("Replacing application files...");
+                replacementStarted = true;
                 ClearDirectory(targetRoot, relativePath => ShouldReplacePath(relativePath, preservePatterns));
                 CopyDirectory(stagingPath, targetRoot, relativePath => ShouldReplacePath(relativePath, preservePatterns));
 
@@ -103,7 +117,7 @@ internal static class PatcherRunner
                 // .app bundle on macOS, where no data lives).
                 PersistInstalledReleaseTag(root, pending.Version);
                 File.Delete(pendingPath);
-                TryDeleteDirectory(Path.GetDirectoryName(stagingPath) ?? stagingPath);
+                TryDeleteDirectory(GetStagingDirectory(root, stagingPath));
                 TryDeleteDirectory(backupPath);
                 Log($"Update {pending.Version} applied successfully.");
                 StartLauncher(root, args);
@@ -111,13 +125,13 @@ internal static class PatcherRunner
             }
             catch
             {
-                Log("Patch failed. Attempting rollback...");
-
-                // Restore files from the backup when replacement fails.
-                if (Directory.Exists(backupPath))
+                // A failed backup is incomplete: leave the original installation intact instead of restoring it.
+                if (replacementStarted)
                 {
+                    Log("Patch failed. Attempting rollback...");
                     ClearDirectory(targetRoot, relativePath => ShouldReplacePath(relativePath, preservePatterns));
                     CopyDirectory(backupPath, targetRoot);
+                    Log("Previous application files restored.");
                 }
 
                 throw;
@@ -127,9 +141,17 @@ internal static class PatcherRunner
         {
             // Keep the launcher usable after a fatal patcher error.
             Log("Fatal patcher error: " + ex);
-            MarkPendingUpdateFailed(root);
-            StartLauncher(root, args);
+            // Never open another instance when waiting for the previous process failed.
+            if (mayRelaunch)
+            {
+                MarkPendingUpdateFailed(root);
+                StartLauncher(root, args);
+            }
             return 1;
+        }
+        finally
+        {
+            TryDeleteShadowDirectory();
         }
     }
 
@@ -141,43 +163,42 @@ internal static class PatcherRunner
     /// </summary>
     private static void WaitForRequestedProcessExit(string[] args)
     {
-        // Scan command-line arguments for the launcher process id to wait on.
-        for (var index = 0; index < args.Length - 1; index++)
+        var separator = Array.IndexOf(args, "--");
+        var internalArgs = separator < 0 ? args : args[..separator];
+        var index = Array.IndexOf(internalArgs, WaitProcessArgument);
+        if (index < 0) return;
+        if (index + 1 >= internalArgs.Length || !int.TryParse(internalArgs[index + 1], out var processId) || processId <= 0)
+            throw new ArgumentException("Invalid restart process id.");
+
+        // Match process identity as well as PID when the caller provides the start time.
+        long? started = null;
+        var startIndex = Array.IndexOf(internalArgs, WaitStartArgument);
+        if (startIndex >= 0)
         {
-            if (!string.Equals(args[index], WaitProcessArgument, StringComparison.OrdinalIgnoreCase) ||
-                !int.TryParse(args[index + 1], out var processId))
-            {
-                continue;
-            }
-
-            try
-            {
-                using var process = Process.GetProcessById(processId);
-                Log($"Waiting for ASLM process {processId} to exit...");
-                if (!process.WaitForExit(30000))
-                {
-                    Log($"ASLM process {processId} did not exit within 30 seconds.");
-                }
-            }
-            catch (ArgumentException)
-            {
-                // The process already exited.
-            }
-            catch (Exception ex)
-            {
-                Log("Failed while waiting for previous ASLM process: " + ex.Message);
-            }
-
-            return;
+            if (startIndex + 1 >= internalArgs.Length || !long.TryParse(internalArgs[startIndex + 1],
+                    NumberStyles.None, CultureInfo.InvariantCulture, out var ticks))
+                throw new ArgumentException("Invalid restart process start time.");
+            started = ticks;
         }
+
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            if (started.HasValue && process.StartTime.ToUniversalTime().Ticks != started.Value) return;
+            Log($"Waiting for ASLM process {processId} to exit...");
+            if (!process.WaitForExit(60000))
+                throw new TimeoutException($"ASLM process {processId} did not exit within 60 seconds.");
+        }
+        catch (ArgumentException) { /* The process already exited. */ }
+        catch (InvalidOperationException) { /* The process exited before its start time could be read. */ }
     }
 
     /// <summary>
     /// Loads the pending update manifest from disk.
     /// </summary>
-    private static PendingAppUpdate LoadPendingUpdate(string pendingPath)
+    private static PendingAppUpdate LoadPendingUpdate(Stream pendingStream)
     {
-        var pending = JsonSerializer.Deserialize<PendingAppUpdate>(File.ReadAllText(pendingPath))
+        var pending = JsonSerializer.Deserialize<PendingAppUpdate>(pendingStream)
             ?? new PendingAppUpdate();
         pending.Normalize();
         return pending;
@@ -192,6 +213,8 @@ internal static class PatcherRunner
         {
             throw new InvalidOperationException($"Unsupported pending update kind: {pending.Kind}");
         }
+        if (!Path.IsPathFullyQualified(pending.StagingPath))
+            throw new InvalidOperationException("The staging path must be absolute.");
     }
 
 
@@ -202,7 +225,7 @@ internal static class PatcherRunner
     /// </summary>
     private static string ResolveRoot(string[] args)
     {
-        for (var index = 0; index < args.Length - 1; index++)
+        for (var index = 0; index < args.Length - 1 && args[index] != "--"; index++)
         {
             if (string.Equals(args[index], "--root", StringComparison.OrdinalIgnoreCase))
             {
@@ -224,8 +247,8 @@ internal static class PatcherRunner
     private static bool IsInternalUpdatePath(string relativePath)
     {
         var normalized = relativePath.Replace('\\', '/').Trim('/');
-        return normalized.Equals(".aslm-update", StringComparison.OrdinalIgnoreCase) ||
-               normalized.StartsWith(".aslm-update/", StringComparison.OrdinalIgnoreCase);
+        return normalized.Equals(".aslm-update", PathComparison) ||
+               normalized.StartsWith(".aslm-update/", PathComparison);
     }
 
 
@@ -240,7 +263,7 @@ internal static class PatcherRunner
             .Where(pattern => !string.IsNullOrWhiteSpace(pattern))
             .Select(pattern => NormalizeRelativePattern(pattern))
             .Where(pattern => pattern.Length > 0 && pattern != "." && !pattern.Contains("..", StringComparison.Ordinal))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
             .ToList();
     }
 
@@ -276,12 +299,14 @@ internal static class PatcherRunner
     {
         if (!pattern.Contains('*'))
         {
-            return relativePath.Equals(pattern, StringComparison.OrdinalIgnoreCase) ||
-                   relativePath.StartsWith(pattern.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase);
+            return relativePath.Equals(pattern, PathComparison) ||
+                   relativePath.StartsWith(pattern.TrimEnd('/') + "/", PathComparison);
         }
 
         var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", "[^/]*", StringComparison.Ordinal) + "($|/.*)";
-        return Regex.IsMatch(relativePath, regexPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var options = RegexOptions.CultureInvariant;
+        if (OperatingSystem.IsWindows()) options |= RegexOptions.IgnoreCase;
+        return Regex.IsMatch(relativePath, regexPattern, options);
     }
 
 
@@ -313,29 +338,32 @@ internal static class PatcherRunner
             ? sourceRoot
             : ResolveChildPath(sourceRoot, relativeDirectory);
 
-        foreach (var directory in Directory.EnumerateDirectories(sourceDirectory))
+        foreach (var entry in new DirectoryInfo(sourceDirectory).EnumerateFileSystemInfos())
         {
-            var relative = CombineRelativePath(relativeDirectory, Path.GetFileName(directory));
-            if (includeRelative?.Invoke(relative) == false)
-            {
-                continue;
-            }
-
-            Directory.CreateDirectory(ResolveChildPath(destRoot, relative));
-            CopyDirectoryContents(sourceRoot, destRoot, relative, includeRelative);
-        }
-
-        foreach (var file in Directory.EnumerateFiles(sourceDirectory))
-        {
-            var relative = CombineRelativePath(relativeDirectory, Path.GetFileName(file));
+            var relative = CombineRelativePath(relativeDirectory, entry.Name);
             if (includeRelative?.Invoke(relative) == false)
             {
                 continue;
             }
 
             var destination = ResolveChildPath(destRoot, relative);
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            File.Copy(file, destination, overwrite: true);
+            if (entry.LinkTarget is { } linkTarget)
+            {
+                // Recreate links, including dangling links, without traversing their targets during backup or apply.
+                if (entry is DirectoryInfo) Directory.CreateSymbolicLink(destination, linkTarget);
+                else File.CreateSymbolicLink(destination, linkTarget);
+                continue;
+            }
+
+            if (entry is DirectoryInfo)
+            {
+                Directory.CreateDirectory(destination);
+                CopyDirectoryContents(sourceRoot, destRoot, relative, includeRelative);
+            }
+            else File.Copy(entry.FullName, destination, overwrite: true);
+
+            // Preserve executable bits on files and searchable directory permissions on Unix.
+            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(destination, File.GetUnixFileMode(entry.FullName));
         }
     }
 
@@ -363,30 +391,30 @@ internal static class PatcherRunner
             ? root
             : ResolveChildPath(root, relativeDirectory);
 
-        foreach (var file in Directory.EnumerateFiles(currentDirectory))
+        foreach (var entry in new DirectoryInfo(currentDirectory).EnumerateFileSystemInfos())
         {
-            var relative = CombineRelativePath(relativeDirectory, Path.GetFileName(file));
+            var relative = CombineRelativePath(relativeDirectory, entry.Name);
             if (deleteRelative?.Invoke(relative) == false)
             {
                 continue;
             }
 
-            File.SetAttributes(file, FileAttributes.Normal);
-            File.Delete(file);
-        }
-
-        foreach (var subdir in Directory.EnumerateDirectories(currentDirectory))
-        {
-            var relative = CombineRelativePath(relativeDirectory, Path.GetFileName(subdir));
-            if (deleteRelative?.Invoke(relative) == false || !Directory.Exists(subdir))
+            // Unlink directory links instead of recursively deleting files outside the installation.
+            if (entry.LinkTarget != null)
             {
+                entry.Delete();
                 continue;
             }
 
-            ClearDirectoryContents(root, relative, deleteRelative);
-            if (!Directory.EnumerateFileSystemEntries(subdir).Any())
+            if (entry is DirectoryInfo directory)
             {
-                Directory.Delete(subdir);
+                ClearDirectoryContents(root, relative, deleteRelative);
+                if (!directory.EnumerateFileSystemInfos().Any()) directory.Delete();
+            }
+            else
+            {
+                if (OperatingSystem.IsWindows()) entry.Attributes = FileAttributes.Normal;
+                entry.Delete();
             }
         }
     }
@@ -411,7 +439,7 @@ internal static class PatcherRunner
     {
         var normalizedRoot = EnsureTrailingSeparator(Path.GetFullPath(rootPath));
         var combined = Path.GetFullPath(Path.Combine(normalizedRoot, relativePath));
-        if (!EnsureTrailingSeparator(combined).StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+        if (!EnsureTrailingSeparator(combined).StartsWith(normalizedRoot, PathComparison))
         {
             throw new InvalidOperationException($"Path '{relativePath}' escapes root '{rootPath}'.");
         }
@@ -427,6 +455,47 @@ internal static class PatcherRunner
         return path.EndsWith(Path.DirectorySeparatorChar) || path.EndsWith(Path.AltDirectorySeparatorChar)
             ? path
             : path + Path.DirectorySeparatorChar;
+    }
+
+    /// <summary>
+    /// Rejects overlapping work directories and limits updater cleanup to its own staging and backup trees.
+    /// </summary>
+    private static void ValidateUpdatePaths(string root, string targetRoot, string stagingPath, string backupPath)
+    {
+        var stagingRoot = Path.Combine(root, ".aslm-update", "staging");
+        var backupRoot = Path.Combine(root, ".aslm-update", "backup");
+        if (!IsDescendant(stagingRoot, stagingPath) || !IsDescendant(backupRoot, backupPath) ||
+            string.Equals(Path.TrimEndingDirectorySeparator(targetRoot), Path.GetPathRoot(targetRoot), PathComparison) ||
+            IsDescendant(Path.Combine(root, ".aslm-update"), targetRoot) ||
+            IsDescendant(stagingPath, targetRoot) || IsDescendant(backupPath, targetRoot) ||
+            string.Equals(targetRoot, stagingPath, PathComparison) || string.Equals(targetRoot, backupPath, PathComparison))
+            throw new InvalidOperationException("Unsafe application update paths.");
+
+        // A separate profile nested inside the target would not be covered by Windows-style Data/ preserve rules.
+        if (IsDescendant(targetRoot, root))
+            throw new InvalidOperationException("The application update target contains the user profile.");
+
+        // A reused backup must never mix files from an older installation with the current snapshot.
+        if (Directory.Exists(backupPath) && Directory.EnumerateFileSystemEntries(backupPath).Any())
+            throw new InvalidOperationException("The backup directory is not empty.");
+    }
+
+    /// <summary>
+    /// Compares complete path components using the target platform's case rules.
+    /// </summary>
+    private static bool IsDescendant(string root, string path)
+    {
+        return Path.GetFullPath(path).StartsWith(EnsureTrailingSeparator(Path.GetFullPath(root)), PathComparison);
+    }
+
+    /// <summary>
+    /// Finds the version-specific staging directory, including both extracted files and the downloaded archive.
+    /// </summary>
+    private static string GetStagingDirectory(string root, string stagingPath)
+    {
+        var stagingRoot = Path.Combine(root, ".aslm-update", "staging");
+        var relative = Path.GetRelativePath(stagingRoot, stagingPath);
+        return ResolveChildPath(stagingRoot, relative.Split(Path.DirectorySeparatorChar)[0]);
     }
 
 
@@ -470,12 +539,17 @@ internal static class PatcherRunner
                 return;
             }
 
-            Process.Start(new ProcessStartInfo
+            var startInfo = new ProcessStartInfo
             {
                 FileName = launcherPath,
                 WorkingDirectory = Path.GetDirectoryName(launcherPath) ?? root,
                 UseShellExecute = false
-            });
+            };
+            // Only arguments after the separator belong to ASLM; patcher control arguments stay private.
+            var separator = Array.IndexOf(args, "--");
+            if (separator >= 0)
+                foreach (var argument in args[(separator + 1)..]) startInfo.ArgumentList.Add(argument);
+            Process.Start(startInfo);
         }
         catch (Exception ex)
         {
@@ -489,7 +563,7 @@ internal static class PatcherRunner
     private static string? ResolveLauncherPath(string root, string[] args)
     {
         // Tier 1: explicit --launcher argument provided by the Launcher process.
-        for (var i = 0; i < args.Length - 1; i++)
+        for (var i = 0; i < args.Length - 1 && args[i] != "--"; i++)
         {
             if (string.Equals(args[i], LauncherArgument, StringComparison.OrdinalIgnoreCase))
             {
@@ -543,6 +617,23 @@ internal static class PatcherRunner
         {
             // Best effort cleanup only.
         }
+    }
+
+    /// <summary>
+    /// Removes the Unix helper's temporary shadow copy without ever deleting an installed helper directory.
+    /// </summary>
+    private static void TryDeleteShadowDirectory()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var directory = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+        var name = Path.GetFileName(directory);
+        var prefix = name.StartsWith("Patcher_", StringComparison.Ordinal) ? "Patcher_" : "ASLM-Patcher-";
+
+        // Unix allows unlinking the running helper. Its parent and generated name must match our launch protocol.
+        if (name.StartsWith(prefix, StringComparison.Ordinal) && Guid.TryParseExact(name[prefix.Length..], "N", out _) &&
+            string.Equals(Path.GetDirectoryName(directory), Path.TrimEndingDirectorySeparator(Path.GetTempPath()), PathComparison) &&
+            new DirectoryInfo(directory).LinkTarget == null)
+            TryDeleteDirectory(directory);
     }
 
     /// <summary>

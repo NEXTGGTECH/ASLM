@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Diagnostics;
+using System.Globalization;
 
 // Launcher entry point.
 
@@ -19,20 +20,21 @@ using System.Diagnostics;
 ///   The application itself (App\, Patcher\, Data\, …) lives in the per-user
 ///   %LOCALAPPDATA%\ASLM directory. If that directory is not yet populated the
 ///   Launcher bootstraps it from aslm-base.zip before starting the application.
+///
+/// Linux: App/ and Patcher/ stay beside the Launcher; only user data lives in the XDG profile.
 /// </remarks>
 internal static class Program
 {
     private const string AppFolderName = "App";
-    private const string ExeName = "ASLM.exe";
+    private static string ExeName => AppPaths.ExecutableName;
     private const string LogFileName = "Launcher.log";
     private const string PatcherFolderName = "Patcher";
-    private static readonly IReadOnlyList<string> PatcherExeNames =
-    [
-        "ASLM Patcher.exe",
-        "Patcher.exe"
-    ];
-    private const string PendingUpdateRelativePath = ".aslm-update\\pending.json";
+    private static readonly IReadOnlyList<string> PatcherExeNames = OperatingSystem.IsLinux()
+        ? ["aslm-patcher"]
+        : ["ASLM Patcher.exe", "Patcher.exe"];
+    private static readonly string PendingUpdateRelativePath = Path.Combine(".aslm-update", "pending.json");
     private const string WaitProcessArgument = "--wait-process";
+    private const string WaitStartArgument = "--wait-start";
     private const string LauncherArgument = "--launcher";
 
     // Process startup.
@@ -43,7 +45,9 @@ internal static class Program
     private static void Main(string[] args)
     {
         var sharedInstallDir = AppPaths.GetSharedInstallDir();
-        var logPath = Path.Combine(sharedInstallDir, LogFileName);
+        var logPath = OperatingSystem.IsLinux()
+            ? Path.Combine(AppPaths.GetUserAppDir(), ".aslm-update", "logs", LogFileName)
+            : Path.Combine(sharedInstallDir, LogFileName);
 
         try
         {
@@ -58,6 +62,11 @@ internal static class Program
             }
             else
             {
+                // Linux archives contain the application directly; Windows alone uses ZIP bootstrapping.
+                if (OperatingSystem.IsLinux())
+                    throw new FileNotFoundException("ASLM application was not found beside the launcher.",
+                        Path.Combine(sharedInstallDir, AppFolderName, ExeName));
+
                 // Release / dual-location layout: application lives in the per-user directory.
                 appRoot = AppPaths.GetUserAppDir();
 
@@ -77,7 +86,8 @@ internal static class Program
                 UserBootstrapper.WriteLauncherRef(launcherExePath, appRoot);
             }
 
-            if (TryStartPendingPatcher(sharedInstallDir, appRoot, logPath))
+            var dataRoot = OperatingSystem.IsLinux() ? AppPaths.GetUserAppDir() : appRoot;
+            if (TryStartPendingPatcher(sharedInstallDir, appRoot, dataRoot, args, logPath))
             {
                 return;
             }
@@ -114,6 +124,8 @@ internal static class Program
             WorkingDirectory = Path.Combine(appRoot, AppFolderName),
             UseShellExecute = false
         };
+        if (OperatingSystem.IsLinux())
+            startInfo.Environment["ASLM_LAUNCHER_PATH"] = Path.Combine(AppPaths.GetSharedInstallDir(), ExeName);
 
         AppendForwardedArguments(startInfo, args);
 
@@ -132,10 +144,14 @@ internal static class Program
     /// Starts the external patcher from a temporary shadow copy when a self-update is pending.
     /// </summary>
     /// <param name="sharedInstallDir">The shared installation directory (contains the Launcher).</param>
-    /// <param name="appRoot">The application root that may contain the pending update and Patcher.</param>
-    private static bool TryStartPendingPatcher(string sharedInstallDir, string appRoot, string logPath)
+    /// <param name="appRoot">The application root containing App/ and Patcher/.</param>
+    /// <param name="dataRoot">The writable profile containing the pending update.</param>
+    /// <param name="args">Arguments forwarded after the update.</param>
+    /// <param name="logPath">The launcher diagnostic log.</param>
+    private static bool TryStartPendingPatcher(string sharedInstallDir, string appRoot, string dataRoot,
+        string[] args, string logPath)
     {
-        var pendingPath = Path.Combine(appRoot, PendingUpdateRelativePath);
+        var pendingPath = Path.Combine(dataRoot, PendingUpdateRelativePath);
         if (!File.Exists(pendingPath))
         {
             return false;
@@ -152,9 +168,10 @@ internal static class Program
             return false;
         }
 
+        string? shadowDir = null;
         try
         {
-            var shadowDir = Path.Combine(Path.GetTempPath(), "Patcher_" + Guid.NewGuid().ToString("N"));
+            shadowDir = Path.Combine(Path.GetTempPath(), "Patcher_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(shadowDir);
 
             CopyDirectory(patcherDir, shadowDir);
@@ -169,14 +186,21 @@ internal static class Program
                 UseShellExecute = false
             };
             startInfo.ArgumentList.Add("--root");
-            startInfo.ArgumentList.Add(appRoot);
+            startInfo.ArgumentList.Add(dataRoot);
             startInfo.ArgumentList.Add(LauncherArgument);
             startInfo.ArgumentList.Add(launcherExePath);
+            // The helper must outlive this launcher before replacing its executable as part of the payload.
+            using var current = Process.GetCurrentProcess();
+            startInfo.ArgumentList.Add(WaitProcessArgument);
+            startInfo.ArgumentList.Add(current.Id.ToString(CultureInfo.InvariantCulture));
+            startInfo.ArgumentList.Add(WaitStartArgument);
+            startInfo.ArgumentList.Add(current.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture));
+            startInfo.ArgumentList.Add("--");
+            AppendForwardedArguments(startInfo, args);
 
             if (Process.Start(startInfo) == null)
             {
-                Log("Failed to start patcher (Process.Start returned null).", logPath);
-                return false;
+                throw new InvalidOperationException("Failed to start patcher (Process.Start returned null).");
             }
 
             Log("Pending update detected. Handed control to patcher.", logPath);
@@ -184,6 +208,12 @@ internal static class Program
         }
         catch (Exception ex)
         {
+            // No helper owns the shadow copy when process creation failed.
+            if (shadowDir != null)
+            {
+                try { Directory.Delete(shadowDir, recursive: true); }
+                catch { /* Preserve the original startup error when temporary cleanup fails. */ }
+            }
             Log("Failed to start patcher: " + ex, logPath);
             return false;
         }
@@ -197,34 +227,32 @@ internal static class Program
     /// </summary>
     private static void WaitForRequestedProcessExit(string[] args, string logPath)
     {
-        for (var index = 0; index < args.Length - 1; index++)
+        var index = Array.IndexOf(args, WaitProcessArgument);
+        if (index < 0) return;
+        if (index + 1 >= args.Length || !int.TryParse(args[index + 1], out var processId) || processId <= 0)
+            throw new ArgumentException("Invalid restart process id.");
+
+        // A restarted process must never wait for an unrelated process that reused the original PID.
+        long? started = null;
+        var startIndex = Array.IndexOf(args, WaitStartArgument);
+        if (startIndex >= 0)
         {
-            if (!string.Equals(args[index], WaitProcessArgument, StringComparison.OrdinalIgnoreCase) ||
-                !int.TryParse(args[index + 1], out var processId))
-            {
-                continue;
-            }
-
-            try
-            {
-                using var process = Process.GetProcessById(processId);
-                Log($"Waiting for ASLM process {processId} to exit before restart.", logPath);
-                if (!process.WaitForExit(30000))
-                {
-                    Log($"ASLM process {processId} did not exit within 30 seconds.", logPath);
-                }
-            }
-            catch (ArgumentException)
-            {
-                // The process already exited, which is exactly what we need.
-            }
-            catch (Exception ex)
-            {
-                Log("Failed while waiting for previous ASLM process: " + ex.Message, logPath);
-            }
-
-            return;
+            if (startIndex + 1 >= args.Length || !long.TryParse(args[startIndex + 1],
+                    NumberStyles.None, CultureInfo.InvariantCulture, out var ticks))
+                throw new ArgumentException("Invalid restart process start time.");
+            started = ticks;
         }
+
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            if (started.HasValue && process.StartTime.ToUniversalTime().Ticks != started.Value) return;
+            Log($"Waiting for ASLM process {processId} to exit before restart.", logPath);
+            if (!process.WaitForExit(60000))
+                throw new TimeoutException($"ASLM process {processId} did not exit within 60 seconds.");
+        }
+        catch (ArgumentException) { /* The process already exited. */ }
+        catch (InvalidOperationException) { /* The process exited before its start time could be read. */ }
     }
 
 
@@ -237,7 +265,8 @@ internal static class Program
     {
         for (var index = 0; index < args.Length; index++)
         {
-            if (string.Equals(args[index], WaitProcessArgument, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(args[index], WaitProcessArgument, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[index], WaitStartArgument, StringComparison.OrdinalIgnoreCase))
             {
                 index++;
                 continue;
@@ -285,6 +314,7 @@ internal static class Program
             var destination = Path.Combine(destDir, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(file, destination, overwrite: true);
+            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(destination, File.GetUnixFileMode(file));
         }
     }
 
@@ -298,6 +328,7 @@ internal static class Program
     {
         try
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
             var logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}";
             File.AppendAllText(logPath, logEntry);
         }
