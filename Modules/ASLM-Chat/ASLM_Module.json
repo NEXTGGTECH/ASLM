@@ -3,7 +3,9 @@
     "id": "aslm-chat",
     "name": "ASLM Chat",
     "description": "ASLM Chat Module",
-    "version": "0.8.4.5",
+    "version": "0.9.2.3",
+    "is_beta": false,
+    "is_experemental": false,
     "author": "NEXTGGTECH",
     "type": "ui",
     "category": [
@@ -36,6 +38,11 @@
             "os": "macos",
             "arch": "arm64",
             "key": "macos-arm64"
+        },
+        {
+            "os": "linux",
+            "arch": "amd64",
+            "key": "linux-amd64"
         }
     ],
     "update": {
@@ -44,6 +51,7 @@
         "branch": "main",
         "preserve": [
             "Data/downloads_bridge_cache",
+            "Data/model_capabilities",
             "Data/venvs",
             "Settings/settings.json",
             "Skills",
@@ -768,7 +776,7 @@
             "key": "sandbox-cpu-limit",
             "name": "CPU threads limit",
             "type": "number",
-            "default": 4,
+            "default": 8,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key sandbox-cpu-limit",
             "setExec": "main.py set_setting --key sandbox-cpu-limit --value {value}",
@@ -778,7 +786,7 @@
             "key": "sandbox-memory-limit",
             "name": "Memory limit (GB)",
             "type": "int",
-            "default": 3,
+            "default": 6,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key sandbox-memory-limit",
             "setExec": "main.py set_setting --key sandbox-memory-limit --value {value}",
@@ -789,7 +797,7 @@
             "name": "Memory and Swap limit (GB)",
             "description": "Combined memory and swap limit",
             "type": "int",
-            "default": 4,
+            "default": 8,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key sandbox-memory-swap-limit",
             "setExec": "main.py set_setting --key sandbox-memory-swap-limit --value {value}",
@@ -799,7 +807,7 @@
             "key": "sandbox-pids-limit",
             "name": "Process limit",
             "type": "int",
-            "default": 256,
+            "default": 1024,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key sandbox-pids-limit",
             "setExec": "main.py set_setting --key sandbox-pids-limit --value {value}",
@@ -813,6 +821,17 @@
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key sandbox-storage-limit",
             "setExec": "main.py set_setting --key sandbox-storage-limit --value {value}",
+            "category": "sandbox"
+        },
+        {
+            "key": "sandbox-network-enabled",
+            "name": "Internet access",
+            "description": "Allow internet access in newly created sandbox containers",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key sandbox-network-enabled",
+            "setExec": "main.py set_setting --key sandbox-network-enabled --value {value}",
             "category": "sandbox"
         },
         {
@@ -943,7 +962,7 @@
             "name": "Thread limit",
             "description": "Maximum worker and numerical-library thread count",
             "type": "int",
-            "default": 4,
+            "default": 8,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key sandbox-thread-limit",
             "setExec": "main.py set_setting --key sandbox-thread-limit --value {value}",
