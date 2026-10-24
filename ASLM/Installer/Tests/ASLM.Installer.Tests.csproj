@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+		<SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+		<RootNamespace>ASLM.Installer.Tests</RootNamespace>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsPackable>false</IsPackable>
+		<IsTestProject>true</IsTestProject>
+
+		<!-- The bootstrapper source brings its own Main; the test host does not need one. -->
+		<GenerateProgramFile>false</GenerateProgramFile>
+		<UseMaui>false</UseMaui>
+		<EnableDefaultMauiItems>false</EnableDefaultMauiItems>
+		<!-- The bootstrapper shows fatal errors through WinForms message boxes. -->
+		<UseWindowsForms>true</UseWindowsForms>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="FluentAssertions" Version="8.8.0" />
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.41" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<!-- Installer logic, the CLI bootstrapper, and the GUI patcher runner are compiled into this
+	     assembly so their internal members stay reachable without building MAUI-sized graphs. -->
+	<ItemGroup>
+		<Compile Include="..\Installer\Services\InstallerService.cs" Link="Services\InstallerService.cs" />
+		<Compile Include="..\Installer\Services\LegalDocumentService.cs" Link="Services\LegalDocumentService.cs" />
+		<Compile Include="..\Installer-Bootstrapper\Program.cs" Link="Installer-Bootstrapper\Program.cs" />
+		<Compile Include="..\..\Patcher\Patcher\Program.cs" Link="Patcher\Patcher.Program.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="FluentAssertions" />
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+	<!-- The dual-version contract test drives the real CLI patcher executable. -->
+	<Target Name="BuildPatcherCli" BeforeTargets="BeforeBuild" Condition="'$(ASLMBuildPatcherCli)' != 'false'">
+		<!-- The CLI is built directly (no ProjectReference), so restore it explicitly for
+		     cold checkouts and CI runners where no obj/ exists yet. -->
+		<MSBuild Projects="$(MSBuildThisFileDirectory)..\..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
+		         Targets="Restore"
+		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />
+		<MSBuild Projects="$(MSBuildThisFileDirectory)..\..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
+		         Targets="Build"
+		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />
+	</Target>
+
+</Project>

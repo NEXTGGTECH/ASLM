@@ -23,7 +23,39 @@ public sealed class InstallerService
     private const string LegalAcceptanceFileName = "ASLM_LegalAcceptance.json";
     private const string AppName = "ASLM";
 
+    private readonly Func<string> _getUserAppDir;
+    private readonly Func<Task<Stream>> _openPackagedPayload;
+    private readonly Action<string, string, string> _createShortcut;
+
+    /// <summary>
+    /// Creates an installer that installs for the current user with packaged fallback assets.
+    /// </summary>
+    public InstallerService()
+        : this(userAppDir: null, packagedPayload: null, createShortcut: null)
+    {
+    }
+
+    /// <summary>
+    /// Creates an installer with test-injected destinations, packaged payload source, and shortcut sink.
+    /// </summary>
+    internal InstallerService(
+        Func<string>? userAppDir = null,
+        Func<Task<Stream>>? packagedPayload = null,
+        Action<string, string, string>? createShortcut = null)
+    {
+        _getUserAppDir = userAppDir ?? DefaultUserAppDir;
+        _openPackagedPayload = packagedPayload ?? OpenPackagedPayloadAsync;
+        _createShortcut = createShortcut ?? TryCreateShortcut;
+    }
+
     // Default paths.
+
+    private static string DefaultUserAppDir()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppName);
+    }
 
     /// <summary>
     /// Returns the default parent directory for the shared ASLM installation.
@@ -39,9 +71,7 @@ public sealed class InstallerService
     /// </summary>
     public string GetUserAppDir()
     {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppName);
+        return _getUserAppDir();
     }
 
 
@@ -174,7 +204,7 @@ public sealed class InstallerService
             if (options.CreateDesktopShortcut)
             {
                 progress.Report(new InstallProgress("Creating desktop shortcut...", 94));
-                TryCreateShortcut(
+                _createShortcut(
                     Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
                     "ASLM.lnk",
                     sharedInstallDir);
@@ -183,7 +213,7 @@ public sealed class InstallerService
             if (options.CreateStartMenuShortcut)
             {
                 progress.Report(new InstallProgress("Creating Start menu shortcut...", 97));
-                TryCreateShortcut(
+                _createShortcut(
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"),
                     "ASLM.lnk",
                     sharedInstallDir);
@@ -228,7 +258,7 @@ public sealed class InstallerService
     /// <summary>
     /// Extracts the full ASLM payload archive into a temporary staging directory.
     /// </summary>
-    private static async Task ExtractPayloadToStagingAsync(
+    private async Task ExtractPayloadToStagingAsync(
         string stagingPath,
         IProgress<InstallProgress> progress,
         CancellationToken cancellationToken)
@@ -269,7 +299,7 @@ public sealed class InstallerService
     /// <summary>
     /// Opens the payload from the bootstrapper environment variable, local files, or packaged assets.
     /// </summary>
-    private static async Task<Stream> OpenPayloadStreamAsync()
+    private async Task<Stream> OpenPayloadStreamAsync()
     {
         var candidates = new List<string>();
         var environmentPath = Environment.GetEnvironmentVariable(PayloadEnvironmentVariable);
@@ -289,7 +319,7 @@ public sealed class InstallerService
 
         try
         {
-            return await FileSystem.OpenAppPackageFileAsync(PayloadFileName);
+            return await _openPackagedPayload();
         }
         catch (FileNotFoundException)
         {
@@ -299,6 +329,14 @@ public sealed class InstallerService
         {
             throw CreatePayloadMissingException(candidates);
         }
+    }
+
+    /// <summary>
+    /// Opens the packaged app-asset payload, used only when no filesystem candidate exists.
+    /// </summary>
+    private static Task<Stream> OpenPackagedPayloadAsync()
+    {
+        return FileSystem.OpenAppPackageFileAsync(PayloadFileName);
     }
 
     /// <summary>
@@ -486,7 +524,7 @@ public sealed class InstallerService
     /// <summary>
     /// Creates a Windows shell shortcut that points to the Launcher in the shared install directory.
     /// </summary>
-    private static void CreateShortcut(string folderPath, string shortcutFileName, string sharedInstallDir)
+    internal static void CreateShortcut(string folderPath, string shortcutFileName, string sharedInstallDir)
     {
         Directory.CreateDirectory(folderPath);
 

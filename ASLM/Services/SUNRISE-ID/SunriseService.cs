@@ -76,7 +76,7 @@ namespace ASLM.Services.Sunrise
 
         private readonly ILogger<SunriseService> _logger;
         private readonly AppDataStore _appData;
-        private readonly Lazy<HttpClient> _httpClient = new(() => new HttpClient());
+        private readonly Lazy<HttpClient> _httpClient;
         private readonly SemaphoreSlim _dataGate = new(1, 1);
         private readonly SemaphoreSlim _accountOperationGate = new(1, 1);
 
@@ -145,9 +145,18 @@ namespace ASLM.Services.Sunrise
         /// Creates the service and resolves all persisted data paths below <c>Data/App</c>.
         /// </summary>
         public SunriseService(ILogger<SunriseService> logger, AppDataStore appData)
+            : this(logger, appData, new Lazy<HttpClient>(() => new HttpClient()))
+        {
+        }
+
+        /// <summary>
+        /// Creates the service with an explicit HTTP client factory (test isolation).
+        /// </summary>
+        internal SunriseService(ILogger<SunriseService> logger, AppDataStore appData, Lazy<HttpClient> httpClient)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _appData = appData ?? throw new ArgumentNullException(nameof(appData));
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
             var dataDirectory = Path.Combine(AppRoot.Directory, "Data", "App");
             _domainsFilePath = Path.Combine(dataDirectory, DomainsFileName);
@@ -1202,7 +1211,7 @@ namespace ASLM.Services.Sunrise
             return (requestParts[0], requestParts[1], headers, body);
         }
 
-        private static SunriseCallbackPayload ParseCallbackRequest(
+        internal static SunriseCallbackPayload ParseCallbackRequest(
             string method,
             string target,
             IReadOnlyDictionary<string, string> headers,
@@ -1256,7 +1265,7 @@ namespace ASLM.Services.Sunrise
             };
         }
 
-        private static Dictionary<string, string> ParseFormBody(string formBody)
+        internal static Dictionary<string, string> ParseFormBody(string formBody)
         {
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var pair in formBody.Split('&', StringSplitOptions.RemoveEmptyEntries))
@@ -1348,7 +1357,7 @@ namespace ASLM.Services.Sunrise
             return state.TrimEnd('=').Replace('+', '-').Replace('/', '_');
         }
 
-        private static bool IsValidCallbackState(string? state)
+        internal static bool IsValidCallbackState(string? state)
         {
             if (state == null || state.Length is < 22 or > 128)
             {
@@ -1370,7 +1379,7 @@ namespace ASLM.Services.Sunrise
                 CryptographicOperations.FixedTimeEquals(expectedBytes, receivedBytes);
         }
 
-        private static bool IsValidLoopbackRedirectUri(Uri redirectUri) =>
+        internal static bool IsValidLoopbackRedirectUri(Uri redirectUri) =>
             redirectUri.IsAbsoluteUri &&
             string.Equals(redirectUri.Scheme, Uri.UriSchemeHttp, StringComparison.Ordinal) &&
             string.Equals(redirectUri.Host, CallbackHostName, StringComparison.Ordinal) &&

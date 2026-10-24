@@ -61,6 +61,16 @@ namespace ASLM.Services.Modules
             _portMapPath = Path.Combine(AppRoot.Directory, "Data", "App", "ASLM_Ports.json");
         }
 
+        /// <summary>
+        /// Creates the port manager bound to an explicit port-map file and registry (test isolation).
+        /// </summary>
+        internal PortRegistry(AppDataStore appData, string portMapPath, ModuleRegistry modules)
+        {
+            _appData = appData;
+            _portMapPath = portMapPath;
+            _modules = modules;
+        }
+
 
         // Port access
 

@@ -22,7 +22,7 @@
     <ApplicationTitle>ASLM</ApplicationTitle>
     <ApplicationId>com.nextggtech.aslm</ApplicationId>
     <ApplicationDisplayVersion>0.11.0</ApplicationDisplayVersion>
-    <ApplicationVersion>11</ApplicationVersion>
+    <ApplicationVersion>17</ApplicationVersion>
     <Version>$(ApplicationDisplayVersion).$(ApplicationVersion)</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>
@@ -128,10 +128,15 @@
              Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true" />
   </Target>
 
+  <!-- Local Release builds point the installer at the latest published archive; the release workflow overrides this with the exact tag asset URL. -->
+  <PropertyGroup>
+    <ASLMInstallerDownloadUrl Condition="'$(ASLMInstallerDownloadUrl)' == ''">https://github.com/NEXTGGTECH/ASLM/releases/latest/download/ASLM-linux-amd64.tar.gz</ASLMInstallerDownloadUrl>
+  </PropertyGroup>
+
   <!-- Keep installer generation in the same Release publish pipeline as the application and its helpers. -->
   <Target Name="PackageLinuxInstaller" AfterTargets="PublishLinuxHelpers"
           Condition="'$(Configuration)' == 'Release' and '$(SelfContained)' == 'true' and '$(DesignTimeBuild)' != 'true'">
     <Error Condition="'$(RuntimeIdentifier)' != 'linux-x64'" Text="The Linux installer currently supports linux-x64 only." />
-    <Exec Command="bash &quot;$(ASLMSourceRoot)Installer/Installer/Platforms/Linux/Package.sh&quot; &quot;$(ASLMRepositoryRoot)Build/$(Configuration)/$(ASLMBuildArtifactName)&quot; &quot;$(ASLMRepositoryRoot)Build/$(Configuration)/ASLM-Installer-linux-amd64.sh&quot; &quot;$(Version)&quot;" />
+    <Exec Command="bash &quot;$(ASLMSourceRoot)Installer/Installer/Platforms/Linux/Installer.sh&quot; --package &quot;$(ASLMRepositoryRoot)Build/$(Configuration)/$(ASLMBuildArtifactName)&quot; &quot;$(ASLMRepositoryRoot)Build/$(Configuration)/ASLM-linux-amd64.sh&quot; &quot;$(Version)&quot; &quot;$(ASLMInstallerDownloadUrl)&quot;" />
   </Target>
 </Project>

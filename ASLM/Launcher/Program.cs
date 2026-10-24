@@ -144,7 +144,7 @@ internal static class Program
     /// <param name="dataRoot">The writable profile containing the pending update.</param>
     /// <param name="args">Arguments forwarded after the update.</param>
     /// <param name="logPath">The launcher diagnostic log.</param>
-    private static bool TryStartPendingPatcher(string sharedInstallDir, string appRoot, string dataRoot,
+    internal static bool TryStartPendingPatcher(string sharedInstallDir, string appRoot, string dataRoot,
         string[] args, string logPath)
     {
         var pendingPath = Path.Combine(dataRoot, PendingUpdateRelativePath);
@@ -221,7 +221,7 @@ internal static class Program
     /// <summary>
     /// Waits for the previous ASLM process to exit before applying a pending update.
     /// </summary>
-    private static void WaitForRequestedProcessExit(string[] args, string logPath)
+    internal static void WaitForRequestedProcessExit(string[] args, string logPath)
     {
         var index = Array.IndexOf(args, WaitProcessArgument);
         if (index < 0) return;
@@ -257,7 +257,7 @@ internal static class Program
     /// <summary>
     /// Forwards user arguments to ASLM while removing launcher-only restart arguments.
     /// </summary>
-    private static void AppendForwardedArguments(ProcessStartInfo startInfo, string[] args)
+    internal static void AppendForwardedArguments(ProcessStartInfo startInfo, string[] args)
     {
         for (var index = 0; index < args.Length; index++)
         {

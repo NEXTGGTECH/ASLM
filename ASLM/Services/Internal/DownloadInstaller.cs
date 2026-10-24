@@ -26,7 +26,7 @@ namespace ASLM.Services.Internal
         private readonly NotificationCenter _notifications;
         private readonly ILogger<DownloadInstaller> _logger;
         private readonly DownloadQueue _downloadQueue;
-        private readonly HttpClient _httpClient = new();
+        private readonly HttpClient _httpClient;
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -49,6 +49,24 @@ namespace ASLM.Services.Internal
             NotificationCenter notifications,
             ILogger<DownloadInstaller> logger,
             DownloadQueue downloadQueue)
+            : this(moduleInstaller, bridge, engineInstaller, environmentResolver, stateStore, notifications,
+                logger, downloadQueue, new HttpClient())
+        {
+        }
+
+        /// <summary>
+        /// Creates the download install service with an explicit HTTP client (test isolation).
+        /// </summary>
+        internal DownloadInstaller(
+            ModuleInstaller moduleInstaller,
+            ModuleDownloadBridge bridge,
+            EngineInstaller engineInstaller,
+            ModuleEnvironmentResolver environmentResolver,
+            DownloadStateStore stateStore,
+            NotificationCenter notifications,
+            ILogger<DownloadInstaller> logger,
+            DownloadQueue downloadQueue,
+            HttpClient httpClient)
         {
             _moduleInstaller = moduleInstaller;
             _bridge = bridge;
@@ -58,6 +76,7 @@ namespace ASLM.Services.Internal
             _notifications = notifications;
             _logger = logger;
             _downloadQueue = downloadQueue;
+            _httpClient = httpClient;
         }
 
 
@@ -313,7 +332,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Executes one install manifest action-by-action.
         /// </summary>
-        private async Task ExecuteManifestAsync(
+        internal async Task ExecuteManifestAsync(
             ModuleConfig module,
             ModuleDownloadInstallManifest manifest,
             string operationKey,
@@ -419,7 +438,7 @@ namespace ASLM.Services.Internal
 
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
             await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
-            await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true);
+            await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.Read, 65536, true);
             var buffer = new byte[65536];
             long downloadedBytes = 0;
             int bytesRead;
@@ -456,6 +475,8 @@ namespace ASLM.Services.Internal
 
             if (!string.IsNullOrWhiteSpace(action.Sha256))
             {
+                // Flush the write buffers so the concurrent reader below observes the full payload.
+                await fileStream.FlushAsync(ct);
                 var actualHash = await ComputeSha256Async(destinationPath, ct);
                 if (!string.Equals(actualHash, action.Sha256, StringComparison.OrdinalIgnoreCase))
                 {
@@ -1022,7 +1043,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Resolves one named target reference into a safe absolute directory inside ASLM.
         /// </summary>
-        private string ResolveTargetDirectory(ModuleConfig module, string targetRef)
+        internal string ResolveTargetDirectory(ModuleConfig module, string targetRef)
         {
             var bridge = module.DownloadsBridge
                 ?? throw new InvalidOperationException("Module does not declare a downloads bridge.");
@@ -1052,7 +1073,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Resolves one relative child path and rejects directory traversal outside the requested root.
         /// </summary>
-        private static string ResolveChildPath(string rootPath, string relativePath)
+        internal static string ResolveChildPath(string rootPath, string relativePath)
         {
             var normalizedRoot = EnsureTrailingSeparator(Path.GetFullPath(rootPath));
             var safeRelative = relativePath ?? string.Empty;
@@ -1095,11 +1116,12 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Computes the SHA-256 hash for one file.
+        /// Computes the SHA-256 hash for one file, tolerating a writer that still holds it open.
         /// </summary>
         private static async Task<string> ComputeSha256Async(string filePath, CancellationToken ct)
         {
-            await using var stream = File.OpenRead(filePath);
+            await using var stream = new FileStream(
+                filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             var hashBytes = await SHA256.HashDataAsync(stream, ct);
             return Convert.ToHexStringLower(hashBytes);
         }

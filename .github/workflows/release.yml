@@ -319,8 +319,49 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
+  tests:
     needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            ASLM/Tests/ASLM.Tests.csproj
+            ASLM/Patcher/Tests/ASLM.Patcher.Tests.csproj
+            ASLM/Launcher/Tests/ASLM.Launcher.Tests.csproj
+            ASLM/Installer/Tests/ASLM.Installer.Tests.csproj
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui
+
+      - name: ASLM.Tests
+        run: dotnet test ASLM/Tests/ASLM.Tests.csproj -c Debug --nologo -v minimal --logger trx --results-directory "${{ runner.temp }}/trx/aslm"
+
+      - name: ASLM.Patcher.Tests
+        run: dotnet test ASLM/Patcher/Tests/ASLM.Patcher.Tests.csproj -c Debug --nologo -v minimal --logger trx --results-directory "${{ runner.temp }}/trx/patcher"
+
+      - name: ASLM.Launcher.Tests
+        run: dotnet test ASLM/Launcher/Tests/ASLM.Launcher.Tests.csproj -c Debug --nologo -v minimal --logger trx --results-directory "${{ runner.temp }}/trx/launcher"
+
+      - name: ASLM.Installer.Tests
+        run: dotnet test ASLM/Installer/Tests/ASLM.Installer.Tests.csproj -c Debug --nologo -v minimal --logger trx --results-directory "${{ runner.temp }}/trx/installer"
+
+  build:
+    needs: [prepare, tests]
     if: needs.prepare.outputs.build == 'true'
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 60
@@ -476,8 +517,10 @@ jobs:
         run: |
           set -euo pipefail
           # Publish directly into App/ so the archive has no nested publish folder or duplicate runtime.
+          # The installer downloads the release archive at run time, so bake in the exact tag asset URL.
           dotnet publish ASLM/Platforms/Linux/ASLM.Linux.csproj -c Release -r "${{ matrix.rid }}" \
-            --self-contained true -o "$PWD/Build/Release/ASLM-${{ matrix.name }}/App" -v minimal
+            --self-contained true -o "$PWD/Build/Release/ASLM-${{ matrix.name }}/App" -v minimal \
+            -p:ASLMInstallerDownloadUrl="https://github.com/${{ github.repository }}/releases/download/${{ needs.prepare.outputs.tag }}/ASLM-linux-amd64.tar.gz"
 
       - name: Package artifacts (Linux)
         if: runner.os == 'Linux'
@@ -498,12 +541,16 @@ jobs:
           for ENGINE in NodeJS Python Ollama; do
             test -f "$APP/seed/Engines/$ENGINE/ASLM_Engine.json"
           done
-          INSTALLER="Build/Release/ASLM-Installer-${{ matrix.name }}.sh"
+          INSTALLER="Build/Release/ASLM-${{ matrix.name }}.sh"
           test -x "$INSTALLER"
           mkdir -p dist
           # TAR preserves Unix executable bits and keeps the same ASLM-<platform>/App/ layout as the build.
           tar -C Build/Release -czf "dist/ASLM-${{ matrix.name }}.tar.gz" "ASLM-${{ matrix.name }}"
-          cp "$INSTALLER" "dist/ASLM-Installer-${{ matrix.name }}.sh"
+          # The installer downloads this archive at run time; pin it to the exact digest (local builds ship an empty one).
+          ARCHIVE_DIGEST=$(sha256sum "dist/ASLM-${{ matrix.name }}.tar.gz" | cut -d ' ' -f1)
+          cp "$INSTALLER" "dist/ASLM-${{ matrix.name }}.sh"
+          sed -i "s/^archive_digest='.*'/archive_digest='$ARCHIVE_DIGEST'/" "dist/ASLM-${{ matrix.name }}.sh"
+          grep -q "^archive_digest='$ARCHIVE_DIGEST'\$" "dist/ASLM-${{ matrix.name }}.sh"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

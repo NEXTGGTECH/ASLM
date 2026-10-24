@@ -24,6 +24,22 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        return Run(args, OpenAssemblyResource, ShowError);
+    }
+
+    /// <summary>
+    /// Opens an embedded resource from the executing bootstrapper assembly.
+    /// </summary>
+    internal static Stream? OpenAssemblyResource(string resourceName)
+    {
+        return Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+    }
+
+    /// <summary>
+    /// Runs the bootstrapper against an injectable resource source so the flow can be tested headlessly.
+    /// </summary>
+    internal static int Run(string[] args, Func<string, Stream?> openResource, Action<Exception>? showError = null)
+    {
         var extractionPath = Path.Combine(
             Path.GetTempPath(),
             "ASLM",
@@ -35,8 +51,9 @@ internal static class Program
             Directory.CreateDirectory(extractionPath);
 
             // Unpack the MAUI installer UI and the ASLM payload into the temp runtime folder.
-            ExtractInstallerUi(extractionPath);
-            var payloadPath = ExtractEmbeddedPayload(extractionPath);
+            using var installerZip = OpenRequiredResource(InstallerZipResourceName, openResource);
+            ExtractInstallerUi(installerZip, extractionPath);
+            var payloadPath = ExtractEmbeddedPayload(extractionPath, openResource);
 
             var installerPath = Path.Combine(extractionPath, InstallerExecutableName);
             if (!File.Exists(installerPath))
@@ -67,7 +84,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            ShowError(ex);
+            (showError ?? ShowError).Invoke(ex);
             return 1;
         }
         finally
@@ -82,10 +99,9 @@ internal static class Program
     /// <summary>
     /// Extracts the packaged MAUI installer UI into the temporary runtime directory.
     /// </summary>
-    private static void ExtractInstallerUi(string extractionPath)
+    internal static void ExtractInstallerUi(Stream archiveStream, string extractionPath)
     {
-        using var resource = OpenInstallerZipResource();
-        using var archive = new ZipArchive(resource, ZipArchiveMode.Read);
+        using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
 
         foreach (var entry in archive.Entries)
         {
@@ -109,11 +125,11 @@ internal static class Program
     /// <summary>
     /// Writes the embedded ASLM payload archive next to the extracted UI.
     /// </summary>
-    private static string ExtractEmbeddedPayload(string extractionPath)
+    internal static string ExtractEmbeddedPayload(string extractionPath, Func<string, Stream?> openResource)
     {
         var payloadPath = Path.Combine(extractionPath, PayloadFileName);
 
-        using var payload = OpenRequiredResource(PayloadFileName);
+        using var payload = OpenRequiredResource(PayloadFileName, openResource);
         using var output = File.Create(payloadPath);
         payload.CopyTo(output);
 
@@ -121,28 +137,13 @@ internal static class Program
     }
 
     /// <summary>
-    /// Opens the embedded installer UI archive.
-    /// </summary>
-    private static Stream OpenInstallerZipResource()
-    {
-        return OpenRequiredResource(InstallerZipResourceName);
-    }
-
-    /// <summary>
     /// Opens an embedded resource or reports the available resource names.
     /// </summary>
-    private static Stream OpenRequiredResource(string resourceName)
+    internal static Stream OpenRequiredResource(string resourceName, Func<string, Stream?> openResource)
     {
-        var assembly = Assembly.GetExecutingAssembly();
-        var resource = assembly.GetManifestResourceStream(resourceName);
-        if (resource is not null)
-        {
-            return resource;
-        }
-
-        var resources = string.Join(", ", assembly.GetManifestResourceNames());
-        throw new InvalidOperationException(
-            $"The installer bootstrapper does not contain {resourceName}. Build ASLM/Installer/Installer-Bootstrapper in Visual Studio first. Embedded resources: {resources}");
+        return openResource(resourceName)
+            ?? throw new InvalidOperationException(
+                $"The installer bootstrapper does not contain {resourceName}. Build ASLM/Installer/Installer-Bootstrapper in Visual Studio first. Embedded resources: {string.Join(", ", Assembly.GetExecutingAssembly().GetManifestResourceNames())}");
     }
 
 
@@ -151,7 +152,7 @@ internal static class Program
     /// <summary>
     /// Quotes one command-line argument for forwarding to the installer UI.
     /// </summary>
-    private static string QuoteArgument(string argument)
+    internal static string QuoteArgument(string argument)
     {
         return argument.Contains(' ') || argument.Contains('"')
             ? $"\"{argument.Replace("\"", "\\\"")}\""
@@ -161,7 +162,7 @@ internal static class Program
     /// <summary>
     /// Checks that an extracted archive entry stays under the intended directory.
     /// </summary>
-    private static bool IsChildPath(string parentPath, string childPath)
+    internal static bool IsChildPath(string parentPath, string childPath)
     {
         var normalizedParent = Path.GetFullPath(parentPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;

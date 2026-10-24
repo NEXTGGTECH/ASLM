@@ -47,6 +47,7 @@ namespace ASLM.Services.Internal
         private readonly ObservableCollection<AppNotification> _notifications = [];
         private readonly ReadOnlyObservableCollection<AppNotification> _readOnlyNotifications;
         private readonly string _filePath;
+        private readonly Dispatcher _dispatcher;
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
@@ -59,13 +60,50 @@ namespace ASLM.Services.Internal
         private readonly DownloadTransferSpeedEstimator _downloadTransferSpeedEstimator = new();
 
 
+        /// <summary>
+        /// Marshals notification mutations onto the MAUI UI thread; replaceable in tests.
+        /// </summary>
+        internal abstract class Dispatcher
+        {
+            public static Dispatcher Default { get; } = new MainThreadDispatcher();
+
+            public abstract bool IsMainThread { get; }
+
+            public abstract void BeginInvoke(Action action);
+
+            public abstract Task InvokeAsync(Action action);
+
+            public abstract Task<T> InvokeAsync<T>(Func<T> work);
+
+            private sealed class MainThreadDispatcher : Dispatcher
+            {
+                public override bool IsMainThread => MainThread.IsMainThread;
+
+                public override void BeginInvoke(Action action) => MainThread.BeginInvokeOnMainThread(action);
+
+                public override Task InvokeAsync(Action action) => MainThread.InvokeOnMainThreadAsync(action);
+
+                public override Task<T> InvokeAsync<T>(Func<T> work) => MainThread.InvokeOnMainThreadAsync(work);
+            }
+        }
+
+
         // Initialization
 
         /// <summary>
         /// Creates the notification service and resolves its persistence file path.
         /// </summary>
         public NotificationCenter()
+            : this(Dispatcher.Default)
         {
+        }
+
+        /// <summary>
+        /// Creates the notification service with an explicit UI dispatcher (test isolation).
+        /// </summary>
+        internal NotificationCenter(Dispatcher dispatcher)
+        {
+            _dispatcher = dispatcher;
             _readOnlyNotifications = new ReadOnlyObservableCollection<AppNotification>(_notifications);
             _filePath = Path.Combine(GetRootDirectory(), "Data", "App", NotificationsFileName);
         }
@@ -220,7 +258,7 @@ namespace ASLM.Services.Internal
         {
             _downloadTransferSpeedEstimator.Reset(operationKey);
 
-            return MainThread.InvokeOnMainThreadAsync(() =>
+            return _dispatcher.InvokeAsync(() =>
             {
                 UpsertNotificationImpl(
                     id: BuildDownloadNotificationId(operationKey),
@@ -634,7 +672,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task SaveSnapshotAsync(CancellationToken ct)
         {
-            var snapshot = await MainThread.InvokeOnMainThreadAsync(() => new NotificationStore
+            var snapshot = await _dispatcher.InvokeAsync(() => new NotificationStore
             {
                 Notifications = _notifications
                     .OrderByDescending(notification => notification.UpdatedAt)
@@ -680,15 +718,15 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Runs one notification mutation on the MAUI UI thread.
         /// </summary>
-        private static void RunOnMainThread(Action action)
+        private void RunOnMainThread(Action action)
         {
-            if (MainThread.IsMainThread)
+            if (_dispatcher.IsMainThread)
             {
                 action();
                 return;
             }
 
-            MainThread.BeginInvokeOnMainThread(action);
+            _dispatcher.BeginInvoke(action);
         }
 
         /// <summary>

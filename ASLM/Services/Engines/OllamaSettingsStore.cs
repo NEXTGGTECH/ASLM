@@ -26,6 +26,7 @@ namespace ASLM.Services.Engines
         private bool _hasVerifiedSignInState;
         private bool _isSignedIn;
         private OllamaPersistentSettings _accountDetails = new();
+        private readonly int? _managedPortOverride;
 
 
         // Construction
@@ -36,13 +37,24 @@ namespace ASLM.Services.Engines
         public OllamaSettingsStore(
             EngineInstaller engineInstaller,
             ILogger<OllamaSettingsStore> logger)
+            : this(engineInstaller, logger, new HttpClient { Timeout = TimeSpan.FromSeconds(2) }, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new Ollama settings service instance with an explicit HTTP client and
+        /// managed-runtime port (test isolation).
+        /// </summary>
+        internal OllamaSettingsStore(
+            EngineInstaller engineInstaller,
+            ILogger<OllamaSettingsStore> logger,
+            HttpClient httpClient,
+            int? managedPort)
         {
             _engineInstaller = engineInstaller ?? throw new ArgumentNullException(nameof(engineInstaller));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _httpClient = new HttpClient
-            {
-                Timeout = TimeSpan.FromSeconds(2)
-            };
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _managedPortOverride = managedPort;
         }
 
 
@@ -419,7 +431,7 @@ namespace ASLM.Services.Engines
         /// <summary>
         /// Resolves the local port used by the managed Ollama runtime.
         /// </summary>
-        private static int ResolveManagedPort() => ManagedOllamaPort;
+        private int ResolveManagedPort() => _managedPortOverride ?? ManagedOllamaPort;
 
         /// <summary>
         /// Resolves the ASLM-managed Ollama executable path.

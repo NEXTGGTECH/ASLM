@@ -17,12 +17,18 @@ namespace ASLM.Services.Internal
         private const string EnvironmentOverrideVariable = "ASLM_ROOT";
         private const string AppName = "ASLM";
 
-        private static readonly Lazy<string> _directory = new(Resolve);
+        private static Lazy<string> _directory = new(Resolve);
 
         /// <summary>
         /// Gets the absolute ASLM data root directory for the current platform.
         /// </summary>
         public static string Directory => _directory.Value;
+
+        /// <summary>
+        /// Discards the cached root so the next <see cref="Directory"/> read honors a new
+        /// <c>ASLM_ROOT</c> value. Test isolation only; production resolves once per process.
+        /// </summary>
+        internal static void ResetForTests() => _directory = new Lazy<string>(Resolve);
 
         /// <summary>
         /// Resolves the data root once per process.
