@@ -837,10 +837,35 @@ namespace ASLM.Services.Engines
             // A portable installation can be on a different filesystem from the standard system temp directory.
             ASLM.Services.Internal.LinuxFileOperations.MoveDirectory(source, dest);
 #else
-            Directory.Move(source, dest);
+            // The engine directory can live on a different volume from the system temp directory
+            // (for example a relocated ASLM root); Directory.Move cannot cross volume boundaries.
+            if (!string.Equals(Path.GetPathRoot(source), Path.GetPathRoot(dest), StringComparison.OrdinalIgnoreCase))
+            {
+                CopyDirectoryContents(source, dest);
+                Directory.Delete(source, recursive: true);
+            }
+            else
+            {
+                Directory.Move(source, dest);
+            }
 #endif
-
             log.Report("  ✓ Move complete.");
+        }
+
+        /// <summary>
+        /// Recursively copies one directory tree into another for cross-volume moves.
+        /// </summary>
+        private static void CopyDirectoryContents(string source, string dest)
+        {
+            Directory.CreateDirectory(dest);
+            foreach (var file in Directory.EnumerateFiles(source))
+            {
+                File.Copy(file, Path.Combine(dest, Path.GetFileName(file)), overwrite: true);
+            }
+            foreach (var directory in Directory.EnumerateDirectories(source))
+            {
+                CopyDirectoryContents(directory, Path.Combine(dest, Path.GetFileName(directory)));
+            }
         }
 
         /// <summary>
