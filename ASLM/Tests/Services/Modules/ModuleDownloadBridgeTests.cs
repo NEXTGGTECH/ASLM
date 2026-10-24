@@ -134,7 +134,9 @@ public sealed class ModuleDownloadBridgeTests
             foreach (var directory in directories)
             {
                 new ModuleRegistry().Remove(Path.GetFileName(directory));
-                Directory.Delete(directory, recursive: true);
+                // A killed bridge keeps its module directory locked for a short while after
+                // termination (the transient console host outlives the awaited process).
+                await TestWait.DeleteDirectoryAsync(directory);
             }
         }
 
