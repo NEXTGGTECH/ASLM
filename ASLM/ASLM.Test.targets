@@ -18,7 +18,8 @@
 	                 and '$(SelfContained)' != 'true'
 	                 and ('$(RuntimeIdentifier)' == '' or '$(RuntimeIdentifier)' == '$(NETCoreSdkPortableRuntimeIdentifier)')">
 		<Message Importance="high" Text="Running $(MSBuildProjectName) tests ($(Configuration))..." />
-		<Exec Command="dotnet test &quot;$(ASLMTestProject)&quot; -c $(Configuration) -v minimal --no-restore /p:SkipUnitTestsOnBuild=true"
+		<!-- Keep the implicit restore: cold checkouts may not have the test project restored yet. -->
+		<Exec Command="dotnet test &quot;$(ASLMTestProject)&quot; -c $(Configuration) -v minimal /p:SkipUnitTestsOnBuild=true"
 		      WorkingDirectory="$(MSBuildProjectDirectory)"
 		      EnvironmentVariables="DOTNET_CLI_UI_LANGUAGE=en" />
 	</Target>

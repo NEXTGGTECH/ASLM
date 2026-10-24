@@ -55,6 +55,11 @@
 	</Target>
 
 	<Target Name="BuildAslmApp" BeforeTargets="BeforeBuild">
+		<!-- The app is referenced through HintPath, so the test project's implicit restore never
+		     covers it. Restore it explicitly first: cold checkouts and CI runners have no obj/. -->
+		<MSBuild Projects="$(MSBuildThisFileDirectory)..\ASLM.csproj"
+		         Targets="Restore"
+		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true;SelfContained=false" />
 		<MSBuild Projects="$(MSBuildThisFileDirectory)..\ASLM.csproj"
 		         Targets="Build"
 		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true;SelfContained=false" />
@@ -62,6 +67,9 @@
 
 	<!-- The self-update contract test drives the real patcher executable. -->
 	<Target Name="BuildPatcherCli" BeforeTargets="BeforeBuild" Condition="'$(ASLMBuildPatcherCli)' != 'false'">
+		<MSBuild Projects="$(MSBuildThisFileDirectory)..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
+		         Targets="Restore"
+		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />
 		<MSBuild Projects="$(MSBuildThisFileDirectory)..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
 		         Targets="Build"
 		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />

@@ -44,6 +44,11 @@
 
 	<!-- The dual-version contract test drives the real CLI patcher executable. -->
 	<Target Name="BuildPatcherCli" BeforeTargets="BeforeBuild" Condition="'$(ASLMBuildPatcherCli)' != 'false'">
+		<!-- The CLI is built directly (no ProjectReference), so restore it explicitly for
+		     cold checkouts and CI runners where no obj/ exists yet. -->
+		<MSBuild Projects="$(MSBuildThisFileDirectory)..\..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
+		         Targets="Restore"
+		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />
 		<MSBuild Projects="$(MSBuildThisFileDirectory)..\..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
 		         Targets="Build"
 		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />
