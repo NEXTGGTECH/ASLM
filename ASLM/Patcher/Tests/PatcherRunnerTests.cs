@@ -97,9 +97,18 @@ public sealed class PatcherRunnerTests : IDisposable
         var deadline = DateTime.UtcNow.AddSeconds(15);
         while (DateTime.UtcNow < deadline)
         {
-            if (File.Exists(_markerPath))
+            try
             {
-                return await File.ReadAllTextAsync(_markerPath);
+                if (File.Exists(_markerPath))
+                {
+                    // The stub appends through Add-Content; the file can exist while still open
+                    // for writing, so retry the access itself instead of only the existence check.
+                    return await File.ReadAllTextAsync(_markerPath);
+                }
+            }
+            catch (IOException) when (DateTime.UtcNow < deadline)
+            {
+                // The stub process still holds the marker; fall through and poll again.
             }
 
             await Task.Delay(50);
