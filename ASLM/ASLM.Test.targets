@@ -1,20 +1,24 @@
 <Project>
 
+	<!-- Shared per-project test hook. Each project that owns a test suite sets ASLMTestProject
+	     (the test csproj path, relative to the owning project) and imports this file, so building
+	     that project runs only its own suite and building the solution runs every suite once.
+	     SkipUnitTestsOnBuild is threaded through nested and referenced builds to break recursion. -->
 	<PropertyGroup>
-		<ASLMTestsProjectPath Condition="'$(ASLMTestsProjectPath)' == ''">$(MSBuildProjectDirectory)\Tests\ASLM.Tests.csproj</ASLMTestsProjectPath>
 		<SkipUnitTestsOnBuild Condition="'$(SkipUnitTestsOnBuild)' == ''">false</SkipUnitTestsOnBuild>
 	</PropertyGroup>
 
-	<Target Name="RunAslmUnitTestsAfterBuild"
+	<Target Name="RunAslmProjectTestsAfterBuild"
 	        AfterTargets="Build"
-	        Condition="'$(SkipUnitTestsOnBuild)' != 'true'
+	        Condition="'$(ASLMTestProject)' != ''
+	                 and '$(SkipUnitTestsOnBuild)' != 'true'
 	                 and $([MSBuild]::IsOSPlatform('windows'))
-	                 and Exists('$(ASLMTestsProjectPath)')
+	                 and Exists('$(ASLMTestProject)')
 	                 and ('$(TargetFrameworks)' == '' or '$(TargetFramework)' != '')
 	                 and '$(SelfContained)' != 'true'
 	                 and ('$(RuntimeIdentifier)' == '' or '$(RuntimeIdentifier)' == '$(NETCoreSdkPortableRuntimeIdentifier)')">
-		<Message Importance="high" Text="Running ASLM unit tests ($(Configuration))..." />
-		<Exec Command="dotnet test &quot;$(ASLMTestsProjectPath)&quot; -c $(Configuration) -v minimal --no-restore /p:SkipUnitTestsOnBuild=true"
+		<Message Importance="high" Text="Running $(MSBuildProjectName) tests ($(Configuration))..." />
+		<Exec Command="dotnet test &quot;$(ASLMTestProject)&quot; -c $(Configuration) -v minimal --no-restore /p:SkipUnitTestsOnBuild=true"
 		      WorkingDirectory="$(MSBuildProjectDirectory)"
 		      EnvironmentVariables="DOTNET_CLI_UI_LANGUAGE=en" />
 	</Target>

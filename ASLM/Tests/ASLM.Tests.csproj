@@ -60,9 +60,20 @@
 		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true;SelfContained=false" />
 	</Target>
 
+	<!-- The self-update contract test drives the real patcher executable. -->
+	<Target Name="BuildPatcherCli" BeforeTargets="BeforeBuild" Condition="'$(ASLMBuildPatcherCli)' != 'false'">
+		<MSBuild Projects="$(MSBuildThisFileDirectory)..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
+		         Targets="Build"
+		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />
+	</Target>
+
 	<Target Name="CopyAslmRuntime" AfterTargets="Build">
+		<!-- Self-contained app builds (e.g. after building the installer bootstrapper) leave the
+		     .NET host in the app output. Copying hostfxr/hostpolicy/coreclr next to testhost.exe
+		     hijacks the test host's runtime resolution and aborts every test run. -->
 		<ItemGroup>
-			<_AslmRuntime Include="$(ASLMAppOutputDir)*.dll" />
+			<_AslmRuntime Include="$(ASLMAppOutputDir)*.dll"
+			              Exclude="$(ASLMAppOutputDir)hostfxr.dll;$(ASLMAppOutputDir)hostpolicy.dll;$(ASLMAppOutputDir)coreclr.dll;$(ASLMAppOutputDir)clrjit.dll" />
 		</ItemGroup>
 		<Copy SourceFiles="@(_AslmRuntime)"
 		      DestinationFolder="$(OutputPath)"

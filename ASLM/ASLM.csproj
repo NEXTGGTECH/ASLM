@@ -43,6 +43,13 @@
 	<Import Project="..\ASLM.Build.props" />
 	<Import Project="Installer\Build\Installer.Build.targets" />
 
+	<!-- Solution-level build dependencies (slnx BuildDependency) resolve references without a
+	     TargetFramework, evaluating this project's outer (cross-targeting) graph, which does not
+	     define the target below. Answer neutrally there so the SDK reference protocol succeeds. -->
+	<Target Name="GetTargetPathWithTargetPlatformMoniker"
+	        Condition="'$(TargetFrameworks)' != '' and '$(TargetFramework)' == ''"
+	        Returns="@(TargetPathWithTargetPlatformMoniker)" />
+
 	<!-- ASLM / SUNRISE ID only; GitHub and Ollama accounts remain available. -->
 	<PropertyGroup>
 		<ASLMAccountEnabled>true</ASLMAccountEnabled>
@@ -98,6 +105,10 @@
 		<MauiXaml Remove="Installer\**" />
 	</ItemGroup>
 
+	<!-- Building the application runs only the application's own suite. -->
+	<PropertyGroup>
+		<ASLMTestProject>Tests\ASLM.Tests.csproj</ASLMTestProject>
+	</PropertyGroup>
 	<Import Project="ASLM.Test.targets" Condition="Exists('ASLM.Test.targets')" />
 	
 	<PropertyGroup>

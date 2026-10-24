@@ -51,12 +51,18 @@ namespace ASLM.Services.Modules
         /// Creates the module trust service.
         /// </summary>
         public ModuleTrustService(ILogger<ModuleTrustService> logger)
+            : this(logger, new HttpClient())
+        {
+        }
+
+        /// <summary>
+        /// Creates the module trust service with an explicit HTTP client (test isolation).
+        /// </summary>
+        internal ModuleTrustService(ILogger<ModuleTrustService> logger, HttpClient httpClient)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _httpClient = new HttpClient
-            {
-                Timeout = TimeSpan.FromSeconds(30)
-            };
+            _httpClient = httpClient;
+            _httpClient.Timeout = TimeSpan.FromSeconds(30);
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ASLM-ModuleTrust");
         }
 

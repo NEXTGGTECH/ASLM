@@ -319,8 +319,49 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
+  tests:
     needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            ASLM/Tests/ASLM.Tests.csproj
+            ASLM/Patcher/Tests/ASLM.Patcher.Tests.csproj
+            ASLM/Launcher/Tests/ASLM.Launcher.Tests.csproj
+            ASLM/Installer/Tests/ASLM.Installer.Tests.csproj
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui
+
+      - name: ASLM.Tests
+        run: dotnet test ASLM/Tests/ASLM.Tests.csproj -c Debug --nologo -v minimal --logger trx --results-directory "${{ runner.temp }}/trx/aslm"
+
+      - name: ASLM.Patcher.Tests
+        run: dotnet test ASLM/Patcher/Tests/ASLM.Patcher.Tests.csproj -c Debug --nologo -v minimal --logger trx --results-directory "${{ runner.temp }}/trx/patcher"
+
+      - name: ASLM.Launcher.Tests
+        run: dotnet test ASLM/Launcher/Tests/ASLM.Launcher.Tests.csproj -c Debug --nologo -v minimal --logger trx --results-directory "${{ runner.temp }}/trx/launcher"
+
+      - name: ASLM.Installer.Tests
+        run: dotnet test ASLM/Installer/Tests/ASLM.Installer.Tests.csproj -c Debug --nologo -v minimal --logger trx --results-directory "${{ runner.temp }}/trx/installer"
+
+  build:
+    needs: [prepare, tests]
     if: needs.prepare.outputs.build == 'true'
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 60

@@ -24,9 +24,23 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates the Windows Job Object and assigns the current process to it.
         /// </summary>
-        public ProcessTracker(ILogger<ProcessTracker> logger)
+        public ProcessTracker(ILogger<ProcessTracker> logger) : this(logger, trackCurrentProcess: true)
+        {
+        }
+
+        /// <summary>
+        /// Creates the tracker; when <paramref name="trackCurrentProcess"/> is false no Job Object
+        /// is created and disposal is inert (test isolation - a kill-on-close job would take the
+        /// test host down with it).
+        /// </summary>
+        internal ProcessTracker(ILogger<ProcessTracker> logger, bool trackCurrentProcess)
         {
             _logger = logger;
+
+            if (!trackCurrentProcess)
+            {
+                return;
+            }
 
             if (!OperatingSystem.IsWindows())
             {

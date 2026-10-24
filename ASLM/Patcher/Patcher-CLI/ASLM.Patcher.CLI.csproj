@@ -23,6 +23,13 @@
 
 	<ItemGroup>
 		<Compile Include="..\Patcher\Program.cs" Link="PatcherRunner.cs" />
+		<InternalsVisibleTo Include="ASLM.Patcher.Tests" />
 	</ItemGroup>
+
+	<!-- Building the patcher runs only the patcher's own suite. -->
+	<PropertyGroup>
+		<ASLMTestProject>..\Tests\ASLM.Patcher.Tests.csproj</ASLMTestProject>
+	</PropertyGroup>
+	<Import Project="..\..\ASLM.Test.targets" Condition="Exists('..\..\ASLM.Test.targets')" />
 
 </Project>

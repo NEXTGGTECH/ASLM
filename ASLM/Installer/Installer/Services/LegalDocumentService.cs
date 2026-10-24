@@ -11,6 +11,24 @@ public sealed class LegalDocumentService
 {
     private const string LegalDocumentsFileName = "legal-documents.json";
 
+    private readonly Func<string, Task<Stream>> _openAsset;
+
+    /// <summary>
+    /// Creates a service that reads legal documents from packaged app assets.
+    /// </summary>
+    public LegalDocumentService()
+        : this(openAsset: null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a service with a test-injected app-asset source.
+    /// </summary>
+    internal LegalDocumentService(Func<string, Task<Stream>>? openAsset)
+    {
+        _openAsset = openAsset ?? OpenPackagedAssetAsync;
+    }
+
     // Asset access.
 
     /// <summary>
@@ -18,12 +36,20 @@ public sealed class LegalDocumentService
     /// </summary>
     public async Task<IReadOnlyList<LegalDocument>> LoadAsync(CancellationToken cancellationToken = default)
     {
-        await using var stream = await FileSystem.OpenAppPackageFileAsync(LegalDocumentsFileName);
+        await using var stream = await _openAsset(LegalDocumentsFileName);
         var documents = await JsonSerializer.DeserializeAsync<List<LegalDocument>>(stream, JsonOptions.Default, cancellationToken);
 
         return documents is { Count: > 0 }
             ? documents
             : throw new InvalidOperationException("Installer legal documents are missing or empty.");
+    }
+
+    /// <summary>
+    /// Opens one packaged app asset, used only when no injected source exists.
+    /// </summary>
+    private static Task<Stream> OpenPackagedAssetAsync(string fileName)
+    {
+        return FileSystem.OpenAppPackageFileAsync(fileName);
     }
 }
 

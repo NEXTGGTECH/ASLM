@@ -1624,7 +1624,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Reads a local Ollama runtime version when its API is available.
         /// </summary>
-        private static async Task<string?> TryProbeOllamaApiVersionAsync(CancellationToken ct)
+        internal static async Task<string?> TryProbeOllamaApiVersionAsync(CancellationToken ct, Uri? endpoint = null)
         {
             try
             {
@@ -1632,7 +1632,7 @@ namespace ASLM.Services.Internal
                 {
                     Timeout = TimeSpan.FromSeconds(2)
                 };
-                using var response = await client.GetAsync("http://127.0.0.1:11434/api/version", ct);
+                using var response = await client.GetAsync(endpoint ?? new Uri("http://127.0.0.1:11434/api/version"), ct);
                 if (!response.IsSuccessStatusCode)
                 {
                     return null;

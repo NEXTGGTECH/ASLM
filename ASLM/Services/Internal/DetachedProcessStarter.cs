@@ -78,7 +78,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Quotes one process argument using Windows command-line escaping rules.
         /// </summary>
-        private static string QuoteArgument(string value)
+        internal static string QuoteArgument(string value)
         {
             if (string.IsNullOrEmpty(value))
             {

@@ -22,6 +22,12 @@
 	<Import Project="..\..\..\ASLM.Build.props" />
 	<Import Project="..\Build\Installer.Build.targets" />
 
+	<!-- Building the installer runs only the installer's own suite. -->
+	<PropertyGroup>
+		<ASLMTestProject>..\Tests\ASLM.Installer.Tests.csproj</ASLMTestProject>
+	</PropertyGroup>
+	<Import Project="..\..\ASLM.Test.targets" Condition="Exists('..\..\ASLM.Test.targets')" />
+
 	<PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(SelfContained)' == ''">
 		<SelfContained>true</SelfContained>
 	</PropertyGroup>

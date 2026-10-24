@@ -17,6 +17,15 @@
 	<Import Project="..\..\ASLM.Build.props" />
 
 	<PropertyGroup>
+		<!-- Nested test project sources and build artifacts are not part of the launcher. -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);Tests\**</DefaultItemExcludes>
+		<!-- Building the launcher runs only the launcher's own suite. -->
+		<ASLMTestProject>Tests\ASLM.Launcher.Tests.csproj</ASLMTestProject>
+	</PropertyGroup>
+
+	<Import Project="..\ASLM.Test.targets" Condition="Exists('..\ASLM.Test.targets')" />
+
+	<PropertyGroup>
 		<OutputPath>$(ASLMBuildOutputRoot)</OutputPath>
 		<OutputType Condition="'$(ASLMBuildOs)' == 'linux'">Exe</OutputType>
 	</PropertyGroup>

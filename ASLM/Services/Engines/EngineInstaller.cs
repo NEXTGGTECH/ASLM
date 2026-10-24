@@ -14,10 +14,21 @@ namespace ASLM.Services.Engines
     /// </summary>
     public class EngineInstaller
     {
-        private readonly HttpClient _httpClient = new();
+        private readonly HttpClient _httpClient;
         private readonly GitHubUpdateClient? _github;
 
-        public EngineInstaller(GitHubUpdateClient? github = null) => _github = github;
+        public EngineInstaller(GitHubUpdateClient? github = null) : this(github, new HttpClient())
+        {
+        }
+
+        /// <summary>
+        /// Creates the installer with an explicit HTTP client (test isolation).
+        /// </summary>
+        internal EngineInstaller(GitHubUpdateClient? github, HttpClient httpClient)
+        {
+            _github = github;
+            _httpClient = httpClient;
+        }
 
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
