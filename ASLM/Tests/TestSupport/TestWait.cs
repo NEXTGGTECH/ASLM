@@ -36,4 +36,32 @@ public static class TestWait
         await UntilAsync(() => (value = producer()) != null, timeout, because, pollMilliseconds);
         return value!;
     }
+
+    /// <summary>
+    /// Deletes a directory tree, briefly retrying while another process still holds it open.
+    /// </summary>
+    /// <remarks>
+    /// Killed bridge or stub processes (and their transient console hosts) can keep their
+    /// working directory locked for a short moment after termination on Windows.
+    /// </remarks>
+    public static async Task DeleteDirectoryAsync(string directory, TimeSpan? timeout = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+        while (true)
+        {
+            try
+            {
+                if (Directory.Exists(directory))
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                       && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(50);
+            }
+        }
+    }
 }
