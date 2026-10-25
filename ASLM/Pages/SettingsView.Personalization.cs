@@ -349,7 +349,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Updates appearance draft state and live theme preview when the appearance picker changes.
         /// </summary>
-        private void OnAppearancePickerChanged(object? sender, EventArgs e)
+        private async void OnAppearancePickerChanged(object? sender, EventArgs e)
         {
             if (IsApplyingBuiltInControlState || _appearancePicker == null)
             {
@@ -358,41 +358,93 @@ namespace ASLM.Pages
 
             var selectedDisplay = _appearancePicker.SelectedItem as string ?? GetAppearanceDisplayName("System");
             var selected = ResolveAppearanceFromDisplayName(selectedDisplay);
+            var previousAppearance = _personalizationDraft.Appearance;
             _personalizationDraft.Appearance = AppPersonalizationConfig.NormalizeAppearance(selected);
 
             var isCustom = string.Equals(selected, "Custom", StringComparison.OrdinalIgnoreCase);
             if (_customThemeSection != null)
             {
                 _customThemeSection.IsVisible = isCustom;
-                if (isCustom)
+                if (isCustom && !await TrySelectOrCreateCustomThemeAsync())
                 {
-                    RebuildCustomThemeSection();
-                    if (_customThemesStore.Root.Themes.Count > 0)
-                    {
-                        ApplyCustomThemeSelection(_personalizationDraft.CustomThemeId);
-                    }
-                    else if (_themeEditorSection != null)
-                    {
-                        _themeEditorSection.IsVisible = false;
-                        _editingThemeDraft = null;
-                    }
+                    // No custom themes exist and creation was cancelled: keep the previous appearance.
+                    LeaveCustomAppearance(previousAppearance);
                 }
             }
 
-            if (_themeEditorSection != null && !isCustom)
+            var effectiveIsCustom = string.Equals(_personalizationDraft.Appearance, "Custom", StringComparison.Ordinal);
+            if (_themeEditorSection != null && !effectiveIsCustom)
             {
                 _themeEditorSection.IsVisible = false;
             }
 
             QueueActionButtonUpdate();
 
-            if (!string.Equals(selected, "Custom", StringComparison.OrdinalIgnoreCase))
+            if (!effectiveIsCustom)
             {
                 _editingThemeDraft = null;
             }
 
             _themeService.ApplyPersonalization(_personalizationDraft, _editingThemeDraft);
             RefreshFooterChromeFromResources();
+        }
+
+        /// <summary>
+        /// Selects the last-used custom theme, or offers creation when no custom themes exist.
+        /// Returns false when creation is declined so the caller can keep the previous appearance.
+        /// </summary>
+        private async Task<bool> TrySelectOrCreateCustomThemeAsync()
+        {
+            RebuildCustomThemeSection();
+            if (_customThemesStore.Root.Themes.Count > 0)
+            {
+                ApplyCustomThemeSelection(_personalizationDraft.CustomThemeId);
+                return true;
+            }
+
+            if (_themeEditorSection != null)
+            {
+                _themeEditorSection.IsVisible = false;
+            }
+
+            _editingThemeDraft = null;
+
+            var created = await ShowThemeCreationDialogAsync();
+            if (created == null)
+            {
+                return false;
+            }
+
+            _personalizationDraft.CustomThemeId = created.Id;
+            RebuildCustomThemeSection();
+            ApplyCustomThemeSelection(created.Id);
+            return true;
+        }
+
+        /// <summary>
+        /// Exits Custom appearance mode and restores the supplied appearance without change events.
+        /// </summary>
+        private void LeaveCustomAppearance(string appearance)
+        {
+            _personalizationDraft.Appearance = AppPersonalizationConfig.NormalizeAppearance(appearance);
+            if (_customThemeSection != null)
+            {
+                _customThemeSection.IsVisible = false;
+            }
+
+            if (_themeEditorSection != null)
+            {
+                _themeEditorSection.IsVisible = false;
+            }
+
+            _editingThemeDraft = null;
+            if (_appearancePicker != null)
+            {
+                ApplyBuiltInControlState(() =>
+                {
+                    _appearancePicker.SelectedItem = GetAppearanceDisplayName(_personalizationDraft.Appearance);
+                });
+            }
         }
 
         /// <summary>
@@ -423,6 +475,20 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnCreateThemeClicked(object? sender, EventArgs e)
         {
+            var created = await ShowThemeCreationDialogAsync();
+            if (created == null) return;
+
+            // Select the saved theme and leave palette editing in the existing settings section.
+            _personalizationDraft.CustomThemeId = created.Id;
+            RebuildCustomThemeSection();
+            ApplyCustomThemeSelection(created.Id);
+        }
+
+        /// <summary>
+        /// Shows the theme creation dialog and returns the persisted theme, or null when cancelled.
+        /// </summary>
+        private async Task<CustomTheme?> ShowThemeCreationDialogAsync()
+        {
             // Keep the draft outside the theme registry until the user explicitly saves it.
             var form = new ThemeCreationForm();
             CustomTheme? created = null;
@@ -442,12 +508,7 @@ namespace ASLM.Pages
                         } }
                 ]
             });
-            if (result.IsCancelled || created == null) return;
-
-            // Select the saved theme and leave palette editing in the existing settings section.
-            _personalizationDraft.CustomThemeId = created.Id;
-            RebuildCustomThemeSection();
-            ApplyCustomThemeSelection(created.Id);
+            return result.IsCancelled ? null : created;
         }
 
         /// <summary>
@@ -597,7 +658,22 @@ namespace ASLM.Pages
 
             RebuildCustomThemeSection();
 
-            if (!string.IsNullOrWhiteSpace(_personalizationDraft.CustomThemeId) &&
+            if (_customThemesStore.Root.Themes.Count == 0 &&
+                string.Equals(_personalizationDraft.Appearance, "Custom", StringComparison.Ordinal))
+            {
+                // The last custom theme is gone: silently return to the last saved non-custom appearance.
+                var fallbackAppearance = string.Equals(
+                    _personalizationBaseline.Appearance,
+                    "Custom",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "System"
+                    : _personalizationBaseline.Appearance;
+                _personalizationDraft.CustomThemeId = null;
+                LeaveCustomAppearance(fallbackAppearance);
+                _themeService.ApplyPersonalization(_personalizationDraft, _editingThemeDraft);
+                RefreshFooterChromeFromResources();
+            }
+            else if (!string.IsNullOrWhiteSpace(_personalizationDraft.CustomThemeId) &&
                 _customThemesStore.FindById(_personalizationDraft.CustomThemeId) != null)
             {
                 ApplyCustomThemeSelection(_personalizationDraft.CustomThemeId);
