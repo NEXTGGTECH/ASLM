@@ -477,7 +477,7 @@
             "key": "web-search-compress-threshold",
             "name": "Compression threshold",
             "type": "int",
-            "default": 10000,
+            "default": 40000,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-compress-threshold",
             "setExec": "main.py set_setting --key web-search-compress-threshold --value {value}",
@@ -487,7 +487,7 @@
             "key": "web-search-compress-target",
             "name": "Compression target",
             "type": "int",
-            "default": 10000,
+            "default": 35000,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-compress-target",
             "setExec": "main.py set_setting --key web-search-compress-target --value {value}",
@@ -625,8 +625,18 @@
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-engine-yandex",
             "setExec": "main.py set_setting --key web-search-engine-yandex --value {value}",
-            "category": "web-search-engines",
-            "description": "Native ya.ru SERP; captcha-gated for scripted clients, served through the warm-browser fallback"
+            "category": "web-search-engines"
+        },
+        {
+            "key": "web-search-buffer-engine",
+            "name": "Emergency Search Fallback (Yandex legacy widget)",
+            "description": "Enable fallback search when all regular engines are unavailable",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-buffer-engine",
+            "setExec": "main.py set_setting --key web-search-buffer-engine --value {value}",
+            "category": "web-search-engines"
         },
         {
             "key": "web-search-profile-import-enabled",
@@ -1038,17 +1048,6 @@
             "category": "sandbox"
         },
         {
-            "key": "web-search-engine-legacy-yandex",
-            "name": "Yandex (legacy site-search widget)",
-            "type": "bool",
-            "default": false,
-            "engine": "python-runtime",
-            "getExec": "main.py get_setting --key web-search-engine-legacy-yandex",
-            "setExec": "main.py set_setting --key web-search-engine-legacy-yandex --value {value}",
-            "category": "web-search-engines",
-            "description": "The retired yandex.com/search/site widget; far more scrapeable than the native SERP"
-        },
-        {
             "key": "web-search-image-engine-bing",
             "name": "Bing Images",
             "type": "bool",
@@ -1076,8 +1075,7 @@
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-image-engine-duckduckgo",
             "setExec": "main.py set_setting --key web-search-image-engine-duckduckgo --value {value}",
-            "category": "web-search-images",
-            "description": "Its i.js endpoint sits behind an anti-bot challenge on most networks"
+            "category": "web-search-images"
         },
         {
             "key": "web-search-image-engine-openverse",
@@ -1092,46 +1090,23 @@
         {
             "key": "web-search-query-rewriter-enabled",
             "name": "LLM query rewriter",
+            "description": "Rewrite conversational model thoughts into clean search queries via the active chat model",
             "type": "bool",
             "default": false,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-query-rewriter-enabled",
             "setExec": "main.py set_setting --key web-search-query-rewriter-enabled --value {value}",
-            "category": "web-search-search",
-            "description": "Rewrite conversational model thoughts into clean search queries via the active chat model (subagent call)"
-        },
-        {
-            "key": "web-search-query-rewriter-endpoint",
-            "name": "Query rewriter endpoint",
-            "type": "string",
-            "default": "",
-            "engine": "python-runtime",
-            "getExec": "main.py get_setting --key web-search-query-rewriter-endpoint",
-            "setExec": "main.py set_setting --key web-search-query-rewriter-endpoint --value {value}",
-            "category": "web-search-search",
-            "description": "Empty = follow the active chat model automatically. Set an OpenAI-compatible /chat/completions URL to override"
-        },
-        {
-            "key": "web-search-query-rewriter-model",
-            "name": "Query rewriter model",
-            "type": "string",
-            "default": "",
-            "engine": "python-runtime",
-            "getExec": "main.py get_setting --key web-search-query-rewriter-model",
-            "setExec": "main.py set_setting --key web-search-query-rewriter-model --value {value}",
-            "category": "web-search-search",
-            "description": "Empty = the active chat model. Set a model name to override"
+            "category": "web-search-search"
         },
         {
             "key": "web-search-query-rewriter-mode",
             "name": "Query rewriter mode",
             "type": "select",
-            "default": "heuristic",
+            "default": "always",
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-query-rewriter-mode",
             "setExec": "main.py set_setting --key web-search-query-rewriter-mode --value {value}",
             "category": "web-search-search",
-            "description": "heuristic only rewrites conversational-looking queries; always rewrites everything",
             "allowedValues": [
                 "heuristic",
                 "always"
@@ -1145,8 +1120,7 @@
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-localization-enabled",
             "setExec": "main.py set_setting --key web-search-localization-enabled --value {value}",
-            "category": "web-search-search",
-            "description": "Detect the query's locale and gently prefer results in that language"
+            "category": "web-search-search"
         },
         {
             "key": "web-search-localization-penalty",
@@ -1156,19 +1130,18 @@
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-localization-penalty",
             "setExec": "main.py set_setting --key web-search-localization-penalty --value {value}",
-            "category": "web-search-search",
-            "description": "0-0.3 triage toll for results in a language the query did not use (0 disables)"
+            "category": "web-search-search"
         },
         {
             "key": "web-search-rich-cards-enabled",
             "name": "Rich cards",
+            "description": "Wikipedia summary cards and forum discussion blocks for top results",
             "type": "bool",
             "default": false,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-rich-cards-enabled",
             "setExec": "main.py set_setting --key web-search-rich-cards-enabled --value {value}",
-            "category": "web-search",
-            "description": "Wikipedia summary cards and forum discussion blocks for top results (adds latency)"
+            "category": "web-search"
         },
         {
             "key": "web-search-rich-cards-wikipedia",
