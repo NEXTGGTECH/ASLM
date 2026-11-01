@@ -131,6 +131,10 @@
         {
             "id": "web-search-cache",
             "name": "WebSearch Cache"
+        },
+        {
+            "id": "web-search-images",
+            "name": "WebSearch Image Engines"
         }
     ],
     "settings": [
@@ -473,7 +477,7 @@
             "key": "web-search-compress-threshold",
             "name": "Compression threshold",
             "type": "int",
-            "default": 10000,
+            "default": 40000,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-compress-threshold",
             "setExec": "main.py set_setting --key web-search-compress-threshold --value {value}",
@@ -483,7 +487,7 @@
             "key": "web-search-compress-target",
             "name": "Compression target",
             "type": "int",
-            "default": 10000,
+            "default": 35000,
             "engine": "python-runtime",
             "getExec": "main.py get_setting --key web-search-compress-target",
             "setExec": "main.py set_setting --key web-search-compress-target --value {value}",
@@ -615,7 +619,7 @@
         },
         {
             "key": "web-search-engine-yandex",
-            "name": "Yandex",
+            "name": "Yandex (native ya.ru)",
             "type": "bool",
             "default": false,
             "engine": "python-runtime",
@@ -624,13 +628,14 @@
             "category": "web-search-engines"
         },
         {
-            "key": "web-search-engine-yep",
-            "name": "Yep",
+            "key": "web-search-buffer-engine",
+            "name": "Emergency Search Fallback (Yandex legacy widget)",
+            "description": "Enable fallback search when all regular engines are unavailable",
             "type": "bool",
-            "default": false,
+            "default": true,
             "engine": "python-runtime",
-            "getExec": "main.py get_setting --key web-search-engine-yep",
-            "setExec": "main.py set_setting --key web-search-engine-yep --value {value}",
+            "getExec": "main.py get_setting --key web-search-buffer-engine",
+            "setExec": "main.py set_setting --key web-search-buffer-engine --value {value}",
             "category": "web-search-engines"
         },
         {
@@ -1041,6 +1046,132 @@
             "getExec": "main.py get_setting --key sandbox-docker-start-timeout-seconds",
             "setExec": "main.py set_setting --key sandbox-docker-start-timeout-seconds --value {value}",
             "category": "sandbox"
+        },
+        {
+            "key": "web-search-image-engine-bing",
+            "name": "Bing Images",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-image-engine-bing",
+            "setExec": "main.py set_setting --key web-search-image-engine-bing --value {value}",
+            "category": "web-search-images"
+        },
+        {
+            "key": "web-search-image-engine-brave",
+            "name": "Brave Images",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-image-engine-brave",
+            "setExec": "main.py set_setting --key web-search-image-engine-brave --value {value}",
+            "category": "web-search-images"
+        },
+        {
+            "key": "web-search-image-engine-duckduckgo",
+            "name": "DuckDuckGo Images",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-image-engine-duckduckgo",
+            "setExec": "main.py set_setting --key web-search-image-engine-duckduckgo --value {value}",
+            "category": "web-search-images"
+        },
+        {
+            "key": "web-search-image-engine-openverse",
+            "name": "Openverse (CC-licensed)",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-image-engine-openverse",
+            "setExec": "main.py set_setting --key web-search-image-engine-openverse --value {value}",
+            "category": "web-search-images"
+        },
+        {
+            "key": "web-search-query-rewriter-enabled",
+            "name": "LLM query rewriter",
+            "description": "Rewrite conversational model thoughts into clean search queries via the active chat model",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-query-rewriter-enabled",
+            "setExec": "main.py set_setting --key web-search-query-rewriter-enabled --value {value}",
+            "category": "web-search-search"
+        },
+        {
+            "key": "web-search-query-rewriter-mode",
+            "name": "Query rewriter mode",
+            "type": "select",
+            "default": "always",
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-query-rewriter-mode",
+            "setExec": "main.py set_setting --key web-search-query-rewriter-mode --value {value}",
+            "category": "web-search-search",
+            "allowedValues": [
+                "heuristic",
+                "always"
+            ]
+        },
+        {
+            "key": "web-search-localization-enabled",
+            "name": "Language-aware search",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-localization-enabled",
+            "setExec": "main.py set_setting --key web-search-localization-enabled --value {value}",
+            "category": "web-search-search"
+        },
+        {
+            "key": "web-search-localization-penalty",
+            "name": "Foreign-language penalty",
+            "type": "number",
+            "default": 0.12,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-localization-penalty",
+            "setExec": "main.py set_setting --key web-search-localization-penalty --value {value}",
+            "category": "web-search-search"
+        },
+        {
+            "key": "web-search-rich-cards-enabled",
+            "name": "Rich cards",
+            "description": "Wikipedia summary cards and forum discussion blocks for top results",
+            "type": "bool",
+            "default": false,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-rich-cards-enabled",
+            "setExec": "main.py set_setting --key web-search-rich-cards-enabled --value {value}",
+            "category": "web-search"
+        },
+        {
+            "key": "web-search-rich-cards-wikipedia",
+            "name": "Wikipedia cards",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-rich-cards-wikipedia",
+            "setExec": "main.py set_setting --key web-search-rich-cards-wikipedia --value {value}",
+            "category": "web-search"
+        },
+        {
+            "key": "web-search-rich-cards-stackexchange",
+            "name": "StackExchange discussions",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-rich-cards-stackexchange",
+            "setExec": "main.py set_setting --key web-search-rich-cards-stackexchange --value {value}",
+            "category": "web-search"
+        },
+        {
+            "key": "web-search-rich-cards-reddit",
+            "name": "Reddit discussions",
+            "type": "bool",
+            "default": true,
+            "engine": "python-runtime",
+            "getExec": "main.py get_setting --key web-search-rich-cards-reddit",
+            "setExec": "main.py set_setting --key web-search-rich-cards-reddit --value {value}",
+            "category": "web-search"
         }
     ],
     "downloadsBridge": {
