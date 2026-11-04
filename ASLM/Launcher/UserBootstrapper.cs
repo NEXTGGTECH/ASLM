@@ -16,14 +16,27 @@ using System.Text.Json;
 /// </remarks>
 internal static class UserBootstrapper
 {
+    // Names
+
+    /// <summary>
+    /// File name of the launcher executable, which is never copied from the payload into a user directory.
+    /// </summary>
     private static string LauncherExeName => AppPaths.ExecutableName;
+
+    /// <summary>
+    /// File name of the reference that tells the patcher where the shared launcher is.
+    /// </summary>
     private const string LauncherRefFileName = "launcher-ref.json";
+
+
+    // Bootstrapping
 
     /// <summary>
     /// Returns true when the per-user application directory is already initialized.
     /// </summary>
     public static bool IsUserAppDirReady(string userAppDir)
     {
+        // The application executable is the minimum sign of an initialized directory.
         if (!File.Exists(Path.Combine(userAppDir, "App", LauncherExeName))) return false;
         if (!OperatingSystem.IsLinux()) return true;
 
@@ -44,6 +57,7 @@ internal static class UserBootstrapper
     /// <returns>True when bootstrapping completed successfully.</returns>
     public static bool TryBootstrap(string sharedInstallDir, string userAppDir, string logPath)
     {
+        // Without the installer's payload archive there is nothing to copy from.
         var archivePath = AppPaths.GetPayloadArchivePath(sharedInstallDir);
         if (!File.Exists(archivePath))
         {
@@ -55,6 +69,7 @@ internal static class UserBootstrapper
 
         try
         {
+            // Linux restores program folders transactionally from a tarball; other platforms extract a zip.
             Directory.CreateDirectory(userAppDir);
             if (OperatingSystem.IsLinux()) ExtractUnixPayload(archivePath, userAppDir);
             else ExtractPayload(archivePath, userAppDir, logPath);
@@ -66,6 +81,7 @@ internal static class UserBootstrapper
             Log($"Bootstrap failed: {ex.Message}", logPath);
 
             // Linux profiles may already contain installed modules and models; never remove them on repair failure.
+            // Elsewhere the directory is created by this bootstrap, so the partial result is removed.
             if (!OperatingSystem.IsLinux()) TryDeleteDirectory(userAppDir);
             return false;
         }
@@ -81,6 +97,7 @@ internal static class UserBootstrapper
     {
         try
         {
+            // Store only the launcher path as compact JSON; the patcher reads it back when restarting.
             Directory.CreateDirectory(userAppDir);
             var refPath = Path.Combine(userAppDir, LauncherRefFileName);
             var json = JsonSerializer.Serialize(
@@ -110,6 +127,7 @@ internal static class UserBootstrapper
         Directory.CreateDirectory(payload);
         try
         {
+            // Unpack the tarball into the staging area only; the live directories are untouched so far.
             using (var archive = File.OpenRead(archivePath))
             using (var gzip = new GZipStream(archive, CompressionMode.Decompress))
                 TarFile.ExtractToDirectory(gzip, payload, overwriteFiles: false);
@@ -121,6 +139,7 @@ internal static class UserBootstrapper
                 folders.Any(folder => new DirectoryInfo(Path.Combine(payload, folder)).LinkTarget != null))
                 throw new InvalidOperationException("The ASLM base archive is incomplete or has an unexpected layout.");
 
+            // Swap each program folder in: move the current one aside as a backup, then move the new one in.
             foreach (var folder in folders)
             {
                 var destination = Path.Combine(userAppDir, folder);
@@ -129,6 +148,7 @@ internal static class UserBootstrapper
                     throw new IOException($"Cannot restore ASLM over a directory link: {destination}");
 
                 if (Directory.Exists(destination)) Directory.Move(destination, backup);
+
                 // Record the old directory before attempting the second rename so this step is also rolled back on failure.
                 replaced.Add(folder);
                 Directory.Move(Path.Combine(payload, folder), destination);
@@ -141,6 +161,7 @@ internal static class UserBootstrapper
             {
                 try
                 {
+                    // Set the half-installed folder aside and put the previous one back.
                     var destination = Path.Combine(userAppDir, folder);
                     if (Directory.Exists(destination)) Directory.Move(destination, Path.Combine(staging, "failed-" + folder));
                     var backup = Path.Combine(staging, "previous-" + folder);
@@ -152,10 +173,12 @@ internal static class UserBootstrapper
                     retainBackup = true;
                 }
             }
+
             throw;
         }
         finally
         {
+            // Drop the staging area unless it still holds the only copy of the previous installation.
             if (!retainBackup) TryDeleteDirectory(staging);
         }
     }
@@ -219,6 +242,9 @@ internal static class UserBootstrapper
 
         return normalizedChild.StartsWith(normalizedParent, StringComparison.OrdinalIgnoreCase);
     }
+
+
+    // Cleanup and logging
 
     /// <summary>
     /// Removes a directory tree on a best-effort basis.

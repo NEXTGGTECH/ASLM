@@ -3,8 +3,6 @@
 using System.Diagnostics;
 using System.Globalization;
 
-// Launcher entry point.
-
 /// <summary>
 /// Launches the main ASLM application and logs startup errors.
 /// </summary>
@@ -26,25 +24,66 @@ using System.Globalization;
 /// </remarks>
 internal static class Program
 {
+    // Constants and names
+
+    /// <summary>
+    /// Name of the folder inside the application root that holds the main ASLM executable.
+    /// </summary>
     private const string AppFolderName = "App";
+
+    /// <summary>
+    /// Platform-specific file name of the ASLM executable (the launcher and the application share it).
+    /// </summary>
     private static string ExeName => AppPaths.ExecutableName;
+
+    /// <summary>
+    /// File name of the launcher diagnostic log.
+    /// </summary>
     private const string LogFileName = "Launcher.log";
+
+    /// <summary>
+    /// Name of the folder inside the application root that holds the patcher helper.
+    /// </summary>
     private const string PatcherFolderName = "Patcher";
+
+    /// <summary>
+    /// Candidate patcher executable names for the current platform, in order of preference.
+    /// </summary>
     private static readonly IReadOnlyList<string> PatcherExeNames = OperatingSystem.IsLinux()
         ? ["aslm-patcher"]
         : ["ASLM Patcher.exe", "Patcher.exe"];
+
+    /// <summary>
+    /// Location of the pending update descriptor relative to the data root; its presence means that an update
+    /// must be applied.
+    /// </summary>
     private static readonly string PendingUpdateRelativePath = Path.Combine(".aslm-update", "pending.json");
+
+    /// <summary>
+    /// Argument naming the process id the launcher must wait for before it continues.
+    /// </summary>
     private const string WaitProcessArgument = "--wait-process";
+
+    /// <summary>
+    /// Argument carrying the start time (UTC ticks) of the awaited process, used to detect a reused process id.
+    /// </summary>
     private const string WaitStartArgument = "--wait-start";
+
+    /// <summary>
+    /// Patcher argument that passes the path of the launcher executable to restart after the update.
+    /// </summary>
     private const string LauncherArgument = "--launcher";
 
-    // Process startup.
+
+    // Process startup
 
     /// <summary>
     /// Resolves the target path, forwards arguments and starts the main process.
     /// </summary>
     private static void Main(string[] args)
     {
+        // Locate the shared install directory and the log. On Linux the log is kept in the per-user profile
+        // instead of next to the launcher.
         var sharedInstallDir = AppPaths.GetSharedInstallDir();
         var logPath = OperatingSystem.IsLinux()
             ? Path.Combine(AppPaths.GetUserAppDir(), ".aslm-update", "logs", LogFileName)
@@ -52,8 +91,10 @@ internal static class Program
 
         try
         {
+            // When the patcher restarted this launcher, let the previous ASLM process finish exiting first.
             WaitForRequestedProcessExit(args, logPath);
 
+            // Decide where the application lives and make sure it exists (bootstrapping it if necessary).
             string appRoot;
 
             if (AppPaths.IsMonolithicLayout(sharedInstallDir))
@@ -82,12 +123,16 @@ internal static class Program
                 UserBootstrapper.WriteLauncherRef(launcherExePath, appRoot);
             }
 
+            // A pending update takes over: the patcher replaces the application and restarts this launcher.
+            // On Linux the writable data (and the pending descriptor) lives in the user profile even when
+            // the application itself is portable.
             var dataRoot = OperatingSystem.IsLinux() ? AppPaths.GetUserAppDir() : appRoot;
             if (TryStartPendingPatcher(sharedInstallDir, appRoot, dataRoot, args, logPath))
             {
                 return;
             }
 
+            // No update to apply: start the application itself.
             StartApp(appRoot, args, logPath);
         }
         catch (Exception ex)
@@ -98,13 +143,14 @@ internal static class Program
     }
 
 
-    // Application startup.
+    // Application startup
 
     /// <summary>
     /// Starts the main ASLM application from the resolved application root directory.
     /// </summary>
     private static void StartApp(string appRoot, string[] args, string logPath)
     {
+        // Resolve the executable and stop with a logged error when the installation is incomplete.
         var targetPath = Path.Combine(appRoot, AppFolderName, ExeName);
 
         if (!File.Exists(targetPath))
@@ -114,6 +160,7 @@ internal static class Program
             return;
         }
 
+        // Run from the App folder; on Linux tell the application where this launcher is so it can restart it.
         var startInfo = new ProcessStartInfo
         {
             FileName = targetPath,
@@ -123,6 +170,7 @@ internal static class Program
         if (OperatingSystem.IsLinux())
             startInfo.Environment["ASLM_LAUNCHER_PATH"] = Path.Combine(AppPaths.GetSharedInstallDir(), ExeName);
 
+        // Pass the user's arguments through without the launcher-only restart arguments.
         AppendForwardedArguments(startInfo, args);
 
         var process = Process.Start(startInfo);
@@ -134,7 +182,7 @@ internal static class Program
     }
 
 
-    // Patcher startup.
+    // Patcher startup
 
     /// <summary>
     /// Starts the external patcher from a temporary shadow copy when a self-update is pending.
@@ -144,15 +192,19 @@ internal static class Program
     /// <param name="dataRoot">The writable profile containing the pending update.</param>
     /// <param name="args">Arguments forwarded after the update.</param>
     /// <param name="logPath">The launcher diagnostic log.</param>
+    /// <returns>True when the patcher was started and this launcher must exit; false when the application should
+    /// start normally.</returns>
     internal static bool TryStartPendingPatcher(string sharedInstallDir, string appRoot, string dataRoot,
         string[] args, string logPath)
     {
+        // Nothing to do unless an update was staged and left a pending descriptor.
         var pendingPath = Path.Combine(dataRoot, PendingUpdateRelativePath);
         if (!File.Exists(pendingPath))
         {
             return false;
         }
 
+        // Without a patcher the update cannot be applied; the application then starts as it is.
         var patcherDir = Path.Combine(appRoot, PatcherFolderName);
         var patcherExeName = ResolvePatcherExecutableName(patcherDir);
         if (string.IsNullOrWhiteSpace(patcherExeName))
@@ -167,6 +219,7 @@ internal static class Program
         string? shadowDir = null;
         try
         {
+            // Run the patcher from a temporary copy so it can overwrite the Patcher folder it was started from.
             shadowDir = Path.Combine(Path.GetTempPath(), "Patcher_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(shadowDir);
 
@@ -175,6 +228,7 @@ internal static class Program
             var shadowPatcher = Path.Combine(shadowDir, patcherExeName);
             var launcherExePath = Path.Combine(sharedInstallDir, ExeName);
 
+            // Tell the patcher which profile to update and which launcher to restart afterwards.
             var startInfo = new ProcessStartInfo
             {
                 FileName = shadowPatcher,
@@ -185,15 +239,20 @@ internal static class Program
             startInfo.ArgumentList.Add(dataRoot);
             startInfo.ArgumentList.Add(LauncherArgument);
             startInfo.ArgumentList.Add(launcherExePath);
+
             // The helper must outlive this launcher before replacing its executable as part of the payload.
+            // The start time guards against waiting for another process that reuses this process id.
             using var current = Process.GetCurrentProcess();
             startInfo.ArgumentList.Add(WaitProcessArgument);
             startInfo.ArgumentList.Add(current.Id.ToString(CultureInfo.InvariantCulture));
             startInfo.ArgumentList.Add(WaitStartArgument);
             startInfo.ArgumentList.Add(current.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture));
             startInfo.ArgumentList.Add("--");
+
+            // Everything after "--" is handed back to the restarted launcher unchanged.
             AppendForwardedArguments(startInfo, args);
 
+            // Start the helper; this launcher then exits so its own files can be replaced.
             if (Process.Start(startInfo) == null)
             {
                 throw new InvalidOperationException("Failed to start patcher (Process.Start returned null).");
@@ -210,19 +269,22 @@ internal static class Program
                 try { Directory.Delete(shadowDir, recursive: true); }
                 catch { /* Preserve the original startup error when temporary cleanup fails. */ }
             }
+
+            // Fall back to a normal application start instead of blocking the user on a failed update hand-off.
             Log("Failed to start patcher: " + ex, logPath);
             return false;
         }
     }
 
 
-    // Process wait.
+    // Process wait
 
     /// <summary>
     /// Waits for the previous ASLM process to exit before applying a pending update.
     /// </summary>
     internal static void WaitForRequestedProcessExit(string[] args, string logPath)
     {
+        // Nothing to wait for unless the launcher was restarted with a process id.
         var index = Array.IndexOf(args, WaitProcessArgument);
         if (index < 0) return;
         if (index + 1 >= args.Length || !int.TryParse(args[index + 1], out var processId) || processId <= 0)
@@ -239,6 +301,8 @@ internal static class Program
             started = ticks;
         }
 
+        // Wait up to a minute; a different start time means the process id now belongs to someone else,
+        // and a process that is already gone needs no waiting.
         try
         {
             using var process = Process.GetProcessById(processId);
@@ -252,7 +316,7 @@ internal static class Program
     }
 
 
-    // Argument forwarding.
+    // Argument forwarding
 
     /// <summary>
     /// Forwards user arguments to ASLM while removing launcher-only restart arguments.
@@ -261,6 +325,7 @@ internal static class Program
     {
         for (var index = 0; index < args.Length; index++)
         {
+            // Skip each restart argument together with its value.
             if (string.Equals(args[index], WaitProcessArgument, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[index], WaitStartArgument, StringComparison.OrdinalIgnoreCase))
             {
@@ -273,7 +338,7 @@ internal static class Program
     }
 
 
-    // Patcher helpers.
+    // Patcher helpers
 
     /// <summary>
     /// Returns the available patcher executable name from the known candidates.
@@ -298,12 +363,14 @@ internal static class Program
     {
         Directory.CreateDirectory(destDir);
 
+        // Recreate the folder structure first, including empty folders.
         foreach (var directory in Directory.EnumerateDirectories(sourceDir, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(sourceDir, directory);
             Directory.CreateDirectory(Path.Combine(destDir, relative));
         }
 
+        // Copy the files, preserving Unix permissions so the copied patcher stays executable.
         foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(sourceDir, file);
@@ -315,7 +382,7 @@ internal static class Program
     }
 
 
-    // Logging.
+    // Logging
 
     /// <summary>
     /// Appends a timestamped message to the launcher log.

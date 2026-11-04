@@ -5,220 +5,293 @@ using System.IO.Compression;
 using System.Text.Json;
 using FluentAssertions;
 
-namespace ASLM.Launcher.Tests;
-
-/// <summary>
-/// Verifies launcher layout resolution, per-user bootstrapping from the payload archive,
-/// argument forwarding, and the pending-update hand-off gates.
-/// </summary>
-public sealed class LauncherTests : IDisposable
+namespace ASLM.Launcher.Tests
 {
-    private readonly string _root;
-
-    public LauncherTests()
+    /// <summary>
+    /// Verifies launcher layout resolution, per-user bootstrapping from the payload archive,
+    /// argument forwarding, and the pending-update hand-off gates.
+    /// </summary>
+    public sealed class LauncherTests : IDisposable
     {
-        _root = Path.Combine(Path.GetTempPath(), "ASLM-Launcher-Tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_root);
-    }
+        // Fixture
 
-    public void Dispose()
-    {
-        try
+        /// <summary>
+        /// Unique temporary directory that isolates the files of one test instance.
+        /// </summary>
+        private readonly string _root;
+
+        /// <summary>
+        /// Creates the temporary directory used by the test.
+        /// </summary>
+        public LauncherTests()
         {
-            Directory.Delete(_root, recursive: true);
-        }
-        catch
-        {
-            // Best effort cleanup.
-        }
-    }
-
-    [Fact]
-    public void Monolithic_layout_is_detected_by_the_app_executable_next_to_the_launcher()
-    {
-        var monolithic = Path.Combine(_root, "monolithic");
-        Directory.CreateDirectory(Path.Combine(monolithic, "App"));
-        File.WriteAllText(Path.Combine(monolithic, "App", AppPaths.ExecutableName), "app");
-        Directory.CreateDirectory(Path.Combine(_root, "dual"));
-
-        AppPaths.IsMonolithicLayout(monolithic).Should().BeTrue();
-        AppPaths.IsMonolithicLayout(Path.Combine(_root, "dual")).Should().BeFalse();
-    }
-
-    [Fact]
-    public void Payload_archive_name_follows_the_platform()
-    {
-        var expected = OperatingSystem.IsLinux() ? "aslm-base.tar.gz" : "aslm-base.zip";
-        AppPaths.GetPayloadArchivePath(_root).Should().Be(Path.Combine(_root, expected));
-    }
-
-    [Fact]
-    public void User_app_dir_readiness_requires_the_app_executable()
-    {
-        var userDir = Path.Combine(_root, "user");
-        UserBootstrapper.IsUserAppDirReady(userDir).Should().BeFalse();
-
-        Directory.CreateDirectory(Path.Combine(userDir, "App"));
-        File.WriteAllText(Path.Combine(userDir, "App", AppPaths.ExecutableName), "app");
-        if (OperatingSystem.IsLinux())
-        {
-            UserBootstrapper.IsUserAppDirReady(userDir).Should().BeFalse("linux also needs the runtime libraries");
-        }
-        else
-        {
-            UserBootstrapper.IsUserAppDirReady(userDir).Should().BeTrue();
-        }
-    }
-
-    [Fact]
-    public void Launcher_ref_round_trips_the_shared_launcher_path()
-    {
-        var userDir = Path.Combine(_root, "user");
-        var launcherPath = Path.Combine(_root, "shared", AppPaths.ExecutableName);
-
-        UserBootstrapper.WriteLauncherRef(launcherPath, userDir);
-
-        var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(userDir, "launcher-ref.json")));
-        json.RootElement.GetProperty("launcherPath").GetString().Should().Be(launcherPath);
-    }
-
-    [Fact]
-    public void Bootstrap_extracts_the_payload_but_never_a_second_launcher_or_unsafe_entries()
-    {
-        var shared = Path.Combine(_root, "shared");
-        var user = Path.Combine(_root, "user");
-        Directory.CreateDirectory(Path.Combine(shared, "App"));
-        Directory.CreateDirectory(user);
-        var archivePath = AppPaths.GetPayloadArchivePath(shared);
-        using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
-        {
-            WriteEntry(archive, "App/ASLM.dll", "payload-app");
-            WriteEntry(archive, "Patcher/patcher.dll", "patcher");
-            // The root launcher must not be extracted a second time into the user dir.
-            WriteEntry(archive, AppPaths.ExecutableName, "shared-launcher");
-            // Escaping entries are skipped, not extracted.
-            WriteEntry(archive, "../outside.txt", "escaped");
+            _root = Path.Combine(Path.GetTempPath(), "ASLM-Launcher-Tests", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_root);
         }
 
-        UserBootstrapper.TryBootstrap(shared, user, Path.Combine(_root, "Launcher.log")).Should().BeTrue();
-
-        File.ReadAllText(Path.Combine(user, "App", "ASLM.dll")).Should().Be("payload-app");
-        File.ReadAllText(Path.Combine(user, "Patcher", "patcher.dll")).Should().Be("patcher");
-        File.Exists(Path.Combine(user, AppPaths.ExecutableName)).Should().BeFalse();
-        File.Exists(Path.Combine(_root, "outside.txt")).Should().BeFalse();
-    }
-
-    [Fact]
-    public void Bootstrap_failure_on_windows_removes_the_partial_user_directory()
-    {
-        if (OperatingSystem.IsLinux())
+        /// <summary>
+        /// Removes the temporary directory created for the test.
+        /// </summary>
+        public void Dispose()
         {
-            // Linux bootstrapping is transactional per folder and never deletes profile data.
-            return;
+            try
+            {
+                Directory.Delete(_root, recursive: true);
+            }
+            catch
+            {
+                // Best effort cleanup.
+            }
         }
 
-        var shared = Path.Combine(_root, "broken");
-        Directory.CreateDirectory(shared);
-        File.WriteAllText(AppPaths.GetPayloadArchivePath(shared), "not a zip at all");
-        var user = Path.Combine(_root, "user");
 
-        UserBootstrapper.TryBootstrap(shared, user, Path.Combine(_root, "Launcher.log")).Should().BeFalse();
-        Directory.Exists(user).Should().BeFalse("a partial bootstrap must not look installed");
-    }
+        // Layout and paths
 
-    [Fact]
-    public void Bootstrap_without_a_payload_archive_fails_without_touching_the_user_dir()
-    {
-        var shared = Path.Combine(_root, "empty-shared");
-        var user = Path.Combine(_root, "untouched");
-        Directory.CreateDirectory(shared);
-
-        UserBootstrapper.TryBootstrap(shared, user, Path.Combine(_root, "Launcher.log")).Should().BeFalse();
-        Directory.Exists(user).Should().BeFalse();
-    }
-
-    [Fact]
-    public void Forwarded_arguments_drop_launcher_restart_pairs_and_keep_user_arguments()
-    {
-        var startInfo = new ProcessStartInfo("dotnet");
-        var args = new[]
+        /// <summary>
+        /// Verifies that a directory counts as the monolithic layout only when the application executable sits
+        /// in its App folder.
+        /// </summary>
+        [Fact]
+        public void Monolithic_layout_is_detected_by_the_app_executable_next_to_the_launcher()
         {
-            "--wait-process", "1234",
-            "--wait-start", "638500000000000000",
-            "--user-flag", "value with spaces",
-            "--launcher"
-        };
+            var monolithic = Path.Combine(_root, "monolithic");
+            Directory.CreateDirectory(Path.Combine(monolithic, "App"));
+            File.WriteAllText(Path.Combine(monolithic, "App", AppPaths.ExecutableName), "app");
+            Directory.CreateDirectory(Path.Combine(_root, "dual"));
 
-        Program.AppendForwardedArguments(startInfo, args);
-
-        startInfo.ArgumentList.Should().Equal("--user-flag", "value with spaces", "--launcher");
-    }
-
-    [Fact]
-    public async Task Wait_for_process_exit_honors_the_process_start_identity()
-    {
-        var logPath = Path.Combine(_root, "Launcher.log");
-
-        // No restart arguments: a no-op.
-        Program.WaitForRequestedProcessExit([], logPath);
-
-        // Invalid ids are rejected outright.
-        var act = () => Program.WaitForRequestedProcessExit(["--wait-process", "not-a-pid"], logPath);
-        act.Should().Throw<ArgumentException>();
-
-        using var process = Process.Start(new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            Arguments = "-NoProfile -NonInteractive -Command Start-Sleep -Seconds 30",
-            UseShellExecute = false
-        });
-        process.Should().NotBeNull();
-        try
-        {
-            // A mismatched start time means the PID was reused: never wait for the wrong process.
-            var staleTicks = process.StartTime.ToUniversalTime().Ticks - TimeSpan.FromDays(1).Ticks;
-            Program.WaitForRequestedProcessExit(
-                ["--wait-process", process.Id.ToString(), "--wait-start", staleTicks.ToString()],
-                logPath);
-            process.HasExited.Should().BeFalse("identity mismatch must return immediately");
-
-            // A matching identity waits for the real exit.
-            var matching = Task.Run(() => Program.WaitForRequestedProcessExit(
-                ["--wait-process", process.Id.ToString(), "--wait-start",
-                    process.StartTime.ToUniversalTime().Ticks.ToString()],
-                logPath));
-            process.Kill();
-            await matching.WaitAsync(TimeSpan.FromSeconds(10));
+            AppPaths.IsMonolithicLayout(monolithic).Should().BeTrue();
+            AppPaths.IsMonolithicLayout(Path.Combine(_root, "dual")).Should().BeFalse();
         }
-        finally
+
+        /// <summary>
+        /// Verifies that the payload archive is a tarball on Linux and a zip on the other platforms.
+        /// </summary>
+        [Fact]
+        public void Payload_archive_name_follows_the_platform()
         {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
-            process.WaitForExit();
+            var expected = OperatingSystem.IsLinux() ? "aslm-base.tar.gz" : "aslm-base.zip";
+            AppPaths.GetPayloadArchivePath(_root).Should().Be(Path.Combine(_root, expected));
         }
-    }
 
-    [Fact]
-    public void Pending_update_handoff_requires_a_patcher_executable()
-    {
-        var appRoot = Path.Combine(_root, "app");
-        Directory.CreateDirectory(appRoot);
-        Directory.CreateDirectory(Path.Combine(appRoot, ".aslm-update"));
-        File.WriteAllText(Path.Combine(appRoot, ".aslm-update", "pending.json"), "{}");
-        var logPath = Path.Combine(_root, "Launcher.log");
 
-        // No Patcher directory at all.
-        Program.TryStartPendingPatcher(_root, appRoot, appRoot, [], logPath).Should().BeFalse();
+        // User directory bootstrapping
 
-        // A Patcher directory without a known executable also declines.
-        Directory.CreateDirectory(Path.Combine(appRoot, "Patcher"));
-        Program.TryStartPendingPatcher(_root, appRoot, appRoot, [], logPath).Should().BeFalse();
-        File.ReadAllText(logPath).Should().Contain("patcher is missing");
-    }
+        /// <summary>
+        /// Verifies that the user directory is not ready without the application executable and, on Linux,
+        /// also not without the runtime libraries.
+        /// </summary>
+        [Fact]
+        public void User_app_dir_readiness_requires_the_app_executable()
+        {
+            var userDir = Path.Combine(_root, "user");
+            UserBootstrapper.IsUserAppDirReady(userDir).Should().BeFalse();
 
-    private static void WriteEntry(ZipArchive archive, string path, string content)
-    {
-        var entry = archive.CreateEntry(path);
-        using var writer = new StreamWriter(entry.Open());
-        writer.Write(content);
+            Directory.CreateDirectory(Path.Combine(userDir, "App"));
+            File.WriteAllText(Path.Combine(userDir, "App", AppPaths.ExecutableName), "app");
+            if (OperatingSystem.IsLinux())
+            {
+                UserBootstrapper.IsUserAppDirReady(userDir).Should().BeFalse("linux also needs the runtime libraries");
+            }
+            else
+            {
+                UserBootstrapper.IsUserAppDirReady(userDir).Should().BeTrue();
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the launcher reference file stores the shared launcher path as JSON.
+        /// </summary>
+        [Fact]
+        public void Launcher_ref_round_trips_the_shared_launcher_path()
+        {
+            var userDir = Path.Combine(_root, "user");
+            var launcherPath = Path.Combine(_root, "shared", AppPaths.ExecutableName);
+
+            UserBootstrapper.WriteLauncherRef(launcherPath, userDir);
+
+            var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(userDir, "launcher-ref.json")));
+            json.RootElement.GetProperty("launcherPath").GetString().Should().Be(launcherPath);
+        }
+
+        /// <summary>
+        /// Verifies that bootstrapping extracts the program folders but skips the root launcher executable and
+        /// archive entries that would escape the target directory.
+        /// </summary>
+        [Fact]
+        public void Bootstrap_extracts_the_payload_but_never_a_second_launcher_or_unsafe_entries()
+        {
+            // Arrange: a shared directory whose payload archive also holds a launcher and an escaping entry.
+            var shared = Path.Combine(_root, "shared");
+            var user = Path.Combine(_root, "user");
+            Directory.CreateDirectory(Path.Combine(shared, "App"));
+            Directory.CreateDirectory(user);
+            var archivePath = AppPaths.GetPayloadArchivePath(shared);
+            using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+            {
+                WriteEntry(archive, "App/ASLM.dll", "payload-app");
+                WriteEntry(archive, "Patcher/patcher.dll", "patcher");
+
+                // The root launcher must not be extracted a second time into the user dir.
+                WriteEntry(archive, AppPaths.ExecutableName, "shared-launcher");
+
+                // Escaping entries are skipped, not extracted.
+                WriteEntry(archive, "../outside.txt", "escaped");
+            }
+
+            // Act: bootstrap the user directory from the archive.
+            UserBootstrapper.TryBootstrap(shared, user, Path.Combine(_root, "Launcher.log")).Should().BeTrue();
+
+            // Assert: only the program files arrived and nothing was written outside the user directory.
+            File.ReadAllText(Path.Combine(user, "App", "ASLM.dll")).Should().Be("payload-app");
+            File.ReadAllText(Path.Combine(user, "Patcher", "patcher.dll")).Should().Be("patcher");
+            File.Exists(Path.Combine(user, AppPaths.ExecutableName)).Should().BeFalse();
+            File.Exists(Path.Combine(_root, "outside.txt")).Should().BeFalse();
+        }
+
+        /// <summary>
+        /// Verifies that outside Linux a failed bootstrap leaves no partial user directory behind.
+        /// </summary>
+        [Fact]
+        public void Bootstrap_failure_on_windows_removes_the_partial_user_directory()
+        {
+            if (OperatingSystem.IsLinux())
+            {
+                // Linux bootstrapping is transactional per folder and never deletes profile data.
+                return;
+            }
+
+            var shared = Path.Combine(_root, "broken");
+            Directory.CreateDirectory(shared);
+            File.WriteAllText(AppPaths.GetPayloadArchivePath(shared), "not a zip at all");
+            var user = Path.Combine(_root, "user");
+
+            UserBootstrapper.TryBootstrap(shared, user, Path.Combine(_root, "Launcher.log")).Should().BeFalse();
+            Directory.Exists(user).Should().BeFalse("a partial bootstrap must not look installed");
+        }
+
+        /// <summary>
+        /// Verifies that bootstrapping fails without creating the user directory when the payload archive is missing.
+        /// </summary>
+        [Fact]
+        public void Bootstrap_without_a_payload_archive_fails_without_touching_the_user_dir()
+        {
+            var shared = Path.Combine(_root, "empty-shared");
+            var user = Path.Combine(_root, "untouched");
+            Directory.CreateDirectory(shared);
+
+            UserBootstrapper.TryBootstrap(shared, user, Path.Combine(_root, "Launcher.log")).Should().BeFalse();
+            Directory.Exists(user).Should().BeFalse();
+        }
+
+
+        // Argument forwarding and process wait
+
+        /// <summary>
+        /// Verifies that the restart arguments with their values are removed while the user's arguments,
+        /// including a trailing flag, are kept in order.
+        /// </summary>
+        [Fact]
+        public void Forwarded_arguments_drop_launcher_restart_pairs_and_keep_user_arguments()
+        {
+            var startInfo = new ProcessStartInfo("dotnet");
+            var args = new[]
+            {
+                "--wait-process", "1234",
+                "--wait-start", "638500000000000000",
+                "--user-flag", "value with spaces",
+                "--launcher"
+            };
+
+            Program.AppendForwardedArguments(startInfo, args);
+
+            startInfo.ArgumentList.Should().Equal("--user-flag", "value with spaces", "--launcher");
+        }
+
+        /// <summary>
+        /// Verifies that waiting for a process exit does nothing without a request, rejects an invalid process id,
+        /// returns at once when the start time does not match, and waits for a matching process to exit.
+        /// </summary>
+        [Fact]
+        public async Task Wait_for_process_exit_honors_the_process_start_identity()
+        {
+            // Arrange the log location, then check the cases that need no real process.
+            var logPath = Path.Combine(_root, "Launcher.log");
+
+            // No restart arguments: a no-op.
+            Program.WaitForRequestedProcessExit([], logPath);
+
+            // Invalid ids are rejected outright.
+            var act = () => Program.WaitForRequestedProcessExit(["--wait-process", "not-a-pid"], logPath);
+            act.Should().Throw<ArgumentException>();
+
+            // Start a long-running child process whose identity (id and start time) the launcher is told to wait for.
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = "-NoProfile -NonInteractive -Command Start-Sleep -Seconds 30",
+                UseShellExecute = false
+            });
+            process.Should().NotBeNull();
+            try
+            {
+                // A mismatched start time means the PID was reused: never wait for the wrong process.
+                var staleTicks = process.StartTime.ToUniversalTime().Ticks - TimeSpan.FromDays(1).Ticks;
+                Program.WaitForRequestedProcessExit(
+                    ["--wait-process", process.Id.ToString(), "--wait-start", staleTicks.ToString()],
+                    logPath);
+                process.HasExited.Should().BeFalse("identity mismatch must return immediately");
+
+                // A matching identity waits for the real exit.
+                var matching = Task.Run(() => Program.WaitForRequestedProcessExit(
+                    ["--wait-process", process.Id.ToString(), "--wait-start",
+                        process.StartTime.ToUniversalTime().Ticks.ToString()],
+                    logPath));
+                process.Kill();
+                await matching.WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            finally
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                process.WaitForExit();
+            }
+        }
+
+
+        // Pending update hand-off
+
+        /// <summary>
+        /// Verifies that a pending update is not handed off, and the missing patcher is logged, while no known
+        /// patcher executable exists.
+        /// </summary>
+        [Fact]
+        public void Pending_update_handoff_requires_a_patcher_executable()
+        {
+            var appRoot = Path.Combine(_root, "app");
+            Directory.CreateDirectory(appRoot);
+            Directory.CreateDirectory(Path.Combine(appRoot, ".aslm-update"));
+            File.WriteAllText(Path.Combine(appRoot, ".aslm-update", "pending.json"), "{}");
+            var logPath = Path.Combine(_root, "Launcher.log");
+
+            // No Patcher directory at all.
+            Program.TryStartPendingPatcher(_root, appRoot, appRoot, [], logPath).Should().BeFalse();
+
+            // A Patcher directory without a known executable also declines.
+            Directory.CreateDirectory(Path.Combine(appRoot, "Patcher"));
+            Program.TryStartPendingPatcher(_root, appRoot, appRoot, [], logPath).Should().BeFalse();
+            File.ReadAllText(logPath).Should().Contain("patcher is missing");
+        }
+
+
+        // Helpers
+
+        /// <summary>
+        /// Adds a text entry with the given archive path and content to the archive.
+        /// </summary>
+        private static void WriteEntry(ZipArchive archive, string path, string content)
+        {
+            var entry = archive.CreateEntry(path);
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write(content);
+        }
     }
 }
