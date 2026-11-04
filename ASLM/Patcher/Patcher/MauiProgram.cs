@@ -2,25 +2,26 @@
 
 using Microsoft.Extensions.Logging;
 
-namespace ASLM.Patcher;
-
-/// <summary>
-/// Creates the MAUI host used by the standalone patcher.
-/// </summary>
-public static class MauiProgram
+namespace ASLM.Patcher
 {
     /// <summary>
-    /// Configures the patcher MAUI application.
+    /// Creates the MAUI host used by the standalone patcher.
     /// </summary>
-    public static MauiApp CreateMauiApp()
+    public static class MauiProgram
     {
-        var builder = MauiApp.CreateBuilder();
-        builder.UseMauiApp<App>();
+        /// <summary>
+        /// Configures the patcher MAUI application.
+        /// </summary>
+        public static MauiApp CreateMauiApp()
+        {
+            var builder = MauiApp.CreateBuilder();
+            builder.UseMauiApp<App>();
 
 #if DEBUG
-        builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
 
-        return builder.Build();
+            return builder.Build();
+        }
     }
 }
