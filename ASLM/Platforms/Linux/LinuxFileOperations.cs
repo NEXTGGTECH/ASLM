@@ -2,33 +2,39 @@
 
 using System.Diagnostics;
 
-namespace ASLM.Services.Internal;
-
-/// <summary>
-/// Provides filesystem operations that must also work between a native Linux temp directory and another mount.
-/// </summary>
-internal static class LinuxFileOperations
+namespace ASLM.Services.Internal
 {
     /// <summary>
-    /// Moves a runtime while preserving symlinks and permissions, including moves across filesystem boundaries.
+    /// Provides filesystem operations that must also work between a native Linux temp directory and another mount.
     /// </summary>
-    internal static void MoveDirectory(string source, string destination)
+    internal static class LinuxFileOperations
     {
-        // Coreutils handles EXDEV by copying metadata and links before removing the source. Directory.Move
-        // cannot perform that fallback when, for example, /tmp and a portable installation use different mounts.
-        var start = new ProcessStartInfo("/bin/mv")
+        /// <summary>
+        /// Moves a runtime while preserving symlinks and permissions, including moves across filesystem boundaries.
+        /// </summary>
+        internal static void MoveDirectory(string source, string destination)
         {
-            UseShellExecute = false,
-            RedirectStandardError = true
-        };
-        start.ArgumentList.Add("-T");
-        start.ArgumentList.Add("--");
-        start.ArgumentList.Add(source);
-        start.ArgumentList.Add(destination);
-        using var process = Process.Start(start) ?? throw new IOException("Could not start the directory move.");
-        var error = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-        if (process.ExitCode != 0)
-            throw new IOException($"Could not move '{source}' to '{destination}': {error.Trim()}");
+            // Coreutils handles EXDEV by copying metadata and links before removing the source. Directory.Move
+            // cannot perform that fallback when, for example, /tmp and a portable installation use different mounts.
+            var start = new ProcessStartInfo("/bin/mv")
+            {
+                UseShellExecute = false,
+                RedirectStandardError = true
+            };
+
+            // "-T" treats the destination as the final path (never as a parent directory to move into) and
+            // "--" ends option parsing, so a path that starts with a dash cannot be read as an option.
+            start.ArgumentList.Add("-T");
+            start.ArgumentList.Add("--");
+            start.ArgumentList.Add(source);
+            start.ArgumentList.Add(destination);
+
+            // Wait for the move and report mv's own error text when it fails.
+            using var process = Process.Start(start) ?? throw new IOException("Could not start the directory move.");
+            var error = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+            if (process.ExitCode != 0)
+                throw new IOException($"Could not move '{source}' to '{destination}': {error.Trim()}");
+        }
     }
 }

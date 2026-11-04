@@ -2,49 +2,57 @@
 
 using System.Globalization;
 
-namespace ASLM.Services.Internal;
-
-/// <summary>
-/// Reads parent-child process relationships from procfs without spawning shell commands.
-/// </summary>
-internal static class LinuxProcessSnapshot
+namespace ASLM.Services.Internal
 {
     /// <summary>
-    /// Captures visible Linux processes while tolerating processes exiting during enumeration.
+    /// Reads parent-child process relationships from procfs without spawning shell commands.
     /// </summary>
-    internal static IReadOnlyList<ProcessSnapshotEntry> Capture(string procRoot = "/proc")
+    internal static class LinuxProcessSnapshot
     {
-        var entries = new List<ProcessSnapshotEntry>();
-        foreach (var directory in Directory.EnumerateDirectories(procRoot))
+        /// <summary>
+        /// Captures visible Linux processes while tolerating processes exiting during enumeration.
+        /// </summary>
+        internal static IReadOnlyList<ProcessSnapshotEntry> Capture(string procRoot = "/proc")
         {
-            if (!int.TryParse(Path.GetFileName(directory), NumberStyles.None, CultureInfo.InvariantCulture, out _)) continue;
-            try
+            var entries = new List<ProcessSnapshotEntry>();
+
+            // Every numeric directory under procfs is a process; its stat file holds PID, command and parent PID.
+            foreach (var directory in Directory.EnumerateDirectories(procRoot))
             {
-                if (TryParse(File.ReadAllText(Path.Combine(directory, "stat")), out var entry)) entries.Add(entry!);
+                if (!int.TryParse(Path.GetFileName(directory), NumberStyles.None, CultureInfo.InvariantCulture, out _)) continue;
+                try
+                {
+                    if (TryParse(File.ReadAllText(Path.Combine(directory, "stat")), out var entry)) entries.Add(entry!);
+                }
+                catch (IOException) { /* A process can exit before its stat file is read. */ }
+                catch (UnauthorizedAccessException) { /* Procfs may hide processes belonging to other users. */ }
             }
-            catch (IOException) { /* A process can exit before its stat file is read. */ }
-            catch (UnauthorizedAccessException) { /* Procfs may hide processes belonging to other users. */ }
+
+            return entries;
         }
-        return entries;
-    }
 
-    /// <summary>
-    /// Extracts PID, command and parent PID without splitting command names containing spaces or parentheses.
-    /// </summary>
-    internal static bool TryParse(string stat, out ProcessSnapshotEntry? entry)
-    {
-        entry = null;
-        var open = stat.IndexOf('(');
-        var close = stat.LastIndexOf(')');
-        if (open <= 0 || close <= open || close + 2 >= stat.Length) return false;
-        if (!int.TryParse(stat.AsSpan(0, open).Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var pid) || pid <= 0)
-            return false;
+        /// <summary>
+        /// Extracts PID, command and parent PID without splitting command names containing spaces or parentheses.
+        /// </summary>
+        internal static bool TryParse(string stat, out ProcessSnapshotEntry? entry)
+        {
+            entry = null;
 
-        // Fields after comm begin with state and ppid. Later numeric fields are irrelevant to the snapshot.
-        var fields = stat[(close + 1)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (fields.Length < 2 || fields[0].Length != 1 ||
-            !int.TryParse(fields[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parent)) return false;
-        entry = new ProcessSnapshotEntry(pid, parent, stat[(open + 1)..close]);
-        return true;
+            // The command name sits between the first '(' and the last ')' and may itself contain spaces or
+            // parentheses, so those two positions delimit it. The PID precedes it.
+            var open = stat.IndexOf('(');
+            var close = stat.LastIndexOf(')');
+            if (open <= 0 || close <= open || close + 2 >= stat.Length) return false;
+            if (!int.TryParse(stat.AsSpan(0, open).Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var pid) || pid <= 0)
+                return false;
+
+            // Fields after comm begin with state and ppid. Later numeric fields are irrelevant to the snapshot.
+            var fields = stat[(close + 1)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length < 2 || fields[0].Length != 1 ||
+                !int.TryParse(fields[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parent)) return false;
+
+            entry = new ProcessSnapshotEntry(pid, parent, stat[(open + 1)..close]);
+            return true;
+        }
     }
 }
