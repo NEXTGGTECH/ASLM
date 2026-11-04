@@ -11,15 +11,55 @@ namespace ASLM.Controls.Downloads
     /// </summary>
     public partial class ModulesDownloadsView : ContentView, ILocalizable
     {
+        // Fields
+
+        /// <summary>
+        /// Installer that discovers available modules and reports installation changes, or null before
+        /// <see cref="Initialize"/>.
+        /// </summary>
         private ModuleInstaller? _installer;
+
+        /// <summary>
+        /// Trust service that resolves the trust state shown on each card, or null before <see cref="Initialize"/>.
+        /// </summary>
         private ModuleTrustService? _trust;
+
+        /// <summary>
+        /// Update manager that supplies catalog defaults and card version data, or null before
+        /// <see cref="Initialize"/>.
+        /// </summary>
         private UpdateManager? _updates;
+
+        /// <summary>
+        /// All available module cards of the last refresh, before the search filter is applied.
+        /// </summary>
         private List<ModuleCatalogCardViewModel> _catalog = [];
+
+        /// <summary>
+        /// Sequence number of the latest refresh; results of older refreshes are discarded.
+        /// </summary>
         private int _refreshVersion;
+
+        /// <summary>
+        /// Cancellation source of the refresh that is currently running, or null when idle.
+        /// </summary>
         private CancellationTokenSource? _refreshCts;
 
+
+        // Properties and events
+
+        /// <summary>
+        /// Cards shown in the list, which is the catalog narrowed by the current search text.
+        /// </summary>
         public ObservableCollection<ModuleCatalogCardViewModel> Modules { get; } = [];
+
+        /// <summary>
+        /// Raised when the user selects a module card to open its details.
+        /// </summary>
         public event EventHandler<ModuleConfig>? ModuleSelected;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the built-in modules download surface defined by XAML.
@@ -27,6 +67,8 @@ namespace ASLM.Controls.Downloads
         public ModulesDownloadsView()
         {
             InitializeComponent();
+
+            // The catalog follows installation changes only while the view is on screen.
             Loaded += (_, _) =>
             {
                 if (_installer != null)
@@ -46,6 +88,10 @@ namespace ASLM.Controls.Downloads
         /// <summary>
         /// Attaches the shared catalog, presentation and localization services.
         /// </summary>
+        /// <param name="installer">Source of the available modules and of installation change notifications.</param>
+        /// <param name="trust">Resolves the trust information shown on each card.</param>
+        /// <param name="localization">Localization service that refreshes this view on language changes.</param>
+        /// <param name="updates">Provides catalog defaults and version data for the cards.</param>
         internal void Initialize(ModuleInstaller installer, ModuleTrustService trust, AppLocalizationService localization,
             UpdateManager updates)
         {
@@ -54,6 +100,9 @@ namespace ASLM.Controls.Downloads
             _updates = updates;
             LocalizableAttach.Hook(this, localization, this);
         }
+
+
+        // Localization
 
         /// <summary>
         /// Refreshes the catalog labels and translated card badges.
@@ -66,30 +115,42 @@ namespace ASLM.Controls.Downloads
             ApplySearch();
         }
 
+
+        // Catalog loading
+
         /// <summary>
         /// Rebuilds the available catalog and publishes each card's presentation independently.
         /// </summary>
         internal async Task RefreshAsync()
         {
             if (_installer == null) return;
+
+            // A newer refresh supersedes the running one: cancel it and let its results be discarded.
             var version = ++_refreshVersion;
             _refreshCts?.Cancel();
             using var cts = new CancellationTokenSource();
             _refreshCts = cts;
             try
             {
+                // Discover off the UI thread, then build one card per available module.
                 var modules = await Task.Run(_installer.DiscoverAvailableModulesAsync);
                 if (version != _refreshVersion || cts.IsCancellationRequested) return;
                 foreach (var module in modules) _updates!.ApplyCatalogDefaults(module, installed: false);
                 _catalog = modules.Select(module => new ModuleCatalogCardViewModel(module, _trust!.Resolve(module), _installer)).ToList();
                 EmptyLabel.Text = L.Get(LocalizationKeys.Downloads_NoItems);
                 ApplySearch();
+
                 // Each card publishes its icon and version independently, as soon as either is ready.
                 await Task.WhenAll(_catalog.Select(card => card.RefreshPresentationAsync(_updates!, cts.Token)));
             }
-            catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                // A newer refresh or unloading cancelled this one on purpose, so there is nothing to report.
+            }
             catch (Exception)
             {
+                // A superseded refresh must not clobber the list; otherwise show an empty catalog with the
+                // failure text.
                 if (version != _refreshVersion) return;
                 _catalog = [];
                 Modules.Clear();
@@ -98,6 +159,7 @@ namespace ASLM.Controls.Downloads
             }
             finally
             {
+                // Only the latest refresh owns the shared cancellation source.
                 if (ReferenceEquals(_refreshCts, cts)) _refreshCts = null;
             }
         }
@@ -107,6 +169,9 @@ namespace ASLM.Controls.Downloads
         /// </summary>
         private void OnModulesChanged(object? sender, EventArgs e) =>
             MainThread.BeginInvokeOnMainThread(async () => await RefreshAsync());
+
+
+        // Search and selection
 
         /// <summary>
         /// Applies the search text without repeating repository lookups.
@@ -118,6 +183,7 @@ namespace ASLM.Controls.Downloads
         /// </summary>
         private void ApplySearch()
         {
+            // Rebuild the visible list from the cached catalog; an empty query matches every card.
             var query = SearchEntry.Text?.Trim() ?? string.Empty;
             Modules.Clear();
             foreach (var card in _catalog.Where(card =>
@@ -128,6 +194,7 @@ namespace ASLM.Controls.Downloads
                 card.RefreshLocalization();
                 Modules.Add(card);
             }
+
             EmptyLabel.IsVisible = Modules.Count == 0;
         }
 

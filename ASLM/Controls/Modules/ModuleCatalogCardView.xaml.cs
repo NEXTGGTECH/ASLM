@@ -2,31 +2,35 @@
 
 using ASLM.Models;
 
-namespace ASLM.Controls.Modules;
-
-/// <summary>
-/// Shares the download catalog card between Downloads and first-run module selection.
-/// </summary>
-public partial class ModuleCatalogCardView : ContentView
+namespace ASLM.Controls.Modules
 {
-    public event EventHandler<ModuleConfig>? ModuleSelected;
-
     /// <summary>
-    /// Creates the card with an optional selection checkbox outside its navigation target.
+    /// Shares the download catalog card between Downloads and first-run module selection.
     /// </summary>
-    public ModuleCatalogCardView()
+    public partial class ModuleCatalogCardView : ContentView
     {
-        InitializeComponent();
-    }
+        /// <summary>
+        /// Raised with the card's module when the user taps the card to open its information.
+        /// </summary>
+        public event EventHandler<ModuleConfig>? ModuleSelected;
 
-    /// <summary>
-    /// Opens module information without changing the separate installation selection.
-    /// </summary>
-    private void OnModuleTapped(object? sender, TappedEventArgs e)
-    {
-        if (BindingContext is ModuleCatalogCardViewModel card)
+        /// <summary>
+        /// Creates the card with an optional selection checkbox outside its navigation target.
+        /// </summary>
+        public ModuleCatalogCardView()
         {
-            ModuleSelected?.Invoke(this, card.Module);
+            InitializeComponent();
+        }
+
+        /// <summary>
+        /// Opens module information without changing the separate installation selection.
+        /// </summary>
+        private void OnModuleTapped(object? sender, TappedEventArgs e)
+        {
+            if (BindingContext is ModuleCatalogCardViewModel card)
+            {
+                ModuleSelected?.Invoke(this, card.Module);
+            }
         }
     }
 }

@@ -7,8 +7,10 @@ namespace ASLM.Controls.Settings
     /// </summary>
     public partial class SettingsFieldView : ContentView
     {
+        // Bindable properties
+
         /// <summary>
-        /// Identifies the editor content bindable property.
+        /// Identifies the bindable property that holds the editor rendered inside the field shell.
         /// </summary>
         public static readonly BindableProperty FieldContentProperty = BindableProperty.Create(
             nameof(FieldContent),
@@ -16,13 +18,16 @@ namespace ASLM.Controls.Settings
             typeof(SettingsFieldView));
 
         /// <summary>
-        /// Identifies the field padding bindable property.
+        /// Identifies the bindable property that holds the padding around the hosted editor.
         /// </summary>
         public static readonly BindableProperty FieldPaddingProperty = BindableProperty.Create(
             nameof(FieldPadding),
             typeof(Thickness),
             typeof(SettingsFieldView),
             new Thickness(8, 0));
+
+
+        // Initialization
 
         /// <summary>
         /// Creates a field shell with the standard input padding.
@@ -31,6 +36,9 @@ namespace ASLM.Controls.Settings
         {
             InitializeComponent();
         }
+
+
+        // Properties
 
         /// <summary>
         /// Gets or sets the editor rendered inside the field shell.

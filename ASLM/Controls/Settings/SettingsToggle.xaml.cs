@@ -7,10 +7,18 @@ namespace ASLM.Controls.Settings
     /// </summary>
     public partial class SettingsToggle : ContentView
     {
-        private bool _suppressToggleEvent;
+        // Fields
 
         /// <summary>
-        /// Identifies the two-way toggle state bindable property.
+        /// True while the state is set programmatically, so <see cref="Toggled"/> is not raised for it.
+        /// </summary>
+        private bool _suppressToggleEvent;
+
+
+        // Bindable properties
+
+        /// <summary>
+        /// Identifies the two-way bindable property that holds the toggle state.
         /// </summary>
         public static readonly BindableProperty IsToggledProperty = BindableProperty.Create(
             nameof(IsToggled),
@@ -20,6 +28,9 @@ namespace ASLM.Controls.Settings
             BindingMode.TwoWay,
             propertyChanged: OnIsToggledChanged);
 
+
+        // Initialization
+
         /// <summary>
         /// Creates the compact toggle backed by the native platform switch.
         /// </summary>
@@ -28,8 +39,12 @@ namespace ASLM.Controls.Settings
             InitializeComponent();
         }
 
+
+        // Properties and events
+
         /// <summary>
-        /// Occurs when user or bound state changes the toggle value.
+        /// Occurs when the user or a binding changes the toggle value, except for changes made through
+        /// <see cref="SetStateWithoutToggleEvent"/>.
         /// </summary>
         public event EventHandler<ToggledEventArgs>? Toggled;
 
@@ -42,11 +57,15 @@ namespace ASLM.Controls.Settings
             set => SetValue(IsToggledProperty, value);
         }
 
+
+        // State changes
+
         /// <summary>
         /// Updates the state without notifying draft synchronization handlers.
         /// </summary>
         public void SetStateWithoutToggleEvent(bool isToggled)
         {
+            // The flag is always reset, even when a property-changed handler throws.
             _suppressToggleEvent = true;
             try
             {

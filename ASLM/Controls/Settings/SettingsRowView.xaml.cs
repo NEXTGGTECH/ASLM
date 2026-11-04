@@ -7,8 +7,10 @@ namespace ASLM.Controls.Settings
     /// </summary>
     public partial class SettingsRowView : ContentView
     {
+        // Bindable properties
+
         /// <summary>
-        /// Identifies the row title bindable property.
+        /// Identifies the bindable property that holds the primary row title.
         /// </summary>
         public static readonly BindableProperty TitleProperty = BindableProperty.Create(
             nameof(Title),
@@ -17,7 +19,7 @@ namespace ASLM.Controls.Settings
             string.Empty);
 
         /// <summary>
-        /// Identifies the row description bindable property.
+        /// Identifies the bindable property that holds the optional secondary description.
         /// </summary>
         public static readonly BindableProperty DescriptionProperty = BindableProperty.Create(
             nameof(Description),
@@ -26,12 +28,15 @@ namespace ASLM.Controls.Settings
             string.Empty);
 
         /// <summary>
-        /// Identifies the trailing editor bindable property.
+        /// Identifies the bindable property that holds the editor or action shown at the trailing edge.
         /// </summary>
         public static readonly BindableProperty TrailingContentProperty = BindableProperty.Create(
             nameof(TrailingContent),
             typeof(View),
             typeof(SettingsRowView));
+
+
+        // Initialization
 
         /// <summary>
         /// Creates an empty settings row populated through bindable properties.
@@ -40,6 +45,9 @@ namespace ASLM.Controls.Settings
         {
             InitializeComponent();
         }
+
+
+        // Properties
 
         /// <summary>
         /// Gets or sets the primary row title.
@@ -67,6 +75,5 @@ namespace ASLM.Controls.Settings
             get => (View?)GetValue(TrailingContentProperty);
             set => SetValue(TrailingContentProperty, value);
         }
-
     }
 }

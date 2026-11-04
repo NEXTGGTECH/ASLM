@@ -3,97 +3,161 @@
 using System.Globalization;
 using System.Text.Json;
 
-namespace ASLM.Controls.Downloads;
-
-/// <summary>Reads document geometry through WebView2's DevTools protocol without injecting web code.</summary>
-internal sealed class DownloadInfoPreview(Func<string, string, Task<string>> call)
+namespace ASLM.Controls.Downloads
 {
-    private int _documentVersion;
-
-    public async Task InitializeAsync()
+    /// <summary>
+    /// Reads document geometry through WebView2's DevTools protocol without injecting web code.
+    /// The <c>call</c> delegate sends one protocol command (method name and JSON parameters) and returns its
+    /// JSON response.
+    /// </summary>
+    internal sealed class DownloadInfoPreview(Func<string, string, Task<string>> call)
     {
-        await call("Emulation.setScrollbarsHidden", "{\"hidden\":true}");
-        await call("DOM.enable", "{}");
-        await call("LayerTree.enable", "{}");
-    }
+        // Fields
 
-    public void ResetDocument() => _documentVersion++;
+        /// <summary>
+        /// Counter that changes whenever a new document starts, so measurements of an older document are discarded.
+        /// </summary>
+        private int _documentVersion;
 
-    public async Task<DownloadPreviewSize> MeasureAsync()
-    {
-        var version = _documentVersion;
-        using var snapshot = await ReadAsync("DOMSnapshot.captureSnapshot",
-            "{\"computedStyles\":[\"margin-bottom\"]}", version);
-        var document = snapshot.RootElement.GetProperty("documents")[0];
-        var size = ReadSize(snapshot.RootElement);
-        if (document.TryGetProperty("scrollOffsetY", out var offset) && offset.GetDouble() != 0)
+
+        // Initialization
+
+        /// <summary>
+        /// Hides the browser scrollbars and enables the protocol domains whose events signal layout changes.
+        /// </summary>
+        public async Task InitializeAsync()
         {
-            var nodes = document.GetProperty("nodes");
-            var rootIndex = nodes.GetProperty("nodeType").EnumerateArray()
-                .Select((node, index) => (Type: node.GetInt32(), Index: index)).First(node => node.Type == 1).Index;
-            // Content can grow before the host gets the layout event. Reset any temporary
-            // browser scroll so the expanded document still starts at the top.
-            using var response = await ReadAsync("DOM.scrollIntoViewIfNeeded", JsonSerializer.Serialize(new
-            {
-                backendNodeId = nodes.GetProperty("backendNodeId")[rootIndex].GetInt32(),
-                rect = new { x = 0, y = 0, width = 1, height = 1 }
-            }), version);
-        }
-        return size;
-    }
-
-    internal static DownloadPreviewSize ReadSize(JsonElement snapshot)
-    {
-        var document = snapshot.GetProperty("documents")[0];
-        var nodeTypes = document.GetProperty("nodes").GetProperty("nodeType");
-        var layout = document.GetProperty("layout");
-        var nodeIndices = layout.GetProperty("nodeIndex");
-        var bounds = layout.GetProperty("bounds");
-        var styles = layout.GetProperty("styles");
-        var strings = snapshot.GetProperty("strings");
-        var height = 1d;
-        var width = 0d;
-
-        // The document's own box is viewport-sized. Real layout boxes allow shrinking and
-        // also include overflowing/absolutely positioned content that body bounds can miss.
-        for (var index = 0; index < nodeIndices.GetArrayLength(); index++)
-        {
-            var nodeType = nodeTypes[nodeIndices[index].GetInt32()].GetInt32();
-            var box = bounds[index];
-            if (nodeType == 9)
-            {
-                // Snapshot coordinates already include browser zoom. Use its viewport
-                // width as well, rather than mixing them with unzoomed CSS pixels.
-                width = box[2].GetDouble();
-                continue;
-            }
-            var bottom = box[1].GetDouble() + box[3].GetDouble();
-            if (nodeType == 1 && styles[index].GetArrayLength() > 0)
-            {
-                var margin = strings[styles[index][0].GetInt32()].GetString() ?? "";
-                if (margin.EndsWith("px", StringComparison.Ordinal) &&
-                    double.TryParse(margin.AsSpan(0, margin.Length - 2), NumberStyles.Float,
-                        CultureInfo.InvariantCulture, out var pixels))
-                    bottom += Math.Max(0, pixels);
-            }
-            height = Math.Max(height, bottom);
+            await call("Emulation.setScrollbarsHidden", "{\"hidden\":true}");
+            await call("DOM.enable", "{}");
+            await call("LayerTree.enable", "{}");
         }
 
-        height = Math.Ceiling(height);
-        if (!IsValidHeight(height) || !IsValidHeight(width))
-            throw new InvalidOperationException("WebView2 returned invalid preview dimensions.");
-        return new DownloadPreviewSize(height, width);
+        /// <summary>
+        /// Marks the current document as replaced, which cancels measurements that are still in flight.
+        /// </summary>
+        public void ResetDocument() => _documentVersion++;
+
+
+        // Measurement
+
+        /// <summary>
+        /// Captures a DOM snapshot and returns the content height and viewport width of the current document.
+        /// </summary>
+        /// <returns>The measured size.</returns>
+        /// <exception cref="OperationCanceledException">
+        /// The document was replaced while the measurement was running.
+        /// </exception>
+        public async Task<DownloadPreviewSize> MeasureAsync()
+        {
+            // Snapshot with the bottom margin of each element, which layout boxes do not include.
+            var version = _documentVersion;
+            using var snapshot = await ReadAsync("DOMSnapshot.captureSnapshot",
+                "{\"computedStyles\":[\"margin-bottom\"]}", version);
+            var document = snapshot.RootElement.GetProperty("documents")[0];
+            var size = ReadSize(snapshot.RootElement);
+
+            // A scrolled document is scrolled back by bringing its root element into view.
+            if (document.TryGetProperty("scrollOffsetY", out var offset) && offset.GetDouble() != 0)
+            {
+                var nodes = document.GetProperty("nodes");
+                var rootIndex = nodes.GetProperty("nodeType").EnumerateArray()
+                    .Select((node, index) => (Type: node.GetInt32(), Index: index)).First(node => node.Type == 1).Index;
+
+                // Content can grow before the host gets the layout event. Reset any temporary
+                // browser scroll so the expanded document still starts at the top.
+                using var response = await ReadAsync("DOM.scrollIntoViewIfNeeded", JsonSerializer.Serialize(new
+                {
+                    backendNodeId = nodes.GetProperty("backendNodeId")[rootIndex].GetInt32(),
+                    rect = new { x = 0, y = 0, width = 1, height = 1 }
+                }), version);
+            }
+
+            return size;
+        }
+
+        /// <summary>
+        /// Derives the content height and viewport width from a <c>DOMSnapshot.captureSnapshot</c> result.
+        /// </summary>
+        /// <param name="snapshot">Root of the snapshot JSON, which must contain at least one document.</param>
+        /// <returns>The ceiling of the lowest box bottom (plus bottom margin) and the document box width.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The snapshot yields a non-positive or non-finite size.
+        /// </exception>
+        internal static DownloadPreviewSize ReadSize(JsonElement snapshot)
+        {
+            // Resolve the snapshot tables once: node types, layout boxes, their computed styles and the string pool.
+            var document = snapshot.GetProperty("documents")[0];
+            var nodeTypes = document.GetProperty("nodes").GetProperty("nodeType");
+            var layout = document.GetProperty("layout");
+            var nodeIndices = layout.GetProperty("nodeIndex");
+            var bounds = layout.GetProperty("bounds");
+            var styles = layout.GetProperty("styles");
+            var strings = snapshot.GetProperty("strings");
+            var height = 1d;
+            var width = 0d;
+
+            // The document's own box is viewport-sized. Real layout boxes allow shrinking and
+            // also include overflowing/absolutely positioned content that body bounds can miss.
+            for (var index = 0; index < nodeIndices.GetArrayLength(); index++)
+            {
+                var nodeType = nodeTypes[nodeIndices[index].GetInt32()].GetInt32();
+                var box = bounds[index];
+                if (nodeType == 9)
+                {
+                    // Snapshot coordinates already include browser zoom. Use its viewport
+                    // width as well, rather than mixing them with unzoomed CSS pixels.
+                    width = box[2].GetDouble();
+                    continue;
+                }
+
+                // Element boxes also count their bottom margin when it is given in pixels.
+                var bottom = box[1].GetDouble() + box[3].GetDouble();
+                if (nodeType == 1 && styles[index].GetArrayLength() > 0)
+                {
+                    var margin = strings[styles[index][0].GetInt32()].GetString() ?? "";
+                    if (margin.EndsWith("px", StringComparison.Ordinal) &&
+                        double.TryParse(margin.AsSpan(0, margin.Length - 2), NumberStyles.Float,
+                            CultureInfo.InvariantCulture, out var pixels))
+                        bottom += Math.Max(0, pixels);
+                }
+
+                height = Math.Max(height, bottom);
+            }
+
+            // Round up to whole pixels and reject results the host cannot apply as a control size.
+            height = Math.Ceiling(height);
+            if (!IsValidHeight(height) || !IsValidHeight(width))
+                throw new InvalidOperationException("WebView2 returned invalid preview dimensions.");
+            return new DownloadPreviewSize(height, width);
+        }
+
+
+        // Helpers
+
+        /// <summary>
+        /// Sends one protocol command and parses its response, unless the document changed while it was pending.
+        /// </summary>
+        /// <exception cref="OperationCanceledException">
+        /// The document was replaced after the command was sent.
+        /// </exception>
+        private async Task<JsonDocument> ReadAsync(string method, string parameters, int version)
+        {
+            var response = await call(method, parameters);
+            if (version != _documentVersion) throw new OperationCanceledException();
+            return JsonDocument.Parse(response);
+        }
+
+        /// <summary>
+        /// Whether a measured dimension is a positive, finite value that fits a control size.
+        /// </summary>
+        public static bool IsValidHeight(double height) =>
+            double.IsFinite(height) && height > 0 && height <= int.MaxValue;
     }
 
-    private async Task<JsonDocument> ReadAsync(string method, string parameters, int version)
-    {
-        var response = await call(method, parameters);
-        if (version != _documentVersion) throw new OperationCanceledException();
-        return JsonDocument.Parse(response);
-    }
-
-    public static bool IsValidHeight(double height) =>
-        double.IsFinite(height) && height > 0 && height <= int.MaxValue;
+    /// <summary>
+    /// Measured size of a rendered preview document.
+    /// </summary>
+    /// <param name="Height">Content height in pixels, rounded up.</param>
+    /// <param name="ViewportWidth">Width of the document viewport in pixels, including browser zoom.</param>
+    internal readonly record struct DownloadPreviewSize(double Height, double ViewportWidth);
 }
-
-internal readonly record struct DownloadPreviewSize(double Height, double ViewportWidth);

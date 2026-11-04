@@ -9,12 +9,28 @@ namespace ASLM.Controls.Settings
     /// </summary>
     public partial class BuiltInSettingsView : ContentView
     {
-        private const double ThemeColorSingleColumnThreshold = 880;
-        private IReadOnlyList<ThemeColorItemViewModel> _themeColors = [];
-        private bool? _usesSingleThemeColorColumn;
+        // Fields and constants
 
         /// <summary>
-        /// Identifies the left theme-color column items.
+        /// Editor width in device-independent units below which the theme colors use a single column.
+        /// </summary>
+        private const double ThemeColorSingleColumnThreshold = 880;
+
+        /// <summary>
+        /// All theme palette rows currently shown, split between the left and right column by the layout.
+        /// </summary>
+        private IReadOnlyList<ThemeColorItemViewModel> _themeColors = [];
+
+        /// <summary>
+        /// Whether the theme colors are currently laid out in one column, or null before the first layout.
+        /// </summary>
+        private bool? _usesSingleThemeColorColumn;
+
+
+        // Bindable properties
+
+        /// <summary>
+        /// Identifies the bindable property that holds the theme-color rows of the left column.
         /// </summary>
         public static readonly BindableProperty ThemeColorsLeftProperty = BindableProperty.Create(
             nameof(ThemeColorsLeft),
@@ -23,7 +39,7 @@ namespace ASLM.Controls.Settings
             Array.Empty<ThemeColorItemViewModel>());
 
         /// <summary>
-        /// Identifies the right theme-color column items.
+        /// Identifies the bindable property that holds the theme-color rows of the right column.
         /// </summary>
         public static readonly BindableProperty ThemeColorsRightProperty = BindableProperty.Create(
             nameof(ThemeColorsRight),
@@ -31,49 +47,194 @@ namespace ASLM.Controls.Settings
             typeof(BuiltInSettingsView),
             Array.Empty<ThemeColorItemViewModel>());
 
+
+        // Initialization
+
         /// <summary>
         /// Creates the built-in settings host and localizes its static content.
         /// </summary>
         public BuiltInSettingsView()
         {
             InitializeComponent();
+
+            // Cloud account controls are only offered when the SUNRISE integration is enabled.
             AslmAccountCard.IsVisible = SunriseService.IsEnabled;
             UserProfileSection.IsVisible = SunriseService.IsEnabled;
             ApplyLocalization();
         }
 
+
+        // Profile and core settings controls
+
+        /// <summary>
+        /// Text box for the local display name.
+        /// </summary>
         public Entry UserNameInput => UsernameEntry;
+
+        /// <summary>
+        /// Text box for the first port of the range reserved for modules.
+        /// </summary>
         public Entry ModulePortInput => ModulePortEntry;
+
+        /// <summary>
+        /// Label that shows the validation error of the module port entry.
+        /// </summary>
         public Label ModulePortError => PortErrorLabel;
+
+        /// <summary>
+        /// Container of the ports section, which the presenter shows or hides as a whole.
+        /// </summary>
         public VerticalStackLayout PortsHost => PortsSection;
+
+        /// <summary>
+        /// Container of the user profile section, which is only visible when SUNRISE accounts are enabled.
+        /// </summary>
         public VerticalStackLayout UserProfile => UserProfileSection;
+
+        /// <summary>
+        /// Switch that enables the ASLM Mirror Server.
+        /// </summary>
         public SettingsToggle ApiServerInput => ApiServerToggle;
+
+        /// <summary>
+        /// Switch that shows the Consoles page in the navigation sidebar.
+        /// </summary>
         public SettingsToggle ConsoleSidebarInput => ConsoleSidebarToggle;
+
+        /// <summary>
+        /// Switch that shows a separate console for each module process.
+        /// </summary>
         public SettingsToggle ConsoleIndividualInput => ConsoleIndividualToggle;
+
+        /// <summary>
+        /// Switch that keeps the consoles of completed processes visible.
+        /// </summary>
         public SettingsToggle ConsoleCompletedInput => ConsoleCompletedToggle;
+
+        /// <summary>
+        /// Switch that accepts updated legal policies automatically.
+        /// </summary>
         public SettingsToggle LegalAutoAcceptInput => LegalAutoAcceptToggle;
+
+        /// <summary>
+        /// Switch that reopens the last visited page when ASLM starts.
+        /// </summary>
         public SettingsToggle RestoreLastPageInput => RestoreLastPageToggle;
+
+        /// <summary>
+        /// Switch that disables the Home page.
+        /// </summary>
         public SettingsToggle DisableHomePageInput => DisableHomePageToggle;
+
+
+        // Account controls
+
+        /// <summary>
+        /// Button that connects or disconnects the ASLM cloud account.
+        /// </summary>
         public Button AslmAccountAction => AslmAccountButton;
+
+        /// <summary>
+        /// Label that describes the state of the ASLM cloud account.
+        /// </summary>
         public Label AslmAccountState => AslmAccountStatus;
+
+        /// <summary>
+        /// Badge label that shows the type of the connected ASLM account.
+        /// </summary>
         public Label AslmAccountTypeBadge => AslmAccountTypeBadgeLabel;
+
+        /// <summary>
+        /// Link button that opens the ASLM account page; hidden until a link is available.
+        /// </summary>
         public ImageButton AslmAccountLink => AslmAccountLinkButton;
+
+        /// <summary>
+        /// Button that connects or disconnects the GitHub account.
+        /// </summary>
         public Button GitHubAccountAction => GitHubAccountButton;
+
+        /// <summary>
+        /// Label that describes the state of the GitHub account.
+        /// </summary>
         public Label GitHubAccountState => GitHubAccountStatus;
+
+        /// <summary>
+        /// Link button that opens the GitHub account page.
+        /// </summary>
         public ImageButton GitHubAccountLink => GitHubAccountLinkButton;
+
+        /// <summary>
+        /// Button that connects or disconnects the Ollama account.
+        /// </summary>
         public Button OllamaAccountAction => OllamaAccountButton;
+
+        /// <summary>
+        /// Label that describes the state of the Ollama account.
+        /// </summary>
         public Label OllamaAccountState => OllamaAccountStatus;
+
+        /// <summary>
+        /// Link button that opens the Ollama account page.
+        /// </summary>
         public ImageButton OllamaAccountLink => OllamaAccountLinkButton;
+
+
+        // Update controls
+
+        /// <summary>
+        /// Switch that enables automatic update checks.
+        /// </summary>
         public SettingsToggle CheckUpdatesInput => CheckUpdatesToggle;
+
+        /// <summary>
+        /// Switch that enables automatic installation of updates.
+        /// </summary>
         public SettingsToggle AutoUpdatesInput => AutoUpdatesToggle;
+
+        /// <summary>
+        /// Picker for the ASLM update channel.
+        /// </summary>
         public Picker AppChannelInput => AppChannelPicker;
+
+        /// <summary>
+        /// Picker for the default update channel of modules.
+        /// </summary>
         public Picker ModuleChannelInput => ModuleChannelPicker;
+
+        /// <summary>
+        /// Label that shows the installed ASLM version.
+        /// </summary>
         public Label AslmInstalledVersion => AslmInstalledVersionLabel;
+
+        /// <summary>
+        /// Label that shows the newest available ASLM version; hidden when there is none.
+        /// </summary>
         public Label AslmAvailableVersion => AslmAvailableVersionLabel;
+
+        /// <summary>
+        /// Row that holds the ASLM update buttons and is visible only while an update action is possible.
+        /// </summary>
         public HorizontalStackLayout AslmUpdateActionContainer => AslmUpdateActionHost;
+
+        /// <summary>
+        /// Container that overlays the download button and its progress indicator for the ASLM update.
+        /// </summary>
         public Grid PrepareAppUpdateContainer => PrepareAppUpdateHost;
+
+        /// <summary>
+        /// Button that downloads the ASLM update.
+        /// </summary>
         public Button PrepareAppUpdateAction => PrepareAppUpdateButton;
+
+        /// <summary>
+        /// Progress content (spinner, stage and percentage) shown on top of the ASLM download button.
+        /// </summary>
         public HorizontalStackLayout PrepareAppUpdateProgressContent => PrepareAppUpdateProgress;
+
+        /// <summary>
+        /// Spinner of the ASLM update download progress.
+        /// </summary>
         public ActivityIndicator PrepareAppUpdateProgressSpinner => PrepareAppUpdateSpinner;
 
         /// <summary>
@@ -81,13 +242,44 @@ namespace ASLM.Controls.Settings
         /// </summary>
         public Label PrepareAppUpdateProgressStatus => PrepareAppUpdateProgressText;
 
+        /// <summary>
+        /// Label that shows the percentage of the ASLM update download.
+        /// </summary>
         public Label PrepareAppUpdateProgressValue => PrepareAppUpdateProgressPercent;
+
+        /// <summary>
+        /// Button that installs the downloaded ASLM update and restarts the application.
+        /// </summary>
         public Button RestartAppUpdateAction => RestartAppUpdateButton;
+
+        /// <summary>
+        /// Label that shows the installed Ollama engine version.
+        /// </summary>
         public Label OllamaInstalledVersion => OllamaInstalledVersionLabel;
+
+        /// <summary>
+        /// Label that shows the newest available Ollama engine version; hidden when there is none.
+        /// </summary>
         public Label OllamaAvailableVersion => OllamaAvailableVersionLabel;
+
+        /// <summary>
+        /// Container that overlays the update button and its progress indicator for the Ollama engine.
+        /// </summary>
         public Grid OllamaUpdateContainer => OllamaUpdateHost;
+
+        /// <summary>
+        /// Button that downloads and installs the Ollama engine update.
+        /// </summary>
         public Button OllamaUpdateAction => OllamaUpdateButton;
+
+        /// <summary>
+        /// Progress content (spinner, stage and percentage) shown on top of the Ollama update button.
+        /// </summary>
         public HorizontalStackLayout OllamaUpdateProgressContent => OllamaUpdateProgress;
+
+        /// <summary>
+        /// Spinner of the Ollama update progress.
+        /// </summary>
         public ActivityIndicator OllamaUpdateProgressSpinner => OllamaUpdateSpinner;
 
         /// <summary>
@@ -95,30 +287,92 @@ namespace ASLM.Controls.Settings
         /// </summary>
         public Label OllamaUpdateProgressStatus => OllamaUpdateProgressText;
 
+        /// <summary>
+        /// Label that shows the percentage of the Ollama update progress.
+        /// </summary>
         public Label OllamaUpdateProgressValue => OllamaUpdateProgressPercent;
+
+
+        // Personalization controls
+
+        /// <summary>
+        /// Picker for the interface language.
+        /// </summary>
         public Picker LanguageInput => LanguagePicker;
+
+        /// <summary>
+        /// Picker for the built-in theme mode.
+        /// </summary>
         public Picker AppearanceInput => AppearancePicker;
+
+        /// <summary>
+        /// Container of the custom theme management rows, which the presenter shows or hides as a whole.
+        /// </summary>
         public VerticalStackLayout CustomThemesHost => CustomThemeSection;
+
+        /// <summary>
+        /// Section of the theme editor; its title shows the name of the selected theme.
+        /// </summary>
         public SettingsSectionView ThemeEditorHost => ThemeEditorSection;
+
+        /// <summary>
+        /// Picker for the active custom theme.
+        /// </summary>
         public Picker CustomThemeInput => CustomThemePicker;
+
+        /// <summary>
+        /// Picker for the built-in theme that the edited custom theme is based on.
+        /// </summary>
         public Picker BaseAppearanceInput => BaseAppearancePicker;
+
+        /// <summary>
+        /// Button that creates a new custom theme.
+        /// </summary>
         public Button CreateThemeAction => CreateThemeButton;
+
+        /// <summary>
+        /// Button that imports a custom theme from a file.
+        /// </summary>
         public Button ImportThemeAction => ImportThemeButton;
+
+        /// <summary>
+        /// Button that exports the selected custom theme to a file.
+        /// </summary>
         public Button ExportThemeAction => ExportThemeButton;
+
+        /// <summary>
+        /// Button that renames the selected custom theme.
+        /// </summary>
         public Button RenameThemeAction => RenameThemeButton;
+
+        /// <summary>
+        /// Button that deletes the selected custom theme.
+        /// </summary>
         public Button DeleteThemeAction => DeleteThemeButton;
 
+
+        // Theme color layout
+
+        /// <summary>
+        /// Theme-color rows shown in the left column.
+        /// </summary>
         public IEnumerable<ThemeColorItemViewModel> ThemeColorsLeft
         {
             get => (IEnumerable<ThemeColorItemViewModel>)GetValue(ThemeColorsLeftProperty);
             set => SetValue(ThemeColorsLeftProperty, value);
         }
 
+        /// <summary>
+        /// Theme-color rows shown in the right column; empty while the editor uses a single column.
+        /// </summary>
         public IEnumerable<ThemeColorItemViewModel> ThemeColorsRight
         {
             get => (IEnumerable<ThemeColorItemViewModel>)GetValue(ThemeColorsRightProperty);
             set => SetValue(ThemeColorsRightProperty, value);
         }
+
+
+        // Category switching
 
         /// <summary>
         /// Shows one built-in category while retaining the other XAML trees for reuse.
@@ -141,6 +395,9 @@ namespace ASLM.Controls.Settings
             UpdatesContainer.IsVisible = false;
             PersonalizationContainer.IsVisible = false;
         }
+
+
+        // Localization
 
         /// <summary>
         /// Applies current localized strings to the declarative built-in settings rows.
@@ -211,9 +468,13 @@ namespace ASLM.Controls.Settings
             BaseAppearanceRow.Description = string.Empty;
         }
 
+
+        // Theme editor
+
         /// <summary>
         /// Updates the dynamic title of the selected theme's editor category.
         /// </summary>
+        /// <param name="title">Section title, normally the name of the theme being edited.</param>
         public void SetThemeEditorTitle(string title)
         {
             ThemeEditorSection.Title = title;
@@ -247,12 +508,14 @@ namespace ASLM.Controls.Settings
         /// </summary>
         private void ApplyThemeColorLayout(double availableWidth, bool force = false)
         {
+            // Narrow or not yet measured editors use one column; skip the work when nothing changes.
             var useSingleColumn = availableWidth <= 0 || availableWidth < ThemeColorSingleColumnThreshold;
             if (!force && _usesSingleThemeColorColumn == useSingleColumn)
             {
                 return;
             }
 
+            // Collapse the divider and right column in single-column mode; otherwise restore the two-column grid.
             _usesSingleThemeColorColumn = useSingleColumn;
             ThemeColorsGrid.ColumnDefinitions[0].Width = GridLength.Star;
             ThemeColorsGrid.ColumnDefinitions[1].Width = useSingleColumn ? 0 : 1;
@@ -263,6 +526,7 @@ namespace ASLM.Controls.Settings
                 ? new Thickness(0)
                 : new Thickness(0, 0, 12, 0);
 
+            // Single column keeps every row on the left; two columns split the rows at the midpoint.
             if (useSingleColumn)
             {
                 ThemeColorsLeft = _themeColors;
