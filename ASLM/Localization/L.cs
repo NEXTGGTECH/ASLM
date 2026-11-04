@@ -9,6 +9,9 @@ namespace ASLM.Localization
     /// </summary>
     public static class L
     {
+        /// <summary>
+        /// Localization service set by <see cref="Initialize"/>, or null until the application has created it.
+        /// </summary>
         private static AppLocalizationService? _service;
 
         /// <summary>
@@ -17,7 +20,8 @@ namespace ASLM.Localization
         public static void Initialize(AppLocalizationService service) => _service = service;
 
         /// <summary>
-        /// Returns a localized string for the given resource key.
+        /// Returns a localized string for the given resource key. Before <see cref="Initialize"/> is called it
+        /// reads the resources directly, and an unknown key is returned unchanged.
         /// </summary>
         public static string Get(string key)
         {
@@ -30,7 +34,8 @@ namespace ASLM.Localization
         }
 
         /// <summary>
-        /// Returns a formatted localized string.
+        /// Returns the localized string for <paramref name="key"/> with <paramref name="args"/> substituted into its
+        /// composite format; without arguments the string is returned as is.
         /// </summary>
         public static string Get(string key, params object[] args)
         {
