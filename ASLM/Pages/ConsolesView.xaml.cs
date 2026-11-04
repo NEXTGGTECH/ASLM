@@ -8,24 +8,67 @@ using ASLM.Models;
 
 namespace ASLM.Pages
 {
+    // Consoles page
+
     /// <summary>
     /// Displays module consoles, per-process sessions, and merged console output.
+    /// The view only renders; a <see cref="ConsolesPresenter"/> builds the state and reacts to the console store.
     /// </summary>
     public partial class ConsolesView : ContentView, IConsolesView, ILocalizable
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Page width in device-independent units below which the workspace stacks its panels vertically.
+        /// </summary>
         private const double CompactBreakpoint = 1180;
+
+        /// <summary>
+        /// Delay between periodic dashboard refreshes while the view is loaded.
+        /// </summary>
         private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(3);
 
+        /// <summary>
+        /// Bindable state of the page; the presenter output is copied into it by <see cref="IConsolesView.Render"/>.
+        /// </summary>
         private readonly ConsolesPageViewModel _viewModel = new();
+
+        /// <summary>
+        /// Presenter that builds dashboard state and handles selection and refresh requests.
+        /// </summary>
         private readonly ConsolesPresenter _presenter;
+
+        /// <summary>
+        /// Localization service used to re-apply texts when the language changes.
+        /// </summary>
         private readonly AppLocalizationService _localization;
+
+        /// <summary>
+        /// Set while <see cref="IConsolesView.Render"/> changes the list selections, so those changes are not
+        /// treated as user selections.
+        /// </summary>
         private bool _suppressSelection;
+
+        /// <summary>
+        /// Non-zero while delayed layout refresh passes are scheduled; accessed through <see cref="Interlocked"/>.
+        /// </summary>
         private int _layoutRefreshQueued;
+
+        /// <summary>
+        /// Cancellation source of the periodic refresh loop, or null while the loop is stopped.
+        /// </summary>
         private CancellationTokenSource? _autoRefreshCts;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the consoles view and initializes its responsive shell layout.
         /// </summary>
+        /// <param name="moduleInstaller">Installer used to discover the installed modules.</param>
+        /// <param name="consoleStore">Store that holds the console sessions and their output.</param>
+        /// <param name="appData">Application data that holds the console display preferences.</param>
+        /// <param name="localization">Localization service whose language changes re-apply the texts.</param>
         public ConsolesView(
             ModuleInstaller moduleInstaller,
             ModuleConsoleStore consoleStore,
@@ -47,7 +90,12 @@ namespace ASLM.Pages
             UpdateResponsiveLayout();
         }
 
-        /// <inheritdoc />
+
+        // Localization
+
+        /// <summary>
+        /// Applies localized strings to the page chrome and refreshes the dashboard so generated texts are rebuilt.
+        /// </summary>
         public void ApplyLocalization()
         {
             PageTitleLabel.Text = L.Get(LocalizationKeys.Consoles_Title);
@@ -60,6 +108,9 @@ namespace ASLM.Pages
             _ = _presenter.RefreshAsync();
         }
 
+
+        // Public API
+
         /// <summary>
         /// Requests a presenter-driven refresh of the current consoles dashboard.
         /// </summary>
@@ -71,6 +122,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Opens the requested module's merged output regardless of the previously selected process.
         /// </summary>
+        /// <param name="sourcePath">Manifest source path that identifies the module to show.</param>
         internal Task ShowModuleAsync(string sourcePath)
         {
             return _presenter.ShowModuleAsync(sourcePath);
@@ -153,8 +205,10 @@ namespace ASLM.Pages
         /// </summary>
         void IConsolesView.Render(ConsolesDashboardState state)
         {
+            // Selection changes made below come from the presenter, so they must not be fed back as user input.
             _suppressSelection = true;
 
+            // Copy the selected session's texts into the bindable view model.
             _viewModel.SelectedSessionId = state.SelectedSessionId;
             _viewModel.SelectedSessionKey = state.SelectedSessionKey;
             _viewModel.SelectedSessionTitle = state.SelectedSessionTitle;
@@ -164,6 +218,7 @@ namespace ASLM.Pages
             _viewModel.SelectedSessionFooter = state.SelectedSessionFooter;
             _viewModel.SelectedSessionText = string.Join(Environment.NewLine, state.SelectedSessionLines);
 
+            // Update the lists in place and point both collection views at the presenter's selection.
             SyncModuleItems(_viewModel.Modules, state.Modules);
             SyncSessionItems(_viewModel.Sessions, state.Sessions);
 
@@ -179,6 +234,7 @@ namespace ASLM.Pages
                 SessionsCollection.SelectedItem = selectedSession;
             }
 
+            // Show the session list only when there is more than one console to pick from, then re-measure.
             SessionsPanel.IsVisible = state.ShowSessionList;
             UpdateResponsiveLayout(state.ShowSessionList);
             QueueConsoleLayoutRefresh();
@@ -212,6 +268,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Refreshes the dashboard on a fixed interval while the view is visible.
         /// </summary>
+        /// <param name="cancellationToken">Cancelled by <see cref="StopAutoRefresh"/> to end the loop.</param>
         private async Task RunAutoRefreshAsync(CancellationToken cancellationToken)
         {
             try
@@ -224,6 +281,7 @@ namespace ASLM.Pages
             }
             catch (OperationCanceledException)
             {
+                // Cancellation is the normal way to stop the loop when the view unloads.
             }
         }
 
@@ -233,6 +291,9 @@ namespace ASLM.Pages
         /// <summary>
         /// Switches the workspace between the compact stacked layout and the wide three-column layout.
         /// </summary>
+        /// <param name="showSessionList">
+        /// Whether the sessions panel takes part in the layout; null uses the current visibility of the panel.
+        /// </param>
         private void UpdateResponsiveLayout(bool? showSessionList = null)
         {
             // A desktop sidebar can make this page narrower than the breakpoint without making the
@@ -241,11 +302,13 @@ namespace ASLM.Pages
             var isCompact = Width > 0 && Width < CompactBreakpoint && minimumWindowWidth < CompactBreakpoint;
             var includeSessions = showSessionList ?? SessionsPanel.IsVisible;
 
+            // The grid definitions are rebuilt from scratch for the chosen layout.
             WorkspaceLayout.ColumnDefinitions.Clear();
             WorkspaceLayout.RowDefinitions.Clear();
 
             if (isCompact)
             {
+                // Compact: one column with modules, optional sessions and output stacked in rows.
                 WorkspaceLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
                 WorkspaceLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 WorkspaceLayout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -263,11 +326,13 @@ namespace ASLM.Pages
             }
             else
             {
+                // Wide: fixed-width module and session columns beside a flexible output column.
                 WorkspaceLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = 260 });
                 if (includeSessions)
                 {
                     WorkspaceLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = 260 });
                 }
+
                 WorkspaceLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 WorkspaceLayout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
@@ -285,13 +350,16 @@ namespace ASLM.Pages
         /// </summary>
         private void QueueConsoleLayoutRefresh()
         {
+            // Refresh immediately; the delayed passes below catch what the native host measures late.
             RefreshConsoleLayout();
 
+            // Only one set of delayed passes may be pending, no matter how many resizes or renders request one.
             if (Dispatcher == null || Interlocked.Exchange(ref _layoutRefreshQueued, 1) == 1)
             {
                 return;
             }
 
+            // The last pass clears the flag so the next request can schedule a new set.
             Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(16), RefreshConsoleLayout);
             Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(48), () =>
             {
@@ -317,8 +385,10 @@ namespace ASLM.Pages
         // Collection synchronization
 
         /// <summary>
-        /// Synchronizes the module item view models with the latest presenter state.
+        /// Synchronizes the module item view models with the latest presenter state, keyed by module source path.
         /// </summary>
+        /// <param name="target">Module items bound to the module list.</param>
+        /// <param name="source">Module items prepared by the presenter.</param>
         private static void SyncModuleItems(ObservableCollection<ConsoleModuleItemViewModel> target, IReadOnlyList<ConsoleModuleItemViewModel> source)
         {
             SyncKeyedItems(
@@ -329,8 +399,10 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Synchronizes the session item view models with the latest presenter state.
+        /// Synchronizes the session item view models with the latest presenter state, keyed by session id.
         /// </summary>
+        /// <param name="target">Session items bound to the session list.</param>
+        /// <param name="source">Session items prepared by the presenter.</param>
         private static void SyncSessionItems(ObservableCollection<ConsoleSessionItemViewModel> target, IReadOnlyList<ConsoleSessionItemViewModel> source)
         {
             SyncKeyedItems(
@@ -343,6 +415,10 @@ namespace ASLM.Pages
         /// <summary>
         /// Updates an observable collection in place by key so item instances stay stable for the UI.
         /// </summary>
+        /// <param name="target">Collection bound to the UI; it is changed to match <paramref name="source"/>.</param>
+        /// <param name="source">Desired items in display order.</param>
+        /// <param name="keySelector">Returns the stable key that identifies an item.</param>
+        /// <param name="updateExisting">Copies the state of a source item into the existing target item.</param>
         private static void SyncKeyedItems<T>(
             ObservableCollection<T> target,
             IReadOnlyList<T> source,
@@ -352,11 +428,13 @@ namespace ASLM.Pages
         {
             var indexByKey = BuildIndex(target, keySelector);
 
+            // Walk the desired order and make the target match position by position.
             for (var index = 0; index < source.Count; index++)
             {
                 var sourceItem = source[index];
                 var sourceKey = keySelector(sourceItem);
 
+                // Already in place: only refresh its state.
                 if (index < target.Count &&
                     string.Equals(keySelector(target[index]), sourceKey, StringComparison.Ordinal))
                 {
@@ -364,6 +442,8 @@ namespace ASLM.Pages
                     continue;
                 }
 
+                // Present further down: move it up instead of recreating it; otherwise it is new.
+                // The index map is rebuilt after each structural change because positions shifted.
                 if (indexByKey.TryGetValue(sourceKey, out var existingIndex) && existingIndex >= index)
                 {
                     var existingItem = target[existingIndex];
@@ -378,6 +458,7 @@ namespace ASLM.Pages
                 }
             }
 
+            // Drop items that are no longer in the source.
             while (target.Count > source.Count)
             {
                 target.RemoveAt(target.Count - 1);
@@ -387,6 +468,8 @@ namespace ASLM.Pages
         /// <summary>
         /// Builds a key-to-index map for the current observable collection contents.
         /// </summary>
+        /// <param name="target">Collection to index.</param>
+        /// <param name="keySelector">Returns the key of an item.</param>
         private static Dictionary<string, int> BuildIndex<T>(ObservableCollection<T> target, Func<T, string> keySelector)
             where T : class
         {
@@ -400,6 +483,9 @@ namespace ASLM.Pages
         }
     }
 
+
+    // Presenter and view contract
+
     /// <summary>
     /// Defines the rendering contract used by the consoles presenter.
     /// </summary>
@@ -408,6 +494,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Applies a fully prepared dashboard state to the view.
         /// </summary>
+        /// <param name="state">Complete dashboard state built by the presenter.</param>
         void Render(ConsolesDashboardState state);
     }
 
@@ -416,26 +503,89 @@ namespace ASLM.Pages
     /// </summary>
     internal sealed class ConsolesPresenter
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Module source path of the synthetic "all modules" entry that merges the output of every active module.
+        /// </summary>
         private const string AllModulesModuleId = "__all_modules__";
+
+        /// <summary>
+        /// Session id of the single merged console shown for the "all modules" entry.
+        /// </summary>
         private const string GlobalUnifiedSessionId = "__all_modules_unified__";
+
+        /// <summary>
+        /// Session id of the merged console of one module, listed before its individual process consoles.
+        /// </summary>
         private const string UnifiedSessionId = "__module_unified__";
 
+        /// <summary>
+        /// View that receives the dashboard state.
+        /// </summary>
         private readonly IConsolesView _view;
+
+        /// <summary>
+        /// Installer used to discover installed modules.
+        /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Store that holds the console sessions and output of all modules.
+        /// </summary>
         private readonly ModuleConsoleStore _consoleStore;
+
+        /// <summary>
+        /// Application data that persists the console display preferences.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Serializes refreshes so only one builds and renders state at a time.
+        /// </summary>
         private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
+        /// <summary>
+        /// Installed modules from the last discovery, reused until a forced reload.
+        /// </summary>
         private List<ModuleConfig> _knownModules = [];
+
+        /// <summary>
+        /// Whether the presenter is subscribed to console store changes.
+        /// </summary>
         private bool _isActive;
+
+        /// <summary>
+        /// Non-zero while a debounced refresh triggered by a console store change is pending;
+        /// accessed through <see cref="Interlocked"/>.
+        /// </summary>
         private int _refreshQueued;
+
+        /// <summary>
+        /// Whether finished process sessions stay listed; mirrors the persisted console preference.
+        /// </summary>
         private bool _showCompletedProcesses;
+
+        /// <summary>
+        /// Source path of the selected module (or the "all modules" entry), or null when nothing is selected.
+        /// </summary>
         private string? _selectedModuleSourcePath;
+
+        /// <summary>
+        /// Id of the selected session inside the selected module, or null to pick a default.
+        /// </summary>
         private string? _selectedSessionId;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the presenter for the consoles dashboard.
         /// </summary>
+        /// <param name="view">View that renders the dashboard states.</param>
+        /// <param name="moduleInstaller">Installer used to discover installed modules.</param>
+        /// <param name="consoleStore">Store that holds the console sessions and output.</param>
+        /// <param name="appData">Application data that holds the console display preferences.</param>
         public ConsolesPresenter(IConsolesView view, ModuleInstaller moduleInstaller, ModuleConsoleStore consoleStore, AppDataStore appData)
         {
             _view = view;
@@ -484,6 +634,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Selects a module and resets the session selection to that module's default console.
         /// </summary>
+        /// <param name="sourcePath">Source path of the module, or the "all modules" entry, chosen by the user.</param>
         public async Task SelectModuleAsync(string sourcePath)
         {
             if (string.Equals(_selectedModuleSourcePath, sourcePath, StringComparison.OrdinalIgnoreCase))
@@ -499,6 +650,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Opens a module's merged console even when its individual process was previously selected.
         /// </summary>
+        /// <param name="sourcePath">Source path of the module to show.</param>
         public Task ShowModuleAsync(string sourcePath)
         {
             // Shell navigation already refreshes module metadata; this pass only changes the selection.
@@ -508,6 +660,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Selects a console session inside the currently active module scope.
         /// </summary>
+        /// <param name="sessionId">Id of the session item chosen by the user.</param>
         public async Task SelectSessionAsync(string sessionId)
         {
             if (string.Equals(_selectedSessionId, sessionId, StringComparison.Ordinal))
@@ -523,7 +676,7 @@ namespace ASLM.Pages
         // Refresh
 
         /// <summary>
-        /// Reloads modules when required and rerenders the dashboard.
+        /// Rediscovers installed modules and rerenders the dashboard.
         /// </summary>
         public Task RefreshAsync()
         {
@@ -533,6 +686,9 @@ namespace ASLM.Pages
         /// <summary>
         /// Reloads module metadata when requested, snapshots console state, and renders the result.
         /// </summary>
+        /// <param name="forceModuleReload">
+        /// True to rediscover installed modules; false reuses the last discovery unless it found none.
+        /// </param>
         public Task RefreshAsync(bool forceModuleReload)
         {
             return RefreshAsync(forceModuleReload, moduleSourcePath: null);
@@ -541,6 +697,10 @@ namespace ASLM.Pages
         /// <summary>
         /// Serializes refreshes and applies an optional merged-console shortcut before building state.
         /// </summary>
+        /// <param name="forceModuleReload">True to rediscover installed modules before building the state.</param>
+        /// <param name="moduleSourcePath">
+        /// Module whose merged console should be selected, or null to keep the current selection.
+        /// </param>
         private async Task RefreshAsync(bool forceModuleReload, string? moduleSourcePath)
         {
             await _refreshLock.WaitAsync();
@@ -555,11 +715,13 @@ namespace ASLM.Pages
 
                 LoadPreferences();
 
+                // Rediscover modules when asked to, or when none are known yet.
                 if (forceModuleReload || _knownModules.Count == 0)
                 {
                     _knownModules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
                 }
 
+                // Build the state off the UI thread, then render it on the main thread.
                 var state = await Task.Run(() =>
                 {
                     _consoleStore.EnsureModules(_knownModules);
@@ -583,11 +745,14 @@ namespace ASLM.Pages
         /// </summary>
         private void OnConsoleStateChanged(object? sender, EventArgs e)
         {
+            // Ignore changes while inactive, and while a refresh for an earlier change is already pending.
             if (!_isActive || Interlocked.Exchange(ref _refreshQueued, 1) == 1)
             {
                 return;
             }
 
+            // Wait briefly so a burst of output lines collapses into one refresh; changes arriving after the flag
+            // is cleared schedule the next one.
             _ = Task.Run(async () =>
             {
                 await Task.Delay(100);
@@ -600,7 +765,7 @@ namespace ASLM.Pages
         // Preferences
 
         /// <summary>
-        /// Loads console preferences from persisted app data.
+        /// Normalizes the persisted console preferences and re-reads whether finished processes stay listed.
         /// </summary>
         private void LoadPreferences()
         {
@@ -613,7 +778,9 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Builds the full dashboard state for the current module and session selection.
+        /// Corrects the stored selection when it no longer exists, so the result always points at something valid.
         /// </summary>
+        /// <param name="snapshots">Console store snapshot of every known module.</param>
         private ConsolesDashboardState BuildState(IReadOnlyList<ModuleConsoleModuleSnapshot> snapshots)
         {
             // Retain the explicitly selected module's history even when it is currently stopped.
@@ -625,6 +792,7 @@ namespace ASLM.Pages
                 .Where(module => module.IsEnabled || module.ActiveProcessCount > 0)
                 .ToList();
 
+            // Module list: the "all modules" entry first (only when something is active), then each visible module.
             var moduleItems = new List<ConsoleModuleItemViewModel>();
             if (activeModules.Count > 0)
             {
@@ -639,6 +807,8 @@ namespace ASLM.Pages
 
             moduleItems.AddRange(visibleModules.Select(MapModule));
 
+            // Module selection: clear it when the list is empty, and fall back to the first item when the stored
+            // selection is missing or no longer listed.
             if (moduleItems.Count == 0)
             {
                 _selectedModuleSourcePath = null;
@@ -649,6 +819,7 @@ namespace ASLM.Pages
                 _selectedModuleSourcePath = moduleItems[0].SourcePath;
             }
 
+            // Resolve the selected scope: the merged "all modules" entry or one concrete module.
             var isGlobalModule = string.Equals(_selectedModuleSourcePath, AllModulesModuleId, StringComparison.Ordinal);
             var selectedModule = visibleModules.FirstOrDefault(module =>
                 string.Equals(module.SourcePath, _selectedModuleSourcePath, StringComparison.OrdinalIgnoreCase));
@@ -665,6 +836,7 @@ namespace ASLM.Pages
 
             if (isGlobalModule)
             {
+                // All modules: a single merged console over every active module.
                 _selectedSessionId = GlobalUnifiedSessionId;
                 sessionItems =
                 [
@@ -688,6 +860,7 @@ namespace ASLM.Pages
             }
             else if (selectedModule == null)
             {
+                // Nothing selected: show the empty-selection placeholders.
                 _selectedSessionId = null;
                 sessionItems = [];
                 selectedSessionLines = [L.Get(LocalizationKeys.Consoles_NoOutputYet)];
@@ -699,12 +872,15 @@ namespace ASLM.Pages
             }
             else
             {
+                // One module: list its process sessions, hiding the overview, observed processes and, depending on
+                // the preference, finished ones.
                 var visibleSessions = selectedModule.Sessions
                     .Where(session => !string.Equals(session.Id, "overview", StringComparison.OrdinalIgnoreCase))
                     .Where(session => !session.IsObservedProcess)
                     .Where(session => _showCompletedProcesses || session.IsRunning)
                     .ToList();
 
+                // The module's merged console is always first; individual consoles follow when the preference allows.
                 var unifiedItem = new ConsoleSessionItemViewModel
                 {
                     Id = UnifiedSessionId,
@@ -719,18 +895,21 @@ namespace ASLM.Pages
                     ? [unifiedItem, .. visibleSessions.Select(session => MapSession(selectedModule, session))]
                     : [unifiedItem];
 
+                // Session selection: fall back to the first item when the stored session is missing or gone.
                 if (string.IsNullOrWhiteSpace(_selectedSessionId) ||
                     !sessionItems.Any(session => string.Equals(session.Id, _selectedSessionId, StringComparison.Ordinal)))
                 {
                     _selectedSessionId = sessionItems.FirstOrDefault()?.Id;
                 }
 
+                // Map the selected list item back to the store session; the merged console has no store session.
                 var selectedSessionItem = sessionItems.FirstOrDefault(session => string.Equals(session.Id, _selectedSessionId, StringComparison.Ordinal));
                 var selectedSession = selectedSessionItem == null ||
                                       string.Equals(selectedSessionItem.SessionSourceId, UnifiedSessionId, StringComparison.Ordinal)
                     ? null
                     : visibleSessions.FirstOrDefault(session => string.Equals(session.Id, selectedSessionItem.SessionSourceId, StringComparison.Ordinal));
 
+                // Fill the output pane: merged module console, placeholders for a vanished session, or session output.
                 if (selectedSessionItem == null || string.Equals(_selectedSessionId, UnifiedSessionId, StringComparison.Ordinal))
                 {
                     selectedSessionLines = _consoleStore.GetUnifiedModuleLines(selectedModule.SourcePath);
@@ -742,6 +921,7 @@ namespace ASLM.Pages
                 }
                 else if (selectedSession == null)
                 {
+                    // The selected item has no matching store session any more.
                     selectedSessionLines = [L.Get(LocalizationKeys.Consoles_NoOutputYet)];
                     selectedSessionTitle = L.Get(LocalizationKeys.Consoles_EmptySelectionTitle);
                     selectedSessionStatus = L.Get(LocalizationKeys.Consoles_EmptySelectionStatus);
@@ -751,6 +931,7 @@ namespace ASLM.Pages
                 }
                 else
                 {
+                    // A concrete process session: its output, status, description (or stage) and command line.
                     selectedSessionLines = _consoleStore.GetSessionLines(selectedModule.SourcePath, selectedSession.Id);
                     selectedSessionTitle = $"{selectedModule.Name} / {selectedSession.Title}";
                     selectedSessionStatus = BuildSelectedStatus(selectedSession);
@@ -764,6 +945,7 @@ namespace ASLM.Pages
                 }
             }
 
+            // The session picker is only useful when there is a choice and the scope is a single module.
             return new ConsolesDashboardState
             {
                 Modules = moduleItems,
@@ -785,7 +967,7 @@ namespace ASLM.Pages
         // Mapping
 
         /// <summary>
-        /// Maps internal console stage identifiers to localized labels.
+        /// Maps internal console stage identifiers to localized labels; unknown stages are shown as they are.
         /// </summary>
         private static string LocalizeConsoleStage(string stage) => stage switch
         {
@@ -797,7 +979,8 @@ namespace ASLM.Pages
         };
 
         /// <summary>
-        /// Maps one module snapshot to its sidebar item view model.
+        /// Maps one module snapshot to its sidebar item view model:
+        /// name, enabled state with process counts, and last activity time.
         /// </summary>
         private static ConsoleModuleItemViewModel MapModule(ModuleConsoleModuleSnapshot module)
         {
@@ -823,10 +1006,14 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Maps one session snapshot to its list item view model.
+        /// Maps one session snapshot to its list item view model. The item id combines the module source path and
+        /// the session id so sessions of different modules never collide.
         /// </summary>
+        /// <param name="module">Module that owns the session.</param>
+        /// <param name="session">Session to map.</param>
         private static ConsoleSessionItemViewModel MapSession(ModuleConsoleModuleSnapshot module, ModuleConsoleSessionSnapshot session)
         {
+            // Status line: observed services only report running or stopped; own processes also report the exit code.
             var pidSuffix = FormatPid(session.ProcessId);
             var stageLabel = LocalizeConsoleStage(session.Stage);
             var status = session.IsObservedProcess
@@ -839,6 +1026,7 @@ namespace ASLM.Pages
                         ? L.Get(LocalizationKeys.Consoles_Status_ExitFormat, stageLabel, session.ExitCode.Value, pidSuffix)
                         : L.Get(LocalizationKeys.Consoles_Status_Completed, stageLabel);
 
+            // Build the list item; a session without preview text gets a placeholder that says why it is empty.
             return new ConsoleSessionItemViewModel
             {
                 Id = $"{module.SourcePath}::{session.Id}",
@@ -857,6 +1045,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Builds the human-readable status line shown above the selected console output.
         /// </summary>
+        /// <param name="session">Selected session snapshot.</param>
         private static string BuildSelectedStatus(ModuleConsoleSessionSnapshot session)
         {
             if (session.IsObservedProcess)
@@ -885,8 +1074,10 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Builds the footer metadata shown under the selected console output.
+        /// Builds the footer metadata shown under the selected console output:
+        /// buffered line count, start and end times.
         /// </summary>
+        /// <param name="session">Selected session snapshot.</param>
         private static string BuildFooter(ModuleConsoleSessionSnapshot session)
         {
             var started = L.Get(
@@ -910,7 +1101,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats the process identifier suffix used in session status labels.
+        /// Formats the process identifier suffix used in session status labels; empty when there is no process id.
         /// </summary>
         private static string FormatPid(int? processId)
         {
@@ -920,11 +1111,16 @@ namespace ASLM.Pages
         }
     }
 
+
+    // Dashboard state and view models
+
     /// <summary>
     /// Represents the complete UI state required to render the consoles dashboard.
     /// </summary>
     internal sealed class ConsolesDashboardState
     {
+        // Dashboard properties
+
         /// <summary>
         /// Gets or sets the rendered module items.
         /// </summary>
@@ -941,7 +1137,7 @@ namespace ASLM.Pages
         public IReadOnlyList<ConsoleSessionItemViewModel> Sessions { get; set; } = [];
 
         /// <summary>
-        /// Gets or sets whether the console picker should be visible.
+        /// Gets or sets whether the console (session) picker should be visible.
         /// </summary>
         public bool ShowSessionList { get; set; }
 
@@ -991,17 +1187,58 @@ namespace ASLM.Pages
     /// </summary>
     public sealed class ConsolesPageViewModel : INotifyPropertyChanged
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedSessionId"/>.
+        /// </summary>
         private string? _selectedSessionId;
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedSessionKey"/>.
+        /// </summary>
         private string _selectedSessionKey = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedSessionTitle"/>.
+        /// </summary>
         private string _selectedSessionTitle = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedSessionStatus"/>.
+        /// </summary>
         private string _selectedSessionStatus = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedSessionDescription"/>.
+        /// </summary>
         private string _selectedSessionDescription = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedSessionCommandLine"/>.
+        /// </summary>
         private string _selectedSessionCommandLine = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedSessionFooter"/>.
+        /// </summary>
         private string _selectedSessionFooter = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedSessionText"/>.
+        /// </summary>
         private string _selectedSessionText = string.Empty;
 
-        /// <inheritdoc />
+
+        // Events
+
+        /// <summary>
+        /// Raised when a bindable property of the page view model changes.
+        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
+
+
+        // Bindable state
 
         /// <summary>
         /// Gets the module items shown in the module list.
@@ -1085,6 +1322,9 @@ namespace ASLM.Pages
             set => SetProperty(ref _selectedSessionText, value);
         }
 
+
+        // Property notifications
+
         /// <summary>
         /// Updates a bindable field and raises <see cref="PropertyChanged"/> when the value changes.
         /// </summary>
@@ -1105,13 +1345,38 @@ namespace ASLM.Pages
     /// </summary>
     public sealed class ConsoleModuleItemViewModel : INotifyPropertyChanged
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="SourcePath"/>.
+        /// </summary>
         private string _sourcePath = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="Name"/>.
+        /// </summary>
         private string _name = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="StatusText"/>.
+        /// </summary>
         private string _statusText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="ActivityText"/>.
+        /// </summary>
         private string _activityText = string.Empty;
 
-        /// <inheritdoc />
+
+        // Events
+
+        /// <summary>
+        /// Raised when a bindable property of the module item changes.
+        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
+
+
+        // Bindable state
 
         /// <summary>
         /// Gets or sets the module source path used as the stable list key.
@@ -1149,9 +1414,13 @@ namespace ASLM.Pages
             set => SetProperty(ref _activityText, value);
         }
 
+
+        // State comparison and copying
+
         /// <summary>
         /// Compares two module items by their rendered state.
         /// </summary>
+        /// <param name="other">Item to compare with.</param>
         public bool IsSameAs(ConsoleModuleItemViewModel other)
         {
             return SourcePath == other.SourcePath &&
@@ -1161,8 +1430,9 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Copies the rendered state from another module item.
+        /// Copies the rendered state from another module item, raising change notifications only for changed values.
         /// </summary>
+        /// <param name="other">Item whose state is copied.</param>
         public void UpdateFrom(ConsoleModuleItemViewModel other)
         {
             SourcePath = other.SourcePath;
@@ -1170,6 +1440,9 @@ namespace ASLM.Pages
             StatusText = other.StatusText;
             ActivityText = other.ActivityText;
         }
+
+
+        // Property notifications
 
         /// <summary>
         /// Updates a bindable field and raises <see cref="PropertyChanged"/> when the value changes.
@@ -1191,15 +1464,48 @@ namespace ASLM.Pages
     /// </summary>
     public sealed class ConsoleSessionItemViewModel : INotifyPropertyChanged
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="Id"/>.
+        /// </summary>
         private string _id = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="ModuleSourcePath"/>.
+        /// </summary>
         private string _moduleSourcePath = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="SessionSourceId"/>.
+        /// </summary>
         private string _sessionSourceId = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="Title"/>.
+        /// </summary>
         private string _title = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="StatusText"/>.
+        /// </summary>
         private string _statusText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="Preview"/>.
+        /// </summary>
         private string _preview = string.Empty;
 
-        /// <inheritdoc />
+
+        // Events
+
+        /// <summary>
+        /// Raised when a bindable property of the session item changes.
+        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
+
+
+        // Bindable state
 
         /// <summary>
         /// Gets or sets the stable list identifier for this item.
@@ -1255,9 +1561,13 @@ namespace ASLM.Pages
             set => SetProperty(ref _preview, value);
         }
 
+
+        // State comparison and copying
+
         /// <summary>
         /// Compares two session items by their rendered state.
         /// </summary>
+        /// <param name="other">Item to compare with.</param>
         public bool IsSameAs(ConsoleSessionItemViewModel other)
         {
             return Id == other.Id &&
@@ -1269,8 +1579,9 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Copies the rendered state from another session item.
+        /// Copies the rendered state from another session item, raising change notifications only for changed values.
         /// </summary>
+        /// <param name="other">Item whose state is copied.</param>
         public void UpdateFrom(ConsoleSessionItemViewModel other)
         {
             Id = other.Id;
@@ -1280,6 +1591,9 @@ namespace ASLM.Pages
             StatusText = other.StatusText;
             Preview = other.Preview;
         }
+
+
+        // Property notifications
 
         /// <summary>
         /// Updates a bindable field and raises <see cref="PropertyChanged"/> when the value changes.

@@ -16,19 +16,27 @@ using ASLM.Models;
 
 namespace ASLM.Pages
 {
+    // Palette
+
     /// <summary>
     /// Reads semantic colors from the active app palette so presenter snapshots stay readable in light and dark themes.
     /// </summary>
     internal static class HomePaletteColors
     {
+        /// <summary>
+        /// Primary text color of the active theme; falls back to opaque black when the resource is missing.
+        /// </summary>
         public static Color LabelPrimary =>
             Resolve("LabelPrimary", Color.FromArgb("#FF000000"));
 
+        /// <summary>
+        /// Secondary (muted) text color of the active theme; falls back to a mid gray when the resource is missing.
+        /// </summary>
         public static Color LabelSecondary =>
             Resolve("LabelSecondary", Color.FromArgb("#FF636366"));
 
         /// <summary>
-        /// Resolves a semantic palette color from application resources.
+        /// Resolves a semantic palette color from application resources, returning the fallback when it is not a color.
         /// </summary>
         private static Color Resolve(string key, Color fallback)
         {
@@ -42,18 +50,48 @@ namespace ASLM.Pages
     }
 
 
+    // Home view
+
     /// <summary>
     /// Displays the main ASLM dashboard with live runtime metrics, module controls, and the managed process tree.
+    /// The view only binds and lays out prepared state; data gathering and module actions live in the presenter.
     /// </summary>
     public partial class HomeView : ContentView, IHomeDashboardView, ILocalizable
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Minimum width in device-independent units reserved for one summary card when computing the grid span.
+        /// </summary>
         private const double MinSummaryCardWidth = 400;
+
+        /// <summary>
+        /// Available width below which the process tree and the module list are stacked vertically.
+        /// </summary>
         private const double CompactBreakpoint = 1480;
 
+        /// <summary>
+        /// Bindable page model that the XAML binds to.
+        /// </summary>
         private readonly HomeDashboardPageViewModel _viewModel = new();
+
+        /// <summary>
+        /// Presenter that gathers diagnostics, builds dashboard state, and runs module actions.
+        /// </summary>
         private readonly HomeDashboardPresenter _presenter;
+
+        /// <summary>
+        /// Localization service whose language changes re-apply the view texts.
+        /// </summary>
         private readonly AppLocalizationService _localization;
+
+        /// <summary>
+        /// Repeating timer that triggers a live refresh while the view is loaded; created on first use.
+        /// </summary>
         private IDispatcherTimer? _refreshTimer;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the home dashboard and prepares the presenter-driven lifecycle.
@@ -90,7 +128,12 @@ namespace ASLM.Pages
             UpdateResponsiveLayout();
         }
 
-        /// <inheritdoc />
+
+        // Localization and shell API
+
+        /// <summary>
+        /// Applies localized texts to the static labels and requests a refresh so generated card texts are rebuilt too.
+        /// </summary>
         public void ApplyLocalization()
         {
             HomeTitleLabel.Text = L.Get(LocalizationKeys.Home_Title);
@@ -163,12 +206,14 @@ namespace ASLM.Pages
         /// </summary>
         void IHomeDashboardView.Render(HomeDashboardState state)
         {
+            // Summary cards are matched by their stable key.
             SyncKeyedItems(
                 _viewModel.SummaryCards,
                 state.SummaryCards,
                 static item => item.Key,
                 static (target, source) => target.CopyFrom(source));
 
+            // Process rows disappear and reorder frequently, so vanished rows are removed before reordering.
             SyncKeyedItems(
                 _viewModel.ProcessNodes,
                 state.ProcessNodes,
@@ -176,6 +221,7 @@ namespace ASLM.Pages
                 static (target, source) => target.CopyFrom(source),
                 removeMissingItemsBeforeReorder: true);
 
+            // Module rows are matched by their manifest path.
             SyncKeyedItems(
                 _viewModel.Modules,
                 state.Modules,
@@ -191,7 +237,11 @@ namespace ASLM.Pages
         /// </summary>
         private void UpdateResponsiveLayout()
         {
+            // Reserve a fixed 24-unit horizontal gutter; before the first measure the breakpoint value is used,
+            // which selects the wide layout.
             var availableWidth = Width > 0 ? Width - 24 : CompactBreakpoint;
+
+            // Fit as many summary cards per row as the width allows, between one and three.
             if (availableWidth > 0)
             {
                 var summaryWidth = Math.Max(0, availableWidth - 8);
@@ -200,11 +250,13 @@ namespace ASLM.Pages
 
             var isCompact = availableWidth < CompactBreakpoint;
 
+            // Rebuild the workspace grid from scratch: both panels are re-placed below for the chosen layout.
             WorkspaceLayout.ColumnDefinitions.Clear();
             WorkspaceLayout.RowDefinitions.Clear();
 
             if (isCompact)
             {
+                // Compact layout: one column, process tree above the module list, equal heights.
                 WorkspaceLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
                 WorkspaceLayout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
                 WorkspaceLayout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -216,6 +268,7 @@ namespace ASLM.Pages
             }
             else
             {
+                // Wide layout: process tree and module list side by side, the tree getting 1.35 parts of the width.
                 WorkspaceLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.35, GridUnitType.Star) });
                 WorkspaceLayout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 WorkspaceLayout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -231,7 +284,7 @@ namespace ASLM.Pages
         // Timed refresh
 
         /// <summary>
-        /// Starts the periodic dashboard refresh timer.
+        /// Starts the periodic dashboard refresh timer, creating it on first use; does nothing without a dispatcher.
         /// </summary>
         private void StartRefreshTimer()
         {
@@ -256,7 +309,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Creates the repeating timer used to keep the dashboard metrics current.
+        /// Creates the repeating timer (one tick per second) used to keep the dashboard metrics current.
         /// </summary>
         private IDispatcherTimer CreateRefreshTimer(IDispatcher dispatcher)
         {
@@ -267,9 +320,6 @@ namespace ASLM.Pages
             return timer;
         }
 
-
-        // Collection helpers
-
         /// <summary>
         /// Requests a lightweight live refresh on each timer tick.
         /// </summary>
@@ -277,6 +327,9 @@ namespace ASLM.Pages
         {
             await _presenter.RefreshAsync(forceModuleReload: false);
         }
+
+
+        // Collection helpers
 
         /// <summary>
         /// Updates an observable collection in place by key so item instances stay stable between refreshes.
@@ -296,11 +349,13 @@ namespace ASLM.Pages
 
             var indexByKey = BuildIndex(target, keySelector);
 
+            // Walk the desired order; after each step the target prefix up to the index matches the source.
             for (var index = 0; index < source.Count; index++)
             {
                 var sourceItem = source[index];
                 var sourceKey = keySelector(sourceItem);
 
+                // The item at this position already has the right key: only refresh its values.
                 if (index < target.Count &&
                     string.Equals(keySelector(target[index]), sourceKey, StringComparison.Ordinal))
                 {
@@ -319,11 +374,14 @@ namespace ASLM.Pages
                 }
                 else
                 {
+                    // No existing item with this key further down: insert the source item itself and
+                    // rebuild the index map because positions shifted.
                     target.Insert(index, sourceItem);
                     indexByKey = BuildIndex(target, keySelector);
                 }
             }
 
+            // Drop the surplus tail: items whose keys no longer appear in the source.
             while (target.Count > source.Count)
             {
                 target.RemoveAt(target.Count - 1);
@@ -371,6 +429,8 @@ namespace ASLM.Pages
     }
 
 
+    // Presenter
+
     /// <summary>
     /// Defines the rendering contract used by the home dashboard presenter.
     /// </summary>
@@ -382,36 +442,104 @@ namespace ASLM.Pages
         void Render(HomeDashboardState state);
     }
 
-
     /// <summary>
     /// Builds the home dashboard state, coordinates live refreshes, and handles module actions.
+    /// Sampling and state construction run on a background thread; only rendering is marshalled to the UI thread.
     /// </summary>
     internal sealed class HomeDashboardPresenter
     {
+        // Collaborators
+
+        /// <summary>
+        /// View that receives each prepared dashboard state.
+        /// </summary>
         private readonly IHomeDashboardView _view;
+
+        /// <summary>
+        /// Discovers, loads, and saves installed module manifests.
+        /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Stops running module processes.
+        /// </summary>
         private readonly ModuleRunner _moduleRunner;
+
+        /// <summary>
+        /// Launches modules with the same lifecycle as the main modules page.
+        /// </summary>
         private readonly ModuleLaunchCoordinator _launchCoordinator;
+
+        /// <summary>
+        /// Source of module console sessions that feed the session counts and the console actions.
+        /// </summary>
         private readonly ModuleConsoleStore _consoleStore;
+
+        /// <summary>
+        /// Persisted application data; supplies the console sidebar visibility setting.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Samples system, runtime, and per-process diagnostics on every refresh.
+        /// </summary>
         private readonly HomeDiagnosticsCollector _diagnosticsCollector;
+
+
+        // Refresh and tree state
+
+        /// <summary>
+        /// Single-slot gate that lets only one refresh run at a time; overlapping requests are dropped.
+        /// </summary>
         private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
+        /// <summary>
+        /// Busy state of module actions keyed by module manifest path.
+        /// </summary>
         private readonly Dictionary<string, HomeModuleOperationState> _moduleOperations =
             new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Expansion state of process tree nodes keyed by node key; the ASLM root starts expanded.
+        /// </summary>
         private readonly Dictionary<string, bool> _expandedNodes =
             new(StringComparer.OrdinalIgnoreCase)
             {
                 ["root:aslm"] = true
             };
 
+        /// <summary>
+        /// Installed modules from the last discovery, reused until a forced module reload.
+        /// </summary>
         private List<ModuleConfig> _knownModules = [];
+
+        /// <summary>
+        /// Console snapshot of the last refresh, reused when only the tree expansion changes.
+        /// </summary>
         private IReadOnlyList<ModuleConsoleModuleSnapshot> _lastConsoleSnapshots = [];
+
+        /// <summary>
+        /// Diagnostics of the last refresh, or null before the first one completes.
+        /// </summary>
         private HomeDiagnosticsSnapshot? _lastDiagnosticsSnapshot;
+
+        /// <summary>
+        /// Shell host used for page navigation, or null until attached.
+        /// </summary>
         private AppShellPage? _shell;
+
+        /// <summary>
+        /// Whether the presenter is subscribed to console changes.
+        /// </summary>
         private bool _isActive;
+
+        /// <summary>
+        /// Interlocked flag (0 or 1) recording that a forced module reload was requested while a refresh was running.
+        /// </summary>
         private int _forceRefreshQueued;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the presenter for the main home dashboard.
@@ -442,8 +570,11 @@ namespace ASLM.Pages
             _shell = shell;
         }
 
+
+        // Lifecycle
+
         /// <summary>
-        /// Starts listening for console changes and renders the initial dashboard state.
+        /// Starts listening for console changes and renders the initial dashboard state with a forced module reload.
         /// </summary>
         public async Task ActivateAsync()
         {
@@ -471,6 +602,9 @@ namespace ASLM.Pages
             _isActive = false;
         }
 
+
+        // Refresh
+
         /// <summary>
         /// Reloads modules, captures diagnostics, and rerenders the dashboard using the default refresh policy.
         /// </summary>
@@ -485,11 +619,13 @@ namespace ASLM.Pages
         /// <param name="forceModuleReload">When <see langword="true"/>, rediscover modules before sampling diagnostics.</param>
         public async Task RefreshAsync(bool forceModuleReload)
         {
+            // Remember a forced reload so the refresh that currently holds the lock performs it too.
             if (forceModuleReload)
             {
                 Interlocked.Exchange(ref _forceRefreshQueued, 1);
             }
 
+            // Drop the request when a refresh is already running instead of queuing overlapping samples.
             if (!await _refreshLock.WaitAsync(0))
             {
                 return;
@@ -501,11 +637,13 @@ namespace ASLM.Pages
 
                 do
                 {
+                    // Rediscover installed modules only when forced or when none are known yet.
                     if (shouldForceReload || _knownModules.Count == 0)
                     {
                         _knownModules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
                     }
 
+                    // Sample diagnostics and build the whole state off the UI thread.
                     var modules = _knownModules.ToList();
                     var refreshSnapshot = await Task.Run(() =>
                     {
@@ -522,9 +660,11 @@ namespace ASLM.Pages
                         };
                     }).ConfigureAwait(false);
 
+                    // Keep the captured data so a tree toggle can re-render without sampling again.
                     _lastConsoleSnapshots = refreshSnapshot.ConsoleSnapshots;
                     _lastDiagnosticsSnapshot = refreshSnapshot.Diagnostics;
 
+                    // Render on the UI thread, then repeat when a forced reload was requested during this pass.
                     await MainThread.InvokeOnMainThreadAsync(() => _view.Render(refreshSnapshot.State));
                     shouldForceReload = Interlocked.Exchange(ref _forceRefreshQueued, 0) == 1;
                 }
@@ -535,6 +675,9 @@ namespace ASLM.Pages
                 _refreshLock.Release();
             }
         }
+
+
+        // Navigation
 
         /// <summary>
         /// Opens the full module management page.
@@ -590,9 +733,13 @@ namespace ASLM.Pages
             IReadOnlyList<ModuleConsoleModuleSnapshot> consoleSnapshots,
             HomeDiagnosticsSnapshot diagnostics)
         {
+            // Sample time and session counts; observed processes (children discovered without stream capture) are
+            // not real console sessions, so they are excluded.
             var updatedAt = diagnostics.CapturedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             var activeSessionCount = consoleSnapshots.Sum(module => module.Sessions.Count(session => session.IsRunning && !session.IsObservedProcess));
             var totalSessionCount = consoleSnapshots.Sum(module => module.Sessions.Count(session => !session.IsObservedProcess));
+
+            // System card: whole-machine CPU, per-adapter GPU, memory, disk activity, and network throughput.
             var systemMetrics = new List<HomeSummaryMetricViewModel>
             {
                 CreatePercentMetric(
@@ -628,6 +775,7 @@ namespace ASLM.Pages
                     Color.FromArgb("#2264D2FF"))
             ]);
 
+            // Runtime card: resources used by the ASLM process tree only (GPU adapters use the runtime share).
             var runtimeMetrics = new List<HomeSummaryMetricViewModel>
             {
                 CreatePercentMetric(
@@ -655,6 +803,7 @@ namespace ASLM.Pages
                     Color.FromArgb("#2264D2FF"))
             ]);
 
+            // Assemble the three cards in display order: system, runtime, and module overview.
             return
             [
                 new HomeSummaryCardViewModel
@@ -730,16 +879,19 @@ namespace ASLM.Pages
             IReadOnlyList<ModuleConfig> modules,
             HomeDiagnosticsSnapshot diagnostics)
         {
+            // Console buttons are offered only while the consoles sidebar is enabled in the app settings.
             var rows = new List<HomeModuleCardViewModel>();
             _appData.Data.Normalize();
             var canShowConsoleActions = _appData.Data.Consoles.SidebarVisible;
 
             foreach (var module in modules)
             {
+                // Look up this module's diagnostics, its busy state, and whether it has console sessions.
                 diagnostics.ModulesBySourcePath.TryGetValue(module.SourcePath, out var moduleDiagnostics);
                 var operationState = GetOperationState(module.SourcePath);
                 var hasConsole = (moduleDiagnostics?.ConsoleSessionCount ?? 0) > 0;
 
+                // The secondary line shows the status; stopped modules append a description, author, or default text.
                 var statusText = module.Status.Enabled
                     ? L.Get(LocalizationKeys.Home_Metric_Running)
                     : L.Get(LocalizationKeys.Home_Module_Stopped);
@@ -751,6 +903,8 @@ namespace ASLM.Pages
                     secondaryParts.Add(BuildModuleSecondaryText(module));
                 }
 
+                // The busy and idle flags drive which action buttons the row offers;
+                // each command captures the manifest path.
                 rows.Add(new HomeModuleCardViewModel
                 {
                     SourcePath = module.SourcePath,
@@ -771,6 +925,9 @@ namespace ASLM.Pages
             return rows;
         }
 
+
+        // Process tree
+
         /// <summary>
         /// Flattens the tree snapshot into a list of visible rows while preserving expand/collapse state.
         /// </summary>
@@ -789,12 +946,14 @@ namespace ASLM.Pages
             int depth,
             List<HomeProcessTreeNodeViewModel> visibleNodes)
         {
+            // Leaves are never expanded and the fixed ASLM root always is; other nodes use the remembered state.
             var isExpanded = node.Children.Count == 0
                 ? false
                 : IsFixedRootNode(node.Key)
                     ? true
                     : GetExpandedState(node.Key, node.DefaultExpanded);
 
+            // Emit this node's row; depth indents it by 18 units per level and the root has no expander.
             visibleNodes.Add(new HomeProcessTreeNodeViewModel
             {
                 Key = node.Key,
@@ -823,6 +982,7 @@ namespace ASLM.Pages
                 })
             });
 
+            // Descendants are listed only below an expanded node.
             if (!isExpanded)
             {
                 return;
@@ -867,6 +1027,9 @@ namespace ASLM.Pages
             RenderCachedState();
         }
 
+
+        // Cached rendering and operation state
+
         /// <summary>
         /// Re-renders the latest captured dashboard snapshot without sampling diagnostics again.
         /// </summary>
@@ -903,17 +1066,20 @@ namespace ASLM.Pages
         /// </summary>
         private async Task LaunchModuleAsync(string sourcePath)
         {
+            // Ignore the request while another action on this module is still running.
             var operationState = GetOperationState(sourcePath);
             if (operationState.IsBusy)
             {
                 return;
             }
 
+            // Show the busy state immediately; a light refresh renders it without rediscovering modules.
             operationState.StartLaunching();
             await RefreshAsync(forceModuleReload: false);
 
             try
             {
+                // Launch the module (or confirm it is already running), then reload its effective manifest from disk.
                 var launchLog = new Progress<string>(message => Debug.WriteLine($"[Launch] {message}"));
                 var result = await _launchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
                     sourcePath,
@@ -927,6 +1093,7 @@ namespace ASLM.Pages
             }
             finally
             {
+                // Always clear the busy state and rediscover modules, even when the launch failed.
                 operationState.Clear();
                 await RefreshAsync(forceModuleReload: true);
             }
@@ -937,17 +1104,20 @@ namespace ASLM.Pages
         /// </summary>
         private async Task StopModuleAsync(string sourcePath)
         {
+            // Ignore the request while another action on this module is still running.
             var operationState = GetOperationState(sourcePath);
             if (operationState.IsBusy)
             {
                 return;
             }
 
+            // Show the busy state immediately; a light refresh renders it without rediscovering modules.
             operationState.StartStopping();
             await RefreshAsync(forceModuleReload: false);
 
             try
             {
+                // Stop the module processes, then reload its manifest from disk before updating it.
                 await Task.Run(() => _moduleRunner.StopModuleAsync(sourcePath));
 
                 var module = await ReloadModuleAsync(sourcePath);
@@ -956,12 +1126,14 @@ namespace ASLM.Pages
                     return;
                 }
 
+                // Persist the disabled flag and mirror it in the console store.
                 module.Status.Enabled = false;
                 await Task.Run(() => _moduleInstaller.SaveConfigAsync(module));
                 _consoleStore.UpdateModuleEnabledState(module.SourcePath, false);
             }
             finally
             {
+                // Always clear the busy state and rediscover modules, even when stopping failed.
                 operationState.Clear();
                 await RefreshAsync(forceModuleReload: true);
             }
@@ -972,20 +1144,24 @@ namespace ASLM.Pages
         /// </summary>
         private async Task RestartModuleAsync(string sourcePath)
         {
+            // Ignore the request while another action on this module is still running.
             var operationState = GetOperationState(sourcePath);
             if (operationState.IsBusy)
             {
                 return;
             }
 
+            // Show the busy state immediately; a light refresh renders it without rediscovering modules.
             operationState.StartRestarting();
             await RefreshAsync(forceModuleReload: false);
 
             try
             {
+                // Stop the processes without saving a disabled state, then wait one second before launching again.
                 await Task.Run(() => _moduleRunner.StopModuleAsync(sourcePath));
                 await Task.Delay(1000);
 
+                // Launch the module again and reload its effective manifest from disk.
                 var restartLog = new Progress<string>(message => Debug.WriteLine($"[Restart] {message}"));
                 var result = await _launchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
                     sourcePath,
@@ -999,6 +1175,7 @@ namespace ASLM.Pages
             }
             finally
             {
+                // Always clear the busy state and rediscover modules, even when the restart failed.
                 operationState.Clear();
                 await RefreshAsync(forceModuleReload: true);
             }
@@ -1039,10 +1216,10 @@ namespace ASLM.Pages
         }
 
 
-        // Formatting helpers
+        // Metric and formatting helpers
 
         /// <summary>
-        /// Creates a standard percent-based summary metric row.
+        /// Creates a standard percent-based summary metric row with a progress bar clamped to 0-100% and a severity color.
         /// </summary>
         private static HomeSummaryMetricViewModel CreatePercentMetric(string name, double percentValue, string detailText)
         {
@@ -1059,7 +1236,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Creates a summary metric row for an optional percent-based signal.
+        /// Creates a summary metric row for an optional percent-based signal;
+        /// a missing value yields a "not available" row without a progress bar.
         /// </summary>
         private static HomeSummaryMetricViewModel CreateOptionalPercentMetric(string name, double? percentValue, string detailText)
         {
@@ -1100,12 +1278,14 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Builds summary metrics for each detected GPU adapter.
+        /// Builds summary metrics for each detected GPU adapter, using either the ASLM-runtime or the system-wide
+        /// utilization of every adapter.
         /// </summary>
         private static IReadOnlyList<HomeSummaryMetricViewModel> BuildGpuMetrics(
             IReadOnlyList<HomeGpuAdapterSnapshot> adapters,
             bool useRuntimeValues)
         {
+            // Without any adapter show a single "not available" row so the card layout stays stable.
             if (adapters.Count == 0)
             {
                 return
@@ -1121,6 +1301,7 @@ namespace ASLM.Pages
                 ];
             }
 
+            // One percent row per adapter in adapter-index order, labeled with the index and detailed with the name.
             var metrics = new List<HomeSummaryMetricViewModel>();
             foreach (var adapter in adapters.OrderBy(adapter => adapter.AdapterIndex))
             {
@@ -1144,6 +1325,7 @@ namespace ASLM.Pages
             int processCount,
             int sessionCount)
         {
+            // Always show CPU, GPU (or an unavailable marker), RAM, disk I/O, and network connections.
             var badges = new List<HomeMetricBadgeViewModel>
             {
                 CreateBadge($"CPU {usage.CpuPercent:F1}%", Color.FromArgb("#220A84FF"))
@@ -1157,6 +1339,7 @@ namespace ASLM.Pages
             badges.Add(CreateBadge(L.Get(LocalizationKeys.Home_Badge_DiskFormat, FormatRate(usage.DiskIoBytesPerSec)), Color.FromArgb("#22FF9F0A")));
             badges.Add(CreateBadge(L.Get(LocalizationKeys.Home_Badge_NetFormat, FormatConnectionCount(usage.ConnectionCount)), Color.FromArgb("#2264D2FF")));
 
+            // Process and session counts appear only when there is something to count.
             if (processCount > 0)
             {
                 badges.Add(CreateBadge(L.Get(LocalizationKeys.Home_Badge_ProcessesFormat, processCount), Color.FromArgb("#220A84FF")));
@@ -1183,7 +1366,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Builds the secondary text shown under one module card title.
+        /// Builds the secondary text shown under one module card title: its description when present,
+        /// otherwise an author credit, otherwise a generic installed label.
         /// </summary>
         private static string BuildModuleSecondaryText(ModuleConfig module)
         {
@@ -1198,7 +1382,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats byte counts using a compact binary unit scale.
+        /// Formats byte counts using a compact 1024-based unit scale (B to TB), with no decimals for plain bytes
+        /// and values of 100 or more, and one decimal otherwise.
         /// </summary>
         internal static string FormatBytes(long bytes)
         {
@@ -1223,7 +1408,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats a byte throughput value using a compact binary unit scale.
+        /// Formats a byte throughput value in bytes per second using the same 1024-based scale and
+        /// decimal rules as <see cref="FormatBytes"/>.
         /// </summary>
         internal static string FormatRate(double bytesPerSecond)
         {
@@ -1248,7 +1434,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats a compact network-connection count.
+        /// Formats a localized network-connection count, using a dedicated text for exactly one connection.
         /// </summary>
         private static string FormatConnectionCount(int connectionCount)
         {
@@ -1258,7 +1444,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats a percent value using the compact dashboard style.
+        /// Formats a percent value with one decimal and a percent sign.
         /// </summary>
         internal static string FormatPercent(double value)
         {
@@ -1266,7 +1452,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats an optional percent value or returns a fallback placeholder.
+        /// Formats an optional percent value with one decimal, or returns the placeholder <c>n/a</c> when it is missing.
         /// </summary>
         internal static string FormatPercentOrNa(double? value)
         {
@@ -1284,7 +1470,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Returns a severity color for one normalized usage value.
+        /// Returns a severity color for one normalized usage value: red from 0.8, yellow from 0.5, green below.
         /// </summary>
         private static Color GetSeverityColor(double normalizedValue)
         {
@@ -1302,6 +1488,8 @@ namespace ASLM.Pages
         }
     }
 
+
+    // Dashboard state
 
     /// <summary>
     /// Represents the full UI state required to render the home dashboard.
@@ -1323,7 +1511,6 @@ namespace ASLM.Pages
         /// </summary>
         public IReadOnlyList<HomeModuleCardViewModel> Modules { get; set; } = [];
     }
-
 
     /// <summary>
     /// Stores one fully prepared refresh payload before it is rendered on the UI thread.
@@ -1347,15 +1534,30 @@ namespace ASLM.Pages
     }
 
 
+    // View models
+
     /// <summary>
     /// Exposes bindable dashboard state for the home page shell.
     /// </summary>
     public sealed class HomeDashboardPageViewModel : INotifyPropertyChanged
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="SummaryGridSpan"/>.
+        /// </summary>
         private int _summaryGridSpan = 1;
 
-        /// <inheritdoc />
+
+        // Events
+
+        /// <summary>
+        /// Raised when a bindable property changes so the UI refreshes its binding.
+        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the bindable home dashboard state with a stable initial skeleton.
@@ -1364,6 +1566,9 @@ namespace ASLM.Pages
         {
             SeedSummaryCards();
         }
+
+
+        // Bindable state
 
         /// <summary>
         /// Gets the summary cards shown at the top of the dashboard.
@@ -1389,8 +1594,12 @@ namespace ASLM.Pages
             set => SetProperty(ref _summaryGridSpan, value);
         }
 
+
+        // Placeholder cards
+
         /// <summary>
         /// Adds placeholder summary cards so the top dashboard block does not pop in late.
+        /// They use the keys of the real cards, so the first refresh updates them in place.
         /// </summary>
         private void SeedSummaryCards()
         {
@@ -1448,6 +1657,9 @@ namespace ASLM.Pages
                 ]
             };
 
+
+        // Change notification
+
         /// <summary>
         /// Updates a bindable field and raises <see cref="PropertyChanged"/> when the value changes.
         /// </summary>
@@ -1463,13 +1675,15 @@ namespace ASLM.Pages
         }
     }
 
-
     /// <summary>
     /// Provides a small bindable base implementation for dashboard item models.
+    /// Item instances are kept alive between refreshes and updated in place, so every change must be notified.
     /// </summary>
     public abstract class HomeBindableItemViewModel : INotifyPropertyChanged
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Raised when a bindable property changes so the UI refreshes its binding.
+        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
@@ -1487,19 +1701,50 @@ namespace ASLM.Pages
         }
     }
 
-
     /// <summary>
     /// Represents one summary card on the home dashboard.
     /// </summary>
     public sealed class HomeSummaryCardViewModel : HomeBindableItemViewModel
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="Key"/>.
+        /// </summary>
         private string _key = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="Title"/>.
+        /// </summary>
         private string _title = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="Subtitle"/>.
+        /// </summary>
         private string _subtitle = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="StatusText"/>.
+        /// </summary>
         private string _statusText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="AccentOverlayColor"/>.
+        /// </summary>
         private Color _accentOverlayColor = Color.FromArgb("#220A84FF");
+
+        /// <summary>
+        /// Backing field of <see cref="Metrics"/>.
+        /// </summary>
         private IReadOnlyList<HomeSummaryMetricViewModel> _metrics = [];
+
+        /// <summary>
+        /// Backing field of <see cref="FooterText"/>.
+        /// </summary>
         private string _footerText = string.Empty;
+
+
+        // Bindable properties
 
         /// <summary>
         /// Gets or sets the stable card key.
@@ -1564,6 +1809,9 @@ namespace ASLM.Pages
             set => SetProperty(ref _footerText, value);
         }
 
+
+        // Synchronization
+
         /// <summary>
         /// Applies the values from the latest presenter snapshot.
         /// </summary>
@@ -1578,7 +1826,6 @@ namespace ASLM.Pages
             FooterText = source.FooterText;
         }
     }
-
 
     /// <summary>
     /// Represents one summary metric row inside a home dashboard card.
@@ -1606,7 +1853,7 @@ namespace ASLM.Pages
         public bool HasProgress { get; set; }
 
         /// <summary>
-        /// Gets or sets the normalized progress value.
+        /// Gets or sets the progress bar fill as a fraction from 0 to 1.
         /// </summary>
         public double ProgressValue { get; set; }
 
@@ -1615,7 +1862,6 @@ namespace ASLM.Pages
         /// </summary>
         public Color AccentColor { get; set; } = Color.FromArgb("#FF32D74B");
     }
-
 
     /// <summary>
     /// Represents one compact metric badge.
@@ -1633,24 +1879,75 @@ namespace ASLM.Pages
         public Color BackgroundColor { get; set; } = Color.FromArgb("#2238383A");
     }
 
-
     /// <summary>
     /// Represents one module row in the home dashboard.
     /// </summary>
     public sealed class HomeModuleCardViewModel : HomeBindableItemViewModel
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="SourcePath"/>.
+        /// </summary>
         private string _sourcePath = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="Name"/>.
+        /// </summary>
         private string _name = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="SecondaryText"/>.
+        /// </summary>
         private string _secondaryText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="CanOpenConsole"/>.
+        /// </summary>
         private bool _canOpenConsole;
+
+        /// <summary>
+        /// Backing field of <see cref="IsBusy"/>.
+        /// </summary>
         private bool _isBusy;
+
+        /// <summary>
+        /// Backing field of <see cref="BusyText"/>.
+        /// </summary>
         private string _busyText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="IsRunningAndIdle"/>.
+        /// </summary>
         private bool _isRunningAndIdle;
+
+        /// <summary>
+        /// Backing field of <see cref="IsStoppedAndIdle"/>.
+        /// </summary>
         private bool _isStoppedAndIdle;
+
+        /// <summary>
+        /// Backing field of <see cref="LaunchCommand"/>; a no-op command until the presenter assigns a real one.
+        /// </summary>
         private ICommand _launchCommand = new Command(() => { });
+
+        /// <summary>
+        /// Backing field of <see cref="StopCommand"/>; a no-op command until the presenter assigns a real one.
+        /// </summary>
         private ICommand _stopCommand = new Command(() => { });
+
+        /// <summary>
+        /// Backing field of <see cref="RestartCommand"/>; a no-op command until the presenter assigns a real one.
+        /// </summary>
         private ICommand _restartCommand = new Command(() => { });
+
+        /// <summary>
+        /// Backing field of <see cref="ConsoleCommand"/>; a no-op command until the presenter assigns a real one.
+        /// </summary>
         private ICommand _consoleCommand = new Command(() => { });
+
+
+        // Bindable properties
 
         /// <summary>
         /// Gets or sets the stable module source path.
@@ -1760,6 +2057,9 @@ namespace ASLM.Pages
             set => SetProperty(ref _consoleCommand, value);
         }
 
+
+        // Synchronization
+
         /// <summary>
         /// Applies the values from the latest presenter snapshot.
         /// </summary>
@@ -1780,26 +2080,85 @@ namespace ASLM.Pages
         }
     }
 
-
     /// <summary>
     /// Represents one visible row of the managed process tree.
     /// </summary>
     public sealed class HomeProcessTreeNodeViewModel : HomeBindableItemViewModel
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="Key"/>.
+        /// </summary>
         private string _key = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="Title"/>.
+        /// </summary>
         private string _title = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="TitleColor"/>; starts with the primary label color of the active theme.
+        /// </summary>
         private Color _titleColor = HomePaletteColors.LabelPrimary;
+
+        /// <summary>
+        /// Backing field of <see cref="TitleFontAttributes"/>.
+        /// </summary>
         private FontAttributes _titleFontAttributes = FontAttributes.None;
+
+        /// <summary>
+        /// Backing field of <see cref="CpuText"/>.
+        /// </summary>
         private string _cpuText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="GpuText"/>.
+        /// </summary>
         private string _gpuText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="MemoryText"/>.
+        /// </summary>
         private string _memoryText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="DiskText"/>.
+        /// </summary>
         private string _diskText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="NetworkText"/>.
+        /// </summary>
         private string _networkText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="DetailsText"/>.
+        /// </summary>
         private string _detailsText = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="IndentMargin"/>.
+        /// </summary>
         private Thickness _indentMargin;
+
+        /// <summary>
+        /// Backing field of <see cref="CanExpand"/>.
+        /// </summary>
         private bool _canExpand;
+
+        /// <summary>
+        /// Backing field of <see cref="ExpanderIconSource"/>.
+        /// </summary>
         private string _expanderIconSource = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="ToggleCommand"/>; a no-op command until the presenter assigns a real one.
+        /// </summary>
         private ICommand _toggleCommand = new Command(() => { });
+
+
+        // Bindable properties
 
         /// <summary>
         /// Gets or sets the stable row key.
@@ -1927,6 +2286,9 @@ namespace ASLM.Pages
             set => SetProperty(ref _toggleCommand, value);
         }
 
+
+        // Synchronization
+
         /// <summary>
         /// Applies the values from the latest presenter snapshot.
         /// </summary>
@@ -1950,12 +2312,22 @@ namespace ASLM.Pages
     }
 
 
+    // Module action state
+
     /// <summary>
     /// Tracks the busy state of one module action initiated from the home dashboard.
     /// </summary>
     internal sealed class HomeModuleOperationState
     {
+        // Fields
+
+        /// <summary>
+        /// Localized busy text of the current action, or empty while idle.
+        /// </summary>
         private string _busyText = string.Empty;
+
+
+        // State
 
         /// <summary>
         /// Gets whether the module is currently processing an action.
@@ -1966,6 +2338,9 @@ namespace ASLM.Pages
         /// Gets the user-visible busy-state text.
         /// </summary>
         public string BusyText => _busyText;
+
+
+        // Transitions
 
         /// <summary>
         /// Marks the module as launching.
@@ -2005,29 +2380,94 @@ namespace ASLM.Pages
     }
 
 
+    // Diagnostics collection
+
     /// <summary>
     /// Captures live system and process diagnostics used by the home dashboard.
+    /// Cumulative counters (CPU time, I/O bytes, network bytes) are turned into rates by comparing each sample
+    /// with the previous one, so the first sample of each reports zero. The slower queries (disk, GPU, connection
+    /// counts) are cached for a few seconds between refreshes.
     /// </summary>
     internal sealed class HomeDiagnosticsCollector
     {
+        // Static state
+
+        /// <summary>
+        /// Parses a Windows GPU Engine performance-counter instance name and captures, in order, the process id,
+        /// the physical adapter index, and the engine index.
+        /// </summary>
         private static readonly Regex GpuInstanceRegex =
             new(@"pid_(\d+).*?phys_(\d+).*?eng_(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 #if WINDOWS
+        /// <summary>
+        /// Display names of the installed GPU adapters, queried once and reused for the lifetime of the process.
+        /// </summary>
         private static IReadOnlyList<string>? _cachedGpuAdapterNames;
 #endif
 
+
+        // Collaborators and previous samples
+
+        /// <summary>
+        /// Reader of the cached operating-system process table.
+        /// </summary>
         private readonly ProcessSnapshotReader _processSnapshots;
+
+        /// <summary>
+        /// Previous raw sample of every managed process by process id; the base of the next CPU and I/O deltas.
+        /// </summary>
         private readonly Dictionary<int, HomeProcessSample> _processSamples = new();
 
+        /// <summary>
+        /// Previous system-wide CPU time counters, or null before the first sample.
+        /// </summary>
         private HomeSystemCpuSample? _lastSystemCpuSample;
+
+        /// <summary>
+        /// Previous network byte counters, or null before the first sample.
+        /// </summary>
         private HomeNetworkSample? _lastNetworkSample;
+
+
+        // Query caches
+
+        /// <summary>
+        /// Result of the last disk statistics query, reused while it is fresh.
+        /// </summary>
         private HomeDiskStats _cachedDiskStats = new();
+
+        /// <summary>
+        /// Time of the last disk statistics query.
+        /// </summary>
         private DateTimeOffset _cachedDiskStatsUtc = DateTimeOffset.MinValue;
+
+        /// <summary>
+        /// Result of the last GPU usage query, reused while it is fresh.
+        /// </summary>
         private HomeGpuQueryResult _cachedGpuQuery = new();
+
+        /// <summary>
+        /// Time of the last GPU usage query.
+        /// </summary>
         private DateTimeOffset _cachedGpuQueryUtc = DateTimeOffset.MinValue;
+
+        /// <summary>
+        /// Result of the last connection count query: connection count by process id.
+        /// </summary>
         private Dictionary<int, int> _cachedConnectionCounts = new();
+
+        /// <summary>
+        /// Process ids that the cached connection counts were computed for.
+        /// </summary>
         private HashSet<int> _cachedConnectionProcessIds = new();
+
+        /// <summary>
+        /// Time of the last connection count query.
+        /// </summary>
         private DateTimeOffset _cachedConnectionCountsUtc = DateTimeOffset.MinValue;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the diagnostics collector used by the home dashboard presenter.
@@ -2037,6 +2477,9 @@ namespace ASLM.Pages
             _processSnapshots = processSnapshots;
         }
 
+
+        // Capture
+
         /// <summary>
         /// Captures a complete diagnostics snapshot for the current dashboard refresh.
         /// </summary>
@@ -2044,6 +2487,7 @@ namespace ASLM.Pages
             IReadOnlyList<ModuleConfig> modules,
             IReadOnlyList<ModuleConsoleModuleSnapshot> consoleSnapshots)
         {
+            // Read the process table (cached for up to 500 ms) and index it by pid and by parent pid.
             var capturedUtc = DateTimeOffset.UtcNow;
             var currentProcessId = Environment.ProcessId;
             var processSnapshotEntries = _processSnapshots.GetSnapshot(TimeSpan.FromMilliseconds(500));
@@ -2052,9 +2496,11 @@ namespace ASLM.Pages
                 .GroupBy(entry => entry.ParentProcessId)
                 .ToDictionary(group => group.Key, group => group.Select(entry => entry.ProcessId).ToList());
 
+            // The managed set is the ASLM process itself plus every descendant it started.
             var managedPids = CollectDescendantPids(currentProcessId, childrenByParent);
             managedPids.Add(currentProcessId);
 
+            // Take the system-wide samples; the slow queries (disk, GPU, connections) are cached between refreshes.
             var memoryStatus = GetMemoryStatus();
             var systemCpu = SampleSystemCpu(capturedUtc);
             var diskStats = GetDiskStatsSample(capturedUtc);
@@ -2063,6 +2509,7 @@ namespace ASLM.Pages
             var gpuAdapters = BuildGpuAdapterSnapshots(gpuQuery, managedPids);
             var connectionCounts = GetConnectionCountsSample(capturedUtc, managedPids);
 
+            // Sample every managed process; processes that vanished or cannot be read are left out.
             var liveProcesses = new Dictionary<int, HomeLiveProcessInfo>();
             foreach (var processId in managedPids.OrderBy(processId => processId))
             {
@@ -2079,8 +2526,10 @@ namespace ASLM.Pages
                 }
             }
 
+            // Forget the previous samples of processes that are gone so the sample table does not grow.
             CleanupProcessSamples(liveProcesses.Keys);
 
+            // Attribute live processes to modules using console sessions and the process tree.
             var moduleDiagnostics = BuildModuleDiagnostics(
                 modules,
                 consoleSnapshots,
@@ -2090,6 +2539,7 @@ namespace ASLM.Pages
                 currentProcessId,
                 memoryStatus.TotalPhysicalBytes);
 
+            // Internal processes are managed child processes that belong to no module.
             var assignedProcessIds = moduleDiagnostics.Values
                 .SelectMany(module => module.ProcessIds)
                 .ToHashSet();
@@ -2098,8 +2548,11 @@ namespace ASLM.Pages
                 .Where(processId => processId != currentProcessId && !assignedProcessIds.Contains(processId))
                 .ToHashSet();
 
+            // Runtime usage sums all managed processes; its GPU figure is the busiest adapter's runtime share.
             var runtimeUsage = AggregateUsage(liveProcesses.Values.Select(process => process.Usage), memoryStatus.TotalPhysicalBytes);
             runtimeUsage.GpuPercent = gpuAdapters.Count > 0 ? gpuAdapters.Max(adapter => adapter.RuntimePercent) : null;
+
+            // Build the process tree shown in the dashboard: ASLM root, modules, and internal processes.
             var rootNode = BuildRootNode(
                 currentProcessId,
                 liveProcesses,
@@ -2114,6 +2567,8 @@ namespace ASLM.Pages
                 .Select(module => module.LastActivityUtc!.Value)
                 .ToList();
 
+            // Assemble the snapshot; the system GPU load is that of the busiest adapter and the active process
+            // count covers internal and module processes.
             return new HomeDiagnosticsSnapshot
             {
                 CapturedUtc = capturedUtc,
@@ -2140,6 +2595,9 @@ namespace ASLM.Pages
                     : null
             };
         }
+
+
+        // Cached queries
 
         /// <summary>
         /// Returns a cached disk sample when the previous WMI query is still fresh enough.
@@ -2193,6 +2651,8 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Builds one diagnostics snapshot per module from live processes and console sessions.
+        /// A process is attributed to at most one module (the first module in the list that claims it) and
+        /// observed processes (children discovered without stream capture) are never attributed to a module.
         /// </summary>
         private static Dictionary<string, HomeModuleDiagnostics> BuildModuleDiagnostics(
             IReadOnlyList<ModuleConfig> modules,
@@ -2211,6 +2671,7 @@ namespace ASLM.Pages
             {
                 consoleByModule.TryGetValue(module.SourcePath, out var consoleSnapshot);
 
+                // One session per process id: a running session wins over a stopped one, then a tracked over an untracked.
                 var sessionsByPid = (consoleSnapshot?.Sessions ?? [])
                     .Where(session => session.ProcessId.HasValue && !session.IsObservedProcess)
                     .GroupBy(session => session.ProcessId!.Value)
@@ -2221,12 +2682,14 @@ namespace ASLM.Pages
                             .ThenByDescending(session => session.IsTrackedProcess)
                             .First());
 
+                // Observed processes (children discovered without stream capture) are kept out of the module's own set.
                 var observedProcessIds = (consoleSnapshot?.Sessions ?? [])
                     .Where(session => session.IsObservedProcess &&
                                       session.ProcessId.HasValue)
                     .Select(session => session.ProcessId!.Value)
                     .ToHashSet();
 
+                // Roots of the module's process trees: running tracked sessions whose process is still alive.
                 var trackedRootPids = (consoleSnapshot?.Sessions ?? [])
                     .Where(session => session.IsRunning &&
                                       session.IsTrackedProcess &&
@@ -2237,6 +2700,7 @@ namespace ASLM.Pages
                     .Distinct()
                     .ToList();
 
+                // The module owns each tracked root with all its descendants plus every other live session process.
                 var processIds = new HashSet<int>();
 
                 foreach (var rootProcessId in trackedRootPids)
@@ -2249,6 +2713,7 @@ namespace ASLM.Pages
                     processIds.Add(processId);
                 }
 
+                // Drop observed processes and anything an earlier module already claimed, then claim the rest.
                 processIds.ExceptWith(observedProcessIds);
 
                 processIds.RemoveWhere(globallyAssigned.Contains);
@@ -2261,6 +2726,8 @@ namespace ASLM.Pages
 
                 if (rootProcessIds.Count == 0 && processIds.Count > 0)
                 {
+                    // Without a tracked root the tree tops are the owned processes whose parent is ASLM itself or
+                    // is not owned by the module (or is unknown to the process table).
                     rootProcessIds = processIds
                         .Where(processId =>
                         {
@@ -2275,6 +2742,7 @@ namespace ASLM.Pages
                         .ToList();
                 }
 
+                // Store the module result with the usage summed over its live processes.
                 diagnostics[module.SourcePath] = new HomeModuleDiagnostics
                 {
                     Module = module,
@@ -2294,7 +2762,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Collects one process branch and all of its descendants into the supplied set.
+        /// Collects one process branch and all of its descendants into the supplied set,
+        /// skipping processes that are not live and nodes that were already visited.
         /// </summary>
         private static void CollectProcessBranch(
             int rootProcessId,
@@ -2333,6 +2802,7 @@ namespace ASLM.Pages
             IReadOnlyDictionary<int, ProcessSnapshotEntry> entriesByPid,
             long totalPhysicalBytes)
         {
+            // Show enabled or currently running modules only; modules with live processes come first, then by name.
             var moduleNodes = moduleDiagnostics
                 .Where(module => module.Module.Status.Enabled || module.ProcessIds.Count > 0)
                 .OrderByDescending(module => module.ProcessIds.Count > 0)
@@ -2342,6 +2812,7 @@ namespace ASLM.Pages
 
             if (internalProcessIds.Count > 0)
             {
+                // Group the managed child processes that belong to no module under a collapsed "ASLM Internal" node.
                 var internalUsage = AggregateUsage(
                     internalProcessIds
                         .Where(liveProcesses.ContainsKey)
@@ -2384,6 +2855,7 @@ namespace ASLM.Pages
                 });
             }
 
+            // The root row totals every managed process and shows the ASLM PID in its details column.
             liveProcesses.TryGetValue(currentProcessId, out var currentProcess);
             var rootUsage = AggregateUsage(liveProcesses.Values.Select(process => process.Usage), totalPhysicalBytes);
 
@@ -2415,6 +2887,7 @@ namespace ASLM.Pages
             IReadOnlyDictionary<int, List<int>> childrenByParent,
             IReadOnlyDictionary<int, ProcessSnapshotEntry> entriesByPid)
         {
+            // Tree tops are the recorded roots that still belong to the module.
             var rootProcessIds = moduleDiagnostics.RootProcessIds
                 .Where(processId => moduleDiagnostics.ProcessIds.Contains(processId))
                 .Distinct()
@@ -2422,6 +2895,7 @@ namespace ASLM.Pages
 
             if (rootProcessIds.Count == 0 && moduleDiagnostics.ProcessIds.Count > 0)
             {
+                // No recorded root survived: use the module processes whose parent is not part of the module.
                 rootProcessIds = moduleDiagnostics.ProcessIds
                     .Where(processId =>
                     {
@@ -2436,6 +2910,7 @@ namespace ASLM.Pages
                     .ToList();
             }
 
+            // Build the process rows below the module row, starting from its tree tops.
             var childNodes = rootProcessIds
                 .Select(processId => BuildProcessNode(
                     processId,
@@ -2445,6 +2920,7 @@ namespace ASLM.Pages
                     moduleDiagnostics.SessionsByPid))
                 .ToList();
 
+            // The details column shows the process count, or the generic label "Module" while no process is live.
             return new HomeProcessTreeNodeSnapshot
             {
                 Key = $"module:{moduleDiagnostics.Module.SourcePath}",
@@ -2466,6 +2942,7 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Builds one tree node for a live process and its descendants.
+        /// The node title and status text come from the console session of the process when one exists.
         /// </summary>
         private static HomeProcessTreeNodeSnapshot BuildProcessNode(
             int processId,
@@ -2478,6 +2955,7 @@ namespace ASLM.Pages
             ModuleConsoleSessionSnapshot? session = null;
             sessionsByPid?.TryGetValue(processId, out session);
 
+            // Recurse into the children that belong to the same group, in pid order.
             var childNodes = new List<HomeProcessTreeNodeSnapshot>();
             if (childrenByParent.TryGetValue(processId, out var childProcessIds))
             {
@@ -2494,6 +2972,8 @@ namespace ASLM.Pages
                 }
             }
 
+            // Prefer the session title over the executable name; the details text carries the pid and the session
+            // outcome: exit code, "service" for observed processes, or the current stage.
             var title = !string.IsNullOrWhiteSpace(session?.Title)
                 ? session.Title
                 : process.ProcessName;
@@ -2516,6 +2996,7 @@ namespace ASLM.Pages
                 detailsText += $" - {session.Stage.ToLowerInvariant()}";
             }
 
+            // Observed services are highlighted in yellow; regular processes use the primary label color.
             return new HomeProcessTreeNodeSnapshot
             {
                 Key = $"process:{process.ProcessId}",
@@ -2536,7 +3017,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats a process count without abbreviations for the details column.
+        /// Formats a process count as "1 process" or "N processes" for the details column.
         /// </summary>
         private static string FormatProcessCount(int processCount)
         {
@@ -2550,6 +3031,8 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Samples one live process and returns the resulting diagnostics payload.
+        /// CPU and disk I/O rates are deltas against the previous sample of the same process, so a process seen
+        /// for the first time reports zero for both. Returns false when the process exited or cannot be read.
         /// </summary>
         private bool TrySampleProcess(
             int processId,
@@ -2572,6 +3055,8 @@ namespace ASLM.Pages
                     return false;
                 }
 
+                // Read the current absolute values: parent pid and name from the process table, working set,
+                // cumulative processor time, and cumulative I/O transfer counters.
                 var hasEntry = entriesByPid.TryGetValue(processId, out var entry);
                 var parentProcessId = hasEntry
                     ? entry!.ParentProcessId
@@ -2585,17 +3070,22 @@ namespace ASLM.Pages
                 var cpuPercent = 0d;
                 var diskIoBytesPerSecond = 0d;
 
+                // Rates need a previous sample; without one (first sighting) both stay zero.
                 if (_processSamples.TryGetValue(processId, out var previousSample))
                 {
                     var elapsedSeconds = (capturedUtc - previousSample.TimestampUtc).TotalSeconds;
                     if (elapsedSeconds > 0)
                     {
+                        // CPU percent is the consumed processor time over the interval divided by the capacity of all
+                        // logical cores, i.e. the share of the whole machine, clamped to 0-100.
                         cpuPercent = Math.Clamp(
                             ((totalProcessorTime - previousSample.TotalProcessorTime).TotalSeconds /
                              (elapsedSeconds * Environment.ProcessorCount)) * 100d,
                             0,
                             100);
 
+                        // Disk throughput is read plus write bytes since the previous sample per second;
+                        // a counter that went backwards counts as no transfer.
                         var readDelta = ioCounters.ReadTransferCount >= previousSample.ReadTransferCount
                             ? ioCounters.ReadTransferCount - previousSample.ReadTransferCount
                             : 0;
@@ -2608,6 +3098,7 @@ namespace ASLM.Pages
                     }
                 }
 
+                // Remember the raw counters as the base for the next refresh.
                 _processSamples[processId] = new HomeProcessSample
                 {
                     TimestampUtc = capturedUtc,
@@ -2616,6 +3107,7 @@ namespace ASLM.Pages
                     WriteTransferCount = ioCounters.WriteTransferCount
                 };
 
+                // GPU is unknown (null) when the GPU query reported nothing for this pid.
                 gpuByPid.TryGetValue(processId, out var gpuPercent);
                 connectionCounts.TryGetValue(processId, out var connectionCount);
 
@@ -2639,6 +3131,8 @@ namespace ASLM.Pages
             }
             catch
             {
+                // The process exited between the table snapshot and the read, or access was denied:
+                // such a process is simply left out of this capture.
                 return false;
             }
         }
@@ -2660,7 +3154,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Aggregates process usage into a single summary snapshot.
+        /// Aggregates process usage into a single summary snapshot: CPU, GPU, memory, disk I/O, and connections are
+        /// summed, the percentages are clamped to 0-100, and GPU stays unknown unless at least one process reports it.
         /// </summary>
         private static HomeUsageSnapshot AggregateUsage(IEnumerable<HomeUsageSnapshot> usages, long totalPhysicalBytes)
         {
@@ -2671,6 +3166,7 @@ namespace ASLM.Pages
             double diskIoBytesPerSecond = 0;
             var connectionCount = 0;
 
+            // Sum every metric; GPU is added only for processes that reported it.
             foreach (var usage in usages)
             {
                 cpuPercent += usage.CpuPercent;
@@ -2686,6 +3182,8 @@ namespace ASLM.Pages
                 connectionCount += usage.ConnectionCount;
             }
 
+            // Per-process readings are not taken at exactly the same instant, so the sums can slightly exceed 100%;
+            // cap the percentages.
             return new HomeUsageSnapshot
             {
                 CpuPercent = Math.Clamp(cpuPercent, 0, 100),
@@ -2701,10 +3199,15 @@ namespace ASLM.Pages
         // System metrics
 
         /// <summary>
-        /// Samples total system CPU usage from kernel tick counters.
+        /// Samples total system CPU usage from cumulative idle, kernel, and user time counters.
+        /// The kernel counter includes idle time, so utilization over the interval since the previous sample is
+        /// <c>1 - idleDelta / (kernelDelta + userDelta)</c>; the first sample has no baseline and reports zero.
         /// </summary>
+        /// <returns>Utilization in percent from 0 to 100.</returns>
         private double SampleSystemCpu(DateTimeOffset capturedUtc)
         {
+            // Read the cumulative counters from the platform source: Mach on macOS, /proc on Linux,
+            // GetSystemTimes (FILETIME values converted to ticks) on Windows.
 #if MACCATALYST || LINUX
 #if LINUX
             if (!LinuxSystemMetrics.TryGetSystemCpuTimes(out var idleTicks, out var kernelTicks, out var userTicks))
@@ -2737,12 +3240,14 @@ namespace ASLM.Pages
             };
 #endif
 
+            // The first sample only establishes the baseline for the next refresh.
             if (_lastSystemCpuSample == null)
             {
                 _lastSystemCpuSample = currentSample;
                 return 0;
             }
 
+            // Counter growth since the previous sample, then store the current sample as the new baseline.
             var idleDelta = currentSample.IdleTime - _lastSystemCpuSample.IdleTime;
             var kernelDelta = currentSample.KernelTime - _lastSystemCpuSample.KernelTime;
             var userDelta = currentSample.UserTime - _lastSystemCpuSample.UserTime;
@@ -2750,6 +3255,7 @@ namespace ASLM.Pages
 
             _lastSystemCpuSample = currentSample;
 
+            // No time elapsed on the counters: avoid dividing by zero.
             if (totalDelta == 0)
             {
                 return 0;
@@ -2760,9 +3266,13 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Samples total network throughput across active adapters.
+        /// Throughput is the growth of the cumulative received/sent byte counters since the previous sample divided
+        /// by the elapsed seconds, so the first sample reports zero.
         /// </summary>
         private HomeNetworkStats SampleNetwork(DateTimeOffset capturedUtc)
         {
+            // Add up the byte counters of all adapters that are up, ignoring loopback and tunnel adapters
+            // so that local traffic and encapsulated traffic are not counted twice.
             long totalReceived = 0;
             long totalSent = 0;
 
@@ -2797,6 +3307,7 @@ namespace ASLM.Pages
                 TotalSentBytes = totalSent
             };
 
+            // Without a baseline, or without elapsed time, no rate can be computed yet.
             if (_lastNetworkSample == null)
             {
                 _lastNetworkSample = currentSample;
@@ -2810,6 +3321,7 @@ namespace ASLM.Pages
                 return new HomeNetworkStats();
             }
 
+            // The sum shrinks when an adapter leaves it (for example when it goes down); a negative delta counts as zero.
             var receivedDelta = Math.Max(0, currentSample.TotalReceivedBytes - _lastNetworkSample.TotalReceivedBytes);
             var sentDelta = Math.Max(0, currentSample.TotalSentBytes - _lastNetworkSample.TotalSentBytes);
 
@@ -2823,10 +3335,13 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Queries total disk activity from the Windows performance WMI provider.
+        /// Queries total disk activity: IOKit block storage statistics on macOS, whole-device counters on Linux,
+        /// and on Windows the pre-formatted <c>_Total</c> physical-disk performance counters of the WMI provider.
+        /// Returns empty statistics when the query fails.
         /// </summary>
         private static HomeDiskStats QueryDiskStats()
         {
+            // Each platform has its own source; only the Windows branch below runs a WMI query.
 #if MACCATALYST
             return MacSystemMetrics.SampleDiskStats();
 #elif LINUX
@@ -2834,6 +3349,7 @@ namespace ASLM.Pages
 #else
             try
             {
+                // The _Total instance aggregates all physical disks; the values are already per-second rates.
                 using var searcher = new ManagementObjectSearcher(
                     "root\\CIMV2",
                     "SELECT Name, PercentIdleTime, PercentDiskTime, DiskReadBytesPersec, DiskWriteBytesPersec " +
@@ -2841,6 +3357,8 @@ namespace ASLM.Pages
 
                 foreach (ManagementObject result in searcher.Get())
                 {
+                    // Busy time is the complement of the idle percentage; the disk-time counter is the fallback
+                    // when the idle counter reports zero.
                     var idlePercent = ConvertToDouble(result["PercentIdleTime"]);
                     var busyPercent = idlePercent > 0
                         ? Math.Clamp(100d - idlePercent, 0, 100)
@@ -2856,7 +3374,7 @@ namespace ASLM.Pages
             }
             catch
             {
-                // Best-effort sampling only.
+                // Best-effort sampling only: when WMI is unavailable the dashboard shows zero disk activity.
             }
 
             return new HomeDiskStats();
@@ -2865,9 +3383,13 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Queries GPU engine utilization and groups it by process and adapter.
+        /// On Windows every row of the GPU Engine performance counters is one engine of one process; its instance
+        /// name encodes the process id, the physical adapter, and the engine, and the utilization is a percentage.
+        /// Returns an empty result when the counters are unavailable.
         /// </summary>
         private static HomeGpuQueryResult QueryGpuUsage()
         {
+            // Each platform has its own source; only the Windows branch below runs a WMI query.
 #if MACCATALYST
             return MacSystemMetrics.QueryGpuUsage();
 #elif LINUX
@@ -2879,6 +3401,7 @@ namespace ASLM.Pages
 
             try
             {
+                // Collect one sample per engine instance; names that do not match the expected pattern are skipped.
                 using var searcher = new ManagementObjectSearcher(
                     "root\\CIMV2",
                     "SELECT Name, UtilizationPercentage FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine");
@@ -2903,6 +3426,7 @@ namespace ASLM.Pages
             }
             catch
             {
+                // The GPU counters can be unavailable on a machine: report no samples but keep the adapter names.
                 return new HomeGpuQueryResult
                 {
                     ProcessByPid = new Dictionary<int, double>(),
@@ -2911,6 +3435,7 @@ namespace ASLM.Pages
                 };
             }
 
+            // A process's GPU load is the sum over all its engines, capped at 100%.
             var byProcessId = samples
                 .GroupBy(sample => sample.ProcessId)
                 .ToDictionary(
@@ -2927,23 +3452,27 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Builds the per-adapter GPU snapshots for system and runtime views.
+        /// Builds the per-adapter GPU snapshots for system and runtime views:
+        /// the system value uses all processes, the runtime value only the managed ASLM processes.
         /// </summary>
         private static IReadOnlyList<HomeGpuAdapterSnapshot> BuildGpuAdapterSnapshots(
             HomeGpuQueryResult gpuQuery,
             IReadOnlyCollection<int> managedProcessIds)
         {
+            // Aggregate the same samples twice: once for the whole machine and once restricted to managed processes.
             var managedProcessSet = managedProcessIds.ToHashSet();
             var systemUsageByAdapter = AggregateGpuUsageByAdapter(gpuQuery.Samples);
             var runtimeUsageByAdapter = AggregateGpuUsageByAdapter(
                 gpuQuery.Samples.Where(sample => managedProcessSet.Contains(sample.ProcessId)));
 
+            // List every adapter that has samples or a known name, so idle adapters still appear with 0%.
             var adapterIndices = systemUsageByAdapter.Keys
                 .Union(runtimeUsageByAdapter.Keys)
                 .Union(Enumerable.Range(0, gpuQuery.AdapterNames.Count))
                 .OrderBy(index => index)
                 .ToList();
 
+            // Names come from the adapter list by index; a sampled adapter without a known name is labeled "GPU n".
             return adapterIndices
                 .Select(adapterIndex => new HomeGpuAdapterSnapshot
                 {
@@ -2962,7 +3491,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Aggregates GPU engine samples into one utilization value per adapter.
+        /// Aggregates GPU engine samples into one utilization value per adapter: the loads of all processes are
+        /// summed per engine, and the adapter reports its busiest engine, capped at 100%.
         /// </summary>
         private static Dictionary<int, double> AggregateGpuUsageByAdapter(IEnumerable<HomeGpuEngineSample> samples)
         {
@@ -2980,7 +3510,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Queries installed GPU adapter names from WMI.
+        /// Queries installed GPU adapter names from the Windows video controller list; the result is cached for the
+        /// process lifetime, and other platforms return no names.
         /// </summary>
         private static IReadOnlyList<string> QueryGpuAdapterNames()
         {
@@ -3009,6 +3540,7 @@ namespace ASLM.Pages
             }
             catch
             {
+                // Cache the failure as an empty list so the failing query is not repeated on every refresh.
                 _cachedGpuAdapterNames = [];
                 return _cachedGpuAdapterNames;
             }
@@ -3016,7 +3548,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Queries the number of open TCP and UDP endpoints per process.
+        /// Queries the number of open TCP and UDP endpoints per process for the supplied process ids.
+        /// Windows reads the extended TCP and UDP tables for IPv4 and IPv6; macOS and Linux count process sockets.
         /// </summary>
         private static Dictionary<int, int> QueryProcessConnectionCounts(IReadOnlyCollection<int> processIds)
         {
@@ -3046,13 +3579,15 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Appends TCP connection counts from one address family.
+        /// Adds the number of TCP connections of each tracked process, in any state, to the counts for one address
+        /// family, using the Windows extended TCP table that records the owning process of every row.
         /// </summary>
         private static void IncrementCountsFromTcpTable(
             IDictionary<int, int> counts,
             ISet<int> trackedProcessIds,
             AddressFamily addressFamily)
         {
+            // First call with a null buffer only reports the required size (ERROR_INSUFFICIENT_BUFFER).
             var bufferLength = 0;
             var result = GetExtendedTcpTable(
                 IntPtr.Zero,
@@ -3067,6 +3602,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Second call fills the native buffer, which is always released in the finally block.
             var buffer = Marshal.AllocHGlobal(bufferLength);
             try
             {
@@ -3083,6 +3619,8 @@ namespace ASLM.Pages
                     return;
                 }
 
+                // The table starts with a 32-bit row count followed by fixed-size rows; the row layout differs
+                // between IPv4 and IPv6, so each family walks its own row type.
                 var rowCount = Marshal.ReadInt32(buffer);
                 var rowPointer = IntPtr.Add(buffer, sizeof(int));
 
@@ -3124,13 +3662,15 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Appends UDP endpoint counts from one address family.
+        /// Adds the number of UDP endpoints of each tracked process to the counts for one address family,
+        /// using the Windows extended UDP table that records the owning process of every row.
         /// </summary>
         private static void IncrementCountsFromUdpTable(
             IDictionary<int, int> counts,
             ISet<int> trackedProcessIds,
             AddressFamily addressFamily)
         {
+            // First call with a null buffer only reports the required size (ERROR_INSUFFICIENT_BUFFER).
             var bufferLength = 0;
             var result = GetExtendedUdpTable(
                 IntPtr.Zero,
@@ -3145,6 +3685,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Second call fills the native buffer, which is always released in the finally block.
             var buffer = Marshal.AllocHGlobal(bufferLength);
             try
             {
@@ -3161,6 +3702,7 @@ namespace ASLM.Pages
                     return;
                 }
 
+                // Same layout as the TCP table: a 32-bit row count followed by fixed-size rows per address family.
                 var rowCount = Marshal.ReadInt32(buffer);
                 var rowPointer = IntPtr.Add(buffer, sizeof(int));
 
@@ -3205,12 +3747,15 @@ namespace ASLM.Pages
         // Process-tree helpers
 
         /// <summary>
-        /// Returns the complete set of descendant process identifiers rooted at one parent process.
+        /// Returns the complete set of descendant process identifiers rooted at one parent process,
+        /// found breadth-first; the root itself is not part of the result.
         /// </summary>
         private static HashSet<int> CollectDescendantPids(
             int rootProcessId,
             IReadOnlyDictionary<int, List<int>> childrenByParent)
         {
+            // Walk the parent-to-children map level by level; the visited check keeps each process once and
+            // also guards against cycles in the snapshot.
             var descendants = new HashSet<int>();
             var queue = new Queue<int>();
             queue.Enqueue(rootProcessId);
@@ -3241,7 +3786,8 @@ namespace ASLM.Pages
         // Native helpers
 
         /// <summary>
-        /// Returns the current physical-memory totals for the host system.
+        /// Returns the current physical-memory totals for the host system: installed and used bytes
+        /// (used is total minus available).
         /// </summary>
         private static HomeMemoryStatus GetMemoryStatus()
         {
@@ -3287,7 +3833,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Resolves a stable display name for one process.
+        /// Resolves a stable display name for one process: the live process name, then the executable name from the
+        /// process table snapshot, then a generic "Process pid" label.
         /// </summary>
         private static string TryResolveProcessName(Process process, string? executableName)
         {
@@ -3310,7 +3857,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Parses one GPU engine instance name and extracts the owning process identifier.
+        /// Parses one GPU engine instance name and extracts the owning process identifier,
+        /// the physical adapter index, and the engine identifier.
         /// </summary>
         private static bool TryParseGpuInstance(
             string? instanceName,
@@ -3344,7 +3892,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Converts one WMI numeric value to <see cref="double"/>.
+        /// Converts one WMI numeric value to <see cref="double"/>; WMI returns counters as different integer widths
+        /// or strings, so unknown types are parsed from their invariant text and unparsable values become zero.
         /// </summary>
         private static double ConvertToDouble(object? value)
         {
@@ -3372,7 +3921,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Converts a native <see cref="FileTime"/> value to an unsigned 64-bit tick count.
+        /// Converts a native <see cref="FileTime"/> value to an unsigned 64-bit tick count (100-nanosecond units)
+        /// by joining its high and low 32-bit halves.
         /// </summary>
         private static ulong ToUInt64(FileTime fileTime)
         {
@@ -3382,11 +3932,19 @@ namespace ASLM.Pages
 
         // Native interop
 
+        /// <summary>
+        /// Win32 <c>ERROR_SUCCESS</c>: the call completed without error.
+        /// </summary>
         private const uint ErrorSuccess = 0;
+
+        /// <summary>
+        /// Win32 <c>ERROR_INSUFFICIENT_BUFFER</c>: the supplied buffer is too small and the required size was returned.
+        /// </summary>
         private const uint ErrorInsufficientBuffer = 122;
 
         /// <summary>
         /// Reads cumulative system idle, kernel, and user times from the Windows kernel.
+        /// The kernel time includes the idle time, and all values are in 100-nanosecond units.
         /// </summary>
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool GetSystemTimes(
@@ -3396,6 +3954,7 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Reads the current global memory status for the host system.
+        /// The structure's <c>Length</c> field must be set before the call.
         /// </summary>
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern bool GlobalMemoryStatusEx([In, Out] MemoryStatusEx memoryStatus);
@@ -3408,6 +3967,7 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Queries the extended TCP owner table for one IP version.
+        /// With a null table it returns the required buffer length instead of rows.
         /// </summary>
         [DllImport("iphlpapi.dll", SetLastError = true)]
         private static extern uint GetExtendedTcpTable(
@@ -3420,6 +3980,7 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Queries the extended UDP owner table for one IP version.
+        /// With a null table it returns the required buffer length instead of rows.
         /// </summary>
         [DllImport("iphlpapi.dll", SetLastError = true)]
         private static extern uint GetExtendedUdpTable(
@@ -3430,94 +3991,273 @@ namespace ASLM.Pages
             UdpTableClass tableClass,
             uint reserved);
 
+        /// <summary>
+        /// Native <c>TCP_TABLE_CLASS</c> values accepted by <see cref="GetExtendedTcpTable"/>.
+        /// </summary>
         private enum TcpTableClass
         {
+            /// <summary>
+            /// <c>TCP_TABLE_OWNER_PID_ALL</c>: rows for connections in all states, each with its owning process id.
+            /// </summary>
             OwnerPidAll = 5
         }
 
+        /// <summary>
+        /// Native <c>UDP_TABLE_CLASS</c> values accepted by <see cref="GetExtendedUdpTable"/>.
+        /// </summary>
         private enum UdpTableClass
         {
+            /// <summary>
+            /// <c>UDP_TABLE_OWNER_PID</c>: rows for UDP endpoints, each with its owning process id.
+            /// </summary>
             OwnerPid = 1
         }
 
+        /// <summary>
+        /// Native <c>FILETIME</c>: a 64-bit count of 100-nanosecond intervals split into two 32-bit halves.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         private struct FileTime
         {
+            /// <summary>
+            /// Low 32 bits of the value.
+            /// </summary>
             public uint LowDateTime;
+
+            /// <summary>
+            /// High 32 bits of the value.
+            /// </summary>
             public uint HighDateTime;
         }
 
+        /// <summary>
+        /// Native <c>MEMORYSTATUSEX</c>: physical and virtual memory totals filled by <c>GlobalMemoryStatusEx</c>.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         private sealed class MemoryStatusEx
         {
+            /// <summary>
+            /// Size of the structure in bytes; the API requires it to be set before the call.
+            /// </summary>
             public uint Length = (uint)Marshal.SizeOf<MemoryStatusEx>();
+
+            /// <summary>
+            /// Approximate percentage of physical memory in use.
+            /// </summary>
             public uint MemoryLoad;
+
+            /// <summary>
+            /// Total physical memory in bytes.
+            /// </summary>
             public ulong TotalPhys;
+
+            /// <summary>
+            /// Physical memory currently available without paging, in bytes.
+            /// </summary>
             public ulong AvailPhys;
+
+            /// <summary>
+            /// Commit limit (physical memory plus page files) in bytes.
+            /// </summary>
             public ulong TotalPageFile;
+
+            /// <summary>
+            /// Memory the system can still commit, in bytes.
+            /// </summary>
             public ulong AvailPageFile;
+
+            /// <summary>
+            /// Size of the user-mode virtual address space of the calling process, in bytes.
+            /// </summary>
             public ulong TotalVirtual;
+
+            /// <summary>
+            /// Unreserved and uncommitted user-mode virtual memory of the calling process, in bytes.
+            /// </summary>
             public ulong AvailVirtual;
+
+            /// <summary>
+            /// Reserved by the API; always zero.
+            /// </summary>
             public ulong AvailExtendedVirtual;
         }
 
+        /// <summary>
+        /// Native <c>IO_COUNTERS</c>: cumulative I/O operation counts and transferred bytes of one process.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         private struct IoCounters
         {
+            /// <summary>
+            /// Number of read operations.
+            /// </summary>
             public ulong ReadOperationCount;
+
+            /// <summary>
+            /// Number of write operations.
+            /// </summary>
             public ulong WriteOperationCount;
+
+            /// <summary>
+            /// Number of I/O operations that are neither reads nor writes.
+            /// </summary>
             public ulong OtherOperationCount;
+
+            /// <summary>
+            /// Bytes transferred by read operations.
+            /// </summary>
             public ulong ReadTransferCount;
+
+            /// <summary>
+            /// Bytes transferred by write operations.
+            /// </summary>
             public ulong WriteTransferCount;
+
+            /// <summary>
+            /// Bytes transferred by operations that are neither reads nor writes.
+            /// </summary>
             public ulong OtherTransferCount;
         }
 
+        /// <summary>
+        /// Native <c>MIB_TCPROW_OWNER_PID</c>: one IPv4 TCP connection with its owning process.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         private struct MibTcpRowOwnerPid
         {
+            /// <summary>
+            /// TCP connection state code.
+            /// </summary>
             public uint State;
+
+            /// <summary>
+            /// Local IPv4 address in network byte order.
+            /// </summary>
             public uint LocalAddress;
+
+            /// <summary>
+            /// Local port in network byte order.
+            /// </summary>
             public uint LocalPort;
+
+            /// <summary>
+            /// Remote IPv4 address in network byte order.
+            /// </summary>
             public uint RemoteAddress;
+
+            /// <summary>
+            /// Remote port in network byte order.
+            /// </summary>
             public uint RemotePort;
+
+            /// <summary>
+            /// Id of the process that owns the connection.
+            /// </summary>
             public uint OwningPid;
         }
 
+        /// <summary>
+        /// Native <c>MIB_TCP6ROW_OWNER_PID</c>: one IPv6 TCP connection with its owning process.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         private struct MibTcp6RowOwnerPid
         {
+            /// <summary>
+            /// Local IPv6 address as 16 bytes.
+            /// </summary>
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
             public byte[] LocalAddress;
+
+            /// <summary>
+            /// Scope id of the local address.
+            /// </summary>
             public uint LocalScopeId;
+
+            /// <summary>
+            /// Local port in network byte order.
+            /// </summary>
             public uint LocalPort;
+
+            /// <summary>
+            /// Remote IPv6 address as 16 bytes.
+            /// </summary>
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
             public byte[] RemoteAddress;
+
+            /// <summary>
+            /// Scope id of the remote address.
+            /// </summary>
             public uint RemoteScopeId;
+
+            /// <summary>
+            /// Remote port in network byte order.
+            /// </summary>
             public uint RemotePort;
+
+            /// <summary>
+            /// TCP connection state code.
+            /// </summary>
             public uint State;
+
+            /// <summary>
+            /// Id of the process that owns the connection.
+            /// </summary>
             public uint OwningPid;
         }
 
+        /// <summary>
+        /// Native <c>MIB_UDPROW_OWNER_PID</c>: one IPv4 UDP endpoint with its owning process.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         private struct MibUdpRowOwnerPid
         {
+            /// <summary>
+            /// Local IPv4 address in network byte order.
+            /// </summary>
             public uint LocalAddress;
+
+            /// <summary>
+            /// Local port in network byte order.
+            /// </summary>
             public uint LocalPort;
+
+            /// <summary>
+            /// Id of the process that owns the endpoint.
+            /// </summary>
             public uint OwningPid;
         }
 
+        /// <summary>
+        /// Native <c>MIB_UDP6ROW_OWNER_PID</c>: one IPv6 UDP endpoint with its owning process.
+        /// </summary>
         [StructLayout(LayoutKind.Sequential)]
         private struct MibUdp6RowOwnerPid
         {
+            /// <summary>
+            /// Local IPv6 address as 16 bytes.
+            /// </summary>
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
             public byte[] LocalAddress;
+
+            /// <summary>
+            /// Scope id of the local address.
+            /// </summary>
             public uint LocalScopeId;
+
+            /// <summary>
+            /// Local port in network byte order.
+            /// </summary>
             public uint LocalPort;
+
+            /// <summary>
+            /// Id of the process that owns the endpoint.
+            /// </summary>
             public uint OwningPid;
         }
-
     }
 
+
+    // Diagnostics snapshots
 
     /// <summary>
     /// Represents one complete diagnostics capture used to render the home dashboard.
@@ -3570,7 +4310,6 @@ namespace ASLM.Pages
         /// </summary>
         public DateTimeOffset? LastModuleActivityUtc { get; set; }
     }
-
 
     /// <summary>
     /// Represents one aggregate usage snapshot.
@@ -3640,7 +4379,6 @@ namespace ASLM.Pages
         public int ConnectionCount { get; set; }
     }
 
-
     /// <summary>
     /// Represents the diagnostics for one installed module.
     /// </summary>
@@ -3688,7 +4426,6 @@ namespace ASLM.Pages
         public int ConsoleSessionCount => ConsoleSnapshot?.Sessions.Count ?? 0;
     }
 
-
     /// <summary>
     /// Represents one live process inside the managed runtime tree.
     /// </summary>
@@ -3714,7 +4451,6 @@ namespace ASLM.Pages
         /// </summary>
         public HomeUsageSnapshot Usage { get; set; } = new();
     }
-
 
     /// <summary>
     /// Represents one GPU adapter with both system-wide and ASLM-runtime utilization.
@@ -3743,8 +4479,10 @@ namespace ASLM.Pages
     }
 
 
+    // GPU query data
+
     /// <summary>
-    /// Stores raw GPU engine samples captured during one refresh.
+    /// Stores one raw GPU engine sample: the load of one engine of one adapter caused by one process.
     /// </summary>
     internal sealed class HomeGpuEngineSample
     {
@@ -3769,7 +4507,6 @@ namespace ASLM.Pages
         public double Utilization { get; set; }
     }
 
-
     /// <summary>
     /// Stores the GPU query results used for per-process and per-adapter aggregation.
     /// </summary>
@@ -3791,6 +4528,8 @@ namespace ASLM.Pages
         public IReadOnlyList<HomeGpuEngineSample> Samples { get; set; } = [];
     }
 
+
+    // Process tree snapshot
 
     /// <summary>
     /// Represents one tree node before it is flattened for display.
@@ -3859,6 +4598,8 @@ namespace ASLM.Pages
     }
 
 
+    // Raw samples
+
     /// <summary>
     /// Stores one raw per-process sample used to calculate CPU and I/O deltas.
     /// </summary>
@@ -3884,7 +4625,6 @@ namespace ASLM.Pages
         /// </summary>
         public ulong WriteTransferCount { get; set; }
     }
-
 
     /// <summary>
     /// Stores one raw system CPU sample used for delta-based utilization calculation.
@@ -3912,7 +4652,6 @@ namespace ASLM.Pages
         public ulong UserTime { get; set; }
     }
 
-
     /// <summary>
     /// Stores one raw network-interface sample used to calculate transfer rates.
     /// </summary>
@@ -3935,6 +4674,8 @@ namespace ASLM.Pages
     }
 
 
+    // Host statistics
+
     /// <summary>
     /// Stores one host-memory snapshot used to build memory metrics.
     /// </summary>
@@ -3950,7 +4691,6 @@ namespace ASLM.Pages
         /// </summary>
         public long UsedPhysicalBytes { get; set; }
     }
-
 
     /// <summary>
     /// Stores one normalized disk-usage snapshot.
@@ -3973,7 +4713,6 @@ namespace ASLM.Pages
         public double WriteBytesPerSecond { get; set; }
     }
 
-
     /// <summary>
     /// Stores one normalized network-throughput snapshot.
     /// </summary>
@@ -3989,5 +4728,4 @@ namespace ASLM.Pages
         /// </summary>
         public double SendBytesPerSecond { get; set; }
     }
-
 }

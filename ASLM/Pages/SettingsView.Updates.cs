@@ -5,11 +5,34 @@ using ASLM.Models;
 
 namespace ASLM.Pages
 {
+    /// <summary>
+    /// Updates part of the settings view: version cards, update candidates and live update operation state.
+    /// </summary>
     public partial class SettingsView
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Placeholder shown where a version is unknown.
+        /// </summary>
         private const string MissingVersionDisplay = "—";
+
+        /// <summary>
+        /// Set to 1 while a refresh for update operation changes is queued on the UI thread,
+        /// so bursts of changes are coalesced.
+        /// </summary>
         private int _updateOperationRefreshQueued;
+
+        /// <summary>
+        /// Phase of the ASLM update operation that the controls were last refreshed for,
+        /// or null when none was running.
+        /// </summary>
         private UpdateOperationPhase? _shownAppUpdatePhase;
+
+        /// <summary>
+        /// Phase of the Ollama update operation that the controls were last refreshed for,
+        /// or null when none was running.
+        /// </summary>
         private UpdateOperationPhase? _shownOllamaUpdatePhase;
 
 
@@ -162,11 +185,14 @@ namespace ASLM.Pages
 
             try
             {
+                // Ask the update manager to align the stored release tag with the running engine,
+                // and give up if an update operation started meanwhile.
                 await _updateManager.TrySyncEngineInstalledReleaseTagFromRuntimeAsync(engine, isManualRequest: false);
                 if (_updateManager.GetUpdateOperation("engine", "ollama-service") != null)
                 {
                     return;
                 }
+
                 // The update manager invalidates discovery only when it actually changes the manifest.
                 engine = ResolveOllamaEngineConfig();
                 if (engine == null)
@@ -174,6 +200,7 @@ namespace ASLM.Pages
                     return;
                 }
 
+                // Show the refreshed version on the UI thread, unless an update operation started meanwhile.
                 var version = ResolveOllamaDisplayVersion(engine);
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
@@ -181,6 +208,7 @@ namespace ASLM.Pages
                     {
                         return;
                     }
+
                     SetVersionInformation(
                         _ollamaInstalledVersionLabel,
                         _ollamaAvailableVersionLabel,
@@ -254,6 +282,7 @@ namespace ASLM.Pages
             _updateScheduler.UpdateStateChanged += OnUpdateSchedulerStateChanged;
             _updateManager.UpdateOperationStateChanged += OnUpdateOperationStateChanged;
             _isUpdateSchedulerSubscribed = true;
+
             // A cached view may reopen halfway through an automatic download or engine replacement.
             ResetUpdateActionControls();
         }
@@ -309,6 +338,7 @@ namespace ASLM.Pages
 
                 var appOperation = _updateManager.GetUpdateOperation("app", "aslm");
                 var ollamaOperation = _updateManager.GetUpdateOperation("engine", "ollama-service");
+
                 // Download samples only change inline progress, not engine discovery or version probes.
                 if (_shownAppUpdatePhase != appOperation?.Phase || _shownOllamaUpdatePhase != ollamaOperation?.Phase)
                 {
@@ -350,6 +380,7 @@ namespace ASLM.Pages
             UpdateOperationSnapshot? operation,
             bool isAppUpdate)
         {
+            // While an operation runs, the button gives way to the progress content (spinner, stage and percentage).
             var isRunning = operation != null;
             if (button != null)
             {
@@ -378,6 +409,7 @@ namespace ASLM.Pages
                     ? $"{(int)Math.Round(operation!.DownloadFraction!.Value * 100)}%" : string.Empty;
             }
 
+            // The stage text follows the operation phase; the applying phase has its own text only for Ollama.
             if (progressText != null)
             {
                 progressText.Text = operation == null ? string.Empty : L.Get(operation.Phase switch
