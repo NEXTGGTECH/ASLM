@@ -14,10 +14,25 @@ namespace ASLM.Services.Internal
     /// </remarks>
     public static class AppRoot
     {
+        // Constants and cached state
+
+        /// <summary>
+        /// Name of the environment variable that overrides the platform default root.
+        /// </summary>
         private const string EnvironmentOverrideVariable = "ASLM_ROOT";
+
+        /// <summary>
+        /// Name of the per-user application folder created below the macOS Application Support directory.
+        /// </summary>
         private const string AppName = "ASLM";
 
+        /// <summary>
+        /// Lazily resolved root directory; replaced by <see cref="ResetForTests"/> to force a new resolution.
+        /// </summary>
         private static Lazy<string> _directory = new(Resolve);
+
+
+        // Root directory
 
         /// <summary>
         /// Gets the absolute ASLM data root directory for the current platform.
@@ -35,6 +50,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private static string Resolve()
         {
+            // An absolute ASLM_ROOT wins over every platform default; relative values are ignored.
             var overridePath = Environment.GetEnvironmentVariable(EnvironmentOverrideVariable);
             if (!string.IsNullOrWhiteSpace(overridePath) && Path.IsPathRooted(overridePath))
             {
@@ -42,6 +58,7 @@ namespace ASLM.Services.Internal
                     .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
 
+            // macOS keeps its data in the user's Application Support folder because the app bundle is read-only.
             if (OperatingSystem.IsMacCatalyst() || OperatingSystem.IsMacOS())
             {
                 // SpecialFolder.LocalApplicationData maps to ~/Documents on Mac Catalyst,
@@ -52,9 +69,11 @@ namespace ASLM.Services.Internal
             }
 
 #if LINUX
+            // Linux follows the XDG base directory layout (see the remarks above).
             return LinuxAppDataSeeder.ResolveDataDirectory(Environment.GetEnvironmentVariable("XDG_DATA_HOME"),
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
 #else
+            // Windows runs from the deployed App folder; the data root is its parent directory.
             var appDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
             return System.IO.Directory.GetParent(appDir)?.FullName ?? appDir;
 #endif

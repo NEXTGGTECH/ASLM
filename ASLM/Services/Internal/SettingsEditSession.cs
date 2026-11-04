@@ -4,13 +4,23 @@ using ASLM.Models;
 
 namespace ASLM.Services.Internal
 {
+    // Editing session
+
     /// <summary>
     /// Holds application and module setting drafts independently from rendered controls and persisted models.
     /// </summary>
     public sealed class SettingsEditSession
     {
+        // Fields
+
+        /// <summary>
+        /// Module drafts by session key (see <see cref="GetModuleKey"/>), compared case-insensitively.
+        /// </summary>
         private readonly Dictionary<string, ModuleSettingsDraft> _moduleDrafts =
             new(StringComparer.OrdinalIgnoreCase);
+
+
+        // Draft access
 
         /// <summary>
         /// Gets the editable application settings and their accepted baselines.
@@ -21,6 +31,9 @@ namespace ASLM.Services.Internal
         /// Gets the module drafts currently registered in this editing session.
         /// </summary>
         public IReadOnlyCollection<ModuleSettingsDraft> Modules => _moduleDrafts.Values;
+
+
+        // Module draft management
 
         /// <summary>
         /// Replaces module drafts after discovery while keeping application drafts intact.
@@ -39,6 +52,7 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Returns the draft registered for one discovered module.
+        /// Throws <see cref="KeyNotFoundException"/> when the module was not registered by <see cref="ReplaceModules"/>.
         /// </summary>
         public ModuleSettingsDraft GetModule(ModuleConfig module)
         {
@@ -69,17 +83,23 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Builds the stable session key used for one installed module instance.
+        /// Builds the stable session key used for one installed module instance:
+        /// its manifest source path, or the module id when the path is unknown.
         /// </summary>
         private static string GetModuleKey(ModuleConfig module) =>
             string.IsNullOrWhiteSpace(module.SourcePath) ? $"id::{module.Id}" : module.SourcePath;
     }
+
+
+    // Application settings draft
 
     /// <summary>
     /// Stores editable built-in settings together with their last accepted values.
     /// </summary>
     public sealed class ApplicationSettingsDraft
     {
+        // Editable values
+
         /// <summary>
         /// Gets or sets the editable display name.
         /// </summary>
@@ -125,6 +145,9 @@ namespace ASLM.Services.Internal
         /// </summary>
         public AppPersonalizationConfig Personalization { get; set; } = new();
 
+
+        // Accepted baselines
+
         /// <summary>
         /// Gets or sets the accepted ASLM baseline used by dirty-state checks.
         /// </summary>
@@ -160,8 +183,12 @@ namespace ASLM.Services.Internal
         /// </summary>
         public AppPersonalizationConfig PersonalizationBaseline { get; set; } = new();
 
+
+        // Dirty-state checks
+
         /// <summary>
         /// Gets whether the display-name draft differs from its accepted value.
+        /// Always false in builds without ASLM accounts.
         /// </summary>
         public bool HasAccountChanges =>
             SunriseService.IsEnabled && !string.Equals(UserName, AslmBaseline.UserName, StringComparison.Ordinal);
@@ -195,11 +222,17 @@ namespace ASLM.Services.Internal
             !string.Equals(Personalization.Language, PersonalizationBaseline.Language, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(Personalization.CustomThemeId, PersonalizationBaseline.CustomThemeId, StringComparison.Ordinal);
 
+
+        // Loading, accepting and discarding
+
         /// <summary>
         /// Loads ASLM drafts and baselines from one persisted snapshot.
         /// </summary>
+        /// <param name="snapshot">Persisted values to copy into the drafts.</param>
+        /// <param name="legalAutoAcceptUpdates">Persisted legal auto-accept preference; the snapshot lacks it.</param>
         public void LoadAslm(AslmDraftSnapshot snapshot, bool legalAutoAcceptUpdates)
         {
+            // Copy the persisted values into the editable drafts.
             UserName = snapshot.UserName;
             PortStart = snapshot.PortStart;
             ApiServerEnabled = snapshot.ApiServerEnabled;
@@ -209,6 +242,7 @@ namespace ASLM.Services.Internal
             Update = snapshot.UpdateBaseline;
             LegalAutoAcceptUpdates = legalAutoAcceptUpdates;
 
+            // The freshly loaded values become the baseline, so nothing is dirty afterwards.
             AcceptAslm();
         }
 
@@ -261,8 +295,12 @@ namespace ASLM.Services.Internal
         public void DiscardPersonalization() =>
             Personalization = ClonePersonalization(PersonalizationBaseline);
 
+
+        // Helpers
+
         /// <summary>
         /// Creates a detached personalization copy so draft edits cannot mutate persisted data.
+        /// Only appearance, language and custom theme id are copied.
         /// </summary>
         private static AppPersonalizationConfig ClonePersonalization(AppPersonalizationConfig source) =>
             new()
@@ -273,16 +311,28 @@ namespace ASLM.Services.Internal
             };
     }
 
+
+    // Module settings draft
+
     /// <summary>
     /// Stores editable settings for one module without mutating its manifest model before commit.
     /// </summary>
     public sealed class ModuleSettingsDraft
     {
+        // Fields
+
+        /// <summary>
+        /// Setting drafts by manifest key, compared case-insensitively.
+        /// </summary>
         private readonly Dictionary<string, ModuleSettingDraft> _settingsByKey;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates detached setting drafts from one discovered module manifest.
         /// </summary>
+        /// <param name="module">Module whose settings are copied into drafts.</param>
         public ModuleSettingsDraft(ModuleConfig module)
         {
             Module = module;
@@ -293,6 +343,9 @@ namespace ASLM.Services.Internal
                 static draft => draft.Setting.Key,
                 StringComparer.OrdinalIgnoreCase);
         }
+
+
+        // Draft state
 
         /// <summary>
         /// Gets the module whose settings will receive committed values.
@@ -309,8 +362,12 @@ namespace ASLM.Services.Internal
         /// </summary>
         public bool HasChanges => Settings.Any(static draft => draft.HasChanges);
 
+
+        // Draft operations
+
         /// <summary>
         /// Returns the setting draft with the requested manifest key.
+        /// Throws <see cref="KeyNotFoundException"/> when the module declares no such setting.
         /// </summary>
         public ModuleSettingDraft GetSetting(string key)
         {
@@ -365,27 +422,59 @@ namespace ASLM.Services.Internal
         }
     }
 
+
+    // Single setting draft
+
     /// <summary>
     /// Represents one detached module setting value, host value, and accepted baseline.
     /// </summary>
     public sealed class ModuleSettingDraft
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="Baseline"/>; rebuilt whenever changes are accepted or discarded.
+        /// </summary>
         private SettingBaseline _baseline = new(string.Empty, false);
+
+        /// <summary>
+        /// Detached user value captured by the last <see cref="AcceptChanges"/>.
+        /// </summary>
         private object? _acceptedValue;
+
+        /// <summary>
+        /// Host-resolved value captured by the last <see cref="AcceptChanges"/>.
+        /// </summary>
         private object? _acceptedAutomaticValue;
+
+        /// <summary>
+        /// Custom-value flag captured by the last <see cref="AcceptChanges"/>.
+        /// </summary>
         private bool _acceptedUseCustomValue;
+
+        /// <summary>
+        /// Read-only flag captured by the last <see cref="AcceptChanges"/>.
+        /// </summary>
         private bool _acceptedIsReadOnly;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates a detached draft from the persisted setting value.
         /// </summary>
+        /// <param name="setting">Setting whose current value (or default) seeds the draft.</param>
         public ModuleSettingDraft(ModuleSetting setting)
         {
+            // The persisted value, or the manifest default when none is stored, is the initial accepted state.
             Setting = setting;
             Value = setting.NormalizeUserValue(setting.Value ?? setting.Default);
             UseCustomValue = setting.UseCustomValue;
             AcceptChanges();
         }
+
+
+        // Draft state
 
         /// <summary>
         /// Gets the setting definition and eventual commit target.
@@ -435,9 +524,15 @@ namespace ASLM.Services.Internal
         /// </summary>
         public bool HasChanges => !IsReadOnly && IsDifferentFromBaseline(Value, UseCustomValue);
 
+
+        // Draft operations
+
         /// <summary>
         /// Loads one runtime value and accepts it as the current baseline.
         /// </summary>
+        /// <param name="loadedValue">Value read from the running module.</param>
+        /// <param name="automaticValue">Value ASLM resolves for a managed setting, or null when there is none.</param>
+        /// <param name="isReadOnly">Whether the value is informational and cannot be edited.</param>
         public void LoadRuntimeValue(object? loadedValue, object? automaticValue, bool isReadOnly)
         {
             AutomaticValue = automaticValue;
@@ -454,7 +549,10 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Checks a control value against the baseline without mutating the draft first.
+        /// Always false for read-only settings.
         /// </summary>
+        /// <param name="rawValue">Value as it currently stands in the control.</param>
+        /// <param name="useCustomValue">Custom-mode state as it currently stands in the control.</param>
         public bool WouldChange(object? rawValue, bool useCustomValue)
         {
             var normalized = Setting.NormalizeUserValue(rawValue);
@@ -522,11 +620,15 @@ namespace ASLM.Services.Internal
             _baseline = CreateBaseline();
         }
 
+
+        // Baseline comparison
+
         /// <summary>
         /// Compares one candidate value and custom-mode state with the accepted baseline.
         /// </summary>
         private bool IsDifferentFromBaseline(object? value, bool useCustomValue)
         {
+            // Compare display text rather than raw objects, so equal values of different runtime types match.
             var effectiveValue = Setting.IsAutomaticallyManaged && !useCustomValue
                 ? AutomaticValue ?? value
                 : value;

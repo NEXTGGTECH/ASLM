@@ -16,6 +16,11 @@ namespace ASLM.Services.Internal
     /// </summary>
     public static class ThemePaletteResolver
     {
+        // Stale key cleanup
+
+        /// <summary>
+        /// Case-insensitive set of canonical palette keys, created on first use from the dark palette.
+        /// </summary>
         private static readonly Lazy<HashSet<string>> KnownColorKeys = new(
             () => new HashSet<string>(BuildDarkPalette().Keys, StringComparer.OrdinalIgnoreCase));
 
@@ -24,6 +29,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public static void RemoveUnknownColorKeys(IDictionary<string, string> colors)
         {
+            // Iterate over a copy of the keys because entries are removed while scanning.
             var known = KnownColorKeys.Value;
             foreach (var key in colors.Keys.ToList())
             {
@@ -33,6 +39,7 @@ namespace ASLM.Services.Internal
                 }
             }
         }
+
 
         // Dark palette
 
@@ -141,6 +148,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public static void PrefillCustomThemeFromBuiltIn(CustomTheme theme)
         {
+            // Normalize first so the base appearance is a known value, then replace all colors with the base palette.
             theme.Normalize();
             var isDark = string.Equals(theme.BaseAppearance, "dark", StringComparison.OrdinalIgnoreCase);
             var palette = isDark ? BuildDarkPalette() : BuildLightPalette();
@@ -153,15 +161,18 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Builds the resolved palette for a custom theme. Missing or invalid JSON keys fall back to
-        /// the built-in palette for <see cref="CustomTheme.BaseAppearance"/>, then explicit theme overrides.
+        /// Builds the resolved palette for a custom theme. It starts from the built-in palette for
+        /// <see cref="CustomTheme.BaseAppearance"/> and applies the theme's valid color overrides on top;
+        /// missing or invalid entries, and keys outside the palette, leave the base values unchanged.
         /// </summary>
         public static Dictionary<string, Color> BuildCustomPalette(CustomTheme theme)
         {
+            // Anything other than an explicit light base starts from the dark palette.
             var palette = string.Equals(theme.BaseAppearance, "light", StringComparison.OrdinalIgnoreCase)
                 ? BuildLightPalette()
                 : BuildDarkPalette();
 
+            // Apply only well-formed overrides for keys the palette actually knows.
             foreach (var (key, hex) in theme.Colors)
             {
                 if (string.IsNullOrWhiteSpace(key) || !CustomTheme.IsValidHex(hex))
@@ -182,19 +193,24 @@ namespace ASLM.Services.Internal
         // All known palette keys
 
         /// <summary>
-        /// Returns the ordered list of every palette key known to the theme system.
+        /// Ordered list of every palette key known to the theme system, in dark palette order.
         /// Used by the custom theme editor to display all editable slots.
         /// </summary>
         public static IReadOnlyList<string> AllKeys { get; } = BuildDarkPalette().Keys.ToList().AsReadOnly();
+
+
+        // Swatch rendering
 
         /// <summary>
         /// Stroke for small color swatches: subtle ring that stays visible on both light and dark fills.
         /// </summary>
         public static Color SwatchContrastStroke(Color fill)
         {
+            // Converts one gamma-encoded sRGB channel to linear light for the luminance calculation.
             static double SrgbChannel(double c) =>
                 c <= 0.04045 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
 
+            // Light fills get a translucent white ring, dark fills a mid-gray one (relative luminance threshold).
             var r = SrgbChannel(fill.Red);
             var g = SrgbChannel(fill.Green);
             var b = SrgbChannel(fill.Blue);
@@ -209,6 +225,7 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Parses a 6- or 8-digit hex string to a MAUI Color.
+        /// Returns false and a transparent color when the text is empty or not a valid color.
         /// </summary>
         public static bool TryParseHex(string hex, out Color color)
         {
@@ -225,6 +242,7 @@ namespace ASLM.Services.Internal
             }
             catch
             {
+                // Color.FromArgb throws on malformed text, which simply means the value is not a color.
                 return false;
             }
         }

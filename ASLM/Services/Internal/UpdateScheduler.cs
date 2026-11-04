@@ -10,28 +10,103 @@ namespace ASLM.Services.Internal
     /// </summary>
     public sealed class UpdateScheduler : IDisposable
     {
+        // Constants
+
+        /// <summary>
+        /// Target kind of the ASLM application update candidate.
+        /// </summary>
         private const string AslmTargetKind = "app";
+
+        /// <summary>
+        /// Target id of the ASLM application update candidate.
+        /// </summary>
         private const string AslmTargetId = "aslm";
+
+        /// <summary>
+        /// Target kind of the Ollama update candidate.
+        /// </summary>
         private const string OllamaTargetKind = "engine";
+
+        /// <summary>
+        /// Engine id of the managed Ollama service.
+        /// </summary>
         private const string OllamaTargetId = "ollama-service";
 
+        /// <summary>
+        /// Pause after startup before the first network request, so application initialization finishes first.
+        /// </summary>
         private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(15);
+
+        /// <summary>
+        /// Pause before the next scheduler pass after an unexpected failure.
+        /// </summary>
         private static readonly TimeSpan FailureRetryDelay = TimeSpan.FromMinutes(15);
+
+        /// <summary>
+        /// Lower bound for the wait between two scheduler passes.
+        /// </summary>
         private static readonly TimeSpan MinimumLoopDelay = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// Extra wait added to the GitHub rate-limit reset time, so the next request lands after the budget refills.
+        /// </summary>
         private static readonly TimeSpan BudgetExhaustedPadding = TimeSpan.FromSeconds(10);
 
+
+        // Dependencies and state
+
+        /// <summary>
+        /// Persisted application data holding update settings and the retained update candidates.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Update manager that performs the actual checks and installations.
+        /// </summary>
         private readonly UpdateManager _updateManager;
+
+        /// <summary>
+        /// Engine installer used to look up installed engines and their update sources.
+        /// </summary>
         private readonly EngineInstaller _engineInstaller;
+
+        /// <summary>
+        /// GitHub rate-limit tracker that decides whether an automatic request is allowed and how long to wait.
+        /// </summary>
         private readonly GitHubRateLimitStore _rateLimitStore;
+
+        /// <summary>
+        /// Logger for scheduler diagnostics and updater messages.
+        /// </summary>
         private readonly ILogger<UpdateScheduler> _logger;
 
+        /// <summary>
+        /// Optional checks (modules and non-Ollama engines) waiting to run one per scheduler pass.
+        /// </summary>
         private readonly Queue<ScheduledUpdateCheckItem> _pendingChecks = new();
+
+        /// <summary>
+        /// Guards <see cref="_pendingChecks"/>.
+        /// </summary>
         private readonly object _queueGate = new();
+
+        /// <summary>
+        /// Guards the update settings and the persisted candidates against concurrent change.
+        /// </summary>
         private readonly object _stateGate = new();
 
+        /// <summary>
+        /// Cancels the background loop; null while the scheduler is not running.
+        /// </summary>
         private CancellationTokenSource? _cts;
+
+        /// <summary>
+        /// Task of the running background loop; null while the scheduler is not running.
+        /// </summary>
         private Task? _worker;
+
+
+        // Events
 
         /// <summary>
         /// Notifies open views when the available ASLM or Ollama update state changes.
@@ -70,12 +145,14 @@ namespace ASLM.Services.Internal
             if (!UpdateManager.SupportsSelfUpdate) return null;
             lock (_stateGate)
             {
+                // A staged update is already prepared, so it is no longer an available one.
                 var persisted = _appData.Data.Updates.AvailableAppUpdate;
                 if (persisted == null || _updateManager.HasPendingAppUpdate)
                 {
                     return null;
                 }
 
+                // Drop a stale snapshot whose version is not newer than the installed release.
                 var installed = _appData.Data.Updates.InstalledReleaseTag;
                 var remote = persisted.ReleaseTag ?? persisted.RemoteVersion;
                 if (!string.IsNullOrWhiteSpace(installed) &&
@@ -104,6 +181,7 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            // The candidate is only meaningful while Ollama is installed and not yet at the candidate's version.
             var engine = ResolveOllamaEngine();
             if (engine?.Status.Installed != true)
             {
@@ -133,7 +211,7 @@ namespace ASLM.Services.Internal
         // Startup
 
         /// <summary>
-        /// Starts the background loop once.
+        /// Starts the background loop once; further calls while it runs do nothing.
         /// </summary>
         public void Start()
         {
@@ -150,7 +228,7 @@ namespace ASLM.Services.Internal
         // Shutdown
 
         /// <summary>
-        /// Stops the background loop.
+        /// Stops the background loop and waits until it has finished.
         /// </summary>
         public async Task StopAsync()
         {
@@ -159,6 +237,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            // Signal cancellation and wait for the loop to unwind before releasing its resources.
             _cts.Cancel();
             try
             {
@@ -185,6 +264,7 @@ namespace ASLM.Services.Internal
             // Let startup I/O and account initialization finish before the first network request.
             await Task.Delay(StartupDelay, ct);
 
+            // Each pass reports how long to wait before the next one.
             while (!ct.IsCancellationRequested)
             {
                 try
@@ -194,10 +274,12 @@ namespace ASLM.Services.Internal
                 }
                 catch (OperationCanceledException)
                 {
+                    // Shutdown: leave the loop instead of treating it as a failed pass.
                     throw;
                 }
                 catch (Exception ex)
                 {
+                    // A failed pass is logged and retried after a longer pause; it never stops the scheduler.
                     _logger.LogWarning(ex, "Scheduled update check failed.");
                     await Task.Delay(FailureRetryDelay, ct);
                 }
@@ -212,15 +294,16 @@ namespace ASLM.Services.Internal
             _appData.Data.Updates.Normalize();
             var settings = _appData.Data.Updates;
 
-            // ASLM and Ollama are checked every hour independently of the optional repository-check toggle.
+            // ASLM and Ollama are checked once per check window independently of the optional repository-check toggle.
             if (IsRequiredCheckDue(settings))
             {
+                // Wait for the GitHub request budget to refill instead of starting a check that cannot complete.
                 if (!_rateLimitStore.CanMakeAutoRequest())
                 {
                     return _rateLimitStore.GetDelayUntilReset() + BudgetExhaustedPadding;
                 }
 
-                // Persist the window before network work so a crash cannot repeat checks inside the hour.
+                // Persist the window before network work so a crash cannot repeat checks inside the same window.
                 lock (_stateGate)
                 {
                     settings.LastAutoCheckUtc = DateTime.UtcNow.ToString("o");
@@ -230,6 +313,7 @@ namespace ASLM.Services.Internal
                 await RunRequiredChecksAsync(ct);
                 settings = _appData.Data.Updates;
 
+                // A new window restarts the optional queue from scratch, or empties it when checking is disabled.
                 if (settings.CheckEnabled)
                 {
                     await PopulateOptionalQueueAsync(ct);
@@ -241,15 +325,19 @@ namespace ASLM.Services.Internal
             }
             else if (!settings.CheckEnabled)
             {
+                // Turning checks off between windows must also drop the entries already queued.
                 ClearOptionalQueue();
             }
 
             // Optional module and non-Ollama engine checks remain controlled by Check for updates.
+            // With nothing queued, sleep until the next required check is due.
             if (GetPendingCheckCount() == 0)
             {
                 return GetDelayUntilRequiredCheck(settings);
             }
 
+            // Otherwise process one queued item per pass, spaced out to stay within the request budget,
+            // but never sleep past the next required check.
             if (!_rateLimitStore.CanMakeAutoRequest())
             {
                 return MinDelay(
@@ -271,10 +359,12 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task RunRequiredChecksAsync(CancellationToken ct)
         {
+            // With automatic updates the candidate is applied right away, so no "update available" notification is needed.
             var settings = _appData.Data.Updates;
             var publishNotifications = !settings.AutoUpdateEnabled;
             var appResult = await SafeCheckAppUpdateAsync(ct, publishNotifications);
 
+            // Ollama is only checked when it is installed.
             var ollamaEngine = ResolveOllamaEngine();
             var ollamaResult = ollamaEngine?.Status.Installed == true
                 ? await SafeCheckEngineUpdateAsync(ollamaEngine, ct, publishNotifications)
@@ -297,6 +387,7 @@ namespace ASLM.Services.Internal
             await _appData.SaveAsync();
             RaiseUpdateStateChanged();
 
+            // Without automatic updates, the stored candidates and notifications are the whole result.
             if (!settings.AutoUpdateEnabled)
             {
                 return;
@@ -326,11 +417,13 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task<bool> TryAutomaticallyPrepareAppUpdateAsync(UpdateCandidate candidate, CancellationToken ct)
         {
+            // An update that is already staged only needs its stale candidate removed.
             if (_updateManager.HasPendingAppUpdate)
             {
                 return ClearPersistedCandidate(AslmTargetKind, AslmTargetId);
             }
 
+            // Stage the update for the next launcher start; a failure keeps the candidate for a later retry.
             try
             {
                 var log = new Progress<string>(message =>
@@ -372,6 +465,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task PopulateOptionalQueueAsync(CancellationToken ct)
         {
+            // Ollama is excluded because the required checks already cover it.
             ct.ThrowIfCancellationRequested();
             var modules = await _updateManager.DiscoverInstalledModulesAsync();
             var engines = _engineInstaller.DiscoverEngines()
@@ -382,6 +476,7 @@ namespace ASLM.Services.Internal
                     !string.Equals(engine.Id, OllamaTargetId, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
+            // Replace the queue with the freshly discovered targets: modules first, then engines.
             lock (_queueGate)
             {
                 _pendingChecks.Clear();
@@ -402,6 +497,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task ProcessNextOptionalItemAsync(CancellationToken ct)
         {
+            // Take the next queued target; an empty queue means there is nothing to do.
             ScheduledUpdateCheckItem? item;
             lock (_queueGate)
             {
@@ -413,6 +509,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            // Check the target according to its kind; automatic updates replace the notification.
             var settings = _appData.Data.Updates;
             var publishNotifications = !settings.AutoUpdateEnabled;
             var result = item.Kind switch
@@ -424,6 +521,7 @@ namespace ASLM.Services.Internal
                 _ => UpdateCheckResult.CompletedWithoutUpdate
             };
 
+            // Apply a found update only in automatic mode; otherwise the notification is the result.
             if (result.Candidate == null || !settings.AutoUpdateEnabled)
             {
                 return;
@@ -577,13 +675,13 @@ namespace ASLM.Services.Internal
         // Scheduling helpers
 
         /// <summary>
-        /// Returns whether the hourly ASLM and Ollama check window has elapsed.
+        /// Returns whether the check window for the required ASLM and Ollama checks has elapsed.
         /// </summary>
         internal static bool IsRequiredCheckDue(AppUpdateSettings settings) =>
             GetDelayUntilRequiredCheck(settings) <= TimeSpan.Zero;
 
         /// <summary>
-        /// Returns the exact remaining delay until the next required hourly check.
+        /// Returns the exact remaining delay until the next required check, or zero when it is due or never ran.
         /// </summary>
         internal static TimeSpan GetDelayUntilRequiredCheck(AppUpdateSettings settings)
         {
@@ -635,12 +733,24 @@ namespace ASLM.Services.Internal
             _cts = null;
         }
 
+
+        // Nested types
+
         /// <summary>
         /// Carries a safe check result while preserving the difference between failure and no update.
         /// </summary>
+        /// <param name="Completed">True when the check ran to the end, even if it found no update.</param>
+        /// <param name="Candidate">The update that was found, or null when none exists or the check failed.</param>
         private sealed record UpdateCheckResult(bool Completed, UpdateCandidate? Candidate)
         {
+            /// <summary>
+            /// Result of a check that completed and found nothing to update.
+            /// </summary>
             public static UpdateCheckResult CompletedWithoutUpdate { get; } = new(true, null);
+
+            /// <summary>
+            /// Result of a check that could not complete, so earlier persisted candidates must be kept.
+            /// </summary>
             public static UpdateCheckResult Failed { get; } = new(false, null);
         }
 
@@ -649,11 +759,29 @@ namespace ASLM.Services.Internal
         /// </summary>
         private sealed class ScheduledUpdateCheckItem
         {
+            /// <summary>
+            /// <see cref="Kind"/> value of an item that checks an installed module.
+            /// </summary>
             public const string ModuleKind = "module";
+
+            /// <summary>
+            /// <see cref="Kind"/> value of an item that checks an installed engine.
+            /// </summary>
             public const string EngineKind = "engine";
 
+            /// <summary>
+            /// Kind of the checked target, either <see cref="ModuleKind"/> or <see cref="EngineKind"/>.
+            /// </summary>
             public string Kind { get; private init; } = string.Empty;
+
+            /// <summary>
+            /// Module to check; set only for module items.
+            /// </summary>
             public ModuleConfig? Module { get; private init; }
+
+            /// <summary>
+            /// Engine to check; set only for engine items.
+            /// </summary>
             public EngineConfig? Engine { get; private init; }
 
             /// <summary>

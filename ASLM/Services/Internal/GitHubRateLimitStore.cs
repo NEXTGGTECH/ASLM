@@ -12,19 +12,69 @@ namespace ASLM.Services.Internal
     /// </summary>
     public sealed class GitHubRateLimitStore
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Shortest pause between two automatic update-check requests.
+        /// </summary>
         private static readonly TimeSpan MinInterCheckDelay = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// Longest pause between two automatic update-check requests.
+        /// </summary>
         private static readonly TimeSpan MaxInterCheckDelay = TimeSpan.FromMinutes(30);
 
+        /// <summary>
+        /// Absolute path of the <c>ASLM_GitHubRateLimit.json</c> data file.
+        /// </summary>
         private readonly string _filePath;
+
+        /// <summary>
+        /// Logger for load, save and notification failures.
+        /// </summary>
         private readonly ILogger<GitHubRateLimitStore> _logger;
+
+        /// <summary>
+        /// Guards <see cref="Data"/> and <see cref="_activeNotice"/>.
+        /// </summary>
         private readonly object _sync = new();
+
+        /// <summary>
+        /// Serializes file writes so parallel responses cannot write the data file at the same time.
+        /// </summary>
         private readonly SemaphoreSlim _saveGate = new(1, 1);
+
+        /// <summary>
+        /// Time source for window checks; replaced in tests.
+        /// </summary>
         private readonly TimeProvider _clock;
+
+        /// <summary>
+        /// Exhaustion notice currently shown to the user, or null when none is reserved.
+        /// </summary>
         private ExhaustionNotice? _activeNotice;
 
+
+        // Events and nested types
+
+        /// <summary>
+        /// Raised after the quota state or the request history changed.
+        /// </summary>
         public event EventHandler? StateChanged;
 
+        /// <summary>
+        /// Describes the exhausted rate-limit window that a notice was reserved for.
+        /// </summary>
+        /// <param name="ResetUtc">Time at which the exhausted window resets.</param>
+        /// <param name="Authenticated">Whether the exhausted quota belongs to an authenticated token.</param>
         internal sealed record ExhaustionNotice(DateTimeOffset ResetUtc, bool Authenticated);
+
+
+        // Serialization and state
+
+        /// <summary>
+        /// JSON settings used to read and write the data file.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
@@ -36,6 +86,9 @@ namespace ASLM.Services.Internal
         /// </summary>
         public GitHubRateLimitData Data { get; private set; } = new();
 
+
+        // Initialization
+
         /// <summary>
         /// Creates the store and resolves the persisted data file path.
         /// </summary>
@@ -44,6 +97,9 @@ namespace ASLM.Services.Internal
         {
         }
 
+        /// <summary>
+        /// Creates the store with an explicit data file path and time source (test isolation).
+        /// </summary>
         internal GitHubRateLimitStore(ILogger<GitHubRateLimitStore> logger, string filePath, TimeProvider clock)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -58,6 +114,9 @@ namespace ASLM.Services.Internal
         {
             await LoadAsync();
         }
+
+
+        // Loading and snapshot
 
         /// <summary>
         /// Returns a thread-safe snapshot of the current primary GitHub API rate-limit window.
@@ -78,6 +137,7 @@ namespace ASLM.Services.Internal
         {
             try
             {
+                // Read the persisted snapshot and replace the in-memory data with it.
                 if (File.Exists(_filePath))
                 {
                     var json = await File.ReadAllTextAsync(_filePath);
@@ -98,6 +158,7 @@ namespace ASLM.Services.Internal
                 _logger.LogError(ex, "Failed to load GitHub rate-limit data from {FilePath}. Falling back to defaults.", _filePath);
             }
 
+            // The file is missing, empty or unreadable: start from defaults and write them out.
             lock (_sync)
             {
                 Data = new GitHubRateLimitData();
@@ -107,11 +168,20 @@ namespace ASLM.Services.Internal
             await SaveAsync();
         }
 
+
+        // Quota tracking
+
         /// <summary>
         /// Updates the known GitHub rate-limit window from response headers.
+        /// Stale responses (older window, or sent under a different authentication state) are ignored.
         /// </summary>
+        /// <param name="limit">Value of <c>X-RateLimit-Limit</c>: requests allowed per window.</param>
+        /// <param name="remaining">Value of <c>X-RateLimit-Remaining</c>: requests left in the window.</param>
+        /// <param name="resetEpochSeconds">Value of <c>X-RateLimit-Reset</c>: Unix time at which the window resets.</param>
+        /// <param name="authenticated">Whether the response was sent with a token; null skips the staleness check.</param>
         public void UpdateFromHeaders(int limit, int remaining, long resetEpochSeconds, bool? authenticated = null)
         {
+            // Reject values GitHub never sends, such as a remaining count above the limit.
             if (limit <= 0 || remaining < 0 || remaining > limit || resetEpochSeconds <= 0 ||
                 resetEpochSeconds > DateTimeOffset.MaxValue.ToUnixTimeSeconds())
                 return;
@@ -119,12 +189,17 @@ namespace ASLM.Services.Internal
             lock (_sync)
             {
                 Data.Normalize();
+
                 // A response sent before connecting/disconnecting belongs to the old quota.
                 if (authenticated.HasValue && authenticated != Data.Authenticated)
                     return;
+
+                // A response from an older window than the known one is stale.
                 var hasPrevious = DateTimeOffset.TryParse(Data.ResetUtc, out var previous);
                 if (hasPrevious && reset < previous)
                     return;
+
+                // Within one window the remaining count only decreases; a new window takes the reported value.
                 Data.KnownLimit = Math.Clamp(limit, 1, 15000);
                 Data.KnownRemaining = hasPrevious && reset == previous
                     ? Math.Min(Data.KnownRemaining, remaining)
@@ -136,9 +211,14 @@ namespace ASLM.Services.Internal
             finally { PublishStateChanged(); }
         }
 
-        /// <summary>Tracks the hourly REST quota, not search or secondary throttling.</summary>
+        /// <summary>
+        /// Tracks the hourly REST quota, not search or secondary throttling.
+        /// Reads the <c>X-RateLimit-*</c> headers of a GitHub response and forwards complete sets to
+        /// <see cref="UpdateFromHeaders"/>.
+        /// </summary>
         internal void UpdateFromResponse(HttpResponseMessage response, bool authenticated)
         {
+            // Responses that count against another resource (search, graphql, ...) do not describe the core quota.
             if (response.Headers.TryGetValues("X-RateLimit-Resource", out var resources) &&
                 !string.Equals(resources.FirstOrDefault(), "core", StringComparison.OrdinalIgnoreCase))
                 return;
@@ -151,15 +231,27 @@ namespace ASLM.Services.Internal
                 UpdateFromHeaders(limit, remaining, reset, authenticated);
         }
 
-        /// <summary>Reserves one notice across page transitions and concurrent responses.</summary>
+
+        // Exhaustion notice
+
+        /// <summary>
+        /// Reserves one notice across page transitions and concurrent responses.
+        /// Returns null when a notice is already reserved, the quota is not exhausted, the window already
+        /// reset, or the user acknowledged this window before.
+        /// </summary>
         internal ExhaustionNotice? TryBeginExhaustionNotice()
         {
             lock (_sync)
             {
                 Data.Normalize();
+
+                // Only an exhausted quota in a window that has not reset yet needs a notice.
                 if (_activeNotice != null || Data.KnownRemaining != 0 ||
                     !DateTimeOffset.TryParse(Data.ResetUtc, out var reset) || reset <= _clock.GetUtcNow())
                     return null;
+
+                // Do not repeat a notice the user already acknowledged for this window (anonymous and
+                // authenticated quotas are acknowledged separately).
                 var authenticated = Data.Authenticated == true;
                 var last = authenticated ? Data.LastAuthenticatedNoticeResetUtc : Data.LastAnonymousNoticeResetUtc;
                 if (DateTimeOffset.TryParse(last, out var acknowledged) &&
@@ -169,9 +261,15 @@ namespace ASLM.Services.Internal
             }
         }
 
-        /// <summary>Only a button acknowledges the window; unloading merely releases its reservation.</summary>
+        /// <summary>
+        /// Only a button acknowledges the window; unloading merely releases its reservation.
+        /// An acknowledged window is persisted so the same notice is not shown again.
+        /// </summary>
+        /// <param name="notice">Notice previously returned by <see cref="TryBeginExhaustionNotice"/>; others are ignored.</param>
+        /// <param name="acknowledged">Whether the user acknowledged the notice, as opposed to it being unloaded.</param>
         internal async Task EndExhaustionNoticeAsync(ExhaustionNotice notice, bool acknowledged)
         {
+            // Release the reservation and remember the acknowledged reset time for the matching quota kind.
             lock (_sync)
             {
                 if (!ReferenceEquals(_activeNotice, notice)) return;
@@ -183,17 +281,26 @@ namespace ASLM.Services.Internal
                     else Data.LastAnonymousNoticeResetUtc = value;
                 }
             }
+
             if (acknowledged)
             {
                 try { await SaveAsync().ConfigureAwait(false); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Could not persist the GitHub rate-limit notice acknowledgment."); }
             }
+
             PublishStateChanged();
         }
+
+
+        // Request history and automatic-check budget
 
         /// <summary>
         /// Records one GitHub API request and persists the updated history.
         /// </summary>
+        /// <param name="url">Requested URL.</param>
+        /// <param name="type">Kind of request (see <see cref="GitHubRequestTypes"/>); blank means a download.</param>
+        /// <param name="source">Whether the user triggered it (manual) or the application did (automatic).</param>
+        /// <param name="statusCode">HTTP status of the response, or null when no response arrived.</param>
         public void RecordRequest(string url, string type, string source, int? statusCode)
         {
             var record = new GitHubRequestRecord
@@ -219,6 +326,7 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Returns whether automatic update checks still have budget in the current window.
+        /// Automatic requests may use at most half of the known limit, so manual requests always keep headroom.
         /// </summary>
         public bool CanMakeAutoRequest()
         {
@@ -261,23 +369,28 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Calculates the delay before the next automatic update check request.
+        /// Spreads the remaining automatic budget evenly over the time until the window resets,
+        /// limited to the range between <see cref="MinInterCheckDelay"/> and <see cref="MaxInterCheckDelay"/>.
         /// </summary>
         public TimeSpan CalculateInterCheckDelay()
         {
             lock (_sync)
             {
+                // With no budget left, back off to the longest delay.
                 var remainingBudget = GetAutoRequestsRemaining();
                 if (remainingBudget <= 0)
                 {
                     return MaxInterCheckDelay;
                 }
 
+                // The window already reset (or is unknown): the quota is fresh, so check at the fastest pace.
                 var delayUntilReset = GetDelayUntilReset();
                 if (delayUntilReset <= TimeSpan.Zero)
                 {
                     return MinInterCheckDelay;
                 }
 
+                // Divide the time left in the window by the remaining budget and clamp the result.
                 var calculated = TimeSpan.FromTicks(delayUntilReset.Ticks / Math.Max(1, remainingBudget));
                 if (calculated < MinInterCheckDelay)
                 {
@@ -293,14 +406,22 @@ namespace ASLM.Services.Internal
             }
         }
 
+
+        // Authentication hint and notifications
+
         /// <summary>
         /// Updates the cached primary rate-limit budget based on authentication state.
+        /// When the state changes, the quota resets to GitHub's default limit for that state
+        /// (5000 per hour with a token, 60 without) until a response reports the real values.
         /// </summary>
+        /// <param name="isAuthenticated">Whether requests are now sent with a personal access token.</param>
         public void ApplyAuthenticatedLimitHint(bool isAuthenticated)
         {
             lock (_sync)
             {
                 Data.Normalize();
+
+                // A different authentication state means a different quota, so the old window is discarded.
                 if (Data.Authenticated != isAuthenticated)
                 {
                     Data.Authenticated = isAuthenticated;
@@ -314,6 +435,10 @@ namespace ASLM.Services.Internal
             PublishStateChanged();
         }
 
+        /// <summary>
+        /// Raises <see cref="StateChanged"/> for each subscriber separately, so one failing handler
+        /// cannot stop the others.
+        /// </summary>
         private void PublishStateChanged()
         {
             if (StateChanged is not { } handlers) return;
@@ -324,6 +449,9 @@ namespace ASLM.Services.Internal
             }
         }
 
+
+        // Persistence and helpers
+
         /// <summary>
         /// Saves the current GitHub usage data asynchronously.
         /// </summary>
@@ -332,6 +460,7 @@ namespace ASLM.Services.Internal
             await _saveGate.WaitAsync().ConfigureAwait(false);
             try
             {
+                // Serialize under the data lock, then write the file outside of it.
                 EnsureDirectoryExists();
                 string json;
                 lock (_sync) { json = JsonSerializer.Serialize(Data, _jsonOptions); }
@@ -357,12 +486,19 @@ namespace ASLM.Services.Internal
             finally { _saveGate.Release(); }
         }
 
+        /// <summary>
+        /// Counts the automatic requests recorded since the start of the current rate-limit window.
+        /// Callers hold <see cref="_sync"/>.
+        /// </summary>
         private int CountAutoRequestsInCurrentWindow()
         {
             var windowStart = Data.ResolveWindowStartUtc();
             return Data.Requests.Count(record => record.IsAutoRequest() && record.IsWithinWindow(windowStart));
         }
 
+        /// <summary>
+        /// Creates the folder of the data file when it does not exist yet.
+        /// </summary>
         private void EnsureDirectoryExists()
         {
             var directory = Path.GetDirectoryName(_filePath);
@@ -372,6 +508,9 @@ namespace ASLM.Services.Internal
             }
         }
 
+        /// <summary>
+        /// Resolves the application root directory.
+        /// </summary>
         private static string GetRootDirectory()
         {
             return AppRoot.Directory;

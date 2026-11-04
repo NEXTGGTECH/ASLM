@@ -14,19 +14,21 @@ namespace ASLM.Services.Internal
     /// - Arch key:      amd64 | arm64 | x86 | arm
     /// - Platform key:  "{os}-{arch}", e.g. windows-amd64, windows-arm64
     /// - RID:           win-x64 | win-arm64 | osx-arm64 | linux-x64 ...
-    /// The macOS branch is intentionally present so manifests and callers written now
-    /// resolve correctly once a macOS target is added; it does not change existing
-    /// Windows behavior.
+    /// Mac Catalyst is reported as <c>macos</c> as well, so Windows, Linux and macOS hosts all share one vocabulary.
     /// </remarks>
     public static class PlatformInfo
     {
+        // Canonical keys
+
         /// <summary>
         /// Returns the canonical OS key for the current process.
         /// </summary>
+        /// <exception cref="PlatformNotSupportedException">Thrown when the OS is not Windows, macOS or Linux.</exception>
         public static string OsKey
         {
             get
             {
+                // Mac Catalyst and macOS both map to the single "macos" key.
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return "windows";
                 if (OperatingSystem.IsMacCatalyst() || RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return "macos";
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return "linux";
@@ -37,6 +39,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Returns the canonical architecture key for the current process.
         /// </summary>
+        /// <exception cref="PlatformNotSupportedException">Thrown when the process architecture has no canonical key.</exception>
         public static string ArchKey => RuntimeInformation.ProcessArchitecture switch
         {
             Architecture.X64 => "amd64",
@@ -58,6 +61,9 @@ namespace ASLM.Services.Internal
         /// </summary>
         public static string RuntimeIdentifier => $"{RidOs(OsKey)}-{RidArch(ArchKey)}";
 
+
+        // Platform key lookup
+
         /// <summary>
         /// Returns the lookup keys to try when reading a platform-keyed map, newest
         /// vocabulary first. Includes the legacy <c>x64</c> alias so update sources
@@ -66,8 +72,11 @@ namespace ASLM.Services.Internal
         public static IReadOnlyList<string> PlatformKeyCandidates() => PlatformKeyCandidates(OsKey, ArchKey);
 
         /// <summary>
-        /// Returns the platform-key candidates for an explicit OS and architecture.
+        /// Returns the platform-key candidates for an explicit OS and architecture. Only <c>amd64</c> has an
+        /// extra legacy <c>x64</c> alias; every other architecture yields a single key.
         /// </summary>
+        /// <param name="osKey">Canonical OS key, for example <c>windows</c>.</param>
+        /// <param name="archKey">Canonical architecture key, for example <c>amd64</c>.</param>
         public static IReadOnlyList<string> PlatformKeyCandidates(string osKey, string archKey) =>
             string.Equals(archKey, "amd64", StringComparison.OrdinalIgnoreCase)
                 ? [$"{osKey}-amd64", $"{osKey}-x64"]
@@ -84,6 +93,7 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            // The first candidate with a non-blank value wins, so the newest key spelling takes precedence.
             foreach (var key in PlatformKeyCandidates())
             {
                 if (map.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
@@ -95,6 +105,12 @@ namespace ASLM.Services.Internal
             return null;
         }
 
+
+        // Runtime identifier parts
+
+        /// <summary>
+        /// Maps a canonical OS key to the OS part of a .NET RID; <c>linux</c> is already identical.
+        /// </summary>
         private static string RidOs(string osKey) => osKey switch
         {
             "windows" => "win",
@@ -102,6 +118,9 @@ namespace ASLM.Services.Internal
             _ => osKey
         };
 
+        /// <summary>
+        /// Maps a canonical architecture key to the architecture part of a .NET RID; only <c>amd64</c> differs.
+        /// </summary>
         private static string RidArch(string archKey) => archKey switch
         {
             "amd64" => "x64",

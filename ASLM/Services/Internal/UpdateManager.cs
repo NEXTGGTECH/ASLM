@@ -13,30 +13,99 @@ using Microsoft.Extensions.Logging;
 namespace ASLM.Services.Internal
 {
     /// <summary>
-    /// Checks, prepares, and applies ASLM and module updates.
+    /// Checks, prepares, and applies ASLM, module, and engine updates.
+    /// This part holds update checks, ASLM self-update staging, catalog installation, module and engine
+    /// application, and the shared version, path, and process helpers. Manual module actions, repository
+    /// source resolution, and reinstallation live in the other parts of this class.
     /// </summary>
     public sealed partial class UpdateManager
     {
         // Fields and constants
 
+        /// <summary>
+        /// Name of the work folder under the application root that holds staged ASLM updates
+        /// and the scratch folders of module and engine update attempts.
+        /// </summary>
         private const string UpdateWorkDirName = ".aslm-update";
+
+        /// <summary>
+        /// Name of the marker file inside the work folder that describes the prepared ASLM update.
+        /// </summary>
         private const string PendingFileName = "pending.json";
+
+        /// <summary>
+        /// Name of the shipped file that declares where ASLM itself is updated from.
+        /// </summary>
         private const string UpdateSourceFileName = "ASLM_UpdateSource.json";
 
+        /// <summary>
+        /// Persisted application settings, including the selected update channel and installed release tag.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Installs, removes, and registers modules; owns the module catalog and content locks.
+        /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Discovers and installs engine runtimes and persists their manifests.
+        /// </summary>
         private readonly EngineInstaller _engineInstaller;
+
+        /// <summary>
+        /// Starts and stops module processes and hosts the per-module console logs.
+        /// </summary>
         private readonly ModuleRunner _moduleRunner;
+
+        /// <summary>
+        /// Launches a module or confirms it is running, used to start a freshly installed module and its dependencies.
+        /// </summary>
         private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
+
+        /// <summary>
+        /// Resolves module trust levels; its community-reviewed list is refreshed after a module update.
+        /// </summary>
         private readonly ModuleTrustService _moduleTrustService;
+
+        /// <summary>
+        /// Reconciles engines declared by modules after a module is installed or updated.
+        /// </summary>
         private readonly ModuleEngineReconciler _moduleEngineReconciler;
+
+        /// <summary>
+        /// Settings store of the Ollama service; used to stop the runtime it started before engine files are replaced.
+        /// </summary>
         private readonly OllamaSettingsStore _ollamaSettings;
+
+        /// <summary>
+        /// GitHub API client that lists releases, branches, and downloads with shared rate-limit accounting.
+        /// </summary>
         private readonly GitHubUpdateClient _github;
+
+        /// <summary>
+        /// Notification center that receives update-available and update-result notifications.
+        /// </summary>
         private readonly NotificationCenter _notifications;
+
+        /// <summary>
+        /// Logger for update diagnostics.
+        /// </summary>
         private readonly ILogger<UpdateManager> _logger;
+
+        /// <summary>
+        /// Queue that runs module install and removal jobs and tracks them by key.
+        /// </summary>
         private readonly DownloadQueue _downloadQueue;
+
+        /// <summary>
+        /// Tracks running app and engine update operations so concurrent requests join one operation.
+        /// </summary>
         private readonly UpdateOperationTracker _updateOperations = new();
 
+        /// <summary>
+        /// JSON settings for reading and writing update configuration and pending-update files.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
@@ -97,7 +166,7 @@ namespace ASLM.Services.Internal
 #endif
 
         /// <summary>
-        /// Returns the current ASLM app version.
+        /// Gets the version label of the running ASLM build shown in settings.
         /// </summary>
         public string CurrentAppVersion => ResolveCurrentAppDisplayVersion();
 
@@ -146,6 +215,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
         /// <param name="publishUpdateNotification">When false, skips publishing an update-available notification (used when auto-updates will apply immediately).</param>
+        /// <param name="isManualRequest">True for an explicit user request, so GitHub usage is attributed to manual instead of automatic checks.</param>
         public async Task<UpdateCandidate?> CheckAppUpdateAsync(
             CancellationToken ct = default,
             bool publishUpdateNotification = true,
@@ -220,13 +290,17 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Checks one module for an available update.
         /// </summary>
+        /// <param name="module">Installed module to check.</param>
+        /// <param name="ct">Cancellation token.</param>
         /// <param name="publishUpdateNotification">When false, skips publishing an update-available notification (used when auto-updates will apply immediately).</param>
+        /// <param name="isManualRequest">True for an explicit user request, so GitHub usage is attributed to manual instead of automatic checks.</param>
         public async Task<UpdateCandidate?> CheckModuleUpdateAsync(
             ModuleConfig module,
             CancellationToken ct = default,
             bool publishUpdateNotification = true,
             bool isManualRequest = false)
         {
+            // Hold the content lease while checking; only modules with a GitHub source can be checked.
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             module.Normalize();
             if (!string.Equals(module.Source.Type, "github", StringComparison.OrdinalIgnoreCase) ||
@@ -251,6 +325,7 @@ namespace ASLM.Services.Internal
                 return branchCandidate;
             }
 
+            // Release mode: compare the selected release with the installed one.
             var releaseCandidate = CheckModuleReleaseUpdate(module, options.Releases);
             if (releaseCandidate != null && publishUpdateNotification)
             {
@@ -269,12 +344,14 @@ namespace ASLM.Services.Internal
             bool publishUpdateNotification = true,
             bool isManualRequest = false)
         {
+            // Only installed engines can be updated.
             engine.Normalize();
             if (!engine.Status.Installed)
             {
                 return null;
             }
 
+            // Older manifests may lack the update block; restore it and persist the manifest before reading it.
             if (EngineInstaller.EnsureManifestMetadata(engine) && !string.IsNullOrWhiteSpace(engine.SourcePath))
             {
                 await _engineInstaller.SaveEngineConfigAsync(engine);
@@ -287,8 +364,10 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            // Align the recorded release tag with the real runtime so the comparison below starts from the truth.
             await TrySyncEngineInstalledReleaseTagFromRuntimeAsync(engine, ct, isManualRequest);
 
+            // Resolve the platform-specific asset name and the channel; engines follow the application channel.
             var assetName = GetConfiguredEngineAssetName(engine);
             if (string.IsNullOrWhiteSpace(assetName))
             {
@@ -300,6 +379,7 @@ namespace ASLM.Services.Internal
                 : _appData.Data.Updates.AppChannel;
             var includePrerelease = IsPrereleaseChannel(channel);
 
+            // Walk releases until a newer tag exposes the configured asset download URL.
             var releases = await _github.GetReleasesAsync(
                 engine.Update.Repo,
                 includePrerelease,
@@ -320,6 +400,7 @@ namespace ASLM.Services.Internal
                     continue;
                 }
 
+                // The first release that carries the asset and is newer than the installed tag becomes the candidate.
                 var candidate = new UpdateCandidate
                 {
                     TargetKind = "engine",
@@ -362,6 +443,7 @@ namespace ASLM.Services.Internal
                 return ResolveInstalledEngineReleaseTag(engine);
             }
 
+            // Restore missing update metadata on older manifests before deciding whether a probe applies.
             engine.Normalize();
             if (EngineInstaller.EnsureManifestMetadata(engine) && !string.IsNullOrWhiteSpace(engine.SourcePath))
             {
@@ -369,6 +451,7 @@ namespace ASLM.Services.Internal
                 _engineInstaller.InvalidateCache();
             }
 
+            // Only installed engines with a GitHub update source have a release tag worth syncing.
             if (!engine.Status.Installed ||
                 engine.Update == null ||
                 string.IsNullOrWhiteSpace(engine.Update.Repo))
@@ -376,6 +459,7 @@ namespace ASLM.Services.Internal
                 return ResolveInstalledEngineReleaseTag(engine);
             }
 
+            // Probe the real runtime; an update that started during the probe makes the result unreliable.
             var installedTagBeforeProbe = ResolveInstalledEngineReleaseTag(engine);
             var probedVersion = await TryProbeEngineRuntimeVersionAsync(engine, ct);
             if (GetUpdateOperation("engine", engine.Id) != null || string.IsNullOrWhiteSpace(probedVersion))
@@ -393,6 +477,7 @@ namespace ASLM.Services.Internal
                 return currentInstalledTag;
             }
 
+            // Nothing to persist when the recorded tag already names the probed version.
             var normalizedTag = NormalizeEngineVersionReference(probedVersion);
             if (ReleaseTagOrdering.AreEquivalentVersionReferences(
                     engine.Status.InstalledReleaseTag ?? string.Empty,
@@ -401,6 +486,7 @@ namespace ASLM.Services.Internal
                 return normalizedTag;
             }
 
+            // Record the probed version as the installed tag and drop the cached engine catalog.
             engine.Status.InstalledReleaseTag = normalizedTag;
             engine.Status.InstalledVersion = normalizedTag;
             engine.Status.LastChecked = DateTime.UtcNow.ToString("o");
@@ -424,6 +510,7 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            // Apply the effective channel first, then resolve through the branch or release strategy.
             var options = await GetModuleDownloadOptionsAsync(module, ct, isManualRequest);
             options.ApplyTo(module);
             if (string.Equals(module.Update.Mode, "branch", StringComparison.OrdinalIgnoreCase))
@@ -448,9 +535,11 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Checks ASLM and every installed module for available updates.
+        /// Checks ASLM, every installed module, and every installed engine with an update source for available updates.
         /// </summary>
+        /// <param name="ct">Cancellation token.</param>
         /// <param name="publishUpdateNotifications">When false, skips publishing update-available notifications for every discovery (used when auto-updates will apply immediately).</param>
+        /// <param name="isManualRequest">True for an explicit user request, so GitHub usage is attributed to manual instead of automatic checks.</param>
         public async Task<List<UpdateCandidate>> CheckAllUpdatesAsync(
             CancellationToken ct = default,
             bool publishUpdateNotifications = true,
@@ -519,8 +608,8 @@ namespace ASLM.Services.Internal
         // Auto-apply
 
         /// <summary>
-        /// Applies automatic updates for a list returned by <see cref="CheckAllUpdatesAsync"/>: modules immediately,
-        /// ASLM self-update prepared for the next launcher start when not already staged.
+        /// Applies automatic updates for a list returned by <see cref="CheckAllUpdatesAsync"/>: modules and engines
+        /// immediately, ASLM self-update prepared for the next launcher start when not already staged.
         /// </summary>
         public async Task ApplyDiscoveredUpdatesAsync(
             IReadOnlyList<UpdateCandidate> updates,
@@ -597,6 +686,7 @@ namespace ASLM.Services.Internal
         {
             module.Update.Normalize();
             module.Update.UseDefaultChannel = false;
+
             // Persist without ModulesChanged: the shell rebuilds module cards on that event and would drop
             // in-memory update-check results (HasUpdate / candidate) tied to the current ModuleViewModel instances.
             _moduleInstaller.SaveModuleUpdatePreferences(module);
@@ -661,11 +751,14 @@ namespace ASLM.Services.Internal
                     CommitSha = pending.CommitSha,
                     Module = module
                 };
+
+                // A snapshot that equals the installed commit is stale and must not surface as an update.
                 if (IsModuleAlreadyAtInstallTarget(module, candidate))
                 {
                     candidate = null;
                     return false;
                 }
+
                 return true;
             }
 
@@ -675,6 +768,7 @@ namespace ASLM.Services.Internal
                 return false;
             }
 
+            // A snapshot recorded for a different pinned release selection no longer applies.
             if (!IsLatestReleaseSelection(module.Update.SelectedReleaseTag) &&
                 !string.IsNullOrWhiteSpace(module.Update.SelectedReleaseTag) &&
                 !string.IsNullOrWhiteSpace(pending.ReleaseSelectionKey) &&
@@ -686,6 +780,7 @@ namespace ASLM.Services.Internal
                 return false;
             }
 
+            // Rebuild the presentation fields stored in the snapshot, falling back to the mode-derived channel.
             var displayName = pending.IsVirtualLatest
                 ? ModuleUpdateConfig.LatestReleaseTag
                 : (!string.IsNullOrWhiteSpace(pending.DisplayName) ? pending.DisplayName : pending.RemoteVersion);
@@ -711,11 +806,14 @@ namespace ASLM.Services.Internal
                 PublishedAt = null,
                 Module = module
             };
+
+            // A snapshot that equals the installed release is stale and must not surface as an update.
             if (IsModuleAlreadyAtInstallTarget(module, candidate))
             {
                 candidate = null;
                 return false;
             }
+
             return true;
         }
 
@@ -779,9 +877,11 @@ namespace ASLM.Services.Internal
             var archivePath = Path.Combine(stagingRoot, GetArchiveFileName(candidate.DownloadUrl, "download"));
             var backupPath = Path.Combine(workDir, "backup", DateTime.UtcNow.ToString("yyyyMMddHHmmss"));
 
+            // Start from an empty staging folder; stale content from an earlier attempt must not leak in.
             TryDeleteDirectory(stagingRoot);
             Directory.CreateDirectory(extractDir);
 
+            // Progress is recorded in the shared operation first, then forwarded to the notification.
             var notificationProgress = operation.WrapProgress(
                 _notifications.CreateDownloadProgressBridge(operationKey, progress));
             var prepared = false;
@@ -793,6 +893,7 @@ namespace ASLM.Services.Internal
                 // Installed files may be read-only even though the separate XDG profile is writable.
                 LinuxAppRelauncher.EnsureUpdateTargetWritable();
 #endif
+
                 // Download, extract off the UI thread, then persist pending.json for the patcher.
                 operation.SetPhase(UpdateOperationPhase.Downloading);
                 await _github.DownloadFileAsync(
@@ -802,6 +903,8 @@ namespace ASLM.Services.Internal
                     notificationProgress,
                     ResolveRequestSource(isManualRequest),
                     ct);
+
+                // The package is complete: the remaining work extracts and stages it, so report the applying stage.
                 operation.SetPhase(UpdateOperationPhase.Applying);
                 var payloadDir = await Task.Run(() =>
                 {
@@ -819,6 +922,8 @@ namespace ASLM.Services.Internal
                 LinuxAppRelauncher.ValidateUpdatePayload(payloadDir);
                 preserve = LinuxAppRelauncher.GetUpdatePreservePaths(preserve);
 #endif
+
+                // Describe the staged payload for the external patcher: where it is, where it goes, what to keep.
                 var pending = new PendingAppUpdate
                 {
                     Version = candidate.RemoteVersion,
@@ -831,6 +936,7 @@ namespace ASLM.Services.Internal
 
                 Directory.CreateDirectory(workDir);
                 var pendingJson = JsonSerializer.Serialize(pending, _jsonOptions);
+
                 // Publish the marker atomically: the launcher must never observe a truncated pending operation.
                 await File.WriteAllTextAsync(pendingTemporaryPath, pendingJson, ct);
                 File.Move(pendingTemporaryPath, GetPendingUpdatePath(), overwrite: true);
@@ -841,11 +947,13 @@ namespace ASLM.Services.Internal
             }
             catch (OperationCanceledException)
             {
+                // Surface the cancellation in the notification, then let the caller observe it.
                 _notifications.FailDownload(operationKey, "ASLM update download canceled.");
                 throw;
             }
             catch
             {
+                // Any other failure is reported to the user and still propagates to the caller.
                 _notifications.FailDownload(operationKey, "ASLM update download failed.");
                 throw;
             }
@@ -878,6 +986,8 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Returns the version shown for a catalog entry: the release an installation would select,
+        /// or the manifest version when the entry is installed or the lookup fails.
         /// Presentation only: never replaces the local manifest or its installed version.
         /// </summary>
         internal async Task<string> GetModuleCatalogVersionAsync(
@@ -901,6 +1011,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Loads the catalog icon artwork of a module repository, or null when the lookup fails.
         /// Independent of release metadata so cached artwork can be displayed immediately.
         /// </summary>
         internal async Task<GitHubUpdateClient.ModuleArtwork?> GetModuleCatalogArtworkAsync(
@@ -914,6 +1025,7 @@ namespace ASLM.Services.Internal
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 _logger.LogDebug(ex, "Could not refresh catalog icon for {ModuleId}.", module.Id);
+
                 // null means the lookup failed; an artwork result with no icon means the manifest has none.
                 return null;
             }
@@ -951,20 +1063,26 @@ namespace ASLM.Services.Internal
         {
             if (ct.IsCancellationRequested) return Task.FromCanceled<ModuleLaunchResult>(ct);
             _moduleInstaller.RecordManualRequest(selected.Id);
+
+            // The prepare step creates the request; the queued work and the finish step consume it.
             ModuleInstaller.CatalogInstallation? request = null;
             return _downloadQueue.EnqueueAsync("module:" + selected.Id,
                 token => InstallCatalogModuleCoreAsync(request!, log, progress, token), ct,
                 kind: DownloadQueueKind.Modules,
                 prepare: async token =>
                 {
+                    // Plan under the shared gate so removals and other plans see a consistent reservation.
                     await _moduleInstaller.CatalogPlanGate.WaitAsync(token).ConfigureAwait(false);
                     try
                     {
+                        // Resolve the entry and its dependency order from the current catalog.
                         var catalog = await _moduleInstaller.DiscoverModulesAsync().ConfigureAwait(false);
                         var module = catalog.SingleOrDefault(item => string.Equals(item.Id, selected.Id, StringComparison.OrdinalIgnoreCase))
                             ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, selected.Name));
                         var order = ModuleDependencyResolver.ExpandInstallOrder([module], catalog);
                         var registered = _moduleInstaller.Registry.ReadIds();
+
+                        // Reject the whole plan up front if any module is unsupported or has no downloadable source.
                         foreach (var item in order)
                         {
                             ApplyCatalogDefaults(item, registered.Contains(item.Id));
@@ -973,6 +1091,8 @@ namespace ASLM.Services.Internal
                             if (!registered.Contains(item.Id) && !CanDownloadModule(item))
                                 throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_SourceUnavailable, item.Name));
                         }
+
+                        // Reserve the modules of the plan; the reservation lives until the finish step disposes it.
                         token.ThrowIfCancellationRequested();
                         request = _moduleInstaller.BeginCatalogInstallation(module, order);
                     }
@@ -980,6 +1100,7 @@ namespace ASLM.Services.Internal
                 },
                 finish: async canceled =>
                 {
+                    // Undo partial work after a cancellation, and always release the reservation.
                     if (request == null) return;
                     try
                     {
@@ -993,6 +1114,7 @@ namespace ASLM.Services.Internal
         /// Reports both queued and active catalog installations.
         /// </summary>
         public bool IsCatalogInstallPending(string moduleId) => _downloadQueue.Contains("module:" + moduleId);
+
         /// <summary>
         /// Cancels a root catalog request through its dependency-aware queue.
         /// </summary>
@@ -1004,16 +1126,22 @@ namespace ASLM.Services.Internal
         public async Task<string?> UninstallModuleAsync(ModuleConfig module)
         {
             Task<string?> job;
+
             // Publish the removal reservation and its queue task atomically with respect to install plans.
             await _moduleInstaller.CatalogPlanGate.WaitAsync().ConfigureAwait(false);
             try
             {
+                // Join a removal that is already queued instead of queueing a second one.
                 if (_downloadQueue.GetTask("module-remove:" + module.Id) is Task<string?> existing) job = existing;
                 else
                 {
+                    // Refuse to remove a module that other pending installations still need.
                     var consumers = _moduleInstaller.GetPendingConsumers(module.Id);
                     if (!string.IsNullOrEmpty(consumers))
                         throw new InvalidOperationException(L.Get(LocalizationKeys.Modules_RemoveRequiredFormat, consumers));
+
+                    // Mark the module as queued for removal; the state moves to removing when the queue starts the job
+                    // and is cleared once the job finishes, whatever its outcome.
                     _moduleInstaller.SetRemovalState(module.Id, DownloadOperationState.Queued);
                     job = _downloadQueue.EnqueueAsync("module-remove:" + module.Id, async token =>
                     {
@@ -1028,6 +1156,8 @@ namespace ASLM.Services.Internal
                 }
             }
             finally { _moduleInstaller.CatalogPlanGate.Release(); }
+
+            // Wait outside the plan gate so other plans are not blocked while files are removed.
             return await job.ConfigureAwait(false);
         }
 
@@ -1047,6 +1177,8 @@ namespace ASLM.Services.Internal
                         log.Report(L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
                     }
                 }
+
+            // Take the content lease for every module of the plan and start the maintenance console log.
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, request.Plan.ToArray()).ConfigureAwait(false);
             var module = request.Root;
             var order = request.Plan;
@@ -1056,6 +1188,7 @@ namespace ASLM.Services.Internal
             log.Report(L.Get(LocalizationKeys.ModuleInfo_Downloading, module.Name));
             var registered = _moduleInstaller.Registry.ReadIds();
 
+            // Install the plan in dependency order; modules that already finished their first run are skipped.
             foreach (var item in order)
             {
                 ct.ThrowIfCancellationRequested();
@@ -1066,6 +1199,9 @@ namespace ASLM.Services.Internal
                 using var activity = _moduleRunner.ConsoleStore.BeginActivity(item.SourcePath, ModuleActivity.Installing);
                 var isDownloaded = registered.Contains(item.Id);
                 if (!isDownloaded) request.TrackNewContent(item);
+
+                // Modules with a declared update source install through the shared update pipeline,
+                // using the exact target resolved before a reinstall when one was supplied.
                 if (!isDownloaded && item.HasDeclaredUpdateConfig)
                 {
                     var candidate = (string.Equals(item.Id, reinstallTarget?.TargetId, StringComparison.OrdinalIgnoreCase)
@@ -1085,9 +1221,11 @@ namespace ASLM.Services.Internal
                         if (installed?.Status.Installed == true)
                             await _moduleInstaller.SaveConfigAsync(installed);
                     }
+
                     continue;
                 }
 
+                // Other modules are downloaded here (unless already present), then reconciled and run once.
                 var key = NotificationCenter.BuildOperationKey("module-install", item.Id);
                 await _notifications.StartDownloadAsync(key, L.Get(LocalizationKeys.ModuleInfo_Downloading, item.Name),
                     item.Name, "module", item.Id);
@@ -1101,6 +1239,8 @@ namespace ASLM.Services.Internal
                         if (!downloaded)
                             throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_InstallFailed, item.Name));
                     }
+
+                    // Install the engines the module declares before its first run needs them.
                     var installed = await _moduleInstaller.LoadModuleConfig(item.SourcePath)
                         ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, item.Name));
                     await _moduleInstaller.ReconcileRequiredEnginesAsync(installed, log, progress, ct);
@@ -1113,11 +1253,13 @@ namespace ASLM.Services.Internal
                 }
                 catch (OperationCanceledException)
                 {
+                    // Mark the notification canceled and let the queue handle the rollback.
                     _notifications.FailDownload(key, L.Get(LocalizationKeys.ModuleInfo_Canceled));
                     throw;
                 }
                 catch (Exception ex)
                 {
+                    // Report the failure in the notification and stop the remaining plan.
                     _notifications.FailDownload(key, L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
                     throw;
                 }
@@ -1132,10 +1274,12 @@ namespace ASLM.Services.Internal
             return launch;
         }
 
-        // Module update application
+
+        // Module and engine update application
 
         /// <summary>
         /// Downloads and applies one module update.
+        /// The same pipeline performs a first installation when the module is not registered yet.
         /// </summary>
         public async Task<bool> ApplyModuleUpdateAsync(
             UpdateCandidate candidate,
@@ -1144,6 +1288,7 @@ namespace ASLM.Services.Internal
             bool isManualRequest = false,
             CancellationToken ct = default)
         {
+            // Lock the module content and record whether this is an installation or an update.
             var module = candidate.Module ?? throw new InvalidOperationException(
                 "Module update candidate does not contain module metadata.");
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
@@ -1161,6 +1306,7 @@ namespace ASLM.Services.Internal
                 return false;
             }
 
+            // Show the transfer in the notification center and resolve the installed module directory.
             var operationKey = NotificationCenter.BuildOperationKey("module-update", module.Id);
             await _notifications.StartDownloadAsync(
                 operationKey,
@@ -1176,6 +1322,7 @@ namespace ASLM.Services.Internal
                 return false;
             }
 
+            // Use a unique scratch folder per attempt; the finally block below removes it.
             var updateRoot = Path.Combine(
                 GetRootDirectory(),
                 UpdateWorkDirName,
@@ -1199,6 +1346,7 @@ namespace ASLM.Services.Internal
                     notificationProgress,
                     isManualRequest,
                     ct);
+
                 var preparedUpdate = await Task.Run(() =>
                 {
                     // Extraction and manifest validation are local filesystem work and should not block the UI thread.
@@ -1212,6 +1360,7 @@ namespace ASLM.Services.Internal
                         ModuleSourceDir: Path.GetDirectoryName(newManifestPath)!);
                 }, ct);
 
+                // Verify the archive really contains this module and supports this platform before stopping anything.
                 var newConfig = preparedUpdate.NewConfig;
                 if (newConfig == null || !string.Equals(newConfig.Id, module.Id, StringComparison.OrdinalIgnoreCase))
                 {
@@ -1236,6 +1385,8 @@ namespace ASLM.Services.Internal
 
                 await StopProcessesRunningFromDirectoryAsync(moduleDir, log, ct);
 
+                // Replace the module files with the prepared payload, run first-run setup if needed,
+                // and restart the module when it was running before.
                 var success = await ApplyPreparedModuleUpdateAsync(
                     module,
                     candidate,
@@ -1246,6 +1397,8 @@ namespace ASLM.Services.Internal
                     log,
                     ct);
                 ct.ThrowIfCancellationRequested();
+
+                // Report the outcome to the user.
                 if (success)
                 {
                     _notifications.CompleteDownload(operationKey, isInstallation
@@ -1264,12 +1417,14 @@ namespace ASLM.Services.Internal
             }
             catch (OperationCanceledException)
             {
+                // Mark the notification canceled, then let the caller observe the cancellation.
                 _notifications.FailDownload(operationKey, isInstallation
                     ? L.Get(LocalizationKeys.ModuleInfo_Canceled) : $"{module.Name} update canceled.");
                 throw;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // Other failures are logged, shown to the user, and reported to the caller as a plain failure.
                 _logger.LogError(ex, "Module update failed for {ModuleId}.", module.Id);
                 log?.Report($"Module update failed: {ex.Message}");
                 _notifications.FailDownload(operationKey, isInstallation
@@ -1283,7 +1438,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Downloads and applies one engine runtime update.
+        /// Downloads and applies one engine runtime update; concurrent callers for the same engine share one run.
         /// </summary>
         public Task<bool> ApplyEngineUpdateAsync(
             UpdateCandidate candidate,
@@ -1300,7 +1455,8 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Applies one reserved engine update and retains its state through dependent module restarts.
+        /// Applies one reserved engine update: downloads the runtime, replaces it while the enabled modules are stopped,
+        /// and restarts those modules afterwards.
         /// </summary>
         private async Task<bool> ApplyEngineUpdateCoreAsync(UpdateCandidate candidate,
             UpdateOperationTracker.Operation updateOperation, IProgress<string>? log,
@@ -1309,17 +1465,20 @@ namespace ASLM.Services.Internal
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct).ConfigureAwait(false);
             var engine = candidate.Engine ?? throw new InvalidOperationException(
                 "Engine update candidate does not contain engine metadata.");
+
             // A card may retain an old candidate after another caller finished updating this engine.
             engine = _engineInstaller.DiscoverEngines().FirstOrDefault(current =>
                 string.Equals(current.SourcePath, engine.SourcePath, StringComparison.OrdinalIgnoreCase)) ?? engine;
             engine.Normalize();
 
+            // Nothing to do when the refreshed engine already matches the candidate; this counts as success.
             if (IsEngineAlreadyAtInstallTarget(engine, candidate))
             {
                 log?.Report("The selected version is already installed.");
                 return true;
             }
 
+            // Show the transfer in the notification center and resolve the engine directory.
             var operationKey = NotificationCenter.BuildOperationKey("engine-update", engine.Id);
             await _notifications.StartDownloadAsync(
                 operationKey,
@@ -1335,6 +1494,7 @@ namespace ASLM.Services.Internal
                 return false;
             }
 
+            // Use a unique scratch folder per attempt; the finally block below removes it.
             var runtimeDir = Path.Combine(engineDir, "runtime");
             var updateRoot = Path.Combine(
                 GetRootDirectory(),
@@ -1348,6 +1508,7 @@ namespace ASLM.Services.Internal
 
             try
             {
+                // Download the runtime archive while the engine and its dependent modules keep running.
                 log?.Report($"Downloading {engine.Name} {candidate.RemoteVersion}...");
                 var notificationProgress = updateOperation.WrapProgress(
                     _notifications.CreateDownloadProgressBridge(operationKey, progress));
@@ -1362,6 +1523,8 @@ namespace ASLM.Services.Internal
 
                 updateOperation.SetPhase(UpdateOperationPhase.Applying);
 
+                // Stop every enabled module and any process that holds files of the engine; the finally block
+                // restarts the modules once the runtime is replaced or the update failed.
                 enabledModuleSourcePaths = await CaptureEnabledModuleSourcePathsAsync(ct);
                 await StopModulesForEngineUpdateAsync(engine, engineDir, enabledModuleSourcePaths, log, ct);
                 modulesWereStopped = true;
@@ -1369,6 +1532,7 @@ namespace ASLM.Services.Internal
                 log?.Report($"Stopping {engine.Name} before update...");
                 await StopProcessesRunningFromDirectoryAsync(engineDir, log, ct);
 
+                // Replace the runtime folder content with the new archive (off the UI thread).
                 await Task.Run(() =>
                 {
                     if (Directory.Exists(runtimeDir))
@@ -1385,6 +1549,7 @@ namespace ASLM.Services.Internal
 
                 EngineInstaller.EnsureExecutablePermission(engine);
 
+                // Record the new release as installed and persist the manifest.
                 var installedTag = candidate.ReleaseTag ?? candidate.RemoteVersion;
                 engine.Status.Installed = true;
                 engine.Status.InstalledReleaseTag = installedTag;
@@ -1401,11 +1566,13 @@ namespace ASLM.Services.Internal
             }
             catch (OperationCanceledException)
             {
+                // Mark the notification canceled, then let the caller observe the cancellation.
                 _notifications.FailDownload(operationKey, $"{engine.Name} update canceled.");
                 throw;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // Other failures are logged, shown to the user, and reported to the caller as a plain failure.
                 _logger.LogError(ex, "Engine update failed for {EngineId}.", engine.Id);
                 log?.Report($"Engine update failed: {ex.Message}");
                 _notifications.FailDownload(operationKey, $"Engine update failed: {ex.Message}");
@@ -1413,6 +1580,8 @@ namespace ASLM.Services.Internal
             }
             finally
             {
+                // Remove the scratch folder and restart the stopped modules even after a failure or cancellation;
+                // the restart ignores the caller's token so a canceled update still brings the modules back.
                 TryDeleteDirectory(updateRoot);
 
                 if (modulesWereStopped && enabledModuleSourcePaths is { Count: > 0 })
@@ -1446,6 +1615,7 @@ namespace ASLM.Services.Internal
             IProgress<string>? log,
             CancellationToken ct)
         {
+            // Stop the module processes, then any orphaned process still holding files under a module folder.
             if (enabledModuleSourcePaths.Count > 0)
             {
                 log?.Report($"Stopping {enabledModuleSourcePaths.Count} module(s) before engine update...");
@@ -1464,11 +1634,13 @@ namespace ASLM.Services.Internal
                 }
             }
 
+            // ASLM may own an Ollama process started for its settings UI; stop that handle before touching the files.
             if (string.Equals(engine.Id, "ollama-service", StringComparison.OrdinalIgnoreCase))
             {
                 _ollamaSettings.StopManagedRuntime();
             }
 
+            // Finally stop whatever still runs from the engine directory.
             await StopProcessesRunningFromDirectoryAsync(engineDir, log, ct);
         }
 
@@ -1486,8 +1658,10 @@ namespace ASLM.Services.Internal
             {
                 ct.ThrowIfCancellationRequested();
 
+                // One module failing to restart must not prevent the remaining modules from coming back.
                 try
                 {
+                    // Modules without a run command have nothing to restart.
                     var module = await _moduleInstaller.LoadModuleConfig(moduleSourcePath);
                     if (module == null || module.Commands.Run.Count == 0)
                     {
@@ -1603,6 +1777,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task<string?> TryProbeEngineRuntimeVersionAsync(EngineConfig engine, CancellationToken ct)
         {
+            // Prefer the version reported by the running Ollama service when its API answers.
             if (string.Equals(engine.Id, "ollama-service", StringComparison.OrdinalIgnoreCase))
             {
                 var apiVersion = await TryProbeOllamaApiVersionAsync(ct);
@@ -1612,6 +1787,7 @@ namespace ASLM.Services.Internal
                 }
             }
 
+            // Fall back to asking the installed executable for its version.
             var executablePath = _engineInstaller.GetEngineExecutablePath(engine.Id);
             if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
             {
@@ -1628,6 +1804,7 @@ namespace ASLM.Services.Internal
         {
             try
             {
+                // A short timeout keeps update checks responsive when the service is not running.
                 using var client = new HttpClient
                 {
                     Timeout = TimeSpan.FromSeconds(2)
@@ -1660,6 +1837,7 @@ namespace ASLM.Services.Internal
         {
             try
             {
+                // Run "--version" without a console window and capture its output.
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = executablePath,
@@ -1676,12 +1854,14 @@ namespace ASLM.Services.Internal
                     return null;
                 }
 
+                // Read standard output only; the first x.y.z version number in it is the runtime version.
                 var output = await process.StandardOutput.ReadToEndAsync(ct);
                 await process.WaitForExitAsync(ct);
                 return TryExtractVersionToken(output);
             }
             catch
             {
+                // Best effort: a missing, blocked, or crashing executable simply means the version is unknown.
                 return null;
             }
         }
@@ -1746,6 +1926,7 @@ namespace ASLM.Services.Internal
             bool isManualRequest,
             CancellationToken ct)
         {
+            // Find the tracked branch and its head commit.
             var branches = await _github.GetBranchesAsync(
                 module.Source.Repo,
                 ResolveRequestSource(isManualRequest),
@@ -1758,6 +1939,7 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            // The branch head becomes the candidate unless it is the commit that is already installed.
             var candidate = new UpdateCandidate
             {
                 TargetKind = "module",
@@ -1782,6 +1964,7 @@ namespace ASLM.Services.Internal
             bool isManualRequest,
             CancellationToken ct)
         {
+            // Find the selected branch and its head commit.
             var branches = await _github.GetBranchesAsync(
                 module.Source.Repo,
                 ResolveRequestSource(isManualRequest),
@@ -1793,6 +1976,7 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            // Nothing to install when the files already come from this very commit.
             if (IsInstalledFromBranch(module) &&
                 string.Equals(
                     selected.CommitSha.Trim(),
@@ -1849,6 +2033,8 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Picks the release matching the module's selected tag: the newest candidate for an unset or latest selection,
+        /// otherwise the candidate with exactly that tag.
         /// Only latest may follow the release stream; a missing pinned tag must not install a different version.
         /// </summary>
         internal static UpdateCandidate? SelectModuleReleaseInstallTarget(ModuleConfig module, IReadOnlyList<UpdateCandidate> candidates)
@@ -1996,15 +2182,18 @@ namespace ASLM.Services.Internal
                 var installed = await _moduleInstaller.LoadModuleConfig(installedPath)
                     ?? throw new InvalidOperationException("Updated module manifest could not be loaded.");
 
+                // Carry the user's state into the new manifest and persist the installed content.
                 MergeModuleState(module, installed, candidate);
                 await _moduleInstaller.SaveInstalledContentAsync(installed, raiseModulesChanged: false);
 
+                // The new version may declare engines that must be present before setup or launch.
                 await _moduleEngineReconciler.ReconcileRequiredEnginesAsync(
                     installed,
                     log ?? NoOpProgress<string>.Instance,
                     downloadProgress: null,
                     ct: ct);
 
+                // First installations, modules that never finished setup, and modules that ask for it run first-run setup.
                 if (isInstallation || !module.Status.FirstRunCompleted || installed.Update.RunFirstRunAfterUpdate)
                 {
                     log?.Report($"Running first-run setup for {installed.Name}...");
@@ -2025,6 +2214,7 @@ namespace ASLM.Services.Internal
                     }
                 }
 
+                // Bring the module back only if it was enabled before the update stopped it.
                 if (wasEnabled && installed.Commands.Run.Count > 0)
                 {
                     log?.Report($"Restarting {installed.Name} after update...");
@@ -2042,6 +2232,7 @@ namespace ASLM.Services.Internal
                     }
                 }
 
+                // Stamp and persist the final state of a fully applied update.
                 installed.Status.LastUpdated = DateTime.UtcNow.ToString("o");
                 await _moduleInstaller.SaveConfigAsync(installed, raiseModulesChanged: false);
                 log?.Report($"{installed.Name} updated to {candidate.RemoteVersion}.");
@@ -2049,6 +2240,7 @@ namespace ASLM.Services.Internal
             }
             catch
             {
+                // Failed updates are not rolled back; tell the user so before the exception propagates to the caller.
                 log?.Report("Update failed. Module backup restoration is disabled.");
                 throw;
             }
@@ -2057,6 +2249,9 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Carries forward user state and update metadata from the old module into the new manifest.
         /// </summary>
+        /// <param name="oldConfig">Manifest of the module as it was installed before the update.</param>
+        /// <param name="newConfig">Manifest loaded from the freshly extracted files; modified in place.</param>
+        /// <param name="candidate">Applied candidate, which determines the new installed fingerprint.</param>
         internal static void MergeModuleState(ModuleConfig oldConfig, ModuleConfig newConfig, UpdateCandidate candidate)
         {
             // Carry forward user-edited setting values keyed by setting name.
@@ -2085,6 +2280,7 @@ namespace ASLM.Services.Internal
             newConfig.Status.LastChecked = DateTime.UtcNow.ToString("o");
             newConfig.Status.LastUpdated = DateTime.UtcNow.ToString("o");
 
+            // Keep the user's update preferences; the preserve lists of the old and the new package are merged.
             newConfig.Update.Mode = oldConfig.Update.Mode;
             newConfig.Update.Channel = oldConfig.Update.Channel;
             newConfig.Update.UseDefaultChannel = oldConfig.Update.UseDefaultChannel;
@@ -2095,16 +2291,21 @@ namespace ASLM.Services.Internal
                 .Concat(newConfig.Update.Preserve)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
             // These fields identify the current files, not the history of previously installed sources.
             // Clearing the opposite fingerprint is essential when switching branch -> release -> branch.
             var installedFromBranch = string.Equals(candidate.Mode, "branch", StringComparison.OrdinalIgnoreCase);
             newConfig.Update.InstalledCommitSha = installedFromBranch ? candidate.CommitSha : null;
             newConfig.Update.InstalledReleaseTag = installedFromBranch ? null : candidate.ReleaseTag;
+
+            // A latest (or unset) selection stays on the moving alias; a pinned tag follows the applied candidate.
             newConfig.Update.SelectedReleaseTag =
                 string.IsNullOrWhiteSpace(oldConfig.Update.SelectedReleaseTag) ||
                 IsLatestReleaseSelection(oldConfig.Update.SelectedReleaseTag)
                     ? ModuleUpdateConfig.LatestReleaseTag
                     : candidate.ReleaseTag ?? oldConfig.Update.SelectedReleaseTag;
+
+            // The applied update is no longer pending.
             newConfig.Update.PendingUpdate = null;
             newConfig.Update.Normalize();
         }
@@ -2379,7 +2580,8 @@ namespace ASLM.Services.Internal
         // File system helpers
 
         /// <summary>
-        /// Preserves compression extensions even when a download URL contains a query or fragment.
+        /// Builds a local archive file name from a download URL, keeping tar-family extensions and defaulting to
+        /// <c>.zip</c>. Preserves compression extensions even when the URL contains a query or fragment.
         /// </summary>
         internal static string GetArchiveFileName(string? downloadUrl, string baseName)
         {
@@ -2398,7 +2600,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Extracts one ZIP or tar.gz archive and rejects entries that escape the target directory.
+        /// Extracts one ZIP or tar-family archive and rejects ZIP entries that escape the target directory.
         /// </summary>
         private static void ExtractZipSafe(string zipPath, string destination)
         {
@@ -2452,11 +2654,13 @@ namespace ASLM.Services.Internal
 
             foreach (var relativePath in relativePaths)
             {
+                // Absolute or empty entries cannot name a module-relative path and are ignored.
                 if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))
                 {
                     continue;
                 }
 
+                // Reject entries that point at the module root or try to leave it.
                 var normalized = NormalizeRelativePath(relativePath);
                 if (normalized.Length == 0 ||
                     normalized == "." ||
@@ -2506,6 +2710,7 @@ namespace ASLM.Services.Internal
         {
             Directory.CreateDirectory(destDir);
 
+            // Copy the files of this level, overwriting older ones; preserved files keep their local content.
             foreach (var file in Directory.EnumerateFiles(sourceDir))
             {
                 var relativePath = CombineRelativePath(relativeRoot, Path.GetFileName(file));
@@ -2518,6 +2723,7 @@ namespace ASLM.Services.Internal
                 File.Copy(file, destFile, overwrite: true);
             }
 
+            // Recurse into subdirectories, tracking the module-relative path for the preserve check.
             foreach (var subdir in Directory.EnumerateDirectories(sourceDir))
             {
                 var relativePath = CombineRelativePath(relativeRoot, Path.GetFileName(subdir));
@@ -2551,6 +2757,7 @@ namespace ASLM.Services.Internal
             string rootDir,
             IReadOnlySet<string> preservePaths)
         {
+            // Delete the files of this level, clearing read-only attributes first so the delete cannot fail on them.
             foreach (var file in Directory.EnumerateFiles(currentDir))
             {
                 var relativePath = NormalizeRelativePath(Path.GetRelativePath(rootDir, file));
@@ -2563,6 +2770,8 @@ namespace ASLM.Services.Internal
                 File.Delete(file);
             }
 
+            // Remove subdirectories: preserved ones stay, ones that contain preserved paths are cleared selectively
+            // (and removed only when nothing is left), all others are deleted with their content.
             foreach (var subdir in Directory.EnumerateDirectories(currentDir))
             {
                 var relativePath = NormalizeRelativePath(Path.GetRelativePath(rootDir, subdir));
@@ -2623,7 +2832,8 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Stops untracked or orphaned processes whose executable lives under one module directory.
+        /// Stops untracked or orphaned processes whose executable lives under one module or engine directory
+        /// and returns how many were stopped.
         /// </summary>
         private static async Task<int> StopProcessesRunningFromDirectoryAsync(
             string directory,
@@ -2687,6 +2897,7 @@ namespace ASLM.Services.Internal
             }
             catch
             {
+                // Access is denied for protected or already exited processes; their path is simply unknown.
                 return null;
             }
         }
@@ -2707,6 +2918,7 @@ namespace ASLM.Services.Internal
             }
             catch
             {
+                // A path that cannot be normalized cannot be under the root.
                 return false;
             }
         }
@@ -2854,13 +3066,16 @@ namespace ASLM.Services.Internal
         }
 
 
-        // Helper types
+        // Nested types
 
         /// <summary>
         /// Represents a no-op progress sink used when the caller does not provide logging.
         /// </summary>
         private sealed class NoOpProgress<T> : IProgress<T>
         {
+            /// <summary>
+            /// Shared instance, since the sink holds no state.
+            /// </summary>
             public static NoOpProgress<T> Instance { get; } = new();
 
             /// <summary>
@@ -2874,6 +3089,9 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Carries the validated extracted module payload into the apply phase.
         /// </summary>
+        /// <param name="NewManifestPath">Path of <c>ASLM_Module.json</c> inside the extracted archive.</param>
+        /// <param name="NewConfig">Manifest parsed from the extracted archive, or null when it could not be loaded.</param>
+        /// <param name="ModuleSourceDir">Extracted folder whose content replaces the installed module files.</param>
         private sealed record PreparedModuleUpdate(
             string NewManifestPath,
             ModuleConfig? NewConfig,

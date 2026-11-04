@@ -13,6 +13,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public static string? FindBundleRoot()
         {
+            // Bundles exist only on Apple platforms.
             if (!OperatingSystem.IsMacCatalyst() && !OperatingSystem.IsMacOS())
             {
                 return null;
@@ -21,6 +22,7 @@ namespace ASLM.Services.Internal
             var directory = new DirectoryInfo(
                 AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
+            // Walk up from the executable directory until a folder named *.app is found.
             while (directory != null)
             {
                 if (directory.Name.EndsWith(".app", StringComparison.OrdinalIgnoreCase))

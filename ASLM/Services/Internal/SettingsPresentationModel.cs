@@ -4,12 +4,21 @@ using ASLM.Models;
 
 namespace ASLM.Services.Internal
 {
+    // Sidebar categories
+
     /// <summary>
     /// Distinguishes the supported top-level settings groups.
     /// </summary>
     public enum SettingsCategoryGroup
     {
+        /// <summary>
+        /// Built-in ASLM categories listed first in the sidebar.
+        /// </summary>
         Aslm,
+
+        /// <summary>
+        /// Per-module categories listed below the built-in ones.
+        /// </summary>
         Modules
     }
 
@@ -18,16 +27,40 @@ namespace ASLM.Services.Internal
     /// </summary>
     public enum SettingsCategoryKind
     {
+        /// <summary>
+        /// General ASLM application settings.
+        /// </summary>
         Aslm,
+
+        /// <summary>
+        /// Account and sign-in settings.
+        /// </summary>
         Accounts,
+
+        /// <summary>
+        /// Application and component update settings.
+        /// </summary>
         Updates,
+
+        /// <summary>
+        /// Settings declared by one installed module.
+        /// </summary>
         Module,
+
+        /// <summary>
+        /// Appearance settings such as themes.
+        /// </summary>
         Personalization
     }
 
     /// <summary>
     /// Describes one selectable settings category shown in the sidebar.
     /// </summary>
+    /// <param name="Id">Stable category identifier; module categories use <c>module::&lt;module id&gt;</c>.</param>
+    /// <param name="Title">Default display title; the sidebar may substitute a localized title.</param>
+    /// <param name="Kind">Type of category, which decides the page that is shown.</param>
+    /// <param name="Module">Module that owns the category, or null for built-in categories.</param>
+    /// <param name="SupportsAppRestart">Whether the category offers an application restart to apply its changes.</param>
     public sealed record SettingsCategory(
         string Id,
         string Title,
@@ -35,29 +68,48 @@ namespace ASLM.Services.Internal
         ModuleConfig? Module,
         bool SupportsAppRestart);
 
+
+    // Module settings sections
+
     /// <summary>
     /// Identifies the layout role of one module settings presentation section.
     /// </summary>
     public enum ModuleSettingsSectionKind
     {
+        /// <summary>
+        /// Section that groups the settings of one category declared in the module manifest.
+        /// </summary>
         ManifestCategory,
+
+        /// <summary>
+        /// Leading section with the settings that belong to no declared category.
+        /// </summary>
         Uncategorized
     }
 
     /// <summary>
     /// Describes one render-ready module settings section independently from MAUI controls.
     /// </summary>
+    /// <param name="Kind">Layout role of the section.</param>
+    /// <param name="Title">Section heading, or null when the section has none.</param>
+    /// <param name="Description">Explanatory text shown under the heading, or null when there is none.</param>
+    /// <param name="Settings">Setting drafts rendered in the section, in display order.</param>
     public sealed record ModuleSettingsSectionPresentation(
         ModuleSettingsSectionKind Kind,
         string? Title,
         string? Description,
         IReadOnlyList<ModuleSettingDraft> Settings);
 
+
+    // Presentation building
+
     /// <summary>
     /// Converts module drafts and manifest metadata into deterministic presentation sections.
     /// </summary>
     public static class SettingsPresentationBuilder
     {
+        // Sidebar categories
+
         /// <summary>
         /// Returns the top-level group that owns one sidebar category.
         /// </summary>
@@ -71,6 +123,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public static IReadOnlyList<SettingsCategory> BuildCategories(IReadOnlyList<ModuleConfig> loadedModules)
         {
+            // Built-in categories always come first, in this fixed order.
             var categories = new List<SettingsCategory>
             {
                 new(
@@ -114,13 +167,19 @@ namespace ASLM.Services.Internal
             return categories;
         }
 
+
+        // Module sections
+
         /// <summary>
         /// Builds visible module sections in the same order declared by the manifest contract.
+        /// Settings hidden by unmet dependencies are skipped unless
+        /// <paramref name="includeDependencyHiddenSettings"/> is set.
         /// </summary>
         public static IReadOnlyList<ModuleSettingsSectionPresentation> BuildModuleSections(
             ModuleSettingsDraft moduleDraft,
             bool includeDependencyHiddenSettings = false)
         {
+            // Refresh dependency visibility first, then keep only settings that may be shown at all.
             SettingsService.RefreshModuleDraftVisibility(moduleDraft);
 
             var visibleSettings = moduleDraft.Settings
@@ -130,6 +189,7 @@ namespace ASLM.Services.Internal
                 .ToList();
             var sections = new List<ModuleSettingsSectionPresentation>();
 
+            // Category ids declared in the manifest decide which settings count as categorized.
             var declaredCategoryIds = moduleDraft.Module.SettingCategories
                 .Select(static category => category.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -180,6 +240,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            // Blank titles and descriptions are normalized to null so the view can skip those elements.
             sections.Add(new ModuleSettingsSectionPresentation(
                 kind,
                 string.IsNullOrWhiteSpace(title) ? null : title,

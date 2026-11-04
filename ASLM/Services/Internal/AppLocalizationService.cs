@@ -8,21 +8,44 @@ using Microsoft.Maui.Controls;
 
 namespace ASLM.Services.Internal
 {
+    // Localization service
+
     /// <summary>
     /// Exposes the active UI language for ASLM, applies culture to RESX resources,
     /// and notifies <see cref="ILocalizable"/> views when the language changes.
     /// </summary>
     public sealed class AppLocalizationService
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Language codes that are laid out right to left even when the culture data does not say so.
+        /// </summary>
         private static readonly HashSet<string> RtlLanguageCodes = new(StringComparer.OrdinalIgnoreCase)
         {
             "ar",
         };
 
+        /// <summary>
+        /// Persisted application data that holds the selected UI language.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Weakly referenced views to refresh on a culture change, so registration never keeps a view alive.
+        /// </summary>
         private readonly List<WeakReference<ILocalizable>> _localizableViews = [];
+
+        /// <summary>
+        /// Guards <see cref="_localizableViews"/> against concurrent registration and notification.
+        /// </summary>
         private readonly object _localizableLock = new();
+
+        /// <summary>
+        /// Language code applied by the last <see cref="ApplyCulture"/> call; used to detect real language changes.
+        /// </summary>
         private string _appliedLanguage = "en";
+
 
         // Supported languages
 
@@ -41,6 +64,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public static string GetDefaultLanguage()
         {
+            // Each platform exposes the OS language differently; failures fall back to English.
             try
             {
 #if WINDOWS
@@ -74,6 +98,8 @@ namespace ASLM.Services.Internal
             {
                 // Apple locale identifiers can use underscores instead of BCP-47 hyphens.
                 var culture = CultureInfo.GetCultureInfo(language.Trim().Replace('_', '-'));
+
+                // Walk from the specific culture up through its parents until a shipped translation matches.
                 while (!string.IsNullOrEmpty(culture.Name))
                 {
                     if (AppPersonalizationConfig.SupportedLanguageCodes.TryGetValue(culture.Name, out var supported))
@@ -112,6 +138,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates the localization service.
         /// </summary>
+        /// <param name="appData">Application data that provides the persisted UI language.</param>
         public AppLocalizationService(AppDataStore appData)
         {
             _appData = appData;
@@ -139,9 +166,12 @@ namespace ASLM.Services.Internal
         /// <returns>True when the culture actually changed.</returns>
         public bool ApplyCulture()
         {
+            // The language counts as changed when either the last applied one or the live UI culture differs.
             var language = GetCurrentLanguage();
             var changed = !string.Equals(_appliedLanguage, language, StringComparison.OrdinalIgnoreCase) ||
                           !string.Equals(CultureInfo.CurrentUICulture.Name, language, StringComparison.OrdinalIgnoreCase);
+
+            // Apply the culture to new and current threads and to the RESX resources.
             var culture = CreateCulture(language);
             CultureInfo.DefaultThreadCurrentUICulture = culture;
             CultureInfo.DefaultThreadCurrentCulture = culture;
@@ -150,6 +180,7 @@ namespace ASLM.Services.Internal
             AppResources.Culture = culture;
             _appliedLanguage = language;
 
+            // Flow direction is refreshed on every call; views and listeners are notified only after a real change.
             ApplyFlowDirection(culture);
             if (!changed)
             {
@@ -166,6 +197,7 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Returns a localized string for the given resource key.
+        /// A blank key yields an empty string, and a key without a translation is returned unchanged.
         /// </summary>
         public string GetString(string key)
         {
@@ -178,7 +210,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Returns a formatted localized string.
+        /// Returns a localized string for the given resource key, formatted with <paramref name="args"/>.
         /// </summary>
         public string GetString(string key, params object[] args)
         {
@@ -236,8 +268,8 @@ namespace ASLM.Services.Internal
             GetCultureNativeName(AppPersonalizationConfig.NormalizeLanguage(languageCode));
 
         /// <summary>
-        /// Returns the bilingual label for the language picker: English name — native name,
-        /// with a fixed English machine-translation tag for non-English locales.
+        /// Returns the bilingual label for the language picker: "English name - native name",
+        /// or just the English name when both are identical.
         /// </summary>
         public static string GetPickerDisplayName(string languageCode)
         {
@@ -312,10 +344,12 @@ namespace ASLM.Services.Internal
         /// </summary>
         private static void ApplyFlowDirection(CultureInfo culture)
         {
+            // Direction comes from the explicit RTL list or from the culture's own text direction.
             var isRtl = RtlLanguageCodes.Contains(culture.Name) ||
                         RtlLanguageCodes.Contains(culture.TwoLetterISOLanguageName) ||
                         culture.TextInfo.IsRightToLeft;
 
+            // Without a window page there is nothing to update yet.
             var flow = isRtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
             var page = Application.Current?.Windows.FirstOrDefault()?.Page;
             if (page == null)
@@ -358,6 +392,7 @@ namespace ASLM.Services.Internal
                 webView.FlowDirection = FlowDirection.LeftToRight;
             }
 
+            // Descend through every container type that can host child content.
             switch (root)
             {
                 case Layout layout:
@@ -397,6 +432,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private void NotifyLocalizableViews()
         {
+            // Snapshot the live views under the lock, then notify outside it so handlers cannot block registration.
             List<ILocalizable> targets;
             lock (_localizableLock)
             {
@@ -434,8 +470,13 @@ namespace ASLM.Services.Internal
         }
     }
 
+
+    // Language options
+
     /// <summary>
     /// One selectable UI language in personalization settings.
     /// </summary>
+    /// <param name="Id">Language code stored in personalization settings, such as <c>ru</c> or <c>pt-BR</c>.</param>
+    /// <param name="EnglishName">English culture name used to sort and display the language.</param>
     public sealed record LanguageOption(string Id, string EnglishName);
 }

@@ -5,17 +5,46 @@ using ASLM.Models;
 
 namespace ASLM.Services.Internal
 {
+    // Setting editor
+
     /// <summary>
     /// Identifies the XAML editor displayed for one module setting.
     /// </summary>
     public enum ModuleSettingEditorKind
     {
+        /// <summary>
+        /// Read-only indicator of whether an ASLM-managed engine is installed.
+        /// </summary>
         EngineStatus,
+
+        /// <summary>
+        /// On/off toggle.
+        /// </summary>
         Boolean,
+
+        /// <summary>
+        /// Host-managed value that is shown automatically unless the user switches to a custom value.
+        /// </summary>
         Managed,
+
+        /// <summary>
+        /// Picker over a fixed list of allowed values.
+        /// </summary>
         Choice,
+
+        /// <summary>
+        /// Entry for integer and floating-point numbers.
+        /// </summary>
         Numeric,
+
+        /// <summary>
+        /// Entry that hides its content.
+        /// </summary>
         Password,
+
+        /// <summary>
+        /// Plain single-value text entry.
+        /// </summary>
         Text
     }
 
@@ -24,24 +53,65 @@ namespace ASLM.Services.Internal
     /// </summary>
     public sealed class ModuleSettingItemViewModel : SettingsBindableObject
     {
+        // Fields
+
+        /// <summary>
+        /// Callback that tells the owning page that an editor changed its draft.
+        /// </summary>
         private readonly Action _valueChanged;
+
+        /// <summary>
+        /// Backing field of <see cref="TextValue"/>.
+        /// </summary>
         private string _textValue;
+
+        /// <summary>
+        /// Backing field of <see cref="SelectedValue"/>.
+        /// </summary>
         private string? _selectedValue;
+
+        /// <summary>
+        /// Backing field of <see cref="Options"/>.
+        /// </summary>
         private IReadOnlyList<string> _options;
+
+        /// <summary>
+        /// Backing field of <see cref="BooleanValue"/>.
+        /// </summary>
         private bool _booleanValue;
+
+        /// <summary>
+        /// Backing field of <see cref="UseCustomValue"/>.
+        /// </summary>
         private bool _useCustomValue;
+
+        /// <summary>
+        /// Backing field of <see cref="IsVisible"/>.
+        /// </summary>
         private bool _isVisible;
+
+        /// <summary>
+        /// Text of the user's custom value, shown again when a managed setting switches back from automatic mode.
+        /// </summary>
         private string _customTextValue;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates typed editor state from one detached setting draft.
         /// </summary>
+        /// <param name="draft">Draft that the editor reads and updates.</param>
+        /// <param name="engineInstalledText">Localized text shown when an engine is installed.</param>
+        /// <param name="engineNotInstalledText">Localized text shown when an engine is not installed.</param>
+        /// <param name="valueChanged">Callback invoked after the editor changed the draft.</param>
         public ModuleSettingItemViewModel(
             ModuleSettingDraft draft,
             string engineInstalledText,
             string engineNotInstalledText,
             Action valueChanged)
         {
+            // The editor kind comes first because the initial display state depends on it.
             Draft = draft;
             _valueChanged = valueChanged;
             EngineInstalledText = engineInstalledText;
@@ -55,6 +125,9 @@ namespace ASLM.Services.Internal
             _selectedValue = ResolveSelectedValue(draft, _options);
             _isVisible = draft.IsVisible;
         }
+
+
+        // Setting metadata
 
         /// <summary>
         /// Gets the detached draft updated by editor bindings.
@@ -103,6 +176,9 @@ namespace ASLM.Services.Internal
             get => _isVisible;
             private set => SetProperty(ref _isVisible, value);
         }
+
+
+        // Editor template state
 
         /// <summary>
         /// Gets whether the engine status reports an installed runtime.
@@ -170,6 +246,9 @@ namespace ASLM.Services.Internal
         /// </summary>
         public double ManagedEditorOpacity => IsManagedReadOnly ? 0.72 : 1.0;
 
+
+        // Editable values
+
         /// <summary>
         /// Gets or sets the boolean value committed to the detached draft.
         /// </summary>
@@ -183,6 +262,7 @@ namespace ASLM.Services.Internal
                     return;
                 }
 
+                // Commit to the draft, refresh the computed engine flags and notify the page.
                 Draft.Value = value;
                 RaisePropertyChanged(nameof(IsEngineInstalled));
                 RaisePropertyChanged(nameof(IsEngineMissing));
@@ -204,6 +284,7 @@ namespace ASLM.Services.Internal
                     return;
                 }
 
+                // Text typed into an automatic managed entry is only a display; it never reaches the draft.
                 if (!IsManagedEditor || UseCustomValue)
                 {
                     _customTextValue = value;
@@ -244,6 +325,7 @@ namespace ASLM.Services.Internal
                     return;
                 }
 
+                // Custom mode shows the user's own text; automatic mode shows the host-resolved value.
                 Draft.UseCustomValue = value;
                 if (value)
                 {
@@ -260,6 +342,9 @@ namespace ASLM.Services.Internal
             }
         }
 
+
+        // Refreshing from the draft
+
         /// <summary>
         /// Refreshes dependency visibility without recreating the editor view model.
         /// </summary>
@@ -270,6 +355,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public void RefreshFromDraft()
         {
+            // Choice lists can change with the draft, so rebuild them before reselecting the value.
             if (IsChoiceEditor)
             {
                 var options = BuildOptions(Draft);
@@ -304,11 +390,15 @@ namespace ASLM.Services.Internal
             RefreshVisibility();
         }
 
+
+        // Editor resolution
+
         /// <summary>
         /// Selects the editor kind that preserves the existing module settings contract.
         /// </summary>
         private static ModuleSettingEditorKind ResolveEditorKind(ModuleSettingDraft draft)
         {
+            // The first matching rule wins: engine status, boolean, managed, choice, then by value type.
             var setting = draft.Setting;
             if (draft.IsReadOnly && setting.NormalizedType == "engine")
             {
@@ -396,18 +486,41 @@ namespace ASLM.Services.Internal
                     : Draft.Value);
     }
 
+
+    // Settings section
+
     /// <summary>
     /// Exposes one module settings group and its dependency-driven visibility.
     /// </summary>
     public sealed class ModuleSettingsSectionViewModel : SettingsBindableObject
     {
+        // Fields
+
+        /// <summary>
+        /// Callback into the owning module page that handles a navigation request for this section.
+        /// </summary>
         private readonly Action<ModuleSettingsSectionViewModel> _select;
+
+        /// <summary>
+        /// Backing field of <see cref="IsActive"/>.
+        /// </summary>
         private bool _isActive;
+
+        /// <summary>
+        /// Backing field of <see cref="IsVisible"/>.
+        /// </summary>
         private bool _isVisible;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates a bindable section from one presentation descriptor.
         /// </summary>
+        /// <param name="section">Presentation descriptor that provides the layout role, title and description.</param>
+        /// <param name="settings">Editor view models shown in the section.</param>
+        /// <param name="navigationTitle">Title displayed in the module section navigation.</param>
+        /// <param name="select">Callback invoked when the user asks to navigate to this section.</param>
         public ModuleSettingsSectionViewModel(
             ModuleSettingsSectionPresentation section,
             IEnumerable<ModuleSettingItemViewModel> settings,
@@ -423,6 +536,9 @@ namespace ASLM.Services.Internal
             _isVisible = Settings.Any(static item => item.IsVisible);
             SelectCommand = new Command(Select, () => IsVisible);
         }
+
+
+        // Section content
 
         /// <summary>
         /// Gets the section layout role.
@@ -449,6 +565,9 @@ namespace ASLM.Services.Internal
         /// </summary>
         public ObservableCollection<ModuleSettingItemViewModel> Settings { get; }
 
+
+        // Navigation state
+
         /// <summary>
         /// Gets the command that requests scrolling to this section.
         /// </summary>
@@ -472,11 +591,15 @@ namespace ASLM.Services.Internal
             private set => SetProperty(ref _isVisible, value);
         }
 
+
+        // State changes
+
         /// <summary>
         /// Refreshes the section after item visibility changes.
         /// </summary>
         public void RefreshVisibility()
         {
+            // The select command can only run while the section is visible, so its availability follows visibility.
             var wasVisible = IsVisible;
             IsVisible = Settings.Any(static item => item.IsVisible);
             if (wasVisible != IsVisible)
@@ -502,24 +625,69 @@ namespace ASLM.Services.Internal
         }
     }
 
+
+    // Settings page
+
     /// <summary>
     /// Owns bindable module sections and refreshes dependency visibility in place.
     /// </summary>
     public sealed class ModuleSettingsPageViewModel : SettingsBindableObject
     {
+        // Fields
+
+        /// <summary>
+        /// Callback that refreshes the page's save actions after any editor changed a draft.
+        /// </summary>
         private readonly Action _valueChanged;
+
+        /// <summary>
+        /// Callback that asks the settings page to reveal a section chosen in the navigation.
+        /// </summary>
         private readonly Action<ModuleSettingsSectionViewModel> _sectionSelected;
+
+        /// <summary>
+        /// Draft whose settings are currently shown, or null before the first load.
+        /// </summary>
         private ModuleSettingsDraft? _moduleDraft;
+
+        /// <summary>
+        /// Section highlighted in the module navigation, or null when none is visible.
+        /// </summary>
         private ModuleSettingsSectionViewModel? _activeSection;
+
+        /// <summary>
+        /// Backing field of <see cref="HasSettings"/>.
+        /// </summary>
         private bool _hasSettings;
+
+        /// <summary>
+        /// Backing field of <see cref="HasSectionNavigation"/>.
+        /// </summary>
         private bool _hasSectionNavigation;
+
+        /// <summary>
+        /// Backing field of <see cref="IsLoading"/>.
+        /// </summary>
         private bool _isLoading;
+
+        /// <summary>
+        /// Backing field of <see cref="IsFullyLoaded"/>.
+        /// </summary>
         private bool _isFullyLoaded;
+
+        /// <summary>
+        /// Task of the running or last incremental load, shared with callers that request the same load again.
+        /// </summary>
         private Task _incrementalLoadTask = Task.CompletedTask;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the module page model with a callback used to refresh save actions.
         /// </summary>
+        /// <param name="valueChanged">Callback invoked after any editor changed its draft.</param>
+        /// <param name="sectionSelected">Optional callback invoked when the user chooses a section.</param>
         public ModuleSettingsPageViewModel(
             Action valueChanged,
             Action<ModuleSettingsSectionViewModel>? sectionSelected = null)
@@ -527,6 +695,9 @@ namespace ASLM.Services.Internal
             _valueChanged = valueChanged;
             _sectionSelected = sectionSelected ?? (static _ => { });
         }
+
+
+        // Page state
 
         /// <summary>
         /// Gets render-ready module sections.
@@ -569,20 +740,28 @@ namespace ASLM.Services.Internal
             private set => SetProperty(ref _isFullyLoaded, value);
         }
 
+
+        // Loading
+
         /// <summary>
         /// Loads one module draft and creates stable editor view models for all dependency states.
         /// </summary>
+        /// <param name="moduleDraft">Draft whose settings are shown.</param>
+        /// <param name="engineInstalledText">Localized text shown when an engine is installed.</param>
+        /// <param name="engineNotInstalledText">Localized text shown when an engine is not installed.</param>
         public void Load(
             ModuleSettingsDraft moduleDraft,
             string engineInstalledText,
             string engineNotInstalledText)
         {
+            // The same draft is already shown, so only its values are refreshed.
             if (ReferenceEquals(_moduleDraft, moduleDraft))
             {
                 RefreshFromDraft();
                 return;
             }
 
+            // Build every section and row, including dependency-hidden ones, so visibility changes never rebuild controls.
             _moduleDraft = moduleDraft;
             Sections.Clear();
 
@@ -618,6 +797,7 @@ namespace ASLM.Services.Internal
             string engineNotInstalledText,
             CancellationToken cancellationToken)
         {
+            // Reuse a finished or running load of the same draft instead of starting another one.
             if (ReferenceEquals(_moduleDraft, moduleDraft) && IsFullyLoaded)
             {
                 return Task.CompletedTask;
@@ -645,6 +825,7 @@ namespace ASLM.Services.Internal
             string engineNotInstalledText,
             CancellationToken cancellationToken)
         {
+            // Start from an empty page and flag the load as running until every row is in place.
             _moduleDraft = moduleDraft;
             Sections.Clear();
             IsFullyLoaded = false;
@@ -657,6 +838,7 @@ namespace ASLM.Services.Internal
                     includeDependencyHiddenSettings: true);
                 HasSettings = sections.Count > 0;
 
+                // Each section is added empty first, then filled row by row so the UI can paint between rows.
                 foreach (var section in sections)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -670,6 +852,8 @@ namespace ASLM.Services.Internal
                     foreach (var draft in section.Settings)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+
+                        // Navigation is recomputed whenever a new row makes its section appear.
                         var wasVisible = sectionViewModel.IsVisible;
                         sectionViewModel.Settings.Add(new ModuleSettingItemViewModel(
                             draft,
@@ -692,9 +876,13 @@ namespace ASLM.Services.Internal
             }
             finally
             {
+                // A cancelled or failed load must not leave the page stuck in the loading state.
                 IsLoading = false;
             }
         }
+
+
+        // Refreshing from the draft
 
         /// <summary>
         /// Refreshes existing bound rows after defaults, discard, or runtime loading changes a draft.
@@ -733,6 +921,8 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Refreshes one completed runtime getter without waiting for or rebuilding the remaining editor rows.
         /// </summary>
+        /// <param name="settingKey">Manifest key of the setting whose row is refreshed.</param>
+        /// <param name="refreshDependencies">True to re-evaluate dependency visibility for all rows afterwards.</param>
         public void RefreshSettingFromDraft(string settingKey, bool refreshDependencies)
         {
             var item = Sections
@@ -773,6 +963,9 @@ namespace ASLM.Services.Internal
             RefreshNavigationState();
         }
 
+
+        // Section navigation
+
         /// <summary>
         /// Selects the first visible section when its module page returns to the top.
         /// </summary>
@@ -789,6 +982,9 @@ namespace ASLM.Services.Internal
                 SetActiveSection(section);
             }
         }
+
+
+        // Navigation helpers
 
         /// <summary>
         /// Uses the module name for the unlabelled default group without changing its card title.

@@ -10,11 +10,14 @@ namespace ASLM.Services.Internal
     /// </summary>
     public abstract class SettingsBindableObject : INotifyPropertyChanged
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Raised when a property value changes so bound views refresh.
+        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
         /// Updates one backing field and notifies bindings only when its value changes.
+        /// Returns true when the value changed; the property name defaults to the calling member.
         /// </summary>
         protected bool SetProperty<T>(
             ref T field,

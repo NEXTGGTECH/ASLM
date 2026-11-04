@@ -10,12 +10,35 @@ namespace ASLM.Services.Internal
     /// </summary>
     public class DownloadCatalog
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Upper bound of module bridges that are queried at the same time.
+        /// </summary>
         private const int MaxConcurrentBridgeRequests = 4;
 
+        /// <summary>
+        /// Discovers installed modules and loads their manifests.
+        /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Client that calls the download bridge of a module.
+        /// </summary>
         private readonly ModuleDownloadBridge _bridge;
+
+        /// <summary>
+        /// Persisted installation state that marks items and variants as installed.
+        /// </summary>
         private readonly DownloadStateStore _stateStore;
+
+        /// <summary>
+        /// Logger for bridge failures.
+        /// </summary>
         private readonly ILogger<DownloadCatalog> _logger;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the shared download catalog service.
@@ -37,7 +60,15 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Publishes categories as their items arrive, then returns the complete merged snapshot.
+        /// Every module with a configured downloads bridge is queried (a few at a time); a failing module only
+        /// adds a warning, so the remaining providers still contribute.
         /// </summary>
+        /// <param name="categoryQueries">Search text and filters per category group key; null loads without a query.</param>
+        /// <param name="categoryGroupKey">When set, only the category with this group key is loaded.</param>
+        /// <param name="preferCached">Allows the bridges to answer from their local cache.</param>
+        /// <param name="forceRefresh">Asks the bridges to refresh their upstream cache first.</param>
+        /// <param name="categoryLoaded">Called with the merged category each time new items were merged into it.</param>
+        /// <param name="ct">Cancellation token for the whole load.</param>
         public async Task<DownloadCatalogSnapshot> LoadCatalogAsync(
             IReadOnlyDictionary<string, DownloadCatalogQuery>? categoryQueries = null,
             string? categoryGroupKey = null,
@@ -52,12 +83,15 @@ namespace ASLM.Services.Internal
                 .Where(module => module.DownloadsBridge?.IsConfigured == true)
                 .ToList();
 
+            // Shared merge state: providers contribute in parallel, but the number of simultaneous bridge
+            // calls is throttled and delivery of merged categories is serialized.
             var warnings = new List<string>();
             var categoryBuilders = new Dictionary<string, CategoryBuilder>(StringComparer.OrdinalIgnoreCase);
             var mergeLock = new object();
             using var bridgeThrottle = new SemaphoreSlim(MaxConcurrentBridgeRequests);
             using var publishLock = new SemaphoreSlim(1);
 
+            // Query all bridge modules concurrently, each task waiting for a free throttle slot.
             var loadTasks = bridgeModules.Select(async module =>
             {
                 await bridgeThrottle.WaitAsync(ct);
@@ -103,7 +137,19 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Loads and merges the bridge catalog exposed by one module.
+        /// Returns whether the module's categories could be loaded; item failures only add warnings.
         /// </summary>
+        /// <param name="module">Module whose bridge is queried.</param>
+        /// <param name="categoryQueries">Search text and filters per category group key.</param>
+        /// <param name="categoryGroupKey">When set, only the category with this group key is loaded.</param>
+        /// <param name="preferCached">Allows the bridge to answer from its local cache.</param>
+        /// <param name="forceRefresh">Asks the bridge to refresh its upstream cache first.</param>
+        /// <param name="warnings">Shared warning list; guarded by <paramref name="mergeLock"/>.</param>
+        /// <param name="categoryBuilders">Shared merged categories by group key; guarded by <paramref name="publishLock"/>.</param>
+        /// <param name="mergeLock">Guards <paramref name="warnings"/>.</param>
+        /// <param name="publishLock">Serializes merging into <paramref name="categoryBuilders"/> and delivery to the callback.</param>
+        /// <param name="categoryLoaded">Called with each merged category after new items arrived.</param>
+        /// <param name="ct">Cancellation token for the load.</param>
         private async Task<bool> LoadModuleCatalogAsync(
             ModuleConfig module,
             IReadOnlyDictionary<string, DownloadCatalogQuery>? categoryQueries,
@@ -117,6 +163,8 @@ namespace ASLM.Services.Internal
             Func<DownloadCatalogCategory, Task>? categoryLoaded,
             CancellationToken ct)
         {
+            // Ask the module for its categories; cancellation propagates, any other failure degrades to
+            // the categories declared in the manifest plus a warning.
             List<ModuleDownloadCategoryPayload> categories;
             var succeeded = true;
             try
@@ -129,17 +177,20 @@ namespace ASLM.Services.Internal
             }
             catch (Exception ex)
             {
+                // The provider is unavailable: keep its declared categories so the UI can still show the sections.
                 _logger.LogWarning(ex, "Failed to load download categories for module {ModuleId}.", module.Id);
                 AddWarning(warnings, mergeLock, $"{module.Name}: download categories could not be loaded.");
                 categories = CreateDeclaredCategoryPayloads(module);
                 succeeded = false;
             }
 
+            // A module that reports no categories falls back to the manifest declaration as well.
             if (categories.Count == 0)
             {
                 categories = CreateDeclaredCategoryPayloads(module);
             }
 
+            // Load and merge the items of each category in turn.
             foreach (var category in categories)
             {
                 ct.ThrowIfCancellationRequested();
@@ -154,9 +205,11 @@ namespace ASLM.Services.Internal
                     ? category.GroupKey
                     : $"{module.Id}:{category.Id}";
 
+                // The caller may restrict loading to a single merged category.
                 if (categoryGroupKey != null && !string.Equals(groupKey, categoryGroupKey, StringComparison.OrdinalIgnoreCase))
                     continue;
 
+                // Fetch the category items; a failed category adds a warning and contributes nothing.
                 ModuleDownloadBridgeResponse itemResponse;
                 try
                 {
@@ -176,6 +229,7 @@ namespace ASLM.Services.Internal
                     itemResponse = new ModuleDownloadBridgeResponse();
                 }
 
+                // Forward warnings reported by the provider itself, prefixed with the module name.
                 foreach (var warning in itemResponse.Warnings)
                 {
                     AddWarning(warnings, mergeLock, $"{module.Name}: {warning}");
@@ -185,6 +239,7 @@ namespace ASLM.Services.Internal
                 await publishLock.WaitAsync(ct);
                 try
                 {
+                    // Merge the provider's filters into the shared category first.
                     var categoryBuilder = GetOrCreateCategoryBuilder(categoryBuilders, groupKey, category);
                     var updatedCategories = new HashSet<CategoryBuilder> { categoryBuilder };
                     foreach (var filterPayload in itemResponse.Filters)
@@ -222,6 +277,7 @@ namespace ASLM.Services.Internal
                         updatedCategories.Add(itemCategoryBuilder);
                     }
 
+                    // Deliver every category that received filters or items, still under the publish lock.
                     if (categoryLoaded != null)
                         foreach (var updated in updatedCategories)
                             await categoryLoaded(updated.ToCategory(_stateStore));
@@ -238,6 +294,9 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Adds one warning while bridge catalog loading runs in parallel.
         /// </summary>
+        /// <param name="warnings">Shared warning list.</param>
+        /// <param name="mergeLock">Lock that guards the list.</param>
+        /// <param name="warning">Warning text to add.</param>
         private static void AddWarning(List<string> warnings, object mergeLock, string warning)
         {
             lock (mergeLock)
@@ -265,9 +324,18 @@ namespace ASLM.Services.Internal
                 .ToList() ?? [];
         }
 
+
+        // Item details
+
         /// <summary>
         /// Loads the detailed payload for one selected catalog item.
+        /// Queries every module source of the item in a stable order and merges their details; when no source
+        /// supplies details, a minimal fallback detail is built from the list item.
         /// </summary>
+        /// <param name="item">Catalog item whose details are requested.</param>
+        /// <param name="preferCached">Allows the bridges to answer from their local cache.</param>
+        /// <param name="forceRefresh">Asks the bridges to refresh their upstream cache first.</param>
+        /// <param name="ct">Cancellation token for the load.</param>
         public async Task<DownloadCatalogItemDetail> GetItemDetailAsync(
             DownloadCatalogItem item,
             bool preferCached = false,
@@ -282,17 +350,20 @@ namespace ASLM.Services.Internal
             var builder = new ItemDetailBuilder(item);
             var hadAnyDetail = false;
 
+            // Ordering the sources makes the merge result independent of the order modules answered in.
             foreach (var source in item.Sources.OrderBy(source => source.ModuleSourcePath, StringComparer.Ordinal)
                 .ThenBy(source => source.CategoryId, StringComparer.Ordinal))
             {
                 ct.ThrowIfCancellationRequested();
 
+                // Skip sources whose module manifest can no longer be loaded.
                 var module = await _moduleInstaller.LoadModuleConfig(source.ModuleSourcePath);
                 if (module == null)
                 {
                     continue;
                 }
 
+                // A failing source is logged and skipped so the remaining sources can still contribute.
                 try
                 {
                     var detail = await _bridge.GetItemDetailAsync(
@@ -322,6 +393,7 @@ namespace ASLM.Services.Internal
                 }
             }
 
+            // Fall back to list data when no module could describe the item.
             return hadAnyDetail
                 ? builder.ToDetail(_stateStore)
                 : BuildFallbackDetail(item);
@@ -332,7 +404,11 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Returns the existing category builder or creates one from the current bridge category.
+        /// An existing builder is enriched with metadata the new payload provides.
         /// </summary>
+        /// <param name="categoryBuilders">Merged categories by group key.</param>
+        /// <param name="groupKey">Group key that identifies the merged category.</param>
+        /// <param name="category">Bridge category that is being merged.</param>
         private static CategoryBuilder GetOrCreateCategoryBuilder(
             IDictionary<string, CategoryBuilder> categoryBuilders,
             string groupKey,
@@ -351,13 +427,19 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Merges one bridge item into the current aggregated category.
+        /// Items with the same resource key from different modules become one item with several sources.
         /// </summary>
+        /// <param name="categoryBuilder">Aggregated category that receives the item.</param>
+        /// <param name="module">Module that provided the item.</param>
+        /// <param name="category">Bridge category the item was reported under.</param>
+        /// <param name="item">Item payload to merge.</param>
         private static void MergeItem(
             CategoryBuilder categoryBuilder,
             ModuleConfig module,
             ModuleDownloadCategoryPayload category,
             ModuleDownloadItemPayload item)
         {
+            // The first provider creates the item; later providers only fill in missing fields.
             if (!categoryBuilder.Items.TryGetValue(item.ResourceKey, out var itemBuilder))
             {
                 itemBuilder = new ItemBuilder(item.ResourceKey, category.Id, categoryBuilder.GroupKey, item);
@@ -368,6 +450,7 @@ namespace ASLM.Services.Internal
                 itemBuilder.Merge(item);
             }
 
+            // Remember which module and category supplied the item so details can be requested from it later.
             itemBuilder.Sources.Add(new DownloadCatalogItemSource
             {
                 ModuleId = module.Id,
@@ -420,6 +503,8 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Returns the state key that best represents installation for one grouped item.
+        /// An item with at most one variant and a known default variant is installed through that variant, so its
+        /// key is used; otherwise the item's own resource key is the state key.
         /// </summary>
         private static string GetPrimaryStateKey(ItemBuilder itemBuilder)
         {
@@ -432,20 +517,26 @@ namespace ASLM.Services.Internal
         }
 
 
-        // Merge builders
+        // Field merging
 
-        // Keep module order and collapse only identical fields after their resources are resolved.
+        /// <summary>
+        /// Merges display fields collected from several sources. Keeps module order and collapses only
+        /// identical fields after their resources are resolved.
+        /// </summary>
+        /// <param name="fields">Detail or tag fields collected from all module sources, in module order.</param>
         private static List<ModuleDownloadField> MergeFields(IEnumerable<ModuleDownloadField> fields) =>
             fields.DistinctBy(field => (field.Text, field.BackgroundColor, field.TextColor,
                 field.ShowInCatalog, field.Image?.Key)).ToList();
 
+
+        // Category builder
 
         /// <summary>
         /// Builds one aggregated category while bridge payloads are being merged.
         /// </summary>
         private sealed class CategoryBuilder
         {
-            // Category builder initialization
+            // Initialization
 
             /// <summary>
             /// Seeds one aggregate category from the first payload.
@@ -458,15 +549,41 @@ namespace ASLM.Services.Internal
                 SortOrder = category.SortOrder;
             }
 
+
+            // Properties
+
+            /// <summary>
+            /// Key shared by equivalent provider categories; identifies the merged category.
+            /// </summary>
             public string GroupKey { get; }
+
+            /// <summary>
+            /// Display title; the first non-empty title of any provider wins.
+            /// </summary>
             public string Title { get; private set; }
+
+            /// <summary>
+            /// Display description; the first non-empty description of any provider wins.
+            /// </summary>
             public string Description { get; private set; }
+
+            /// <summary>
+            /// Position of the category in the catalog; the first non-zero value of any provider wins.
+            /// </summary>
             public int SortOrder { get; private set; }
+
+            /// <summary>
+            /// Merged filters of the category by filter key.
+            /// </summary>
             public Dictionary<string, FilterBuilder> Filters { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            /// <summary>
+            /// Merged items of the category by resource key.
+            /// </summary>
             public Dictionary<string, ItemBuilder> Items { get; } = new(StringComparer.OrdinalIgnoreCase);
 
 
-            // Category builder merging
+            // Merging
 
             /// <summary>
             /// Merges missing category metadata from a later payload.
@@ -504,9 +621,12 @@ namespace ASLM.Services.Internal
             }
 
 
+            // Materialization
+
             /// <summary>
-            /// Materializes the final category model.
+            /// Materializes the final category model with filters and items sorted by order, then title.
             /// </summary>
+            /// <param name="stateStore">Persisted state used to mark items as installed.</param>
             public DownloadCatalogCategory ToCategory(DownloadStateStore stateStore)
             {
                 return new DownloadCatalogCategory
@@ -530,12 +650,14 @@ namespace ASLM.Services.Internal
         }
 
 
+        // Filter builder
+
         /// <summary>
         /// Builds one merged category filter option while bridge payloads are being merged.
         /// </summary>
         private sealed class FilterBuilder
         {
-            // Filter builder initialization
+            // Initialization
 
             /// <summary>
             /// Seeds one aggregate filter from the first payload.
@@ -549,14 +671,36 @@ namespace ASLM.Services.Internal
                 SortOrder = filter.SortOrder;
             }
 
+
+            // Properties
+
+            /// <summary>
+            /// Filter key that identifies the option across providers.
+            /// </summary>
             public string Key { get; }
+
+            /// <summary>
+            /// Display title; the first non-empty title of any provider wins.
+            /// </summary>
             public string Title { get; private set; }
+
+            /// <summary>
+            /// Filter kind (for example <c>sort</c>, which is single-select); the first non-empty kind of any provider wins.
+            /// </summary>
             public string Kind { get; private set; }
+
+            /// <summary>
+            /// Whether any provider reports the filter as selected.
+            /// </summary>
             public bool Selected { get; private set; }
+
+            /// <summary>
+            /// Position of the filter; the first non-zero value of any provider wins.
+            /// </summary>
             public int SortOrder { get; private set; }
 
 
-            // Filter builder merging
+            // Merging
 
             /// <summary>
             /// Merges missing metadata and preserves any selected state.
@@ -582,6 +726,8 @@ namespace ASLM.Services.Internal
             }
 
 
+            // Materialization
+
             /// <summary>
             /// Materializes the final filter model.
             /// </summary>
@@ -599,16 +745,22 @@ namespace ASLM.Services.Internal
         }
 
 
+        // Item builder
+
         /// <summary>
         /// Builds one aggregated grouped item while bridge payloads are being merged.
         /// </summary>
         private sealed class ItemBuilder
         {
-            // Item builder initialization
+            // Initialization
 
             /// <summary>
             /// Seeds one aggregate item from the first payload.
             /// </summary>
+            /// <param name="resourceKey">Resource key that identifies the item across providers.</param>
+            /// <param name="categoryId">Bridge category id used when the payload names none.</param>
+            /// <param name="groupKey">Group key of the merged category the item belongs to.</param>
+            /// <param name="item">First payload that reported the item.</param>
             public ItemBuilder(
                 string resourceKey,
                 string categoryId,
@@ -628,27 +780,78 @@ namespace ASLM.Services.Internal
                 SortOrder = item.SortOrder;
             }
 
+
+            // Properties
+
+            /// <summary>
+            /// Resource key that identifies the item across providers.
+            /// </summary>
             public string ResourceKey { get; }
+
+            /// <summary>
+            /// Bridge category id the first provider reported the item under.
+            /// </summary>
             public string CategoryId { get; }
+
+            /// <summary>
+            /// Group key of the merged category the item is listed in.
+            /// </summary>
             public string GroupKey { get; }
+
+            /// <summary>
+            /// Display title; the first non-empty title of any provider wins.
+            /// </summary>
             public string Title { get; private set; }
+
+            /// <summary>
+            /// Short description; the first non-empty summary of any provider wins.
+            /// </summary>
             public string Summary { get; private set; }
+
+            /// <summary>
+            /// Name of the publisher or provider; the first non-empty value of any provider wins.
+            /// </summary>
             public string Provider { get; private set; }
+
+            /// <summary>
+            /// Version label; the first non-empty value of any provider wins.
+            /// </summary>
             public string Version { get; private set; }
+
+            /// <summary>
+            /// Project page URL; the first non-empty value of any provider wins.
+            /// </summary>
             public string HomepageUrl { get; private set; }
+
+            /// <summary>
+            /// Number of installable variants; the first positive count of any provider wins.
+            /// </summary>
             public int VariantCount { get; private set; }
+
+            /// <summary>
+            /// Resource key of the variant installed by default; the first non-empty value of any provider wins.
+            /// </summary>
             public string DefaultVariantResourceKey { get; private set; }
+
+            /// <summary>
+            /// Position of the item in the category; the first non-zero value of any provider wins.
+            /// </summary>
             public int SortOrder { get; private set; }
+
+            /// <summary>
+            /// Every module and category that reported this item.
+            /// </summary>
             public List<DownloadCatalogItemSource> Sources { get; } = [];
 
 
-            // Item builder merging
+            // Merging
 
             /// <summary>
             /// Merges non-empty item fields while preserving the earliest stable identity.
             /// </summary>
             public void Merge(ModuleDownloadItemPayload item)
             {
+                // The first provider's values win; a later payload only fills fields that are still empty.
                 if (string.IsNullOrWhiteSpace(Title) && !string.IsNullOrWhiteSpace(item.Title))
                 {
                     Title = item.Title;
@@ -691,11 +894,15 @@ namespace ASLM.Services.Internal
             }
 
 
+            // Materialization
+
             /// <summary>
             /// Materializes the final grouped item model.
             /// </summary>
+            /// <param name="stateStore">Persisted state used to mark the item as installed.</param>
             public DownloadCatalogItem ToItem(DownloadStateStore stateStore)
             {
+                // Order the sources deterministically, then build the item from the merged fields and installation state.
                 var persistedState = stateStore.GetResourceState(GetPrimaryStateKey(this));
                 var sources = Sources.OrderBy(source => source.ModuleSourcePath, StringComparer.Ordinal)
                     .ThenBy(source => source.CategoryId, StringComparer.Ordinal).ToList();
@@ -727,16 +934,19 @@ namespace ASLM.Services.Internal
         }
 
 
+        // Item detail builder
+
         /// <summary>
         /// Merges detailed item payloads returned by one or more module bridges.
         /// </summary>
         private sealed class ItemDetailBuilder
         {
-            // Detail builder initialization
+            // Initialization
 
             /// <summary>
             /// Seeds one aggregate detail model from the selected list item.
             /// </summary>
+            /// <param name="item">List item whose list data is the starting point; detail payloads fill in what is missing.</param>
             public ItemDetailBuilder(DownloadCatalogItem item)
             {
                 ResourceKey = item.ResourceKey;
@@ -751,28 +961,85 @@ namespace ASLM.Services.Internal
                 DefaultVariantResourceKey = item.DefaultVariantResourceKey;
             }
 
+
+            // Properties and state
+
+            /// <summary>
+            /// Resource key that identifies the item across providers.
+            /// </summary>
             public string ResourceKey { get; }
+
+            /// <summary>
+            /// Bridge category id; starts from the list item and is completed from detail payloads when empty.
+            /// </summary>
             public string CategoryId { get; private set; }
+
+            /// <summary>
+            /// Group key of the merged category; starts from the list item and is completed from detail payloads when empty.
+            /// </summary>
             public string GroupKey { get; private set; }
+
+            /// <summary>
+            /// Display title; starts from the list item and is completed from detail payloads when empty.
+            /// </summary>
             public string Title { get; private set; }
+
+            /// <summary>
+            /// Short description; starts from the list item and is completed from detail payloads when empty.
+            /// </summary>
             public string Summary { get; private set; }
+
+            /// <summary>
+            /// Name of the publisher or provider; starts from the list item and is completed from detail payloads when empty.
+            /// </summary>
             public string Provider { get; private set; }
+
+            /// <summary>
+            /// Version label; starts from the list item and is completed from detail payloads when empty.
+            /// </summary>
             public string Version { get; private set; }
+
+            /// <summary>
+            /// Project page URL; starts from the list item and is completed from detail payloads when empty.
+            /// </summary>
             public string HomepageUrl { get; private set; }
+
+            /// <summary>
+            /// Sources of the list item; their list-level details and tags are used when a source sends no detail payload.
+            /// </summary>
             private readonly List<DownloadCatalogItemSource> _sources;
+
+            /// <summary>
+            /// Detail payload received from each source that answered.
+            /// </summary>
             private readonly Dictionary<DownloadCatalogItemSource, ModuleDownloadItemDetailPayload> _sourceDetails = new();
+
+            /// <summary>
+            /// Resource key of the variant installed by default; starts from the list item and is completed from detail payloads when empty.
+            /// </summary>
             public string DefaultVariantResourceKey { get; private set; }
+
+            /// <summary>
+            /// Merged installable variants by resource key.
+            /// </summary>
             public Dictionary<string, VariantBuilder> Variants { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            /// <summary>
+            /// Merged information blocks by block key.
+            /// </summary>
             public Dictionary<string, BlockBuilder> Blocks { get; } = new(StringComparer.OrdinalIgnoreCase);
 
 
-            // Detail builder merging
+            // Merging
 
             /// <summary>
             /// Merges detail payloads from every contributing module source.
             /// </summary>
+            /// <param name="detail">Normalized detail payload returned by one module.</param>
+            /// <param name="source">Module source that returned the payload.</param>
             public void Merge(ModuleDownloadItemDetailPayload detail, DownloadCatalogItemSource source)
             {
+                // Fill identity and display fields that the list item left empty.
                 if (string.IsNullOrWhiteSpace(CategoryId) && !string.IsNullOrWhiteSpace(detail.CategoryId))
                 {
                     CategoryId = detail.CategoryId;
@@ -813,6 +1080,7 @@ namespace ASLM.Services.Internal
                     DefaultVariantResourceKey = detail.DefaultVariantResourceKey;
                 }
 
+                // Keep the payload per source so its details and tags can be resolved at the end.
                 _sourceDetails[source] = detail;
 
                 // Variants merge by resource key so multiple modules can enrich the same option.
@@ -856,9 +1124,12 @@ namespace ASLM.Services.Internal
             }
 
 
+            // Materialization
+
             /// <summary>
             /// Materializes the final detail model.
             /// </summary>
+            /// <param name="stateStore">Persisted state used to mark variants as installed.</param>
             public DownloadCatalogItemDetail ToDetail(DownloadStateStore stateStore)
             {
                 // Missing fields inherit this source's list data; an explicit [] clears it.
@@ -885,6 +1156,7 @@ namespace ASLM.Services.Internal
                     });
                 }
 
+                // Without an explicit default, the first variant in display order becomes the default.
                 if (string.IsNullOrWhiteSpace(DefaultVariantResourceKey))
                 {
                     DefaultVariantResourceKey = variants[0].ResourceKey;
@@ -914,12 +1186,14 @@ namespace ASLM.Services.Internal
         }
 
 
+        // Variant builder
+
         /// <summary>
         /// Builds one merged variant payload.
         /// </summary>
         private sealed class VariantBuilder
         {
-            // Variant builder initialization
+            // Initialization
 
             /// <summary>
             /// Seeds one aggregate variant from the first payload.
@@ -935,22 +1209,53 @@ namespace ASLM.Services.Internal
                 SortOrder = variant.SortOrder;
             }
 
+
+            // Properties
+
+            /// <summary>
+            /// Resource key that identifies the variant and its installation state.
+            /// </summary>
             public string ResourceKey { get; }
+
+            /// <summary>
+            /// Display title; the first non-empty title of any provider wins.
+            /// </summary>
             public string Title { get; private set; }
+
+            /// <summary>
+            /// Short description; the first non-empty summary of any provider wins.
+            /// </summary>
             public string Summary { get; private set; }
+
+            /// <summary>
+            /// Download size in bytes; meaningful only when <see cref="HasSize"/> is true.
+            /// </summary>
             public long Size { get; private set; }
+
+            /// <summary>
+            /// Whether a provider reported a valid, non-negative size.
+            /// </summary>
             public bool HasSize { get; private set; }
+
+            /// <summary>
+            /// Project page URL; the first non-empty value of any provider wins.
+            /// </summary>
             public string HomepageUrl { get; private set; }
+
+            /// <summary>
+            /// Position of the variant in the list; the first non-zero value of any provider wins.
+            /// </summary>
             public int SortOrder { get; private set; }
 
 
-            // Variant builder merging
+            // Merging
 
             /// <summary>
             /// Merges non-empty fields from later payloads.
             /// </summary>
             public void Merge(ModuleDownloadVariantPayload variant)
             {
+                // The first provider's values win; a later payload only fills fields that are still empty.
                 if (string.IsNullOrWhiteSpace(Title) && !string.IsNullOrWhiteSpace(variant.Title))
                 {
                     Title = variant.Title;
@@ -979,9 +1284,12 @@ namespace ASLM.Services.Internal
             }
 
 
+            // Materialization
+
             /// <summary>
             /// Materializes the final variant model.
             /// </summary>
+            /// <param name="stateStore">Persisted state used to mark the variant as installed.</param>
             public DownloadCatalogVariant ToVariant(DownloadStateStore stateStore)
             {
                 var persistedState = stateStore.GetResourceState(ResourceKey);
@@ -1000,16 +1308,20 @@ namespace ASLM.Services.Internal
         }
 
 
+        // Block builder
+
         /// <summary>
         /// Builds one merged details block payload.
         /// </summary>
         private sealed class BlockBuilder
         {
-            // Block builder initialization
+            // Initialization
 
             /// <summary>
             /// Seeds one aggregate info block from the first payload.
             /// </summary>
+            /// <param name="key">Block id, or the block title when the payload has no id.</param>
+            /// <param name="block">First payload that described the block.</param>
             public BlockBuilder(string key, ModuleDownloadInfoBlockPayload block)
             {
                 Key = key;
@@ -1021,22 +1333,53 @@ namespace ASLM.Services.Internal
                 SortOrder = block.SortOrder;
             }
 
+
+            // Properties
+
+            /// <summary>
+            /// Key that identifies the block across providers.
+            /// </summary>
             public string Key { get; }
+
+            /// <summary>
+            /// Heading shown above the block; the first non-empty title of any provider wins.
+            /// </summary>
             public string Title { get; private set; }
+
+            /// <summary>
+            /// Content format such as <c>text</c> or <c>markdown</c>; the first non-empty value of any provider wins.
+            /// </summary>
             public string Format { get; private set; }
+
+            /// <summary>
+            /// Inline content; the first non-empty value of any provider wins.
+            /// </summary>
             public string Content { get; private set; }
+
+            /// <summary>
+            /// URL the content is loaded from instead of inline content; the first non-empty value of any provider wins.
+            /// </summary>
             public string ContentUrl { get; private set; }
+
+            /// <summary>
+            /// Base URL for relative links inside the content; the first non-empty value of any provider wins.
+            /// </summary>
             public string SourceUrl { get; private set; }
+
+            /// <summary>
+            /// Position of the block; the first non-zero value of any provider wins.
+            /// </summary>
             public int SortOrder { get; private set; }
 
 
-            // Block builder merging
+            // Merging
 
             /// <summary>
             /// Merges missing block metadata from later payloads.
             /// </summary>
             public void Merge(ModuleDownloadInfoBlockPayload block)
             {
+                // The first provider's values win; a later payload only fills fields that are still empty.
                 if (string.IsNullOrWhiteSpace(Title) && !string.IsNullOrWhiteSpace(block.Title))
                 {
                     Title = block.Title;
@@ -1068,6 +1411,8 @@ namespace ASLM.Services.Internal
                 }
             }
 
+
+            // Materialization
 
             /// <summary>
             /// Materializes the final info block model.
