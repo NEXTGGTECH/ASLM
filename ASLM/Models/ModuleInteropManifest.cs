@@ -11,9 +11,15 @@ namespace ASLM.Models
     /// </summary>
     public sealed class ModuleInteropManifest
     {
+        /// <summary>
+        /// Version of the interop protocol the module was written for; values below 1 disable interop.
+        /// </summary>
         [JsonPropertyName("protocolVersion")]
         public int ProtocolVersion { get; set; } = 1;
 
+        /// <summary>
+        /// Settings for the module's role as a client of the host interop API.
+        /// </summary>
         [JsonPropertyName("client")]
         public ModuleInteropClientConfig Client { get; set; } = new();
 
@@ -38,9 +44,15 @@ namespace ASLM.Models
     /// </summary>
     public sealed class ModuleInteropClientConfig
     {
+        /// <summary>
+        /// Whether the host passes the interop base URL and port to the module process through environment variables.
+        /// </summary>
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; }
 
+        /// <summary>
+        /// Normalizes optional fields after JSON deserialization; currently nothing needs fixing.
+        /// </summary>
         public void Normalize()
         {
             // Booleans deserialize with CLR defaults.

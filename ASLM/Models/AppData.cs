@@ -5,15 +5,25 @@ using System.Text.Json.Serialization;
 
 namespace ASLM.Models
 {
+    // Account mode
+
     /// <summary>
     /// Selects whether ASLM uses its local display-name profile or a SUNRISE cloud account.
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter<AppAccountMode>))]
     public enum AppAccountMode
     {
+        /// <summary>
+        /// Uses the local display-name profile stored in the application data file.
+        /// </summary>
         Local,
+
+        /// <summary>
+        /// Uses the profile of the signed-in SUNRISE cloud account.
+        /// </summary>
         Cloud
     }
+
 
     // Application data
 
@@ -22,45 +32,70 @@ namespace ASLM.Models
     /// </summary>
     public class AppData
     {
-        // Tracks whether the initial setup flow has already finished.
+        // Persisted sections
+
+        /// <summary>
+        /// Tracks whether the initial setup flow has already finished.
+        /// </summary>
         [JsonPropertyName("firstRunCompleted")]
         public bool FirstRunCompleted { get; set; }
 
-        // Stores user-facing profile information.
+        /// <summary>
+        /// Stores user-facing profile information.
+        /// </summary>
         [JsonPropertyName("user")]
         public AppUserData User { get; set; } = new();
 
-        // Stores the reserved application port ranges.
+        /// <summary>
+        /// Stores the reserved application port ranges.
+        /// </summary>
         [JsonPropertyName("ports")]
         public AppPortConfig Ports { get; set; } = new();
 
-        // Stores the local ASLM API mirror server settings.
+        /// <summary>
+        /// Stores the local ASLM API mirror server settings.
+        /// </summary>
         [JsonPropertyName("api")]
         public AppApiConfig Api { get; set; } = new();
 
-        // Stores console page preferences.
+        /// <summary>
+        /// Stores console page preferences.
+        /// </summary>
         [JsonPropertyName("consoles")]
         public AppConsoleConfig Consoles { get; set; } = new();
 
-        // Stores shell startup and last-page navigation preferences.
+        /// <summary>
+        /// Stores shell startup and last-page navigation preferences.
+        /// </summary>
         [JsonPropertyName("navigation")]
         public AppNavigationConfig Navigation { get; set; } = new();
 
-        // Stores ASLM and module update preferences.
+        /// <summary>
+        /// Stores ASLM and module update preferences.
+        /// </summary>
         [JsonPropertyName("updates")]
         public AppUpdateSettings Updates { get; set; } = new();
 
-        // Stores UI personalization preferences (theme mode and custom theme selection).
+        /// <summary>
+        /// Stores UI personalization preferences (theme mode and custom theme selection).
+        /// </summary>
         [JsonPropertyName("personalization")]
         public AppPersonalizationConfig Personalization { get; set; } = new();
 
-        // Stores legal document acceptance preferences.
+        /// <summary>
+        /// Stores legal document acceptance preferences.
+        /// </summary>
         [JsonPropertyName("legal")]
         public AppLegalConfig Legal { get; set; } = new();
 
-        // Stores optional GitHub account credentials for authenticated API access.
+        /// <summary>
+        /// Stores optional GitHub account credentials for authenticated API access.
+        /// </summary>
         [JsonPropertyName("github")]
         public AppGitHubSettings GitHub { get; set; } = new();
+
+
+        // Normalization
 
         /// <summary>
         /// Restores nested objects after JSON deserialization.
@@ -113,17 +148,28 @@ namespace ASLM.Models
     /// </summary>
     public class AppNavigationConfig
     {
-        // Restores the last stable page instead of always opening the home dashboard.
+        // Persisted settings
+
+        /// <summary>
+        /// Restores the last stable page instead of always opening the home dashboard.
+        /// </summary>
         [JsonPropertyName("restoreLastPage")]
         public bool RestoreLastPage { get; set; } = true;
 
-        // Hides the unfinished home dashboard and uses Modules as the default page.
+        /// <summary>
+        /// Hides the unfinished home dashboard and uses Modules as the default page.
+        /// </summary>
         [JsonPropertyName("disableHomePage")]
         public bool DisableHomePage { get; set; } = true;
 
-        // Uses a stable shell route rather than a transient local module URL.
+        /// <summary>
+        /// Uses a stable shell route rather than a transient local module URL.
+        /// </summary>
         [JsonPropertyName("lastPage")]
         public string LastPage { get; set; } = ShellNavigationRoute.Home;
+
+
+        // Startup route
 
         /// <summary>
         /// Resolves the startup route without restoring a disabled home page.
@@ -151,7 +197,9 @@ namespace ASLM.Models
     /// </summary>
     public class AppLegalConfig
     {
-        // Automatically accepts newly added legal documents without showing the review overlay.
+        /// <summary>
+        /// Automatically accepts newly added legal documents without showing the review overlay.
+        /// </summary>
         [JsonPropertyName("autoAcceptUpdates")]
         public bool AutoAcceptUpdates { get; set; } = true;
 
@@ -172,15 +220,21 @@ namespace ASLM.Models
     /// </summary>
     public class AppUserData
     {
-        // Stores the display name shown in the UI.
+        /// <summary>
+        /// Stores the display name shown in the UI.
+        /// </summary>
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        // Preserves the local profile name while the active cloud profile owns Name.
+        /// <summary>
+        /// Preserves the local profile name while the active cloud profile owns <see cref="Name"/>.
+        /// </summary>
         [JsonPropertyName("localName")]
         public string LocalName { get; set; } = string.Empty;
 
-        // Chooses between the existing local profile and a SUNRISE-backed cloud profile.
+        /// <summary>
+        /// Chooses between the existing local profile and a SUNRISE-backed cloud profile.
+        /// </summary>
         [JsonPropertyName("accountMode")]
         public AppAccountMode AccountMode { get; set; } = AppAccountMode.Local;
 
@@ -215,7 +269,9 @@ namespace ASLM.Models
     /// </summary>
     public class AppApiConfig
     {
-        // Indicates whether the local mirror server should start with ASLM.
+        /// <summary>
+        /// Indicates whether the local mirror server should start with ASLM.
+        /// </summary>
         [JsonPropertyName("serverEnabled")]
         public bool ServerEnabled { get; set; } = true;
 
@@ -236,15 +292,21 @@ namespace ASLM.Models
     /// </summary>
     public class AppConsoleConfig
     {
-        // Indicates whether the consoles page is shown in the sidebar.
+        /// <summary>
+        /// Indicates whether the consoles page is shown in the sidebar.
+        /// </summary>
         [JsonPropertyName("sidebarVisible")]
         public bool SidebarVisible { get; set; } = true;
 
-        // Indicates whether completed process sessions remain visible in per-module console lists.
+        /// <summary>
+        /// Indicates whether completed process sessions remain visible in per-module console lists.
+        /// </summary>
         [JsonPropertyName("showCompletedProcesses")]
         public bool ShowCompletedProcesses { get; set; } = false;
 
-        // Indicates whether per-process consoles are available in addition to unified module consoles.
+        /// <summary>
+        /// Indicates whether per-process consoles are available in addition to unified module consoles.
+        /// </summary>
         [JsonPropertyName("showIndividualModuleConsoles")]
         public bool ShowIndividualModuleConsoles { get; set; } = true;
 
@@ -265,11 +327,15 @@ namespace ASLM.Models
     /// </summary>
     public class AppPortConfig
     {
-        // First port used when allocating module and internal service listeners.
+        /// <summary>
+        /// First port used when allocating module and internal service listeners.
+        /// </summary>
         [JsonPropertyName("modulesStart")]
         public int ModulesStart { get; set; } = 20000;
 
-        // Captures legacy port fields during JSON load for one-time migration.
+        /// <summary>
+        /// Captures legacy port fields during JSON load for one-time migration.
+        /// </summary>
         [JsonExtensionData]
         public Dictionary<string, JsonElement>? ExtensionData { get; set; }
 
@@ -278,6 +344,7 @@ namespace ASLM.Models
         /// </summary>
         public void Normalize()
         {
+            // Adopt the legacy official start port once, then drop the captured legacy fields.
             if (ExtensionData != null)
             {
                 if (!ExtensionData.ContainsKey("modulesStart") &&
@@ -303,38 +370,73 @@ namespace ASLM.Models
     /// </summary>
     public class AppUpdateSettings
     {
+        // Update preferences
+
+        /// <summary>
+        /// Indicates whether ASLM checks for updates in the background.
+        /// </summary>
         [JsonPropertyName("checkEnabled")]
         public bool CheckEnabled { get; set; } = true;
 
+        /// <summary>
+        /// Indicates whether updates found by the background check are installed without asking.
+        /// </summary>
         [JsonPropertyName("autoUpdateEnabled")]
         public bool AutoUpdateEnabled { get; set; } = true;
 
+        /// <summary>
+        /// Number of hours between automatic update checks; <see cref="Normalize"/> pins it to one hour.
+        /// </summary>
         [JsonPropertyName("autoCheckPeriodHours")]
         public int AutoCheckPeriodHours { get; set; } = 12;
 
+        /// <summary>
+        /// UTC time of the last automatic update check in round-trip ("o") format, or null if none ran yet.
+        /// </summary>
         [JsonPropertyName("lastAutoCheckUtc")]
         public string? LastAutoCheckUtc { get; set; }
 
+        /// <summary>
+        /// Release channel used for ASLM itself: <c>release</c> or <c>pre-release</c>.
+        /// </summary>
         [JsonPropertyName("appChannel")]
         public string AppChannel { get; set; } = "release";
 
+        /// <summary>
+        /// Release tag of the installed ASLM build, or null when it is not known.
+        /// </summary>
         [JsonPropertyName("installedReleaseTag")]
         public string? InstalledReleaseTag { get; set; }
 
+        /// <summary>
+        /// ASLM update found by the last check and not installed yet, or null when none is pending.
+        /// </summary>
         [JsonPropertyName("availableAppUpdate")]
         public PersistedUpdateCandidate? AvailableAppUpdate { get; set; }
 
+        /// <summary>
+        /// Ollama engine update found by the last check and not installed yet, or null when none is pending.
+        /// </summary>
         [JsonPropertyName("availableOllamaUpdate")]
         public PersistedUpdateCandidate? AvailableOllamaUpdate { get; set; }
 
+        /// <summary>
+        /// Default update mode applied to modules; <see cref="Normalize"/> pins it to <c>release</c>.
+        /// </summary>
         [JsonPropertyName("moduleDefaultMode")]
         public string ModuleDefaultMode { get; set; } = "release";
 
+        /// <summary>
+        /// Default release channel applied to modules: <c>release</c> or <c>pre-release</c>.
+        /// </summary>
         [JsonPropertyName("moduleDefaultChannel")]
         public string ModuleDefaultChannel { get; set; } = "release";
 
+
+        // Normalization
+
         /// <summary>
-        /// Restores safe defaults and clamps numeric values.
+        /// Restores safe defaults and pins values that are not user-configurable (hourly check period, release mode).
         /// </summary>
         public void Normalize()
         {
@@ -351,6 +453,11 @@ namespace ASLM.Models
         /// <summary>
         /// Keeps only complete persisted candidates that match their expected update target.
         /// </summary>
+        /// <param name="candidate">Persisted candidate read from the data file, if any.</param>
+        /// <param name="expectedKind">
+        /// Target kind the candidate must have, for example <c>app</c> or <c>engine</c>.
+        /// </param>
+        /// <param name="expectedId">Target identifier the candidate must have.</param>
         private static PersistedUpdateCandidate? NormalizeCandidate(
             PersistedUpdateCandidate? candidate,
             string expectedKind,
@@ -385,17 +492,28 @@ namespace ASLM.Models
     /// </summary>
     public class AppPersonalizationConfig
     {
-        // One of: Dark, Light, System, Custom.
+        // Persisted settings
+
+        /// <summary>
+        /// One of: Dark, Light, System, Custom.
+        /// </summary>
         [JsonPropertyName("appearance")]
         public string Appearance { get; set; } = "System";
 
-        // Supported BCP-47 language code. New profiles use the system UI language, or English if unsupported.
+        /// <summary>
+        /// Supported BCP-47 language code. New profiles use the system UI language, or English if unsupported.
+        /// </summary>
         [JsonPropertyName("language")]
         public string Language { get; set; } = AppLocalizationService.GetDefaultLanguage();
 
-        // Identifier of the selected custom theme when Appearance is "Custom".
+        /// <summary>
+        /// Identifier of the selected custom theme when <see cref="Appearance"/> is "Custom".
+        /// </summary>
         [JsonPropertyName("customThemeId")]
         public string? CustomThemeId { get; set; }
+
+
+        // Normalization
 
         /// <summary>
         /// Restores safe defaults after JSON deserialization.
@@ -406,12 +524,20 @@ namespace ASLM.Models
             Language = string.IsNullOrWhiteSpace(Language)
                 ? AppLocalizationService.GetDefaultLanguage()
                 : NormalizeLanguage(Language);
+
+            // A custom theme selection only makes sense while the Custom appearance is active.
             if (!string.Equals(Appearance, "Custom", StringComparison.OrdinalIgnoreCase))
             {
                 CustomThemeId = null;
             }
         }
 
+
+        // Supported values
+
+        /// <summary>
+        /// BCP-47 language codes the UI has translations for, matched case-insensitively.
+        /// </summary>
         internal static readonly HashSet<string> SupportedLanguageCodes = new(StringComparer.OrdinalIgnoreCase)
         {
             "en",

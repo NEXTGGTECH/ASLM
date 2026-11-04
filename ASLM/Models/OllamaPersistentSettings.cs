@@ -9,34 +9,54 @@ namespace ASLM.Models
     /// </summary>
     public sealed class OllamaPersistentSettings
     {
-        // Indicates whether an Ollama CLI executable is currently available.
+        /// <summary>
+        /// Indicates whether an Ollama CLI executable is currently available.
+        /// </summary>
         public bool IsCliAvailable { get; set; }
 
-        // Indicates whether ASLM has a verified signed-in Ollama account state.
+        /// <summary>
+        /// Indicates whether ASLM has a verified signed-in Ollama account state.
+        /// </summary>
         public bool IsSignedIn { get; set; }
 
-        // Display name returned by Ollama for the authenticated account.
+        /// <summary>
+        /// Display name returned by Ollama for the authenticated account.
+        /// </summary>
         public string UserName { get; set; } = string.Empty;
 
-        // Stable account identifier returned by Ollama.
+        /// <summary>
+        /// Stable account identifier returned by Ollama.
+        /// </summary>
         public string UserId { get; set; } = string.Empty;
 
-        // Email address associated with the Ollama account.
+        /// <summary>
+        /// Email address associated with the Ollama account.
+        /// </summary>
         public string Email { get; set; } = string.Empty;
 
-        // Public biography associated with the Ollama account.
+        /// <summary>
+        /// Public biography associated with the Ollama account.
+        /// </summary>
         public string Bio { get; set; } = string.Empty;
 
-        // Public avatar URL associated with the Ollama account.
+        /// <summary>
+        /// Public avatar URL associated with the Ollama account.
+        /// </summary>
         public string AvatarUrl { get; set; } = string.Empty;
 
-        // First name associated with the Ollama account.
+        /// <summary>
+        /// First name associated with the Ollama account.
+        /// </summary>
         public string FirstName { get; set; } = string.Empty;
 
-        // Last name associated with the Ollama account.
+        /// <summary>
+        /// Last name associated with the Ollama account.
+        /// </summary>
         public string LastName { get; set; } = string.Empty;
 
-        // Subscription plan reported for the Ollama account.
+        /// <summary>
+        /// Subscription plan reported for the Ollama account.
+        /// </summary>
         public string Plan { get; set; } = string.Empty;
     }
 
@@ -48,13 +68,19 @@ namespace ASLM.Models
     /// </summary>
     public sealed class OllamaAccountActionResult
     {
-        // Indicates whether the command completed successfully.
+        /// <summary>
+        /// Indicates whether the command completed successfully.
+        /// </summary>
         public bool Success { get; init; }
 
-        // Human-readable message returned to the settings UI.
+        /// <summary>
+        /// Human-readable message returned to the settings UI.
+        /// </summary>
         public string Message { get; init; } = string.Empty;
 
-        // Indicates that the browser-based sign-in flow started and should be verified asynchronously.
+        /// <summary>
+        /// Indicates that the browser-based sign-in flow started and should be verified asynchronously.
+        /// </summary>
         public bool IsPendingVerification { get; init; }
     }
 }
