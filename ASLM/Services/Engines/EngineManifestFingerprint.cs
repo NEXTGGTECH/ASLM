@@ -15,6 +15,8 @@ namespace ASLM.Services.Engines
         /// <summary>
         /// Computes a stable hash of install-relevant engine metadata.
         /// </summary>
+        /// <param name="config">Engine definition to fingerprint; it is normalized in place before hashing.</param>
+        /// <returns>Lowercase hex SHA-256 of the canonical JSON form with the root status block removed.</returns>
         public static string Compute(EngineConfig config)
         {
             config.Normalize();
@@ -44,6 +46,7 @@ namespace ASLM.Services.Engines
             {
                 case JsonValueKind.Object:
                     writer.WriteStartObject();
+
                     // Status is mutable local state and must not trigger engine reinstallation.
                     foreach (var property in element.EnumerateObject()
                                  .Where(property => !(isRoot &&
@@ -53,6 +56,7 @@ namespace ASLM.Services.Engines
                         writer.WritePropertyName(property.Name);
                         WriteCanonical(property.Value, writer);
                     }
+
                     writer.WriteEndObject();
                     break;
 
@@ -62,6 +66,7 @@ namespace ASLM.Services.Engines
                     {
                         WriteCanonical(item, writer);
                     }
+
                     writer.WriteEndArray();
                     break;
 
