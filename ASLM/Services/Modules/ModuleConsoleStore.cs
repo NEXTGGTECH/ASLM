@@ -6,26 +6,80 @@ using ASLM.Localization;
 
 namespace ASLM.Services.Modules
 {
+    // Console store
+
     /// <summary>
     /// Stores in-memory console sessions for modules and their spawned processes.
+    /// Output is buffered per session with line and size limits, so the UI can show the console of a module
+    /// at any time without owning the process streams. All state is guarded by a single lock.
     /// </summary>
     public sealed class ModuleConsoleStore
     {
         // Fields and constants
 
+        /// <summary>
+        /// Identifier of the per-module session that collects lifecycle messages.
+        /// </summary>
         private const string OverviewSessionId = "overview";
+
+        /// <summary>
+        /// Identifier of the per-module session that collects installer and updater output.
+        /// </summary>
         private const string MaintenanceSessionId = "maintenance";
+
+        /// <summary>
+        /// Maximum number of lines buffered per session; the oldest lines are dropped beyond it.
+        /// </summary>
         private const int MaxLinesPerSession = 5000;
+
+        /// <summary>
+        /// Maximum number of lines returned for display.
+        /// </summary>
         private const int MaxDisplayedLines = 250;
+
+        /// <summary>
+        /// Character budget of the text returned for display; the oldest visible lines are dropped beyond it.
+        /// </summary>
         private const int MaxDisplayedCharacters = 60000;
+
+        /// <summary>
+        /// Maximum length of one buffered line; longer lines are cut when they are stored.
+        /// </summary>
         private const int MaxStoredLineLength = 4000;
+
+        /// <summary>
+        /// Maximum length of one line returned for display; longer lines are cut when they are shown.
+        /// </summary>
         private const int MaxDisplayedLineLength = 1200;
+
+        /// <summary>
+        /// Delay that merges bursts of changes into a single <see cref="StateChanged"/> notification.
+        /// </summary>
         private const int StateChangedDebounceMilliseconds = 75;
 
+        /// <summary>
+        /// Guards all mutable state of the store.
+        /// </summary>
         private readonly object _sync = new();
+
+        /// <summary>
+        /// Console state of every known module, keyed by module manifest path.
+        /// </summary>
         private readonly Dictionary<string, ModuleConsoleModuleState> _modules = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Running maintenance activities per module manifest path; each activity is keyed by its own scope token.
+        /// </summary>
         private readonly Dictionary<string, Dictionary<Guid, ModuleActivity>> _activities = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Last assigned line sequence number; orders lines across sessions and modules.
+        /// </summary>
         private long _lineSequence;
+
+        /// <summary>
+        /// Non-zero while a debounced <see cref="StateChanged"/> notification is already queued.
+        /// </summary>
         private int _stateChangeQueued;
 
 
@@ -36,7 +90,13 @@ namespace ASLM.Services.Modules
         /// </summary>
         public event EventHandler? StateChanged;
 
-        /// <summary>Tracks transient operations independently of persisted installed/enabled flags.</summary>
+
+        // Maintenance activity
+
+        /// <summary>
+        /// Tracks transient operations independently of persisted installed/enabled flags.
+        /// The returned scope removes the activity when disposed.
+        /// </summary>
         internal IDisposable BeginActivity(string sourcePath, ModuleActivity activity)
         {
             var token = Guid.NewGuid();
@@ -46,13 +106,23 @@ namespace ASLM.Services.Modules
                     _activities[sourcePath] = active = [];
                 active[token] = activity;
             }
+
             RaiseStateChanged();
             return new ActivityScope(this, sourcePath, token);
         }
 
-        /// <summary>Buffers installer/updater output even while no console view is open.</summary>
+        /// <summary>
+        /// Buffers installer/updater output even while no console view is open.
+        /// Returns <paramref name="downstream"/> unchanged when it already is the maintenance log of this module;
+        /// otherwise the returned reporter writes to the maintenance session and forwards every message downstream.
+        /// In the first case <paramref name="reset"/> has no effect.
+        /// </summary>
+        /// <param name="module">Module whose maintenance session receives the output.</param>
+        /// <param name="downstream">Optional reporter that also receives every message.</param>
+        /// <param name="reset">True to start a fresh maintenance session even when one already exists.</param>
         internal IProgress<string> CreateMaintenanceLog(ModuleConfig module, IProgress<string>? downstream, bool reset)
         {
+            // Nested maintenance steps pass the log along; wrapping it again would duplicate every line.
             if (downstream is MaintenanceProgress existing && ReferenceEquals(existing.Store, this) &&
                 string.Equals(existing.SourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase))
                 return downstream;
@@ -69,12 +139,14 @@ namespace ASLM.Services.Modules
                         StartedUtc = DateTimeOffset.UtcNow
                     };
             }
+
             RaiseStateChanged();
             return new MaintenanceProgress(this, module.SourcePath, downstream);
         }
 
         /// <summary>
-        /// Returns maintenance state without allocating console text for module cards
+        /// Returns the strongest running maintenance activity of a module, or null when none is running.
+        /// Does not allocate console text, so module cards can poll it cheaply.
         /// </summary>
         internal ModuleActivity? GetActivity(string sourcePath)
         {
@@ -83,6 +155,10 @@ namespace ASLM.Services.Modules
                     ? active.Values.Max() : null;
         }
 
+        /// <summary>
+        /// Returns the maintenance activity, the running state of tracked processes, a key identifying the current
+        /// maintenance session and the maintenance console text of a module in one consistent read.
+        /// </summary>
         internal ModuleMaintenanceSnapshot GetMaintenanceSnapshot(string sourcePath)
         {
             lock (_sync)
@@ -98,10 +174,28 @@ namespace ASLM.Services.Modules
             }
         }
 
+
+        // Nested types
+
+        /// <summary>
+        /// Progress reporter that appends every non-empty message to the maintenance session of one module
+        /// and forwards all messages, empty ones included, to an optional downstream reporter.
+        /// </summary>
         private sealed class MaintenanceProgress(ModuleConsoleStore store, string sourcePath, IProgress<string>? downstream) : IProgress<string>
         {
+            /// <summary>
+            /// Store that owns the maintenance session; used to recognize a log that belongs to the same store.
+            /// </summary>
             internal ModuleConsoleStore Store => store;
+
+            /// <summary>
+            /// Manifest path of the module whose maintenance session receives the messages.
+            /// </summary>
             internal string SourcePath => sourcePath;
+
+            /// <summary>
+            /// Appends the message to the maintenance session and forwards it downstream.
+            /// </summary>
             public void Report(string value)
             {
                 if (!string.IsNullOrWhiteSpace(value))
@@ -112,14 +206,22 @@ namespace ASLM.Services.Modules
                         store.AppendLineCore(module.Sessions[MaintenanceSessionId], value);
                         module.LastActivityUtc = DateTimeOffset.UtcNow;
                     }
+
                     store.RaiseStateChanged();
                 }
+
                 downstream?.Report(value);
             }
         }
 
+        /// <summary>
+        /// Scope of one running maintenance activity; disposing it ends the activity.
+        /// </summary>
         private sealed class ActivityScope(ModuleConsoleStore store, string sourcePath, Guid token) : IDisposable
         {
+            /// <summary>
+            /// Removes the activity from the store and notifies listeners; repeated disposal does nothing.
+            /// </summary>
             public void Dispose()
             {
                 lock (store._sync)
@@ -127,6 +229,7 @@ namespace ASLM.Services.Modules
                     if (!store._activities.TryGetValue(sourcePath, out var active) || !active.Remove(token)) return;
                     if (active.Count == 0) store._activities.Remove(sourcePath);
                 }
+
                 store.RaiseStateChanged();
             }
         }
@@ -260,6 +363,13 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Creates a tracked console session for a started module process.
         /// </summary>
+        /// <param name="module">Module that owns the process.</param>
+        /// <param name="command">Manifest command the process was started for; supplies the title and description.</param>
+        /// <param name="stage">Lifecycle stage shown for the session; <c>Command</c> when blank.</param>
+        /// <param name="commandLine">Command line echoed as the first line of the session, when not blank.</param>
+        /// <param name="process">Started process whose id the session records.</param>
+        /// <param name="isTrackedProcess">True for long-running processes that count as running module processes.</param>
+        /// <returns>A handle that identifies the new session for later output and completion calls.</returns>
         public ModuleConsoleSessionHandle StartProcessSession(
             ModuleConfig module,
             ModuleCommand command,
@@ -274,6 +384,7 @@ namespace ASLM.Services.Modules
             {
                 EnsureModuleCore(module);
 
+                // Create the session; an unnamed command is titled by its executable.
                 var moduleState = _modules[module.SourcePath];
                 sessionState = new ModuleConsoleSessionState
                 {
@@ -290,6 +401,7 @@ namespace ASLM.Services.Modules
                     StartedUtc = DateTimeOffset.UtcNow
                 };
 
+                // Register the session and echo the command line as its first output line.
                 moduleState.Sessions[sessionState.Id] = sessionState;
                 moduleState.LastActivityUtc = sessionState.StartedUtc;
 
@@ -333,7 +445,8 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Marks a process console session as completed.
+        /// Marks a process console session as completed and records its exit code.
+        /// Unknown handles are ignored.
         /// </summary>
         public void CompleteProcessSession(ModuleConsoleSessionHandle handle, int? exitCode)
         {
@@ -359,7 +472,12 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Synchronizes observed child processes that were started by a running module process.
+        /// Each observed process gets its own session without captured output, because its streams are not
+        /// available; sessions of processes missing from the latest scan are marked as ended.
         /// </summary>
+        /// <param name="module">Module that owns the observed processes.</param>
+        /// <param name="ownerHandle">Session of the module process whose children were scanned.</param>
+        /// <param name="observedProcesses">Child processes found by the latest scan.</param>
         public void SyncObservedProcesses(
             ModuleConfig module,
             ModuleConsoleSessionHandle ownerHandle,
@@ -373,6 +491,8 @@ namespace ASLM.Services.Modules
 
                 var moduleState = _modules[module.SourcePath];
                 GetOrCreateOverviewSessionCore(moduleState);
+
+                // Nothing to sync when the owner session is unknown.
                 var ownerSessionId = ownerHandle.SessionId;
                 if (string.IsNullOrWhiteSpace(ownerSessionId) ||
                     !moduleState.Sessions.ContainsKey(ownerSessionId))
@@ -380,6 +500,7 @@ namespace ASLM.Services.Modules
                     return;
                 }
 
+                // Ids of the processes seen in this scan, used below to detect processes that disappeared.
                 var activeProcessIds = observedProcesses
                     .Select(process => process.ProcessId)
                     .ToHashSet();
@@ -391,6 +512,7 @@ namespace ASLM.Services.Modules
                         .FirstOrDefault(session => session.ProcessId == process.ProcessId &&
                                                    string.Equals(session.ObservedOwnerSessionId, ownerSessionId, StringComparison.OrdinalIgnoreCase));
 
+                    // A known process is kept running; a session that had ended counts as a state change.
                     if (existingSession != null)
                     {
                         var wasCompleted = !existingSession.IsRunning || existingSession.EndedUtc.HasValue;
@@ -401,6 +523,7 @@ namespace ASLM.Services.Modules
                         continue;
                     }
 
+                    // A new process gets a session whose id is derived from the process id.
                     var sessionState = new ModuleConsoleSessionState
                     {
                         Id = $"observed:{process.ProcessId}",
@@ -556,6 +679,8 @@ namespace ASLM.Services.Modules
         /// </summary>
         private static IEnumerable<ModuleConsoleLineState> BuildUnifiedModuleEntries(ModuleConsoleModuleState module)
         {
+            // Only the overview and the settings sessions belong to the unified module log; process output
+            // stays in its own consoles.
             foreach (var session in module.Sessions.Values)
             {
                 var includeSession = string.Equals(session.Id, OverviewSessionId, StringComparison.OrdinalIgnoreCase) ||
@@ -570,6 +695,8 @@ namespace ASLM.Services.Modules
                     ? $"[{module.Name}]"
                     : $"[{module.Name}] [{session.Title}]";
 
+                // Re-emit each line with a local timestamp and a module (and session) prefix; the original sequence
+                // is kept so merged logs stay in chronological order.
                 foreach (var line in session.Lines)
                 {
                     yield return new ModuleConsoleLineState
@@ -583,13 +710,16 @@ namespace ASLM.Services.Modules
         }
 
 
-        // Internal helpers
+        // State helpers
 
         /// <summary>
         /// Ensures one module exists and refreshes its name and enabled flag when they changed.
+        /// Returns true when the stored name or enabled flag had to be updated.
+        /// The caller must hold the store lock.
         /// </summary>
         private bool EnsureModuleCore(ModuleConfig module)
         {
+            // Create the state on first use; its empty name and disabled flag are filled in by the checks below.
             if (!_modules.TryGetValue(module.SourcePath, out var moduleState))
             {
                 moduleState = new ModuleConsoleModuleState
@@ -654,14 +784,17 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Appends one buffered line to a session and enforces per-session retention limits.
+        /// The caller must hold the store lock.
         /// </summary>
         private void AppendLineCore(ModuleConsoleSessionState sessionState, string message)
         {
+            // Cut over-long lines before they are stored.
             if (message.Length > MaxStoredLineLength)
             {
                 message = message[..MaxStoredLineLength] + " ... [truncated]";
             }
 
+            // Stamp the line with a store-wide sequence number so lines of different sessions can be merged in order.
             sessionState.Lines.Add(new ModuleConsoleLineState
             {
                 Sequence = ++_lineSequence,
@@ -670,11 +803,15 @@ namespace ASLM.Services.Modules
             });
             sessionState.LastPreview = message.Trim();
 
+            // Keep only the newest lines of the session.
             if (sessionState.Lines.Count > MaxLinesPerSession)
             {
                 sessionState.Lines.RemoveRange(0, sessionState.Lines.Count - MaxLinesPerSession);
             }
         }
+
+
+        // Display trimming
 
         /// <summary>
         /// Truncates one line to the maximum length shown in the UI.
@@ -691,9 +828,12 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Selects the newest lines by sequence while preserving total line count for trim messaging.
+        /// The result is ordered by ascending sequence.
         /// </summary>
         private static (List<ModuleConsoleLineState> Lines, int TotalCount) SelectLatestDisplayEntries(IEnumerable<ModuleConsoleLineState> entries)
         {
+            // A min-heap bounded to MaxDisplayedLines keeps the newest lines in one pass: whenever it overflows,
+            // the entry with the lowest sequence (the oldest line) is evicted.
             var heap = new PriorityQueue<ModuleConsoleLineState, long>();
             var totalCount = 0;
 
@@ -707,6 +847,7 @@ namespace ASLM.Services.Modules
                 }
             }
 
+            // Drain the surviving entries and sort them explicitly, so the result is in ascending sequence order.
             var latestEntries = new List<ModuleConsoleLineState>(heap.Count);
             while (heap.TryDequeue(out var entry, out _))
             {
@@ -719,7 +860,10 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Builds UI-safe display lines with line-count and character-budget trimming.
+        /// A banner line is prepended when older output was omitted.
         /// </summary>
+        /// <param name="lines">Buffered lines in ascending sequence order.</param>
+        /// <param name="totalLineCountOverride">Number of lines before an earlier selection step, when it trimmed already.</param>
         private static IReadOnlyList<string> BuildDisplayLines(IReadOnlyList<ModuleConsoleLineState> lines, int? totalLineCountOverride = null)
         {
             // Take the newest tail of buffered lines, applying per-line display truncation.
@@ -760,6 +904,9 @@ namespace ASLM.Services.Modules
             return selectedLines;
         }
 
+
+        // Lookup, snapshots and notification
+
         /// <summary>
         /// Resolves a live session handle to its module and session state under the store lock.
         /// </summary>
@@ -794,9 +941,11 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Projects one module's mutable state into an immutable UI snapshot.
+        /// Console text is not copied; sessions carry only counts and a preview.
         /// </summary>
         private static ModuleConsoleModuleSnapshot CreateModuleSnapshotCore(ModuleConsoleModuleState moduleState)
         {
+            // Order sessions: running first, then the overview session, then newest first.
             var sessions = moduleState.Sessions.Values
                 .OrderByDescending(session => session.IsRunning)
                 .ThenBy(session => session.Id == OverviewSessionId ? 0 : 1)
@@ -821,6 +970,7 @@ namespace ASLM.Services.Modules
                 })
                 .ToList();
 
+            // Observed child processes are excluded from the active process count; only tracked processes count.
             return new ModuleConsoleModuleSnapshot
             {
                 SourcePath = moduleState.SourcePath,
@@ -837,11 +987,13 @@ namespace ASLM.Services.Modules
         /// </summary>
         private void RaiseStateChanged()
         {
+            // Only the first change of a burst queues a notification; later changes are covered by it.
             if (Interlocked.Exchange(ref _stateChangeQueued, 1) == 1)
             {
                 return;
             }
 
+            // The flag is cleared before raising, so a change made by a handler queues the next notification.
             _ = Task.Run(async () =>
             {
                 await Task.Delay(StateChangedDebounceMilliseconds);
@@ -851,6 +1003,8 @@ namespace ASLM.Services.Modules
         }
     }
 
+
+    // Snapshots and handles
 
     /// <summary>
     /// Represents the console snapshot for one module.
@@ -972,10 +1126,48 @@ namespace ASLM.Services.Modules
     /// <summary>
     /// References one live console session in the store.
     /// </summary>
+    /// <param name="ModuleSourcePath">Manifest path of the module that owns the session.</param>
+    /// <param name="SessionId">Identifier of the session inside that module.</param>
     public readonly record struct ModuleConsoleSessionHandle(string ModuleSourcePath, string SessionId);
 
-    // Parent maintenance operations remain visible during their nested stop/restart steps.
-    internal enum ModuleActivity { Stopping, Restarting, Updating, Installing }
+
+    // Maintenance activity and observed processes
+
+    /// <summary>
+    /// Kind of transient maintenance operation running for a module.
+    /// The order is significant: when several activities of one module overlap, the highest value is reported,
+    /// so parent operations (updating, installing) remain visible during their nested stop and restart steps.
+    /// </summary>
+    internal enum ModuleActivity
+    {
+        /// <summary>
+        /// The module is being stopped.
+        /// </summary>
+        Stopping,
+
+        /// <summary>
+        /// The module is being restarted.
+        /// </summary>
+        Restarting,
+
+        /// <summary>
+        /// The module is being updated to a newer version.
+        /// </summary>
+        Updating,
+
+        /// <summary>
+        /// The module is being installed.
+        /// </summary>
+        Installing
+    }
+
+    /// <summary>
+    /// Maintenance state of one module, read consistently under a single store lock.
+    /// </summary>
+    /// <param name="Activity">Strongest running maintenance activity, or null when none is running.</param>
+    /// <param name="IsRunning">True when a tracked process of the module is running.</param>
+    /// <param name="SessionKey">Identifies the current maintenance session; changes when a new session starts.</param>
+    /// <param name="Text">Maintenance console text prepared for display, or empty when there is none.</param>
     internal sealed record ModuleMaintenanceSnapshot(ModuleActivity? Activity, bool IsRunning, string SessionKey, string Text);
 
     /// <summary>
@@ -983,20 +1175,48 @@ namespace ASLM.Services.Modules
     /// </summary>
     public sealed class ObservedProcessInfo
     {
+        /// <summary>
+        /// Operating system process identifier.
+        /// </summary>
         public int ProcessId { get; set; }
+
+        /// <summary>
+        /// Process name shown as the title of the observed session.
+        /// </summary>
         public string ProcessName { get; set; } = string.Empty;
     }
 
+
+    // Mutable store state
 
     /// <summary>
     /// Mutable per-module console state held inside the store.
     /// </summary>
     internal sealed class ModuleConsoleModuleState
     {
+        /// <summary>
+        /// Manifest path that identifies the module in the store.
+        /// </summary>
         public string SourcePath { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Module display name, refreshed from the manifest.
+        /// </summary>
         public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Last known enabled flag of the module.
+        /// </summary>
         public bool IsEnabled { get; set; }
+
+        /// <summary>
+        /// Time of the latest console activity of the module, or null when there was none yet.
+        /// </summary>
         public DateTimeOffset? LastActivityUtc { get; set; }
+
+        /// <summary>
+        /// Console sessions of the module by session id.
+        /// </summary>
         public Dictionary<string, ModuleConsoleSessionState> Sessions { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -1005,20 +1225,79 @@ namespace ASLM.Services.Modules
     /// </summary>
     internal sealed class ModuleConsoleSessionState
     {
+        /// <summary>
+        /// Session identifier, unique inside its module.
+        /// </summary>
         public string Id { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Title shown for the session.
+        /// </summary>
         public string Title { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Description of the manifest command that started the session.
+        /// </summary>
         public string CommandDescription { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Lifecycle stage of the session, such as Command, Settings, Lifecycle or Maintenance.
+        /// </summary>
         public string Stage { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Full command line of the process, echoed as the first output line.
+        /// </summary>
         public string CommandLine { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Operating system process identifier, or null for sessions without a process.
+        /// </summary>
         public int? ProcessId { get; set; }
+
+        /// <summary>
+        /// Whether the process of the session is still running.
+        /// </summary>
         public bool IsRunning { get; set; }
+
+        /// <summary>
+        /// Whether the session belongs to a long-running process that ASLM tracks as a running module process.
+        /// </summary>
         public bool IsTrackedProcess { get; set; }
+
+        /// <summary>
+        /// Whether the session describes a child process that was only observed, without stream capture.
+        /// </summary>
         public bool IsObservedProcess { get; set; }
+
+        /// <summary>
+        /// Id of the session whose process started the observed child; empty for other sessions.
+        /// </summary>
         public string ObservedOwnerSessionId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Exit code of the process once it completed, or null while it runs or when the code is unknown.
+        /// </summary>
         public int? ExitCode { get; set; }
+
+        /// <summary>
+        /// Time when the session started.
+        /// </summary>
         public DateTimeOffset StartedUtc { get; set; }
+
+        /// <summary>
+        /// Time when the session ended, or null while it is running.
+        /// </summary>
         public DateTimeOffset? EndedUtc { get; set; }
+
+        /// <summary>
+        /// Trimmed text of the latest line, shown as the session preview.
+        /// </summary>
         public string LastPreview { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Buffered output lines in the order they were added.
+        /// </summary>
         public List<ModuleConsoleLineState> Lines { get; } = [];
     }
 
@@ -1027,8 +1306,19 @@ namespace ASLM.Services.Modules
     /// </summary>
     internal sealed class ModuleConsoleLineState
     {
+        /// <summary>
+        /// Store-wide sequence number that orders lines across sessions and modules.
+        /// </summary>
         public long Sequence { get; set; }
+
+        /// <summary>
+        /// Time when the line was added.
+        /// </summary>
         public DateTimeOffset TimestampUtc { get; set; }
+
+        /// <summary>
+        /// Line text, possibly truncated to the storage limit.
+        /// </summary>
         public string Text { get; set; } = string.Empty;
     }
 }

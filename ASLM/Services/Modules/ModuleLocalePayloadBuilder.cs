@@ -13,9 +13,21 @@ namespace ASLM.Services.Modules
     /// </summary>
     public sealed class ModuleLocalePayloadBuilder
     {
+        // Fields
+
+        /// <summary>
+        /// Application data store that supplies the user's selected UI language.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Logger for payload build failures.
+        /// </summary>
         private readonly ILogger<ModuleLocalePayloadBuilder> _logger;
 
+        /// <summary>
+        /// Compact camelCase JSON settings; null values are omitted.
+        /// </summary>
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -40,11 +52,13 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Serializes the active host language to a single-line JSON string.
+        /// Falls back to an English payload when the language cannot be read or serialized.
         /// </summary>
         public string BuildJson()
         {
             try
             {
+                // Normalize the stored language code to a supported one and attach its native display name.
                 var language = AppPersonalizationConfig.NormalizeLanguage(_appData.Data.Personalization.Language);
                 var dto = new ModuleHostLocalePayloadDto
                 {
@@ -56,6 +70,7 @@ namespace ASLM.Services.Modules
             }
             catch (Exception ex)
             {
+                // A module must always receive a valid locale payload, so a failure degrades to English.
                 _logger.LogError(ex, "Failed to build module host locale payload.");
                 return "{\"language\":\"en\",\"displayName\":\"English\"}";
             }
@@ -69,8 +84,14 @@ namespace ASLM.Services.Modules
         /// </summary>
         private sealed class ModuleHostLocalePayloadDto
         {
+            /// <summary>
+            /// Normalized ASLM UI language code, for example <c>en</c>.
+            /// </summary>
             public string Language { get; set; } = "en";
 
+            /// <summary>
+            /// Language name written in that language itself.
+            /// </summary>
             public string DisplayName { get; set; } = "English";
         }
     }

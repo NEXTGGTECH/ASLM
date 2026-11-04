@@ -13,10 +13,26 @@ namespace ASLM.Services.Modules
     /// </summary>
     public sealed class ModuleThemePayloadBuilder
     {
+        // Fields
+
+        /// <summary>
+        /// Application data store that supplies the user's appearance and custom theme selection.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Store of user-defined themes, used to resolve the selected custom theme.
+        /// </summary>
         private readonly CustomThemesStore _customThemes;
+
+        /// <summary>
+        /// Logger for payload build failures.
+        /// </summary>
         private readonly ILogger<ModuleThemePayloadBuilder> _logger;
 
+        /// <summary>
+        /// Compact camelCase JSON settings; null values are omitted.
+        /// </summary>
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -45,11 +61,13 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Serializes the active host theme (appearance + resolved palette) to a single-line JSON string.
+        /// Falls back to a dark payload with an empty palette when the theme cannot be resolved or serialized.
         /// </summary>
         public string BuildJson()
         {
             try
             {
+                // Read the stored appearance; unknown values are normalized to System.
                 var personalization = _appData.Data.Personalization;
                 var appearance = AppPersonalizationConfig.NormalizeAppearance(personalization.Appearance);
                 string effectiveLightDark;
@@ -69,6 +87,8 @@ namespace ASLM.Services.Modules
                 }
                 else if (string.Equals(appearance, "Custom", StringComparison.Ordinal))
                 {
+                    // The selected custom theme decides light or dark through its base appearance;
+                    // a missing or unknown custom theme falls back to the built-in dark palette.
                     var id = string.IsNullOrWhiteSpace(personalization.CustomThemeId)
                         ? null
                         : personalization.CustomThemeId.Trim();
@@ -94,16 +114,19 @@ namespace ASLM.Services.Modules
                 }
                 else
                 {
+                    // Dark appearance.
                     effectiveLightDark = "dark";
                     palette = ThemePaletteResolver.BuildDarkPalette();
                 }
 
+                // Convert the resolved palette to hex strings that modules can use directly.
                 var colors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var (key, color) in palette)
                 {
                     colors[key] = ThemePaletteResolver.ToHex(color);
                 }
 
+                // Assemble the payload: the selected appearance, the effective light or dark mode and the colors.
                 var dto = new ModuleHostThemePayloadDto
                 {
                     Appearance = appearance,
@@ -117,6 +140,7 @@ namespace ASLM.Services.Modules
             }
             catch (Exception ex)
             {
+                // A module must always receive a valid theme payload, so a failure degrades to the dark theme.
                 _logger.LogError(ex, "Failed to build module host theme payload.");
                 return "{\"theme\":\"dark\",\"appearance\":\"Dark\",\"colors\":{}}";
             }
@@ -134,6 +158,7 @@ namespace ASLM.Services.Modules
             }
             catch
             {
+                // Without a MAUI app context the system theme is unknown; dark is the default.
                 return true;
             }
         }
@@ -146,14 +171,29 @@ namespace ASLM.Services.Modules
         /// </summary>
         private sealed class ModuleHostThemePayloadDto
         {
+            /// <summary>
+            /// Appearance selected by the user: <c>System</c>, <c>Light</c>, <c>Dark</c> or <c>Custom</c>.
+            /// </summary>
             public string Appearance { get; set; } = "Dark";
 
+            /// <summary>
+            /// Effective mode after resolving the appearance: <c>light</c> or <c>dark</c>.
+            /// </summary>
             public string Theme { get; set; } = "dark";
 
+            /// <summary>
+            /// Id of the active custom theme, or null when no custom theme applies.
+            /// </summary>
             public string? CustomThemeId { get; set; }
 
+            /// <summary>
+            /// Display name of the active custom theme, or null when no custom theme applies.
+            /// </summary>
             public string? CustomThemeName { get; set; }
 
+            /// <summary>
+            /// Palette keys mapped to <c>#AARRGGBB</c> hex color strings.
+            /// </summary>
             public Dictionary<string, string> Colors { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         }
     }

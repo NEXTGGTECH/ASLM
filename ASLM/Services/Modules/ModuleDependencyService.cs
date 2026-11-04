@@ -10,11 +10,31 @@ namespace ASLM.Services.Modules
     /// </summary>
     public sealed class ModuleDependencyService
     {
+        // Fields
+
+        /// <summary>
+        /// Ids of the dependencies on the path currently being prepared in this async flow, used to detect cycles.
+        /// It lives in an <see cref="AsyncLocal{T}"/> so a nested call in the same flow joins the outer traversal.
+        /// </summary>
         private static readonly AsyncLocal<HashSet<string>?> DependencyVisitStack = new();
 
+        /// <summary>
+        /// Installer that discovers modules, reconciles their engines and saves their manifests.
+        /// </summary>
         private readonly ModuleInstaller _installer;
+
+        /// <summary>
+        /// Runner that executes the first-run setup of a dependency module.
+        /// </summary>
         private readonly ModuleRunner _runner;
+
+        /// <summary>
+        /// Logger for dependency preparation failures.
+        /// </summary>
         private readonly ILogger<ModuleDependencyService> _logger;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the module dependency service.
@@ -29,14 +49,20 @@ namespace ASLM.Services.Modules
             _logger = logger;
         }
 
+
+        // Dependency preparation
+
         /// <summary>
         /// Runs first-run setup for every declared module dependency that is not ready yet.
+        /// Returns false when a dependency is missing, unsupported, circular or fails to prepare;
+        /// the reason is written to <paramref name="log"/>.
         /// </summary>
         public async Task<bool> EnsureFirstRunCompletedAsync(
             ModuleConfig module,
             IProgress<string> log,
             CancellationToken ct)
         {
+            // The outermost call creates the visit stack and clears it again; nested calls reuse it.
             var visitStack = DependencyVisitStack.Value;
             var ownsVisitStack = visitStack == null;
             if (ownsVisitStack)
@@ -59,7 +85,8 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Traverses transitive dependencies and prepares each module once in dependency order.
+        /// Traverses transitive dependencies depth first and runs the setup of each one that is not ready yet,
+        /// so deeper dependencies are prepared before the modules that need them.
         /// </summary>
         private async Task<bool> EnsureFirstRunCompletedCoreAsync(
             ModuleConfig module,
@@ -75,6 +102,7 @@ namespace ASLM.Services.Modules
                     continue;
                 }
 
+                // Cycle guard: a module that depends on itself, or an id already on the active path, stops the run.
                 if (string.Equals(dependencyId, module.Id, StringComparison.OrdinalIgnoreCase))
                 {
                     log.Report($"Circular module dependency detected: '{module.Name}' depends on itself.");
@@ -89,6 +117,7 @@ namespace ASLM.Services.Modules
 
                 try
                 {
+                    // The dependency must be installed and usable on this platform.
                     var dependencyModule = await ResolveInstalledModuleAsync(dependencyId, log, ct);
                     if (dependencyModule == null)
                     {
@@ -102,11 +131,13 @@ namespace ASLM.Services.Modules
                         return false;
                     }
 
+                    // Prepare the dependency's own dependencies first.
                     if (!await EnsureFirstRunCompletedCoreAsync(dependencyModule, log, ct, visitStack))
                     {
                         return false;
                     }
 
+                    // A dependency that already completed its first run needs no further work.
                     if (dependencyModule.Status.FirstRunCompleted)
                     {
                         continue;
@@ -132,6 +163,7 @@ namespace ASLM.Services.Modules
                         return false;
                     }
 
+                    // Run the setup; its own dependencies were handled above, so the runner must not repeat them.
                     log.Report($"[Deps] Running first-run setup for dependency module '{dependencyModule.Name}'...");
                     if (!await _runner.ExecuteFirstRunAsync(dependencyModule, log, ct, skipModuleDependencies: true))
                     {
@@ -139,12 +171,14 @@ namespace ASLM.Services.Modules
                         return false;
                     }
 
+                    // Persist the completed setup so the dependency is not prepared again.
                     dependencyModule.Status.Installed = true;
                     dependencyModule.Status.FirstRunCompleted = true;
                     await _installer.SaveConfigAsync(dependencyModule);
                 }
                 finally
                 {
+                    // Leave the active path, so the same dependency may legitimately be reached from another branch.
                     visitStack.Remove(dependencyId);
                 }
             }
@@ -152,8 +186,13 @@ namespace ASLM.Services.Modules
             return true;
         }
 
+
+        // Module lookup
+
         /// <summary>
         /// Resolves one installed dependency manifest by its stable module identifier.
+        /// Returns null (after logging the reason) when discovery fails or no module has that id;
+        /// when several modules share the id, the one with the alphabetically first manifest path wins.
         /// </summary>
         private async Task<ModuleConfig?> ResolveInstalledModuleAsync(
             string moduleId,
@@ -172,6 +211,7 @@ namespace ASLM.Services.Modules
                 return null;
             }
 
+            // Sort by manifest path so the choice among duplicated ids is deterministic.
             var matches = modules
                 .Where(module => string.Equals(module.Id, moduleId, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(module => module.SourcePath, StringComparer.OrdinalIgnoreCase)

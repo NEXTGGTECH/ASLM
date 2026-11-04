@@ -10,9 +10,11 @@ namespace ASLM.Services.Modules
     /// </summary>
     internal static class ModuleInteropPortsBuilder
     {
+        // Response blocks
+
         /// <summary>
         /// Builds the ASLM API block for interop responses.
-        /// Returns <c>null</c> when the ASLM API server is disabled.
+        /// When the ASLM API server is disabled, only <c>Enabled</c> is set (to false) and all other values are null.
         /// </summary>
         internal static AslmApiInfoDto BuildAslmApiDto(
             bool apiEnabled,
@@ -30,7 +32,8 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Builds the list of host entries for one running module.
+        /// Builds the list of host entries for one running module, ordered by port and then by key.
+        /// Entries without a positive port are skipped; the mirror URL is set only when a mirror base URL is given.
         /// </summary>
         internal static List<ModuleHostDto> BuildHosts(
             ModuleConfig module,
@@ -40,6 +43,7 @@ namespace ASLM.Services.Modules
             if (assignedPorts == null || assignedPorts.Count == 0)
                 return [];
 
+            // One host per assigned port: its direct loopback URL and its path below the API mirror.
             var hosts = new List<ModuleHostDto>();
             foreach (var (hostKey, port) in assignedPorts.OrderBy(static p => p.Value).ThenBy(static p => p.Key))
             {
@@ -59,7 +63,8 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Builds a running-module ports entry for one module config.
+        /// Builds a running-module ports entry for one module config from the ports already assigned to it.
+        /// The instance folder is the name of the directory that holds the module manifest.
         /// </summary>
         internal static RunningModulePortsDto BuildRunningModulePorts(
             ModuleConfig module,
@@ -84,6 +89,8 @@ namespace ASLM.Services.Modules
         /// Resolves the API mirror base URL to include in host <c>mirrorUrl</c> fields.
         /// Returns <c>null</c> when the ASLM API is disabled or has no port assigned.
         /// </summary>
+        /// <param name="apiEnabled">Whether the ASLM API server is enabled.</param>
+        /// <param name="apiPort">Port assigned to the ASLM API mirror server, if any.</param>
         internal static string? ResolveMirrorBaseUrl(bool apiEnabled, int? apiPort)
         {
             if (!apiEnabled || !apiPort.HasValue)
@@ -93,9 +100,16 @@ namespace ASLM.Services.Modules
         }
     }
 
+
+    // Interop response DTOs
+
     /// <summary>
     /// ASLM API mirror server state for interop API responses.
     /// </summary>
+    /// <param name="Enabled">Whether the ASLM API server is enabled.</param>
+    /// <param name="Running">Whether the server is running, or null when it is disabled.</param>
+    /// <param name="Port">Port assigned to the server, or null when disabled or unassigned.</param>
+    /// <param name="BaseUrl">Loopback root URL of the server, or null when there is no port.</param>
     internal sealed record AslmApiInfoDto(
         bool Enabled,
         bool? Running,
@@ -105,6 +119,11 @@ namespace ASLM.Services.Modules
     /// <summary>
     /// One host (port-map entry) of a running module.
     /// </summary>
+    /// <param name="HostKey">Key of the port in the module's port map.</param>
+    /// <param name="RouteKey">Host key reduced to the route segment used below the API mirror URL.</param>
+    /// <param name="Port">Assigned TCP port.</param>
+    /// <param name="TargetUrl">Direct loopback URL of the port.</param>
+    /// <param name="MirrorUrl">URL of this host below the ASLM API mirror, or null when no mirror is available.</param>
     internal sealed record ModuleHostDto(
         string HostKey,
         string RouteKey,
@@ -115,6 +134,12 @@ namespace ASLM.Services.Modules
     /// <summary>
     /// Ports and hosts for one running module instance.
     /// </summary>
+    /// <param name="Id">Module id.</param>
+    /// <param name="Name">Module display name.</param>
+    /// <param name="InstanceFolder">Name of the folder that holds the module manifest.</param>
+    /// <param name="SourcePath">Path of the module manifest.</param>
+    /// <param name="PageUrl">Loopback URL of the module page, or null when no port is assigned.</param>
+    /// <param name="Hosts">All hosts of the module.</param>
     internal sealed record RunningModulePortsDto(
         string Id,
         string Name,

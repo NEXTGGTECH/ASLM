@@ -7,11 +7,16 @@ namespace ASLM.Services.Modules
     /// </summary>
     public sealed class ModuleStartThrottle
     {
+        // Fields and constants
+
         /// <summary>
         /// Default maximum concurrent module starts (matches historical shell startup throttling).
         /// </summary>
         public const int DefaultMaxConcurrentStarts = 2;
 
+        /// <summary>
+        /// Counting semaphore whose permits are the free launch slots.
+        /// </summary>
         private readonly SemaphoreSlim _semaphore;
 
 

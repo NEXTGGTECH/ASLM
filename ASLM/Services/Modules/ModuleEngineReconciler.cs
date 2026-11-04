@@ -10,7 +10,15 @@ namespace ASLM.Services.Modules
     /// </summary>
     public sealed class ModuleEngineReconciler
     {
+        // Fields
+
+        /// <summary>
+        /// Shared engine service that discovers engines and runs their installation.
+        /// </summary>
         private readonly EngineInstaller _engineInstaller;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates a reconciler backed by the shared engine installation service.
@@ -20,9 +28,20 @@ namespace ASLM.Services.Modules
             _engineInstaller = engineInstaller;
         }
 
+
+        // Reconciliation
+
         /// <summary>
         /// Installs required engines and refreshes changed module-provided definitions.
+        /// An engine is (re)installed when it is not installed yet, or when it is provided by a module and the
+        /// fingerprint of its definition differs from the one recorded at installation.
         /// </summary>
+        /// <param name="module">Module whose engine dependencies and provided engines are reconciled.</param>
+        /// <param name="log">Receives human-readable progress messages.</param>
+        /// <param name="downloadProgress">Optional receiver of engine download progress.</param>
+        /// <param name="ct">Cancellation token checked between engines.</param>
+        /// <exception cref="InvalidOperationException">Thrown when a required engine cannot be found.</exception>
+        /// <exception cref="PlatformNotSupportedException">Thrown when a required engine does not support the current platform.</exception>
         public async Task ReconcileRequiredEnginesAsync(
             ModuleConfig module,
             IProgress<string> log,
@@ -55,7 +74,7 @@ namespace ASLM.Services.Modules
                 return;
             }
 
-            // Resolve support and fingerprint state before deciding whether installation is needed.
+            // Look up each target and verify it can run here before deciding whether installation is needed.
             foreach (var engineId in targetIds)
             {
                 ct.ThrowIfCancellationRequested();
@@ -74,6 +93,7 @@ namespace ASLM.Services.Modules
                         $"Engine '{engine.Name}' does not support {PlatformInfo.PlatformKey}.");
                 }
 
+                // Only module-provided engines are reinstalled on a definition change; standalone ones are left alone.
                 var definitionHash = EngineManifestFingerprint.Compute(engine);
                 var manifestChanged = engine.IsModuleProvided &&
                     engine.Status.Installed &&
@@ -82,6 +102,7 @@ namespace ASLM.Services.Modules
                         definitionHash,
                         StringComparison.OrdinalIgnoreCase);
 
+                // Skip engines that are installed and current; install or reinstall the rest.
                 if (engine.Status.Installed && !manifestChanged)
                 {
                     log.Report($"[OK] Engine '{engine.Name}' already installed.");
@@ -100,6 +121,7 @@ namespace ASLM.Services.Modules
                 await _engineInstaller.InstallAsync(engine, log, downloadProgress, ct);
             }
 
+            // Installations above change engine state on disk, so the next engine lookup must reload the manifests.
             _engineInstaller.InvalidateCache();
         }
     }
