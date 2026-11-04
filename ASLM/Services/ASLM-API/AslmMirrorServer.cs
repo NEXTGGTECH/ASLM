@@ -19,32 +19,105 @@ namespace ASLM.Services.API
     /// </summary>
     public class AslmMirrorServer : IDisposable
     {
+        // Constants and shared state
+
+        /// <summary>
+        /// Maximum number of same-backend redirects the proxy follows itself before answering the browser.
+        /// </summary>
         private const int BackendRedirectLimit = 10;
+
+        /// <summary>
+        /// Request header that tells the backend under which mirror route prefix it is mounted.
+        /// </summary>
         private const string RouteHeaderName = "X-ASLM-Mirror-Route";
+
+        /// <summary>
+        /// HTTP client shared by all proxied backend requests.
+        /// </summary>
         private static readonly HttpClient ProxyClient = CreateProxyClient();
 
+
+        // Dependencies
+
+        /// <summary>
+        /// Persisted application settings; provide the enabled switch and the fallback port for the mirror.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Shared port map from which the mirror port is read and reserved.
+        /// </summary>
         private readonly PortRegistry _ports;
+
+        /// <summary>
+        /// Module registry and discovery, used to expose only installed modules and to show their enabled state.
+        /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Logger for startup failures, request errors and port map problems.
+        /// </summary>
         private readonly ILogger<AslmMirrorServer> _logger;
+
+        /// <summary>
+        /// JSON settings used to read the port map file; property names are case-insensitive.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
 
+
+        // Server state
+
+        /// <summary>
+        /// Guards the listener fields and the last error against concurrent start, stop and reads.
+        /// </summary>
         private readonly object _stateLock = new();
+
+        /// <summary>
+        /// Absolute path of <c>Data/App/ASLM_Ports.json</c>, which lists the hosts of running modules.
+        /// </summary>
         private readonly string _portMapPath;
+
+        /// <summary>
+        /// Active HTTP listener, or null while the server is stopped.
+        /// </summary>
         private HttpListener? _listener;
+
+        /// <summary>
+        /// Cancellation source that ends the request loop of the active listener.
+        /// </summary>
         private CancellationTokenSource? _listenerCts;
+
+        /// <summary>
+        /// Background task that accepts requests for the active listener.
+        /// </summary>
         private Task? _listenerTask;
+
+        /// <summary>
+        /// Port the listener is bound to, or null while the server is stopped.
+        /// </summary>
         private int? _activePort;
+
+        /// <summary>
+        /// Set once the server was disposed, so a repeated disposal does nothing.
+        /// </summary>
         private bool _disposed;
+
+        /// <summary>
+        /// Message of the most recent startup failure; empty after a successful start.
+        /// </summary>
         private string _lastError = string.Empty;
+
+
+        // Events
 
         /// <summary>
         /// Raised when the server state changes and bound views should refresh.
         /// </summary>
         public event EventHandler? StateChanged;
+
 
         // Initialization
 
@@ -89,7 +162,8 @@ namespace ASLM.Services.API
         public bool IsEnabled => _appData.Data.Api.ServerEnabled;
 
         /// <summary>
-        /// Gets the localhost port reserved for the ASLM mirror server.
+        /// Gets the localhost port of the mirror server: the bound port while listening, otherwise the port reserved
+        /// in the shared port map, otherwise the start of the module port range.
         /// </summary>
         public int Port
         {
@@ -128,9 +202,11 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Starts the reverse proxy when persisted settings say it should be enabled.
+        /// The port map is redistributed either way, so the mirror port is only reserved while the proxy is enabled.
         /// </summary>
         public async Task StartIfEnabledAsync()
         {
+            // A disabled proxy gives its reserved port back to the shared pool.
             if (!IsEnabled)
             {
                 _ports.RedistributePorts(reserveAslmMirrorServer: false);
@@ -146,6 +222,7 @@ namespace ASLM.Services.API
         /// </summary>
         public async Task SetEnabledAsync(bool enabled)
         {
+            // Nothing to do when the state does not change.
             if (_appData.Data.Api.ServerEnabled == enabled)
             {
                 return;
@@ -154,6 +231,7 @@ namespace ASLM.Services.API
             _appData.Data.Api.ServerEnabled = enabled;
             _appData.Save();
 
+            // Reserve the port before starting, and release it only after the listener has stopped.
             if (enabled)
             {
                 _ports.RedistributePorts(reserveAslmMirrorServer: true);
@@ -167,7 +245,8 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Starts the local listener and background request loop.
+        /// Starts the local listener and background request loop. Does nothing when the listener is already running;
+        /// a startup failure is stored in <see cref="LastError"/> instead of being thrown.
         /// </summary>
         public Task StartAsync()
         {
@@ -180,17 +259,21 @@ namespace ASLM.Services.API
 
                 try
                 {
+                    // Bind to the loopback address on the port reserved for this service.
                     var assignedPort = GetAssignedPort();
                     _listenerCts = new CancellationTokenSource();
                     _listener = new HttpListener();
                     _listener.Prefixes.Add(BuildBaseUrl(assignedPort));
                     _listener.Start();
+
+                    // Remember the bound port and begin accepting requests.
                     _activePort = assignedPort;
                     _lastError = string.Empty;
                     _listenerTask = Task.Run(() => RunListenerLoopAsync(_listener, _listenerCts.Token));
                 }
                 catch (Exception ex)
                 {
+                    // Roll back to the stopped state so a later start can retry.
                     _lastError = ex.Message;
                     _logger.LogError(ex, "Failed to start ASLM API reverse proxy.");
                     CleanupListener();
@@ -210,6 +293,7 @@ namespace ASLM.Services.API
 
             lock (_stateLock)
             {
+                // Signal the request loop and close the listener; a failure here is only logged.
                 _listenerCts?.Cancel();
 
                 try
@@ -222,10 +306,12 @@ namespace ASLM.Services.API
                     _logger.LogDebug(ex, "ASLM API reverse proxy listener stop failed.");
                 }
 
+                // Keep the loop task to await it outside the lock, then reset the listener fields.
                 listenerTask = _listenerTask;
                 CleanupListener();
             }
 
+            // Give the request loop a short time to exit.
             if (listenerTask != null)
             {
                 try
@@ -245,7 +331,8 @@ namespace ASLM.Services.API
         // Host listing
 
         /// <summary>
-        /// Returns assigned hosts only for modules present in the installed registry.
+        /// Returns assigned hosts only for modules present in the installed registry,
+        /// ordered by module id, then port, then host key. The online state of each host is left unknown.
         /// </summary>
         public IReadOnlyList<AslmMirrorHostInfo> GetHosts()
         {
@@ -262,6 +349,7 @@ namespace ASLM.Services.API
         /// </summary>
         public async Task<IReadOnlyList<AslmMirrorHostInfo>> GetHostsWithAvailabilityAsync(CancellationToken ct = default)
         {
+            // Probe all hosts in parallel so one unresponsive port does not delay the others.
             var hosts = GetHosts();
             var tasks = hosts.Select(async host =>
             {
@@ -290,31 +378,38 @@ namespace ASLM.Services.API
                 }
                 catch (ObjectDisposedException)
                 {
+                    // The listener was closed by a stop request, so the loop ends.
                     break;
                 }
                 catch (HttpListenerException)
                 {
+                    // The pending accept was aborted (for example by stopping the listener), so the loop ends.
                     break;
                 }
                 catch (InvalidOperationException)
                 {
+                    // The listener is no longer listening, so the loop ends.
                     break;
                 }
 
+                // Each request is handled on its own task so a slow handler never blocks the accept loop.
                 _ = Task.Run(() => HandleContextAsync(context, ct), ct);
             }
         }
 
         /// <summary>
         /// Routes one incoming request to an index page, module host page, or proxied backend request.
+        /// Unexpected failures are logged and answered with an error page.
         /// </summary>
         private async Task HandleContextAsync(HttpListenerContext context, CancellationToken ct)
         {
             try
             {
+                // The port map is read per request, so newly started modules become reachable immediately.
                 var portMap = LoadPortMap();
                 var route = ResolveRoute(context.Request, portMap);
 
+                // Answer according to the kind of route the URL resolved to.
                 switch (route.Kind)
                 {
                     case ProxyRouteKind.RootIndex:
@@ -342,6 +437,7 @@ namespace ASLM.Services.API
             }
             catch (Exception ex)
             {
+                // Log the failure and show it to the browser as an error page.
                 _logger.LogError(ex, "ASLM API reverse proxy request failed.");
                 await WriteErrorPageAsync(context, ex, ct);
             }
@@ -352,16 +448,20 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Resolves the incoming URL into a root page, listing page, or backend proxy route.
+        /// The URL layout is <c>/{moduleId}/{hostRouteKey}/{backend path}</c>.
         /// </summary>
         private static ProxyRoute ResolveRoute(HttpListenerRequest request, IReadOnlyDictionary<string, Dictionary<string, int>> portMap)
         {
             var pathSegments = GetPathSegments(request.Url?.AbsolutePath ?? "/");
 
+            // "/" lists all modules.
             if (pathSegments.Count == 0)
             {
                 return ProxyRoute.RootIndex();
             }
 
+            // The first segment names the module. An unknown module may still be a root-relative request
+            // (for example an asset URL) issued by a page that is already served through a mirror route.
             var moduleId = pathSegments[0];
             if (!portMap.TryGetValue(moduleId, out var hosts))
             {
@@ -370,22 +470,26 @@ namespace ASLM.Services.API
                     : ProxyRoute.ModuleNotFound(moduleId);
             }
 
+            // "/{moduleId}" lists the hosts of that module.
             if (pathSegments.Count == 1)
             {
                 return ProxyRoute.ModuleIndex(moduleId, hosts);
             }
 
+            // The second segment selects one host of the module by its public route key.
             var routeHostKey = pathSegments[1];
             if (!TryResolveHostRoute(hosts, routeHostKey, out var hostKey, out var port))
             {
                 return ProxyRoute.HostNotFound(moduleId, routeHostKey, hosts);
             }
 
+            // The host root needs its trailing slash so relative links in the page resolve below the route.
             if (pathSegments.Count == 2 && request.Url?.AbsolutePath.EndsWith('/') == false)
             {
                 return ProxyRoute.RedirectToSlash(moduleId, hostKey, BuildHostRouteKey(hostKey));
             }
 
+            // Everything after the host segment is forwarded to the backend.
             var preserveTrailingSlash = request.Url?.AbsolutePath.EndsWith("/", StringComparison.Ordinal) == true;
             var targetPath = BuildTargetPath(pathSegments.Skip(2), preserveTrailingSlash);
             return ProxyRoute.Proxy(moduleId, hostKey, BuildHostRouteKey(hostKey), port, targetPath, hosts);
@@ -393,6 +497,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Resolves root-relative asset or API requests by using the mirror route from the referring page.
+        /// Returns false when the request has no referrer or the referrer is not itself below a known mirror route.
         /// </summary>
         private static bool TryResolveRefererProxyRoute(
             HttpListenerRequest request,
@@ -402,12 +507,14 @@ namespace ASLM.Services.API
         {
             route = ProxyRoute.RootIndex();
 
+            // Only requests that carry a referrer can be attributed to a mirror route.
             var referer = request.UrlReferrer;
             if (referer == null)
             {
                 return false;
             }
 
+            // The referrer path must start with /{moduleId}/{hostRouteKey}.
             var refererSegments = GetPathSegments(referer.AbsolutePath);
             if (refererSegments.Count < 2)
             {
@@ -422,6 +529,7 @@ namespace ASLM.Services.API
                 return false;
             }
 
+            // Send the whole request path to the backend of the referring route.
             var preserveTrailingSlash = request.Url?.AbsolutePath.EndsWith("/", StringComparison.Ordinal) == true;
             route = ProxyRoute.Proxy(moduleId, hostKey, BuildHostRouteKey(hostKey), port, BuildTargetPath(requestSegments, preserveTrailingSlash), hosts);
             return true;
@@ -429,6 +537,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Resolves a public host route segment back to the underlying port-map host key.
+        /// An exact host key wins; otherwise the hosts are scanned by port and key for a matching public route key.
         /// </summary>
         private static bool TryResolveHostRoute(
             IReadOnlyDictionary<string, int> hosts,
@@ -436,12 +545,14 @@ namespace ASLM.Services.API
             out string hostKey,
             out int port)
         {
+            // The segment may already be the raw host key.
             if (hosts.TryGetValue(routeHostKey, out port))
             {
                 hostKey = routeHostKey;
                 return true;
             }
 
+            // Otherwise compare against the public route key derived from each host key.
             foreach (var host in hosts
                          .OrderBy(static pair => pair.Value)
                          .ThenBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase))
@@ -462,7 +573,8 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Builds a backend path from decoded path segments.
+        /// Builds a backend path from decoded path segments, re-escaping each segment.
+        /// A trailing slash is kept when the browser sent one.
         /// </summary>
         private static string BuildTargetPath(IEnumerable<string> segments, bool preserveTrailingSlash)
         {
@@ -481,7 +593,7 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Builds a backend path from decoded path segments without forcing a trailing slash.
+        /// Builds a backend path from decoded path segments, re-escaping each segment and never adding a trailing slash.
         /// </summary>
         private static string BuildTargetPath(IEnumerable<string> segments)
         {
@@ -508,25 +620,30 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Proxies one resolved route to the selected localhost backend.
+        /// HTML responses are buffered and rewritten to stay under the mirror route; other bodies are streamed unchanged.
         /// </summary>
         private static async Task ProxyRequestAsync(HttpListenerContext context, ProxyRoute route, CancellationToken ct)
         {
+            // Never connect to a port outside the valid TCP range.
             if (route.Port < 1 || route.Port > 65535)
             {
                 await WritePlainTextAsync(context, 502, "Invalid target port.", ct);
                 return;
             }
 
+            // WebSocket upgrades are relayed frame by frame instead of through the HTTP path.
             if (context.Request.IsWebSocketRequest)
             {
                 await ProxyWebSocketAsync(context, route, ct);
                 return;
             }
 
+            // Forward the request and mirror the backend status and headers to the browser.
             using var responseMessage = await SendHttpRequestWithInternalRedirectsAsync(context.Request, route, ct);
             context.Response.StatusCode = (int)responseMessage.StatusCode;
             CopyResponseHeaders(responseMessage, context.Response, route);
 
+            // Write the body: rewrite HTML so links stay below the route, copy everything else as is.
             if (ShouldRewriteContent(responseMessage.Content.Headers.ContentType?.MediaType))
             {
                 var sourceText = await responseMessage.Content.ReadAsStringAsync(ct);
@@ -550,6 +667,8 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Sends the backend HTTP request and follows local backend redirects before responding to the browser.
+        /// Redirects to the same backend are followed only for GET and HEAD, at most <see cref="BackendRedirectLimit"/>
+        /// times, and a redirect loop returns the redirect response to the browser.
         /// </summary>
         private static async Task<HttpResponseMessage> SendHttpRequestWithInternalRedirectsAsync(
             HttpListenerRequest sourceRequest,
@@ -562,25 +681,30 @@ namespace ASLM.Services.API
 
             for (var redirectCount = 0; redirectCount <= BackendRedirectLimit; redirectCount++)
             {
+                // Only the first request carries the browser's body; followed redirects are bodyless.
                 using var requestMessage = CreateHttpRequest(sourceRequest, currentRoute, currentQuery, includeBody: redirectCount == 0);
                 var responseMessage = await ProxyClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, ct);
 
+                // A response that is not a followable local redirect is the final answer.
                 if (!TryResolveInternalRedirect(sourceRequest, responseMessage, currentRoute, out var nextRoute, out var nextQuery))
                 {
                     return responseMessage;
                 }
 
+                // Stop at a redirect loop and let the browser see the redirect itself.
                 var visitKey = $"{nextRoute.TargetPath}?{nextQuery}";
                 if (!visited.Add(visitKey))
                 {
                     return responseMessage;
                 }
 
+                // Follow the redirect with a fresh backend request.
                 responseMessage.Dispose();
                 currentRoute = nextRoute;
                 currentQuery = nextQuery;
             }
 
+            // The redirect limit is used up: send one last bodyless request to the current target and return it as is.
             return await ProxyClient.SendAsync(
                 CreateHttpRequest(sourceRequest, currentRoute, currentQuery, includeBody: false),
                 HttpCompletionOption.ResponseHeadersRead,
@@ -589,6 +713,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Builds one backend HTTP request for the resolved proxy route.
+        /// The target is always the loopback address on the route's port.
         /// </summary>
         private static HttpRequestMessage CreateHttpRequest(
             HttpListenerRequest sourceRequest,
@@ -596,6 +721,7 @@ namespace ASLM.Services.API
             string query,
             bool includeBody)
         {
+            // Same method, backend path and query as the browser request, aimed at the backend port.
             var builder = new UriBuilder("http", "127.0.0.1", route.Port, route.TargetPath)
             {
                 Query = query
@@ -603,6 +729,7 @@ namespace ASLM.Services.API
 
             var requestMessage = new HttpRequestMessage(new HttpMethod(sourceRequest.HttpMethod), builder.Uri);
 
+            // Stream the browser body to the backend together with its content type and length.
             if (includeBody && sourceRequest.HasEntityBody)
             {
                 requestMessage.Content = new StreamContent(sourceRequest.InputStream);
@@ -621,6 +748,7 @@ namespace ASLM.Services.API
                 }
             }
 
+            // Forward the remaining browser headers, then add the headers that describe the mount point.
             CopyRequestHeaders(sourceRequest.Headers, requestMessage);
             AddForwardedHeaders(sourceRequest, requestMessage, route);
             return requestMessage;
@@ -628,11 +756,13 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Copies browser request headers that are safe to forward to the backend.
+        /// Content headers that do not fit the request headers are added to the body headers.
         /// </summary>
         private static void CopyRequestHeaders(NameValueCollection sourceHeaders, HttpRequestMessage targetRequest)
         {
             foreach (var headerName in sourceHeaders.AllKeys.OfType<string>())
             {
+                // Transport-level and rewritten headers are set by the proxy itself.
                 if (ShouldSkipRequestHeader(headerName))
                 {
                     continue;
@@ -650,6 +780,7 @@ namespace ASLM.Services.API
                 }
             }
 
+            // Request uncompressed bodies: the proxy client does not decompress, and HTML must be rewritten as text.
             targetRequest.Headers.TryAddWithoutValidation("Accept-Encoding", "identity");
         }
 
@@ -667,6 +798,7 @@ namespace ASLM.Services.API
             targetRequest.Headers.Remove("Origin");
             targetRequest.Headers.Remove("Referer");
 
+            // Origin and Referer are passed on only when the browser sent them; both then name the backend, not the mirror.
             if (!string.IsNullOrWhiteSpace(sourceRequest.Headers["Origin"]))
             {
                 targetRequest.Headers.TryAddWithoutValidation("Origin", backendOrigin);
@@ -678,6 +810,7 @@ namespace ASLM.Services.API
                 targetRequest.Headers.TryAddWithoutValidation("Referer", backendReferer);
             }
 
+            // Describe the original request and the mount prefix; a route header sent by the browser is replaced.
             targetRequest.Headers.Remove(RouteHeaderName);
             targetRequest.Headers.TryAddWithoutValidation("X-Forwarded-Prefix", route.RoutePrefix);
             targetRequest.Headers.TryAddWithoutValidation("X-Script-Name", route.RoutePrefix);
@@ -702,6 +835,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Returns whether a backend redirect points to the same backend and can be followed internally.
+        /// When it does, <paramref name="nextRoute"/> and <paramref name="nextQuery"/> describe the redirect target.
         /// </summary>
         private static bool TryResolveInternalRedirect(
             HttpListenerRequest sourceRequest,
@@ -713,6 +847,7 @@ namespace ASLM.Services.API
             nextRoute = currentRoute;
             nextQuery = string.Empty;
 
+            // Only a redirect that carries a Location and answers a GET or HEAD request is followed.
             if (!IsRedirectStatusCode(responseMessage.StatusCode) ||
                 !IsBodylessRedirectMethod(sourceRequest.HttpMethod) ||
                 responseMessage.Headers.Location == null)
@@ -725,6 +860,7 @@ namespace ASLM.Services.API
 
             if (location.IsAbsoluteUri)
             {
+                // An absolute redirect is internal only when it names the same loopback backend port.
                 if (!location.IsLoopback || location.Port != currentRoute.Port)
                 {
                     return false;
@@ -734,6 +870,7 @@ namespace ASLM.Services.API
             }
             else
             {
+                // A relative redirect is resolved against the backend root; a mirror prefix is removed first.
                 var locationText = location.ToString();
                 if (IsMirrorPath(locationText, currentRoute.RoutePrefix))
                 {
@@ -743,6 +880,7 @@ namespace ASLM.Services.API
                 targetUri = new Uri(new Uri($"http://127.0.0.1:{currentRoute.Port}/"), locationText);
             }
 
+            // Continue on the same route with the redirect's path and query.
             var backendPath = IsMirrorPath(targetUri.AbsolutePath, currentRoute.RoutePrefix)
                 ? StripMirrorPrefix(targetUri.AbsolutePath, currentRoute.RoutePrefix)
                 : targetUri.AbsolutePath;
@@ -774,9 +912,11 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Proxies one WebSocket upgrade to the selected localhost backend.
+        /// The browser connection is accepted only after the backend connection was established.
         /// </summary>
         private static async Task ProxyWebSocketAsync(HttpListenerContext context, ProxyRoute route, CancellationToken ct)
         {
+            // Connect to the backend first, offering the subprotocol the browser asked for.
             using var backendSocket = new ClientWebSocket();
             var subProtocol = ResolveWebSocketSubProtocol(context.Request);
             if (!string.IsNullOrWhiteSpace(subProtocol))
@@ -790,10 +930,12 @@ namespace ASLM.Services.API
             }
             catch
             {
+                // A backend that cannot be reached is reported to the browser as 502 instead of an upgrade.
                 await WritePlainTextAsync(context, 502, "WebSocket target is unavailable.", ct);
                 return;
             }
 
+            // Accept the browser socket and relay frames both ways until one side ends.
             var clientContext = await context.AcceptWebSocketAsync(subProtocol);
             using var clientSocket = clientContext.WebSocket;
 
@@ -816,7 +958,7 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Relays WebSocket frames until either side closes or errors.
+        /// Relays WebSocket frames from one socket to the other until either side closes or errors.
         /// </summary>
         private static async Task PumpWebSocketAsync(WebSocket source, WebSocket target, CancellationToken ct)
         {
@@ -834,15 +976,18 @@ namespace ASLM.Services.API
                 }
                 catch
                 {
+                    // A broken or aborted source connection ends the relay for this direction.
                     break;
                 }
 
+                // Pass a close handshake on to the other side and stop.
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     await CloseWebSocketSafeAsync(target, result.CloseStatus, result.CloseStatusDescription, ct);
                     break;
                 }
 
+                // Forward the received frame unchanged, keeping its message type and fragmentation.
                 await target.SendAsync(
                     buffer.AsMemory(0, result.Count),
                     result.MessageType,
@@ -895,6 +1040,7 @@ namespace ASLM.Services.API
         /// </summary>
         private static void CopyResponseHeaders(HttpResponseMessage sourceResponse, HttpListenerResponse targetResponse, ProxyRoute route)
         {
+            // General response headers; a redirect Location is rewritten to stay under the mirror route.
             foreach (var header in sourceResponse.Headers)
             {
                 if (ShouldSkipResponseHeader(header.Key))
@@ -911,6 +1057,7 @@ namespace ASLM.Services.API
                 TrySetResponseHeader(targetResponse, header.Key, string.Join(",", header.Value));
             }
 
+            // Content headers; the content type has its own property on the listener response.
             foreach (var header in sourceResponse.Content.Headers)
             {
                 if (ShouldSkipResponseHeader(header.Key))
@@ -927,6 +1074,7 @@ namespace ASLM.Services.API
                 TrySetResponseHeader(targetResponse, header.Key, string.Join(",", header.Value));
             }
 
+            // Cookies are copied one by one, with their domain and path scoped to the mirror route.
             foreach (var cookie in ExtractSetCookieHeaders(sourceResponse))
             {
                 TrySetCookieHeader(targetResponse, RewriteSetCookie(cookie, route));
@@ -960,6 +1108,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Rewrites backend cookies so their path is scoped to the mounted mirror route.
+        /// The <c>Domain</c> attribute is dropped so the cookie stays bound to the mirror host.
         /// </summary>
         private static string RewriteSetCookie(string cookie, ProxyRoute route)
         {
@@ -967,6 +1116,7 @@ namespace ASLM.Services.API
             var rebuilt = new List<string>();
             var hasPath = false;
 
+            // Drop Domain, replace Path with the route root, and keep every other attribute.
             foreach (var part in parts)
             {
                 if (part.StartsWith("Domain=", StringComparison.OrdinalIgnoreCase))
@@ -984,6 +1134,7 @@ namespace ASLM.Services.API
                 rebuilt.Add(part);
             }
 
+            // A cookie without a Path gets the route root, so it is scoped to this route as well.
             if (!hasPath)
             {
                 rebuilt.Add($"Path={route.RouteRoot}");
@@ -997,11 +1148,13 @@ namespace ASLM.Services.API
         /// </summary>
         private static string RewriteLocationHeader(string location, ProxyRoute route)
         {
+            // An empty Location points back to the route root.
             if (string.IsNullOrWhiteSpace(location))
             {
                 return route.RouteRoot;
             }
 
+            // An absolute URL of this backend becomes a path below the mirror route.
             if (Uri.TryCreate(location, UriKind.Absolute, out var absoluteUri) &&
                 absoluteUri.IsLoopback &&
                 absoluteUri.Port == route.Port)
@@ -1009,16 +1162,19 @@ namespace ASLM.Services.API
                 return route.ToMirrorPath(NormalizeBackendPath(absoluteUri.AbsolutePath), absoluteUri.Query, absoluteUri.Fragment);
             }
 
+            // A path that already carries the route prefix needs no change.
             if (IsMirrorPath(location, route.RoutePrefix))
             {
                 return location;
             }
 
+            // A root-relative path (not protocol-relative) is mounted below the route.
             if (location.StartsWith("/", StringComparison.Ordinal) && !location.StartsWith("//", StringComparison.Ordinal))
             {
                 return route.ToMirrorPath(NormalizeBackendPath(location), query: string.Empty, fragment: string.Empty);
             }
 
+            // Relative and external locations are passed through unchanged.
             return location;
         }
 
@@ -1038,7 +1194,8 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Returns whether a request header is controlled by the proxy transport and should not be copied.
+        /// Returns whether a request header is controlled by the proxy transport, or is rebuilt separately
+        /// (<c>Origin</c>, <c>Referer</c>), and therefore should not be copied.
         /// </summary>
         private static bool ShouldSkipRequestHeader(string headerName)
         {
@@ -1055,6 +1212,8 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Returns whether a response header is controlled by HttpListener or invalid after rewriting content.
+        /// The backend's <c>Content-Security-Policy</c> and <c>Referrer-Policy</c> headers are not forwarded either,
+        /// and cookies are handled separately.
         /// </summary>
         private static bool ShouldSkipResponseHeader(string headerName)
         {
@@ -1076,7 +1235,7 @@ namespace ASLM.Services.API
         // Response rewriting
 
         /// <summary>
-        /// Returns whether a backend response body can be rewritten as text.
+        /// Returns whether a backend response body can be rewritten as text. Only <c>text/html</c> is rewritten.
         /// </summary>
         private static bool ShouldRewriteContent(string? mediaType)
         {
@@ -1093,9 +1252,11 @@ namespace ASLM.Services.API
         /// </summary>
         private static string RewriteTextContent(string content, string? mediaType, ProxyRoute route)
         {
+            // Absolute backend URLs first, then root-relative URLs.
             var rewritten = RewriteLoopbackBackendUrls(content, route);
             rewritten = RewriteRootRelativeUrls(rewritten, route);
 
+            // HTML documents also get the base element and the browser-side shim.
             if (mediaType != null && mediaType.Equals("text/html", StringComparison.OrdinalIgnoreCase))
             {
                 rewritten = InjectHtmlMirrorSupport(rewritten, route);
@@ -1105,7 +1266,8 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Rewrites absolute localhost URLs that point at the backend target into mirror-root URLs.
+        /// Rewrites absolute <c>http(s)://127.0.0.1:{port}</c> and <c>localhost:{port}</c> URLs that point at the
+        /// backend target into mirror-root URLs.
         /// </summary>
         private static string RewriteLoopbackBackendUrls(string content, ProxyRoute route)
         {
@@ -1121,34 +1283,39 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Rewrites common root-relative URLs in HTML, CSS, JavaScript, and JSON payloads.
+        /// Rewrites common root-relative URLs in the text, including inline CSS, JavaScript, and JSON fragments.
         /// </summary>
         private static string RewriteRootRelativeUrls(string content, ProxyRoute route)
         {
+            // Quoted URL attributes such as href, src and action.
             var rewritten = Regex.Replace(
                 content,
                 @"(?<prefix>\b(?:href|src|action|poster|data|formaction|manifest)\s*=\s*)(?<quote>[""'])(?<url>/[^""']*)(\k<quote>)",
                 match => RewriteAttributeUrl(match, route),
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+            // CSS url(...) references.
             rewritten = Regex.Replace(
                 rewritten,
                 @"(?<prefix>\burl\(\s*)(?<quote>[""']?)(?<url>/[^""')]+)(?<suffix>\k<quote>\s*\))",
                 match => RewriteCssUrl(match, route),
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+            // srcset candidate lists.
             rewritten = Regex.Replace(
                 rewritten,
                 @"(?<prefix>\bsrcset\s*=\s*)(?<quote>[""'])(?<value>[^""']*)(\k<quote>)",
                 match => RewriteSrcSet(match, route),
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+            // Meta refresh targets of the form content="0; url=/path".
             rewritten = Regex.Replace(
                 rewritten,
                 @"(?<prefix>\bcontent\s*=\s*)(?<quote>[""'])(?<value>[^""']*;\s*url=)(?<url>/[^""']*)(\k<quote>)",
                 match => $"{match.Groups["prefix"].Value}{match.Groups["quote"].Value}{match.Groups["value"].Value}{RewriteOneRootRelativeUrl(match.Groups["url"].Value, route)}{match.Groups["quote"].Value}",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+            // Any other quoted string that starts with a slash, which covers URLs in scripts and JSON.
             rewritten = Regex.Replace(
                 rewritten,
                 @"(?<prefix>[""'])(?<url>/[^""'\r\n]*)(?<suffix>[""'])",
@@ -1195,9 +1362,11 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Rewrites one root-relative backend URL to the mounted mirror route when needed.
+        /// Protocol-relative URLs and URLs that already carry the route prefix are returned unchanged.
         /// </summary>
         private static string RewriteOneRootRelativeUrl(string url, ProxyRoute route)
         {
+            // Leave empty, non-root-relative, protocol-relative and already mounted URLs alone.
             if (string.IsNullOrWhiteSpace(url) ||
                 !url.StartsWith("/", StringComparison.Ordinal) ||
                 url.StartsWith("//", StringComparison.Ordinal) ||
@@ -1206,6 +1375,7 @@ namespace ASLM.Services.API
                 return url;
             }
 
+            // Split the URL into path, query and fragment, then mount the path below the route root.
             var fragmentIndex = url.IndexOf('#');
             var fragment = fragmentIndex >= 0 ? url[fragmentIndex..] : string.Empty;
             var beforeFragment = fragmentIndex >= 0 ? url[..fragmentIndex] : url;
@@ -1219,6 +1389,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Injects base and browser-side request rewriting support into HTML documents.
+        /// The markup goes right after the opening head tag, or at the start of a document without one.
         /// </summary>
         private static string InjectHtmlMirrorSupport(string html, ProxyRoute route)
         {
@@ -1228,6 +1399,7 @@ namespace ASLM.Services.API
                 return insert + html;
             }
 
+            // Insert the markup after each opening tag matched by the head pattern (the match has a 100 ms timeout).
             return Regex.Replace(
                 html,
                 @"<head(?<attrs>[^>]*)>",
@@ -1238,10 +1410,15 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Creates a browser-side shim for runtime APIs that construct root-relative URLs after page load.
+        /// The script prefixes such URLs with the route root in <c>fetch</c>, <c>XMLHttpRequest</c>, history state
+        /// changes, <c>WebSocket</c> constructors, link clicks and form submissions.
         /// </summary>
         private static string CreateRuntimeShim(ProxyRoute route)
         {
+            // Escape the route root for use inside a single-quoted JavaScript string.
             var routeRoot = route.RouteRoot.Replace("\\", "\\\\").Replace("'", "\\'");
+
+            // The script is emitted verbatim; only the route root is interpolated.
             return $$"""
                 <script>
                 (() => {
@@ -1305,7 +1482,8 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Resolves the response text encoding, falling back to UTF-8.
+        /// Resolves the response text encoding from the content type charset, falling back to UTF-8
+        /// when the charset is missing or unknown.
         /// </summary>
         private static Encoding ResolveContentEncoding(MediaTypeHeaderValue? contentType)
         {
@@ -1337,6 +1515,7 @@ namespace ASLM.Services.API
             string? message,
             CancellationToken ct)
         {
+            // Page header, optional warning message and the enabled state of each module.
             var body = new StringBuilder();
             body.Append("<h1>ASLM API</h1>");
             body.Append("<p>Available module hosts from Data/App/ASLM_Ports.json.</p>");
@@ -1349,6 +1528,7 @@ namespace ASLM.Services.API
             }
             else
             {
+                // One section per module, each with a link for every host ordered by port.
                 foreach (var module in portMap.OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase))
                 {
                     body.Append("<section>");
@@ -1366,6 +1546,7 @@ namespace ASLM.Services.API
                 }
             }
 
+            // Wrap the generated body in the shared page template and send it with the requested status.
             await WriteHtmlAsync(context, statusCode, "ASLM API", body.ToString(), ct);
         }
 
@@ -1380,6 +1561,7 @@ namespace ASLM.Services.API
             string? message,
             CancellationToken ct)
         {
+            // Heading with the module id (and a badge when the module is disabled), then the optional message.
             var body = new StringBuilder();
             body.Append("<h1>");
             body.Append(HtmlEncode(moduleId));
@@ -1390,6 +1572,7 @@ namespace ASLM.Services.API
             AppendMessage(body, message);
             body.Append("<ul>");
 
+            // List the hosts ordered by port, then by key.
             foreach (var host in hosts
                          .OrderBy(static pair => pair.Value)
                          .ThenBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase))
@@ -1403,6 +1586,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Writes an error page when request routing or proxying fails unexpectedly.
+        /// Nothing is written when the response stream can no longer be written to.
         /// </summary>
         private static async Task WriteErrorPageAsync(HttpListenerContext context, Exception ex, CancellationToken ct)
         {
@@ -1417,9 +1601,11 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Writes a complete HTML document with the shared minimal ASLM API style.
+        /// The title is HTML-encoded; the body is inserted as given, so callers must encode their own content.
         /// </summary>
         private static async Task WriteHtmlAsync(HttpListenerContext context, int statusCode, string title, string body, CancellationToken ct)
         {
+            // Page template: dark theme styles and the caller's body inside a single main element.
             var html = $$"""
                 <!doctype html>
                 <html lang="en">
@@ -1454,6 +1640,7 @@ namespace ASLM.Services.API
                 </html>
                 """;
 
+            // Send the document as UTF-8 with an explicit length and close the response.
             var bytes = Encoding.UTF8.GetBytes(html);
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "text/html; charset=utf-8";
@@ -1491,7 +1678,7 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Appends one routed host link to a generated index page.
+        /// Appends one routed host link to a generated index page, together with the backend address it points to.
         /// </summary>
         private void AppendHostLink(StringBuilder body, string moduleId, string hostKey, int port)
         {
@@ -1540,6 +1727,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Loads enabled states from installed module manifests for the generated API index.
+        /// Returns an empty map when discovery fails, so the index page is still shown.
         /// </summary>
         private async Task<IReadOnlyDictionary<string, bool>> LoadModuleDisplayStatesAsync()
         {
@@ -1567,14 +1755,17 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Loads registered module routes from disk, including the older flat module-to-port shape.
+        /// Only modules in the installed registry are returned; an unreadable file or registry yields an empty map.
         /// </summary>
         private Dictionary<string, Dictionary<string, int>> LoadPortMap()
         {
+            // No port map means no module has been assigned ports yet.
             if (!File.Exists(_portMapPath))
             {
                 return new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
             }
 
+            // Read the ids of installed modules.
             HashSet<string> installed;
             try
             {
@@ -1588,6 +1779,7 @@ namespace ASLM.Services.API
                 return new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
             }
 
+            // Current schema: module id -> host key -> port.
             try
             {
                 var json = File.ReadAllText(_portMapPath);
@@ -1602,6 +1794,7 @@ namespace ASLM.Services.API
                 // Try the legacy flat schema before giving up on the runtime port map.
             }
 
+            // Legacy schema: module id -> one port, exposed as a single host named "port".
             try
             {
                 var json = File.ReadAllText(_portMapPath);
@@ -1640,6 +1833,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Returns whether the port-map owner should be exposed as a mirrorable module route.
+        /// Owners whose id starts with two underscores are internal host services and are never exposed.
         /// </summary>
         private static bool IsPublicModulePortOwner(string ownerId)
         {
@@ -1651,7 +1845,7 @@ namespace ASLM.Services.API
         // Shared helpers
 
         /// <summary>
-        /// Creates one host info object for the ASLM UI and web index.
+        /// Creates one host info object for the ASLM UI and web index, with the mirror URL and the direct backend URL.
         /// </summary>
         private AslmMirrorHostInfo CreateHostInfo(string moduleId, string hostKey, int port, bool? isOnline)
         {
@@ -1666,7 +1860,7 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Redirects a module host route to its slash-terminated root.
+        /// Redirects a module host route to its slash-terminated root with a 302 response.
         /// </summary>
         private static void RedirectToRouteRoot(HttpListenerContext context, string moduleId, string routeHostKey)
         {
@@ -1743,6 +1937,7 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Checks whether a localhost TCP port is currently accepting connections.
+        /// A connection attempt that takes longer than 250 ms counts as not open.
         /// </summary>
         private static async Task<bool> IsTcpPortOpenAsync(int port, CancellationToken ct)
         {
@@ -1769,6 +1964,8 @@ namespace ASLM.Services.API
 
         /// <summary>
         /// Creates the shared HTTP client used by proxied backend requests.
+        /// It follows no redirects, decompresses nothing, keeps no cookies and has no timeout,
+        /// so the proxy receives and relays the raw backend response itself.
         /// </summary>
         private static HttpClient CreateProxyClient()
         {
@@ -1838,7 +2035,9 @@ namespace ASLM.Services.API
 
         // Disposal
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Stops the listener once and blocks until the shutdown has finished.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed)
@@ -1856,6 +2055,13 @@ namespace ASLM.Services.API
         /// <summary>
         /// Describes the resolved action for one incoming ASLM API request.
         /// </summary>
+        /// <param name="Kind">What the request resolved to: an index page, an error page, a redirect or a proxy.</param>
+        /// <param name="ModuleId">Module id taken from the first URL segment, or empty for the root index.</param>
+        /// <param name="HostKey">Host key from the port map, or the requested key when it was not found.</param>
+        /// <param name="RouteHostKey">Public route key of the host as it appears in the URL.</param>
+        /// <param name="Port">Backend port to proxy to; 0 for routes that are not proxied.</param>
+        /// <param name="TargetPath">Root-relative backend path that is requested from the backend.</param>
+        /// <param name="Hosts">Hosts of the module, used by listing pages.</param>
         private sealed record ProxyRoute(
             ProxyRouteKind Kind,
             string ModuleId,
@@ -1865,6 +2071,8 @@ namespace ASLM.Services.API
             string TargetPath,
             IReadOnlyDictionary<string, int> Hosts)
         {
+            // Route paths
+
             /// <summary>
             /// Gets the mounted mirror route prefix without a trailing slash.
             /// </summary>
@@ -1874,6 +2082,9 @@ namespace ASLM.Services.API
             /// Gets the mounted mirror route root with a trailing slash.
             /// </summary>
             public string RouteRoot => RoutePrefix + "/";
+
+
+            // Route factories
 
             /// <summary>
             /// Creates the root-index route.
@@ -1911,6 +2122,9 @@ namespace ASLM.Services.API
             public static ProxyRoute Proxy(string moduleId, string hostKey, string routeHostKey, int port, string targetPath, IReadOnlyDictionary<string, int> hosts) =>
                 new(ProxyRouteKind.Proxy, moduleId, hostKey, routeHostKey, port, NormalizeBackendPath(targetPath), hosts);
 
+
+            // Path building
+
             /// <summary>
             /// Builds the slash-terminated route root for a module host.
             /// </summary>
@@ -1935,11 +2149,34 @@ namespace ASLM.Services.API
         /// </summary>
         private enum ProxyRouteKind
         {
+            /// <summary>
+            /// The root URL, answered with the list of all modules.
+            /// </summary>
             RootIndex,
+
+            /// <summary>
+            /// A module URL, answered with the list of that module's hosts.
+            /// </summary>
             ModuleIndex,
+
+            /// <summary>
+            /// The module is not in the port map, answered with the root index and status 404.
+            /// </summary>
             ModuleNotFound,
+
+            /// <summary>
+            /// The module exists but not the requested host, answered with the module page and status 404.
+            /// </summary>
             HostNotFound,
+
+            /// <summary>
+            /// A host URL without the trailing slash, answered with a redirect to the slash-terminated URL.
+            /// </summary>
             RedirectToSlash,
+
+            /// <summary>
+            /// A request below a host route, forwarded to the module backend.
+            /// </summary>
             Proxy
         }
     }
@@ -1947,6 +2184,12 @@ namespace ASLM.Services.API
     /// <summary>
     /// Describes one ASLM API mirror host displayed in the UI.
     /// </summary>
+    /// <param name="ModuleId">Id of the module that owns the host.</param>
+    /// <param name="HostKey">Key of the host in the module's port map.</param>
+    /// <param name="Port">Backend port the module host listens on.</param>
+    /// <param name="MirrorUrl">Browser URL of the host below the mirror server root.</param>
+    /// <param name="TargetUrl">Direct loopback URL of the module host.</param>
+    /// <param name="IsOnline">Whether the backend port accepted a connection, or null when it was not probed.</param>
     public record AslmMirrorHostInfo(
         string ModuleId,
         string HostKey,
