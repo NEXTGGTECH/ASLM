@@ -2,32 +2,44 @@
 
 using ASLM.Tests.TestSupport;
 
-namespace ASLM.Tests.Services.Internal;
-
-public sealed class DownloadStateStoreTests
+namespace ASLM.Tests.Services.Internal
 {
-    [Fact]
-    public async Task MarkInstalledAsync_and_MarkUninstalledAsync_persist_state()
+    /// <summary>
+    /// Verifies the persisted installation state of download catalog resources kept by
+    /// <see cref="DownloadStateStore"/>.
+    /// </summary>
+    public sealed class DownloadStateStoreTests
     {
-        _ = new AslmFileSystemLayout();
-        var store = new DownloadStateStore(TestLoggerFactory.Create<DownloadStateStore>());
+        /// <summary>
+        /// Verifies that marking a resource installed records its installed flag and version, and that marking it
+        /// uninstalled clears the installed flag.
+        /// </summary>
+        [Fact]
+        public async Task MarkInstalledAsync_and_MarkUninstalledAsync_persist_state()
+        {
+            _ = new AslmFileSystemLayout();
+            var store = new DownloadStateStore(TestLoggerFactory.Create<DownloadStateStore>());
 
-        await store.MarkInstalledAsync("engine:ollama", "1.2.3", "aslm-chat");
+            await store.MarkInstalledAsync("engine:ollama", "1.2.3", "aslm-chat");
 
-        store.GetResourceState("engine:ollama")!.Installed.Should().BeTrue();
-        store.GetResourceState("engine:ollama")!.InstalledVersion.Should().Be("1.2.3");
+            store.GetResourceState("engine:ollama")!.Installed.Should().BeTrue();
+            store.GetResourceState("engine:ollama")!.InstalledVersion.Should().Be("1.2.3");
 
-        await store.MarkUninstalledAsync("engine:ollama");
+            await store.MarkUninstalledAsync("engine:ollama");
 
-        store.GetResourceState("engine:ollama")!.Installed.Should().BeFalse();
-    }
+            store.GetResourceState("engine:ollama")!.Installed.Should().BeFalse();
+        }
 
-    [Fact]
-    public void GetResourceState_returns_null_for_unknown_key()
-    {
-        _ = new AslmFileSystemLayout();
-        var store = new DownloadStateStore(TestLoggerFactory.Create<DownloadStateStore>());
+        /// <summary>
+        /// Verifies that looking up a resource key that was never recorded returns no state.
+        /// </summary>
+        [Fact]
+        public void GetResourceState_returns_null_for_unknown_key()
+        {
+            _ = new AslmFileSystemLayout();
+            var store = new DownloadStateStore(TestLoggerFactory.Create<DownloadStateStore>());
 
-        store.GetResourceState("missing").Should().BeNull();
+            store.GetResourceState("missing").Should().BeNull();
+        }
     }
 }

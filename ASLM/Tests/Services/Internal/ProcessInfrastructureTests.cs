@@ -4,43 +4,53 @@ using System.Diagnostics;
 using ASLM.Services.Internal;
 using ASLM.Tests.TestSupport;
 
-namespace ASLM.Tests.Services.Internal;
-
-/// <summary>
-/// Verifies the real process infrastructure: snapshot capture of live processes and the
-/// breakaway starter used for launcher restarts.
-/// </summary>
-public sealed class ProcessInfrastructureTests
+namespace ASLM.Tests.Services.Internal
 {
-    [Fact]
-    public void Snapshot_contains_the_running_test_host_process()
+    /// <summary>
+    /// Verifies the real process infrastructure: snapshot capture of live processes and the
+    /// breakaway starter used for launcher restarts.
+    /// </summary>
+    public sealed class ProcessInfrastructureTests
     {
-        var reader = new ProcessSnapshotReader();
-        var snapshot = reader.GetSnapshot();
+        /// <summary>
+        /// Verifies that a process snapshot contains the running test host and also records parent process ids.
+        /// </summary>
+        [Fact]
+        public void Snapshot_contains_the_running_test_host_process()
+        {
+            var reader = new ProcessSnapshotReader();
+            var snapshot = reader.GetSnapshot();
 
-        using var current = Process.GetCurrentProcess();
-        snapshot.Should().Contain(entry => entry.ProcessId == current.Id);
-        // A real snapshot also observes the parent chain: at least one entry with a parent.
-        snapshot.Should().Contain(entry => entry.ParentProcessId > 0);
-    }
+            using var current = Process.GetCurrentProcess();
+            snapshot.Should().Contain(entry => entry.ProcessId == current.Id);
 
-    [Fact]
-    public async Task Breakaway_starter_launches_a_detached_process_that_runs_to_completion()
-    {
-        var marker = Path.Combine(Path.GetTempPath(), "ASLM-Tests", $"breakaway-{Guid.NewGuid():N}.txt");
-        Directory.CreateDirectory(Path.GetDirectoryName(marker)!);
+            // A real snapshot also observes the parent chain: at least one entry with a parent.
+            snapshot.Should().Contain(entry => entry.ParentProcessId > 0);
+        }
 
-        var powerShell = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell", "v1.0", "powershell.exe");
-        var started = DetachedProcessStarter.TryStartBreakawayProcess(
-            powerShell,
-            Path.GetTempPath(),
-            ["-NoProfile", "-NonInteractive", "-Command",
-                $"Set-Content -Path '{marker}' -Value done"]);
+        /// <summary>
+        /// Verifies that the breakaway starter launches Windows PowerShell as a separate process, reports success, and
+        /// that the process runs to completion by writing a marker file.
+        /// </summary>
+        [Fact]
+        public async Task Breakaway_starter_launches_a_detached_process_that_runs_to_completion()
+        {
+            // The started process proves that it ran by writing this marker file.
+            var marker = Path.Combine(Path.GetTempPath(), "ASLM-Tests", $"breakaway-{Guid.NewGuid():N}.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(marker)!);
 
-        started.Should().BeTrue("a fresh process must launch outside any job of this host");
-        await TestWait.UntilAsync(() => File.Exists(marker), timeout: TimeSpan.FromSeconds(15));
-        (await File.ReadAllTextAsync(marker)).Trim().Should().Be("done");
+            var powerShell = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "WindowsPowerShell", "v1.0", "powershell.exe");
+            var started = DetachedProcessStarter.TryStartBreakawayProcess(
+                powerShell,
+                Path.GetTempPath(),
+                ["-NoProfile", "-NonInteractive", "-Command",
+                    $"Set-Content -Path '{marker}' -Value done"]);
+
+            started.Should().BeTrue("a fresh process must launch outside any job of this host");
+            await TestWait.UntilAsync(() => File.Exists(marker), timeout: TimeSpan.FromSeconds(15));
+            (await File.ReadAllTextAsync(marker)).Trim().Should().Be("done");
+        }
     }
 }
