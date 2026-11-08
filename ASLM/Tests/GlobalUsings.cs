@@ -1,5 +1,6 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+// Namespaces imported into every test file
 global using FluentAssertions;
 global using Xunit;
 global using ASLM.Services.API;
