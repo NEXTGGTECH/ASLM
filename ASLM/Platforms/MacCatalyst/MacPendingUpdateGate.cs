@@ -1,6 +1,5 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
-
 namespace ASLM
 {
     /// <summary>
@@ -16,6 +15,7 @@ namespace ASLM
         {
             try
             {
+                // An update is staged when pending.json exists in the data root's update folder.
                 var pendingPath = Path.Combine(AppRoot.Directory, ".aslm-update", "pending.json");
                 if (!File.Exists(pendingPath))
                 {
@@ -27,6 +27,7 @@ namespace ASLM
             }
             catch
             {
+                // Any failure leaves the update pending and lets normal startup continue.
                 return false;
             }
         }

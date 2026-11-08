@@ -9,11 +9,26 @@ namespace ASLM.Services.Modules
 {
     /// <summary>
     /// Provides the single version-aware entry point for reading ASLM module manifests.
+    /// <para>
+    /// Version rules: the <c>fileVersion</c> property selects the manifest schema. A manifest without it (or with
+    /// <c>null</c>, zero or a negative number) is read as version 1; a non-integer value is rejected; any version
+    /// above <see cref="CurrentFileVersion"/> is rejected as unsupported. Version 2 (ModulesAPI v2) additionally
+    /// requires at least one <c>supportedPlatforms</c> entry and is the only version that may embed engines:
+    /// a version 1 manifest has its embedded engines dropped with a validation warning.
+    /// </para>
     /// </summary>
     public static class ModuleManifestParser
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Highest manifest <c>fileVersion</c> this build understands.
+        /// </summary>
         public const int CurrentFileVersion = 2;
 
+        /// <summary>
+        /// JSON settings used to read manifests; property names are matched case-insensitively.
+        /// </summary>
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             WriteIndented = true,
@@ -21,9 +36,17 @@ namespace ASLM.Services.Modules
             PropertyNameCaseInsensitive = true
         };
 
+
+        // Parsing
+
         /// <summary>
         /// Parses, normalizes, validates, and resolves one manifest for the current platform.
         /// </summary>
+        /// <param name="json">Manifest JSON text.</param>
+        /// <param name="sourcePath">Path of the manifest file, stored on the resulting config; empty when unknown.</param>
+        /// <exception cref="InvalidDataException">Thrown when the manifest is empty, not an object or structurally invalid.</exception>
+        /// <exception cref="NotSupportedException">Thrown when the manifest or an embedded engine uses an unsupported <c>fileVersion</c>.</exception>
+        /// <exception cref="JsonException">Thrown when the text is not valid JSON.</exception>
         public static ModuleConfig Parse(string json, string sourcePath = "")
         {
             // Reject invalid JSON before creating a partially normalized module model.
@@ -56,6 +79,7 @@ namespace ASLM.Services.Modules
             config.Normalize();
             config.ResolveForPlatform(PlatformInfo.OsKey, PlatformInfo.ArchKey);
 
+            // Embedded engines carry their own platform blocks, so each is resolved separately.
             foreach (var engine in config.Engines)
             {
                 engine.ResolveForPlatform(PlatformInfo.OsKey, PlatformInfo.ArchKey);
@@ -76,6 +100,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Attempts to parse a manifest without throwing to discovery callers.
+        /// Only malformed-manifest errors are reported through <paramref name="error"/>; other exceptions propagate.
         /// </summary>
         public static bool TryParse(string json, string sourcePath, out ModuleConfig? config, out string error)
         {
@@ -95,15 +120,18 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Reads the schema version while preserving compatibility with versionless manifests.
+        /// A missing or null value and any value of zero or below mean version 1.
         /// </summary>
         private static int ReadFileVersion(JsonElement root)
         {
+            // Manifests written before versioning have no fileVersion and are version 1.
             if (!root.TryGetProperty("fileVersion", out var value) ||
                 value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
             {
                 return 1;
             }
 
+            // A present value must be an integer; strings, fractions and other kinds are rejected.
             if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var version))
             {
                 throw new InvalidDataException("Module fileVersion must be an integer.");
@@ -112,12 +140,15 @@ namespace ASLM.Services.Modules
             return version <= 0 ? 1 : version;
         }
 
+
+        // Validation
+
         /// <summary>
         /// Validates structural invariants required for safe discovery and installation.
         /// </summary>
         private static void Validate(ModuleConfig config)
         {
-            // Identity and platform declarations are required to install a v2 module safely.
+            // The id is required for every version; v2 additionally has to declare its supported platforms.
             if (string.IsNullOrWhiteSpace(config.Id))
             {
                 throw new InvalidDataException("Module id is required.");
@@ -155,13 +186,14 @@ namespace ASLM.Services.Modules
                 throw new InvalidDataException($"Duplicate module-provided engine id '{duplicateEngineId.Key}'.");
             }
 
-            // Embedded engines belong to v2; their own schema must also be supported.
+            // Embedded engines belong to v2: a v1 manifest drops them with a warning instead of failing.
             if (config.FileVersion < 2 && config.Engines.Count > 0)
             {
                 config.ValidationWarnings.Add("Module-provided engines are ignored unless fileVersion is 2.");
                 config.Engines.Clear();
             }
 
+            // Every remaining embedded engine needs an id and a supported engine schema version (1 or 2).
             foreach (var engine in config.Engines)
             {
                 if (string.IsNullOrWhiteSpace(engine.Id))
@@ -176,7 +208,7 @@ namespace ASLM.Services.Modules
                 }
             }
 
-            // User-setting metadata is diagnostic and remains fail-open at runtime.
+            // User-setting metadata is diagnostic and remains fail-open at runtime: problems become warnings only.
             ValidateSettingMetadata(config);
             foreach (var warning in config.ValidationWarnings)
             {
@@ -189,6 +221,7 @@ namespace ASLM.Services.Modules
         /// </summary>
         private static void ValidateSettingMetadata(ModuleConfig config)
         {
+            // Index the user-facing settings by key and collect the declared category ids.
             var settings = config.Settings
                 .Where(static setting => setting != null && !string.IsNullOrWhiteSpace(setting.Key))
                 .ToDictionary(static setting => setting.Key, StringComparer.OrdinalIgnoreCase);
@@ -247,6 +280,7 @@ namespace ASLM.Services.Modules
             ModuleSetting start,
             IReadOnlyDictionary<string, ModuleSetting> settings)
         {
+            // Follow the chain of controllers; revisiting a setting or returning to the start means a cycle.
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var current = start;
             while (!string.IsNullOrWhiteSpace(current.DependsOn) &&

@@ -10,17 +10,43 @@ namespace ASLM.Services.Modules
     /// </summary>
     public enum ModuleLaunchStatus
     {
+        /// <summary>
+        /// The run commands were started successfully.
+        /// </summary>
         Started,
+
+        /// <summary>
+        /// A process of this module is already running, so nothing was started.
+        /// </summary>
         AlreadyRunning,
+
+        /// <summary>
+        /// The module or its manifest could not be found or loaded.
+        /// </summary>
         NotFound,
+
+        /// <summary>
+        /// The manifest defines no run commands, so there is nothing to start.
+        /// </summary>
         NoRunCommands,
+
+        /// <summary>
+        /// The one-time first-run setup did not complete, so the module was not started.
+        /// </summary>
         FirstRunFailed,
+
+        /// <summary>
+        /// The launch failed for any other reason; the result message holds the details.
+        /// </summary>
         Error
     }
 
     /// <summary>
     /// Returns the result of one coordinated launch attempt.
     /// </summary>
+    /// <param name="Status">Outcome of the launch attempt.</param>
+    /// <param name="Message">Human-readable failure or status detail, or null on success.</param>
+    /// <param name="EffectiveConfig">The freshly loaded manifest the launch worked with, or null when none could be loaded.</param>
     public sealed record ModuleLaunchResult(
         ModuleLaunchStatus Status,
         string? Message,
@@ -31,9 +57,26 @@ namespace ASLM.Services.Modules
     /// </summary>
     public sealed class ModuleLaunchCoordinator
     {
+        // Fields
+
+        /// <summary>
+        /// Installer used to discover, load and save module manifests and to reconcile required engines.
+        /// </summary>
         private readonly ModuleInstaller _installer;
+
+        /// <summary>
+        /// Runner that executes first-run setup and starts the module run commands.
+        /// </summary>
         private readonly ModuleRunner _runner;
+
+        /// <summary>
+        /// Shared limit on concurrent module starts; one slot is held for the whole launch.
+        /// </summary>
         private readonly ModuleStartThrottle _startThrottle;
+
+        /// <summary>
+        /// Logger for discovery, load and launch failures.
+        /// </summary>
         private readonly ILogger<ModuleLaunchCoordinator> _logger;
 
 
@@ -59,6 +102,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Resolves a module by stable id and starts it when it is not already running.
+        /// Discovery failures and unknown ids are reported through the result instead of exceptions.
         /// </summary>
         public async Task<ModuleLaunchResult> LaunchOrEnsureRunningAsync(
             string moduleId,
@@ -92,6 +136,7 @@ namespace ASLM.Services.Modules
                 return new ModuleLaunchResult(ModuleLaunchStatus.NotFound, $"Module '{trimmedId}' was not found.", null);
             }
 
+            // Duplicate ids are tolerated: matches are ordered by manifest path, so the first one is stable.
             if (matches.Count > 1)
             {
                 _logger.LogWarning(
@@ -105,6 +150,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Starts one installed module identified by its manifest path.
+        /// Holds a content operation and one start-throttle slot for the whole launch, including dependencies.
         /// </summary>
         public async Task<ModuleLaunchResult> LaunchOrEnsureRunningBySourcePathAsync(
             string moduleSourcePath,
@@ -116,6 +162,7 @@ namespace ASLM.Services.Modules
                 return new ModuleLaunchResult(ModuleLaunchStatus.Error, "moduleSourcePath is required.", null);
             }
 
+            // Load the manifest; a load exception becomes an Error result and a missing manifest a NotFound result.
             ModuleConfig? discovered;
             try
             {
@@ -135,6 +182,9 @@ namespace ASLM.Services.Modules
                     null);
             }
 
+            // Run the launch inside a content operation (registers the module as in use, so a removal cannot run
+            // underneath it, and waits while a conflicting removal is in progress) and take one throttle slot. The slot is released in finally only when it was actually acquired, so a
+            // cancellation while waiting does not release a slot that was never taken.
             var launchSlotAcquired = false;
             try
             {
@@ -175,6 +225,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Reloads the manifest, runs first-run when needed, enables the module, and starts run commands.
+        /// The caller owns the start-throttle slot; dependency launches reuse it instead of acquiring another one.
         /// </summary>
         private async Task<ModuleLaunchResult> LaunchOrEnsureRunningCoreAsync(
             ModuleConfig discovered,
@@ -193,6 +244,7 @@ namespace ASLM.Services.Modules
                     null);
             }
 
+            // Reject modules that cannot run here or have nothing to start.
             if (!fresh.IsSupportedOnCurrentPlatform)
             {
                 return new ModuleLaunchResult(
@@ -209,6 +261,7 @@ namespace ASLM.Services.Modules
                     fresh);
             }
 
+            // A module that is already running is a success for callers that only need it to be up.
             var runningPaths = _runner.GetRunningModuleSourcePaths();
             if (runningPaths.Contains(fresh.SourcePath, StringComparer.OrdinalIgnoreCase))
             {
@@ -246,6 +299,7 @@ namespace ASLM.Services.Modules
                 await _installer.SaveConfigAsync(fresh, raiseModulesChanged: false);
             }
 
+            // Start the modules this one depends on; any dependency failure aborts this launch.
             var dependencyFailure = await EnsureDependencyModulesRunningAsync(fresh, moduleLog, ct);
             if (dependencyFailure != null)
             {
@@ -258,6 +312,7 @@ namespace ASLM.Services.Modules
                 return dependencyFailure;
             }
 
+            // Persist the enabled state before the run commands start.
             fresh.Status.Enabled = true;
             await _installer.SaveConfigAsync(fresh);
 
@@ -277,6 +332,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Ensures every declared module dependency is running before the dependent module starts.
+        /// Returns null when all dependencies are running, otherwise the failure result for the dependent module.
         /// </summary>
         private async Task<ModuleLaunchResult?> EnsureDependencyModulesRunningAsync(
             ModuleConfig module,
@@ -285,12 +341,14 @@ namespace ASLM.Services.Modules
         {
             foreach (var dependency in module.Dependencies.Modules)
             {
+                // Skip entries without an id.
                 var dependencyId = dependency.Id?.Trim();
                 if (string.IsNullOrEmpty(dependencyId))
                 {
                     continue;
                 }
 
+                // A module that depends on itself could never start, so fail instead of recursing.
                 if (string.Equals(dependencyId, module.Id, StringComparison.OrdinalIgnoreCase))
                 {
                     return new ModuleLaunchResult(
@@ -299,6 +357,7 @@ namespace ASLM.Services.Modules
                         module);
                 }
 
+                // Find the dependency manifest by id; duplicates resolve to the first manifest path.
                 List<ModuleConfig> matches;
                 try
                 {
@@ -330,6 +389,8 @@ namespace ASLM.Services.Modules
                         matches[0].SourcePath);
                 }
 
+                // Launch the dependency through the core path: the throttle slot of the outer launch is already held,
+                // so acquiring another one could deadlock when all slots are taken by waiting launches.
                 log.Report($"[Deps] Ensuring dependency module '{matches[0].Name}' is running...");
                 var result = await LaunchOrEnsureRunningCoreAsync(matches[0], log, ct);
                 if (result.Status is ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning)

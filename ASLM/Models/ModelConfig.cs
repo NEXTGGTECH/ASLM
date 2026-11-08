@@ -11,49 +11,79 @@ namespace ASLM.Models
     /// </summary>
     public class ModelConfig
     {
-        // Version of the manifest schema used for compatibility checks.
+        // Manifest properties
+
+        /// <summary>
+        /// Version of the manifest schema used for compatibility checks.
+        /// </summary>
         [JsonPropertyName("fileVersion")]
         public int FileVersion { get; set; } = 1;
 
-        // Stable model identifier used throughout the application.
+        /// <summary>
+        /// Stable model identifier used throughout the application.
+        /// </summary>
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
-        // Human-readable model name shown in the UI.
+        /// <summary>
+        /// Human-readable model name shown in the UI.
+        /// </summary>
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        // Short description of the model's purpose or capabilities.
+        /// <summary>
+        /// Short description of the model's purpose or capabilities.
+        /// </summary>
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
-        // Version string of the packaged model.
+        /// <summary>
+        /// Version string of the packaged model.
+        /// </summary>
         [JsonPropertyName("version")]
         public string Version { get; set; } = string.Empty;
 
-        // Resource type stored in the manifest. Defaults to "model".
+        /// <summary>
+        /// Resource type stored in the manifest. Defaults to <c>model</c>.
+        /// </summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = "model";
 
-        // Functional category used for dependency matching.
+        /// <summary>
+        /// Functional category used for dependency matching.
+        /// </summary>
         [JsonPropertyName("category")]
         public string Category { get; set; } = string.Empty;
 
-        // Location of the remote model repository.
+        /// <summary>
+        /// Location of the remote model repository.
+        /// </summary>
         [JsonPropertyName("source")]
         public ModelSource Source { get; set; } = new();
 
-        // Optional explicit file list. When empty, the installer discovers files remotely.
+        /// <summary>
+        /// Optional explicit file list. When empty, the installer discovers files remotely.
+        /// </summary>
         [JsonPropertyName("files")]
         public List<string> Files { get; set; } = [];
 
-        // Persisted installation state of the model.
+        /// <summary>
+        /// Persisted installation state of the model.
+        /// </summary>
         [JsonPropertyName("status")]
         public ModelStatus Status { get; set; } = new();
 
-        // Absolute path to the source manifest file resolved at runtime.
+
+        // Runtime state
+
+        /// <summary>
+        /// Absolute path to the source manifest file resolved at runtime.
+        /// </summary>
         [JsonIgnore]
         public string SourcePath { get; set; } = string.Empty;
+
+
+        // Normalization
 
         /// <summary>
         /// Restores nested objects, collections, and strings after JSON deserialization.
@@ -93,11 +123,15 @@ namespace ASLM.Models
     /// </summary>
     public class ModelSource
     {
-        // Source provider identifier. The current installer expects "huggingface".
+        /// <summary>
+        /// Source provider identifier. The current installer expects <c>huggingface</c>.
+        /// </summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = "huggingface";
 
-        // Remote repository identifier, for example "openai/whisper-large-v3".
+        /// <summary>
+        /// Remote repository identifier, for example <c>openai/whisper-large-v3</c>.
+        /// </summary>
         [JsonPropertyName("repoId")]
         public string RepoId { get; set; } = string.Empty;
 
@@ -120,15 +154,21 @@ namespace ASLM.Models
     /// </summary>
     public class ModelStatus
     {
-        // Indicates whether the model is currently installed.
+        /// <summary>
+        /// Indicates whether the model is currently installed.
+        /// </summary>
         [JsonPropertyName("installed")]
         public bool Installed { get; set; }
 
-        // Version string of the installed model, if known.
+        /// <summary>
+        /// Version string of the installed model, if known.
+        /// </summary>
         [JsonPropertyName("installedVersion")]
         public string? InstalledVersion { get; set; }
 
-        // Timestamp of the latest installation check or update.
+        /// <summary>
+        /// Timestamp of the latest installation check or update.
+        /// </summary>
         [JsonPropertyName("lastChecked")]
         public string? LastChecked { get; set; }
 

@@ -7,13 +7,26 @@ using Microsoft.Maui.Graphics;
 
 namespace ASLM.Models
 {
+    // Notification classification
+
     /// <summary>
     /// Distinguishes the top-level notification groups shown in the notifications page.
     /// </summary>
     public enum AppNotificationCategory
     {
+        /// <summary>
+        /// Available ASLM, module, and engine updates.
+        /// </summary>
         Updates,
+
+        /// <summary>
+        /// Long-running downloads that report transfer progress.
+        /// </summary>
         Downloads,
+
+        /// <summary>
+        /// General application events, such as short-lived system toasts.
+        /// </summary>
         System
     }
 
@@ -22,37 +35,132 @@ namespace ASLM.Models
     /// </summary>
     public enum AppNotificationSeverity
     {
+        /// <summary>
+        /// Neutral information; shown with the blue accent color.
+        /// </summary>
         Info,
+
+        /// <summary>
+        /// Completed operation; shown with the green accent color.
+        /// </summary>
         Success,
+
+        /// <summary>
+        /// Recoverable problem that needs attention; shown with the yellow accent color.
+        /// </summary>
         Warning,
+
+        /// <summary>
+        /// Failed operation; shown with the red accent color.
+        /// </summary>
         Error
     }
+
+
+    // Notification item
 
     /// <summary>
     /// Represents one internal ASLM notification with optional progress state.
     /// </summary>
     public sealed class AppNotification : INotifyPropertyChanged
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="Title"/>.
+        /// </summary>
         private string _title;
+
+        /// <summary>
+        /// Backing field of <see cref="Message"/>.
+        /// </summary>
         private string _message;
+
+        /// <summary>
+        /// Backing field of <see cref="StatusText"/>.
+        /// </summary>
         private string _statusText;
+
+        /// <summary>
+        /// Backing field of <see cref="DetailText"/>.
+        /// </summary>
         private string _detailText;
+
+        /// <summary>
+        /// Backing field of <see cref="Severity"/>.
+        /// </summary>
         private AppNotificationSeverity _severity;
+
+        /// <summary>
+        /// Backing field of <see cref="UpdatedAt"/>.
+        /// </summary>
         private DateTimeOffset _updatedAt;
+
+        /// <summary>
+        /// Backing field of <see cref="IsInProgress"/>.
+        /// </summary>
         private bool _isInProgress;
+
+        /// <summary>
+        /// Backing field of <see cref="ProgressFraction"/>, always within 0 and 1.
+        /// </summary>
         private double _progressFraction;
+
+        /// <summary>
+        /// Backing field of <see cref="HasProgress"/>.
+        /// </summary>
         private bool _hasProgress;
+
+        /// <summary>
+        /// Name of the file or stream being transferred right now; empty when unknown.
+        /// </summary>
         private string _activeTransferLabel = string.Empty;
+
+        /// <summary>
+        /// Smoothed transfer speed text, or a dash placeholder while no speed is known.
+        /// </summary>
         private string _transferSpeedDisplay = "—";
+
+        /// <summary>
+        /// Percent text of the download metrics row, or a dash placeholder while the total size is unknown.
+        /// </summary>
         private string _transferPercentDisplay = "0%";
+
+        /// <summary>
+        /// Whether the running download reports a total size, so a percentage is meaningful.
+        /// </summary>
         private bool _downloadHasKnownTotal;
+
+        /// <summary>
+        /// Backing field of <see cref="ShowDownloadMetricsRow"/>.
+        /// </summary>
         private bool _showDownloadMetricsRow;
+
+        /// <summary>
+        /// Backing field of <see cref="OffersUpdateActions"/>.
+        /// </summary>
         private bool _offersUpdateActions;
+
+        /// <summary>
+        /// Backing field of <see cref="SuppressToastAutoDismiss"/>.
+        /// </summary>
         private bool _suppressToastAutoDismiss;
+
+
+        // Initialization
 
         /// <summary>
         /// Creates a notification with stable identity and initial display fields.
         /// </summary>
+        /// <param name="id">Stable identity used for deduplication.</param>
+        /// <param name="category">Group of the notification on the notifications page.</param>
+        /// <param name="severity">Initial visual importance.</param>
+        /// <param name="title">Title shown in the notification list.</param>
+        /// <param name="message">Main notification message.</param>
+        /// <param name="sourceKind">
+        /// Kind of the source that produced the notification, for example <c>app</c> or <c>module</c>.
+        /// </param>
+        /// <param name="sourceId">Identifier of the source within its kind.</param>
         public AppNotification(
             string id,
             AppNotificationCategory category,
@@ -98,6 +206,7 @@ namespace ASLM.Models
             bool offersUpdateActions = false,
             bool suppressToastAutoDismiss = false)
         {
+            // Copy the persisted identity and display state without raising change events.
             Id = id;
             Category = category;
             SourceKind = sourceKind;
@@ -114,12 +223,15 @@ namespace ASLM.Models
             _hasProgress = hasProgress;
             _offersUpdateActions = offersUpdateActions;
             _suppressToastAutoDismiss = suppressToastAutoDismiss;
+
+            // A running download whose detail reads "done / total" is known to have a total size.
             if (category == AppNotificationCategory.Downloads && hasProgress && isInProgress &&
                 detailText.Contains(" / ", StringComparison.Ordinal))
             {
                 _downloadHasKnownTotal = true;
             }
 
+            // Derive the transfer row state and tell bindings about values computed above.
             RefreshTransferPercentDisplay();
             SyncShowDownloadMetricsRow();
             OnPropertyChanged(nameof(ShowActiveTransferInCard));
@@ -127,8 +239,16 @@ namespace ASLM.Models
             OnPropertyChanged(nameof(SuppressToastAutoDismiss));
         }
 
-        /// <inheritdoc />
+
+        // Events
+
+        /// <summary>
+        /// Raised when a bindable property changes so bound notification cards refresh.
+        /// </summary>
         public event PropertyChangedEventHandler? PropertyChanged;
+
+
+        // Identity and timestamps
 
         /// <summary>
         /// Gets the stable notification identity used for deduplication.
@@ -163,6 +283,9 @@ namespace ASLM.Models
             get => _updatedAt;
             private set => SetField(ref _updatedAt, value);
         }
+
+
+        // Display content
 
         /// <summary>
         /// Gets the title shown in the notification list.
@@ -237,6 +360,9 @@ namespace ASLM.Models
             }
         }
 
+
+        // Progress state
+
         /// <summary>
         /// Gets whether a long-running operation is still active.
         /// </summary>
@@ -261,6 +387,7 @@ namespace ASLM.Models
             get => _progressFraction;
             private set
             {
+                // Ignore changes below the display precision to avoid a flood of binding updates.
                 var clamped = Math.Clamp(value, 0, 1);
                 if (Math.Abs(_progressFraction - clamped) < 0.0001)
                 {
@@ -281,6 +408,9 @@ namespace ASLM.Models
             get => _hasProgress;
             private set => SetField(ref _hasProgress, value);
         }
+
+
+        // Derived display values
 
         /// <summary>
         /// Gets whether the status line contains visible text.
@@ -367,6 +497,9 @@ namespace ASLM.Models
             }
         }
 
+
+        // Update actions
+
         /// <summary>
         /// Gets whether this row should offer Update now / Update later actions (available update cards).
         /// </summary>
@@ -413,6 +546,9 @@ namespace ASLM.Models
             SetUpdateAvailabilityPresentation(false, false);
         }
 
+
+        // Severity styling
+
         /// <summary>
         /// Gets the accent color associated with the notification severity.
         /// </summary>
@@ -423,6 +559,9 @@ namespace ASLM.Models
             AppNotificationSeverity.Error => Color.FromArgb("#FF453A"),
             _ => Color.FromArgb("#0A84FF")
         };
+
+
+        // State updates
 
         /// <summary>
         /// Refreshes the notification text and severity while preserving its identity.
@@ -455,6 +594,8 @@ namespace ASLM.Models
             ProgressFraction = progressFraction;
             IsInProgress = isInProgress;
             UpdatedAt = DateTimeOffset.Now;
+
+            // A finished transfer no longer has a current file, speed or known total.
             if (!isInProgress)
             {
                 ResetDownloadTransferRow();
@@ -485,6 +626,7 @@ namespace ASLM.Models
         /// </summary>
         internal void ApplyDownloadTransferSample(DownloadProgress progress, string? measuredSpeedLabel)
         {
+            // Show the file currently being transferred when the sample names one.
             if (!string.IsNullOrWhiteSpace(progress.ActiveTransferName))
             {
                 if (SetField(ref _activeTransferLabel, progress.ActiveTransferName.Trim(), nameof(ActiveTransferLabel)))
@@ -493,6 +635,7 @@ namespace ASLM.Models
                 }
             }
 
+            // A positive total means the percentage is meaningful.
             _downloadHasKnownTotal = progress.TotalBytes > 0;
 
             var speedText = string.IsNullOrWhiteSpace(measuredSpeedLabel) ? "—" : measuredSpeedLabel.Trim();
@@ -534,6 +677,9 @@ namespace ASLM.Models
             SetField(ref _showDownloadMetricsRow, next, nameof(ShowDownloadMetricsRow));
         }
 
+
+        // Change notification
+
         /// <summary>
         /// Raises a property-changed event for one property.
         /// </summary>
@@ -556,6 +702,9 @@ namespace ASLM.Models
             OnPropertyChanged(propertyName);
             return true;
         }
+
+
+        // Resource label comparison
 
         /// <summary>
         /// Returns true when the two labels refer to the same resource (ignoring separators and case).

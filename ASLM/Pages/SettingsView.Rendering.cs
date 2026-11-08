@@ -7,9 +7,13 @@ using ASLM.Controls.Settings;
 
 namespace ASLM.Pages
 {
+    /// <summary>
+    /// Rendering part of the settings view: category pages, the module settings surface,
+    /// section navigation and scrolling, and the synchronization of drafts with the built-in controls.
+    /// </summary>
     public partial class SettingsView
     {
-        // Rendering
+        // Category rendering
 
         /// <summary>
         /// Shows the combined ASLM settings category while hiding module-specific content.
@@ -52,6 +56,7 @@ namespace ASLM.Pages
         {
             PrepareCategorySurface(showEmptyState: false, showModuleSettings: true);
 
+            // Show the cached (or empty new) module page at once; its rows are created afterwards in the background.
             var moduleView = GetOrCreateModuleSettingsSurface(module, out var presentation);
             if (!ReferenceEquals(ModuleSettingsContainer.Content, moduleView))
             {
@@ -63,6 +68,9 @@ namespace ASLM.Pages
             _ = PopulateModuleSettingsSurfaceAsync(module, presentation);
         }
 
+
+        // Module settings surface
+
         /// <summary>
         /// Returns a stable module view without synchronously materializing or refreshing its editor rows.
         /// </summary>
@@ -70,6 +78,7 @@ namespace ASLM.Pages
             ModuleConfig module,
             out ModuleSettingsPageViewModel presentation)
         {
+            // Create the page view model and the view once per module and reuse them on later visits.
             var runtimeKey = SettingsService.GetModuleRuntimeKey(module);
             if (!_moduleSettingsPresentations.TryGetValue(runtimeKey, out presentation!))
             {
@@ -104,6 +113,8 @@ namespace ASLM.Pages
             {
                 // Let the empty module surface and close button paint before the first editor row is created.
                 await Task.Yield();
+
+                // Create the editor rows step by step from the module draft.
                 await presentation.LoadIncrementallyAsync(
                     _editSession.GetModule(module),
                     L.Get(LocalizationKeys.Settings_Engine_Installed),
@@ -111,6 +122,7 @@ namespace ASLM.Pages
                     cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
 
+                // A draft that was reset or discarded while the page was cached needs its rows refreshed.
                 var runtimeKey = SettingsService.GetModuleRuntimeKey(module);
                 if (_moduleSettingsPresentationsNeedingRefresh.Remove(runtimeKey))
                 {
@@ -118,6 +130,7 @@ namespace ASLM.Pages
                     cancellationToken.ThrowIfCancellationRequested();
                 }
 
+                // Finish only when this page is still the visible one; otherwise the user has navigated away.
                 var stillActive =
                     _activeCategory?.Kind == SettingsCategoryKind.Module &&
                     _activeCategory.Module != null &&
@@ -134,6 +147,7 @@ namespace ASLM.Pages
                     return;
                 }
 
+                // Bind the section navigation, or show the empty state when the module has nothing to display.
                 ShowModuleSectionNavigation(presentation);
                 if (!presentation.HasSettings)
                 {
@@ -153,6 +167,9 @@ namespace ASLM.Pages
                 Debug.WriteLine($"Failed to build settings controls for module '{module.Name}': {ex.Message}");
             }
         }
+
+
+        // Section navigation and scrolling
 
         /// <summary>
         /// Binds the right sidebar to the active module without inheriting it on built-in pages.
@@ -208,6 +225,7 @@ namespace ASLM.Pages
         {
             UpdateSettingsScrollBar();
 
+            // Only a module page with at least two visible sections has a navigation to keep in sync.
             if (_activeCategory?.Kind != SettingsCategoryKind.Module ||
                 ModuleSettingsContainer.Content is not ModuleSettingsView moduleView ||
                 moduleView.BindingContext is not ModuleSettingsPageViewModel presentation ||
@@ -233,6 +251,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Otherwise the active section is the last one whose top has reached a line just below the viewport top.
             var activationLine = e.ScrollY + 12;
             var activeSection = sectionViews[0].Section;
             foreach (var (section, sectionView) in sectionViews)
@@ -273,6 +292,9 @@ namespace ASLM.Pages
 
             return ReferenceEquals(current, ancestor) ? offset : double.NaN;
         }
+
+
+        // Surface state
 
         /// <summary>
         /// Marks one cached module presentation for a lazy refresh after its draft changes externally.
@@ -316,6 +338,9 @@ namespace ASLM.Pages
             EmptyCategoryLabel.Text = message;
         }
 
+
+        // Draft and control synchronization
+
         /// <summary>
         /// Pushes the current ASLM draft values back into the always-created XAML controls.
         /// </summary>
@@ -335,6 +360,7 @@ namespace ASLM.Pages
         /// </summary>
         private void ApplyAslmBuiltInDraftsToToggles()
         {
+            // The toggles are set without raising their Toggled event, so the drafts are not rewritten from them.
             if (_apiServerToggle != null)
             {
                 _apiServerToggle.SetStateWithoutToggleEvent(_apiServerEnabledDraft);
@@ -419,6 +445,7 @@ namespace ASLM.Pages
                 _apiServerEnabledDraft = _apiServerToggle.IsToggled;
             }
 
+            // The three console switches form one draft value, so they are read together.
             if (_consoleSidebarToggle != null &&
                 _consoleCompletedToggle != null &&
                 _consoleIndividualToggle != null)
@@ -444,6 +471,9 @@ namespace ASLM.Pages
                 _disableHomePageDraft = _disableHomePageToggle.IsToggled;
             }
         }
+
+
+        // Surface visibility
 
         /// <summary>
         /// Applies baseline visibility before showing one stable category tree.

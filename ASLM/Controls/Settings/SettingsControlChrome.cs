@@ -7,8 +7,10 @@ namespace ASLM.Controls.Settings
     /// </summary>
     public static class SettingsControlChrome
     {
+        // Attached properties
+
         /// <summary>
-        /// Identifies whether an entry should remove its native border and background.
+        /// Identifies the attached property that, when true, removes the native border and background of an entry.
         /// </summary>
         public static readonly BindableProperty FlatEntryProperty = BindableProperty.CreateAttached(
             "FlatEntry",
@@ -18,7 +20,7 @@ namespace ASLM.Controls.Settings
             propertyChanged: OnFlatEntryChanged);
 
         /// <summary>
-        /// Identifies whether a picker should remove its native border and background.
+        /// Identifies the attached property that, when true, removes the native border and background of a picker.
         /// </summary>
         public static readonly BindableProperty CompactPickerProperty = BindableProperty.CreateAttached(
             "CompactPicker",
@@ -26,6 +28,9 @@ namespace ASLM.Controls.Settings
             typeof(SettingsControlChrome),
             false,
             propertyChanged: OnCompactPickerChanged);
+
+
+        // Property accessors
 
         /// <summary>
         /// Gets whether native entry chrome is disabled for one element.
@@ -51,6 +56,9 @@ namespace ASLM.Controls.Settings
         public static void SetCompactPicker(BindableObject element, bool value) =>
             element.SetValue(CompactPickerProperty, value);
 
+
+        // Chrome application
+
         /// <summary>
         /// Applies flat entry chrome immediately and after handler recreation.
         /// </summary>
@@ -70,6 +78,9 @@ namespace ASLM.Controls.Settings
             picker.HandlerChanged += OnPickerHandlerChanged;
             ApplyCompactPickerPlatform(picker);
         }
+
+
+        // Change handlers
 
         /// <summary>
         /// Enables flat entry behavior when requested from XAML.
@@ -115,6 +126,9 @@ namespace ASLM.Controls.Settings
             }
         }
 
+
+        // Platform chrome
+
         /// <summary>
         /// Removes native entry chrome on platforms that draw an additional input shell.
         /// </summary>
@@ -123,6 +137,7 @@ namespace ASLM.Controls.Settings
 #if WINDOWS
             var transparentBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
 
+            // WinUI draws single-line and password inputs with different native controls; flatten whichever is used.
             switch (entry.Handler?.PlatformView)
             {
                 case Microsoft.UI.Xaml.Controls.TextBox textBox:

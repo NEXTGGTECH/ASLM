@@ -7,12 +7,35 @@ namespace ASLM.Models
     /// </summary>
     public static class ShellNavigationRoute
     {
+        // Routes
+
+        /// <summary>
+        /// Route of the home dashboard; also the fallback for unknown routes.
+        /// </summary>
         public const string Home = "home";
+
+        /// <summary>
+        /// Route of the built-in consoles page.
+        /// </summary>
         public const string Consoles = "consoles";
+
+        /// <summary>
+        /// Route of the modules page.
+        /// </summary>
         public const string Modules = "modules";
+
+        /// <summary>
+        /// Route of the ASLM API page.
+        /// </summary>
         public const string AslmApi = "aslm-api";
 
+        /// <summary>
+        /// Prefix of module page routes; the module identifier follows it.
+        /// </summary>
         private const string ModulePrefix = "module::";
+
+
+        // Route conversion
 
         /// <summary>
         /// Creates a stable route for an installed module page.
@@ -51,6 +74,7 @@ namespace ASLM.Models
         /// </summary>
         public static string Normalize(string? route)
         {
+            // Match the fixed page routes case-insensitively and return their canonical spelling.
             var candidate = route?.Trim();
             if (string.Equals(candidate, Home, StringComparison.OrdinalIgnoreCase))
             {
@@ -72,6 +96,7 @@ namespace ASLM.Models
                 return AslmApi;
             }
 
+            // Anything else must be a well-formed module route, otherwise fall back to home.
             return TryGetModuleId(candidate, out var moduleId)
                 ? ForModule(moduleId)
                 : Home;

@@ -5,59 +5,59 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Handlers;
 #endif
 
-namespace ASLM.Installer;
-
-/// <summary>
-/// Builds the MAUI application used by the standalone installer.
-/// </summary>
-public static class MauiProgram
+namespace ASLM.Installer
 {
-    // Application composition.
-
     /// <summary>
-    /// Registers UI services and returns the configured MAUI app.
+    /// Builds the MAUI application used by the standalone installer.
     /// </summary>
-    public static MauiApp CreateMauiApp()
+    public static class MauiProgram
     {
-        var builder = MauiApp.CreateBuilder();
-        builder
-            .UseMauiApp<App>()
-            .Services
-            .AddSingleton<InstallerService>()
-            .AddSingleton<LegalDocumentService>();
+        // Application composition
+
+        /// <summary>
+        /// Registers the installer services as singletons and returns the configured MAUI app.
+        /// </summary>
+        public static MauiApp CreateMauiApp()
+        {
+            // Register the application type and the installer services in the MAUI dependency container.
+            var builder = MauiApp.CreateBuilder();
+            builder
+                .UseMauiApp<App>()
+                .Services
+                .AddSingleton<InstallerService>()
+                .AddSingleton<LegalDocumentService>();
 
 #if DEBUG
-        builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
 
 #if WINDOWS
-        ConfigureWindowsCompactControlSizing();
+            ConfigureWindowsCompactControlSizing();
 #endif
 
-        return builder.Build();
-    }
+            return builder.Build();
+        }
 
 #if WINDOWS
-    // Windows control sizing.
-
-    /// <summary>
-    /// Removes WinUI default minimum widths so standalone inputs stay compact.
-    /// </summary>
-    private static void ConfigureWindowsCompactControlSizing()
-    {
-        CheckBoxHandler.Mapper.AppendToMapping("CompactWindowsCheckBox", (handler, view) =>
+        /// <summary>
+        /// Removes WinUI default minimum widths so standalone inputs stay compact.
+        /// </summary>
+        private static void ConfigureWindowsCompactControlSizing()
         {
-            handler.PlatformView.MinWidth = 16;
-            handler.PlatformView.MinHeight = 16;
-            handler.PlatformView.Padding = new Microsoft.UI.Xaml.Thickness(0);
-        });
+            CheckBoxHandler.Mapper.AppendToMapping("CompactWindowsCheckBox", (handler, view) =>
+            {
+                handler.PlatformView.MinWidth = 16;
+                handler.PlatformView.MinHeight = 16;
+                handler.PlatformView.Padding = new Microsoft.UI.Xaml.Thickness(0);
+            });
 
-        SwitchHandler.Mapper.AppendToMapping("CompactWindowsSwitch", (handler, view) =>
-        {
-            handler.PlatformView.MinWidth = 16;
-            handler.PlatformView.MinHeight = 16;
-            handler.PlatformView.Padding = new Microsoft.UI.Xaml.Thickness(0);
-        });
-    }
+            SwitchHandler.Mapper.AppendToMapping("CompactWindowsSwitch", (handler, view) =>
+            {
+                handler.PlatformView.MinWidth = 16;
+                handler.PlatformView.MinHeight = 16;
+                handler.PlatformView.Padding = new Microsoft.UI.Xaml.Thickness(0);
+            });
+        }
 #endif
+    }
 }

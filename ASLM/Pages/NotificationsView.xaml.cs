@@ -15,17 +15,53 @@ namespace ASLM.Pages
     /// </summary>
     public partial class NotificationsView : ContentView, INotifyPropertyChanged, ILocalizable
     {
-        // Keep in sync with NotificationsPopup WidthRequest / HeightRequest in NotificationsView.xaml.
+        // Fields and constants
+
+        /// <summary>
+        /// Popover width used for edge clamping. Keep in sync with the <c>NotificationsPopup</c> WidthRequest in
+        /// NotificationsView.xaml.
+        /// </summary>
         private const double PopupWidth = 360;
+
+        /// <summary>
+        /// Popover height used for vertical centering and edge clamping. Keep in sync with the
+        /// <c>NotificationsPopup</c> HeightRequest in NotificationsView.xaml.
+        /// </summary>
         private const double PopupHeight = 480;
+
+        /// <summary>
+        /// Horizontal gap between the right edge of the sidebar button and the popover.
+        /// </summary>
         private const double PopupGap = 21;
+
+        /// <summary>
+        /// Minimum distance kept between the popover and the edges of the host.
+        /// </summary>
         private const double ScreenPadding = 14;
 
+        /// <summary>
+        /// Service that owns the notification list shown by this view.
+        /// </summary>
         private readonly NotificationCenter _notifications;
+
+        /// <summary>
+        /// Localization service used to re-apply texts when the language changes.
+        /// </summary>
         private readonly AppLocalizationService _localization;
 
+        /// <summary>
+        /// Bounds of the sidebar button the popover was last opened at, reused when the host is resized.
+        /// </summary>
         private Rect _lastAnchorBounds;
+
+        /// <summary>
+        /// Whether the popover was positioned by <see cref="OpenAtAsync"/> and must follow host size changes.
+        /// </summary>
         private bool _popupPositioningActive;
+
+        /// <summary>
+        /// Backing field of <see cref="DismissIconSource"/>.
+        /// </summary>
         private ImageSource _dismissIconSource = null!;
 
 
@@ -45,8 +81,10 @@ namespace ASLM.Pages
         // Initialization
 
         /// <summary>
-        /// Creates the notifications popover and hooks service updates.
+        /// Creates the notifications popover, binds it to itself and hooks localization updates.
         /// </summary>
+        /// <param name="notifications">Service that owns the notification list.</param>
+        /// <param name="localization">Localization service whose language changes re-apply the texts.</param>
         public NotificationsView(NotificationCenter notifications, AppLocalizationService localization)
         {
             _notifications = notifications;
@@ -104,17 +142,17 @@ namespace ASLM.Pages
         public string SectionTitle => L.Get(LocalizationKeys.Notifications_SectionRecent);
 
         /// <summary>
-        /// Gets whether the current filter has visible notifications.
+        /// Gets whether the list has any notifications to show; otherwise the empty state replaces it.
         /// </summary>
         public bool HasVisibleNotifications => _notifications.Notifications.Count > 0;
 
         /// <summary>
-        /// Gets whether the empty state should be shown.
+        /// Gets whether the empty-state placeholder should be shown instead of the list.
         /// </summary>
         public bool IsEmptyVisible => !HasVisibleNotifications;
 
         /// <summary>
-        /// Gets whether the Clear all button is enabled.
+        /// Gets whether there is anything to clear, which enables the Clear all button.
         /// </summary>
         public bool HasAnyNotifications => _notifications.Notifications.Count > 0;
 
@@ -140,8 +178,11 @@ namespace ASLM.Pages
         // Public API
 
         /// <summary>
-        /// Positions the popover next to the notifications sidebar button.
+        /// Positions the popover next to the notifications sidebar button and starts following host resizes.
         /// </summary>
+        /// <param name="anchorBounds">Bounds of the sidebar button the popover is attached to.</param>
+        /// <param name="hostWidth">Width of the overlay host, or 0 when unknown.</param>
+        /// <param name="hostHeight">Height of the overlay host, or 0 when unknown.</param>
         public Task OpenAtAsync(Rect anchorBounds, double hostWidth, double hostHeight)
         {
             _lastAnchorBounds = anchorBounds;
@@ -152,7 +193,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Refreshes the popover before the shell shows it.
+        /// Re-raises the view-state properties so the popover reflects the current notifications
+        /// before the shell shows it.
         /// </summary>
         public Task RefreshAsync()
         {
@@ -168,6 +210,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OnLoaded(object? sender, EventArgs e)
         {
+            // Subscribe to theme changes; the unsubscribe-first pattern keeps repeated loads from stacking handlers.
             ThemeService.PaletteApplied -= OnPaletteAppliedForDismissIcon;
             ThemeService.PaletteApplied += OnPaletteAppliedForDismissIcon;
             if (Application.Current is { } app)
@@ -176,6 +219,7 @@ namespace ASLM.Pages
                 app.RequestedThemeChanged += OnApplicationRequestedThemeChanged;
             }
 
+            // Tint the icon for the current palette, then follow notification and host size changes.
             RefreshDismissIconChrome();
             _notifications.NotificationsChanged -= OnNotificationsChanged;
             _notifications.NotificationsChanged += OnNotificationsChanged;
@@ -201,7 +245,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Refreshes the dismiss icon after a custom palette is applied.
+        /// Re-tints the dismiss icon on the main thread after a custom palette is applied.
         /// </summary>
         private void OnPaletteAppliedForDismissIcon()
         {
@@ -209,7 +253,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Refreshes the dismiss icon when the application theme changes.
+        /// Re-tints the dismiss icon on the main thread when the application theme changes.
         /// </summary>
         private void OnApplicationRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
         {
@@ -246,11 +290,18 @@ namespace ASLM.Pages
         /// <summary>
         /// Applies popover margins while keeping it inside the host bounds.
         /// </summary>
+        /// <param name="anchorBounds">
+        /// Bounds of the sidebar button; the popover opens to its right, vertically centered on it.
+        /// </param>
+        /// <param name="hostWidth">Width of the host; 0 skips the horizontal clamp.</param>
+        /// <param name="hostHeight">Height of the host; 0 skips the vertical clamp.</param>
         private void PositionPopup(Rect anchorBounds, double hostWidth, double hostHeight)
         {
+            // Preferred spot: right of the anchor, vertically centered on it.
             var x = anchorBounds.Right + PopupGap;
             var y = anchorBounds.Top - (PopupHeight / 2) + (anchorBounds.Height / 2);
 
+            // Pull the popover back inside the host (when its size is known), then keep it off the top and left edges.
             if (hostWidth > 0)
             {
                 x = Math.Min(x, Math.Max(ScreenPadding, hostWidth - PopupWidth - ScreenPadding));
@@ -375,7 +426,7 @@ namespace ASLM.Pages
         // Change handling
 
         /// <summary>
-        /// Rebuilds the visible list when service state changes.
+        /// Refreshes the view-state properties when the notification service reports a change.
         /// </summary>
         private void OnNotificationsChanged(object? sender, EventArgs e)
         {

@@ -20,6 +20,8 @@ namespace ASLM.Controls.Settings
         /// <summary>
         /// Finds the rendered card that belongs to one stable section view model.
         /// </summary>
+        /// <param name="section">Section view model whose card is searched by reference.</param>
+        /// <returns>The matching card, or null when the section is not rendered.</returns>
         public SettingsSectionView? FindSectionView(ModuleSettingsSectionViewModel section)
         {
             foreach (var child in SectionsLayout.Children)

@@ -12,7 +12,16 @@ namespace ASLM.Services.Modules
     /// </summary>
     public class ModuleEnvironmentResolver
     {
+        // Fields
+
+        /// <summary>
+        /// Engine installer used to locate the installed executable of an engine.
+        /// </summary>
         private readonly EngineInstaller _engineInstaller;
+
+        /// <summary>
+        /// Allows only one environment creation at a time across all modules.
+        /// </summary>
         private readonly SemaphoreSlim _environmentLock = new(1, 1);
 
 
@@ -37,6 +46,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Ensures the module-specific environment exists and returns its resolved paths.
+        /// Returns null when the engine declares no module environment; throws when the environment cannot be created.
         /// </summary>
         public async Task<ModuleEnvironmentResolution?> EnsureEnvironmentAsync(
             ModuleConfig module,
@@ -49,6 +59,7 @@ namespace ASLM.Services.Modules
                 return null;
             }
 
+            // Resolve the paths and take the cheap path first: an environment that is already usable needs no lock.
             var resolution = ResolveEnvironment(module, engine);
             Directory.CreateDirectory(resolution.DirectoryPath);
 
@@ -57,6 +68,7 @@ namespace ASLM.Services.Modules
                 return resolution;
             }
 
+            // Environment creation is serialized across all modules.
             await _environmentLock.WaitAsync(ct);
             try
             {
@@ -66,12 +78,14 @@ namespace ASLM.Services.Modules
                     return resolution;
                 }
 
+                // An engine without a create command only needs the directory, which already exists.
                 var config = engine.ModuleEnvironment!;
                 if (string.IsNullOrWhiteSpace(config.CreateCommand))
                 {
                     return resolution;
                 }
 
+                // Run the create command with the engine executable from the engine directory.
                 log?.Report($"[Env] Creating environment for {module.Name}: {resolution.DirectoryPath}");
 
                 var engineExecutable = ResolveEngineExecutable(engine);
@@ -84,11 +98,13 @@ namespace ASLM.Services.Modules
                     log,
                     ct);
 
+                // Embeddable Python distributions lack the stdlib venv module, so retry through virtualenv.
                 if (!created && IsPythonVirtualEnvironment(engine))
                 {
                     created = await TryCreatePythonVirtualenvFallbackAsync(module, engine, resolution, log, ct);
                 }
 
+                // A successful exit code is not enough: the expected executable must exist afterwards.
                 if (!created || !IsEnvironmentReady(engine, resolution))
                 {
                     throw new InvalidOperationException(
@@ -120,6 +136,9 @@ namespace ASLM.Services.Modules
                 ?? throw new InvalidOperationException($"Engine '{engine.Id}' has no source directory.");
             var config = engine.ModuleEnvironment!;
             var environmentDir = GetEnvironmentDirectory(module, engine);
+
+            // Start from a resolution that only knows the environment directory, because the templates below
+            // may refer to it through {environmentDir}.
             var resolution = new ModuleEnvironmentResolution(
                 DirectoryPath: environmentDir,
                 ExecutablePath: string.Empty,
@@ -127,11 +146,13 @@ namespace ASLM.Services.Modules
                 PackageManagerCommand: string.Empty,
                 EnvironmentVariables: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
+            // Command executable: the environment's own executable, or the engine executable when none is declared.
             var executableTemplate = string.IsNullOrWhiteSpace(config.ExecutablePath)
                 ? "{engineExecutable}"
                 : config.ExecutablePath;
             var executablePath = ResolvePathTemplate(executableTemplate, module, engine, resolution);
 
+            // Package manager executable: environment setting, then engine package manager, then the command executable.
             var packageManagerExecutableTemplate = !string.IsNullOrWhiteSpace(config.PackageManagerExecutable)
                 ? config.PackageManagerExecutable
                 : !string.IsNullOrWhiteSpace(engine.PackageManager?.Executable)
@@ -139,6 +160,7 @@ namespace ASLM.Services.Modules
                     : executableTemplate;
             var packageManagerExecutable = ResolvePathTemplate(packageManagerExecutableTemplate, module, engine, resolution);
 
+            // Package manager command and process environment variables with their tokens expanded.
             var packageManagerCommand = !string.IsNullOrWhiteSpace(config.PackageManagerCommand)
                 ? ResolveTemplate(config.PackageManagerCommand, module, engine, resolution)
                 : engine.PackageManager?.Command ?? string.Empty;
@@ -161,13 +183,18 @@ namespace ASLM.Services.Modules
 
         // Process environment
 
-        /// <summary>Resolves environment ownership without requiring an installed executable.</summary>
+        /// <summary>
+        /// Resolves the environment directory owned by a module without requiring an installed executable.
+        /// The folder name is the engine's directory prefix followed by the module slug.
+        /// </summary>
         internal static string GetEnvironmentDirectory(ModuleConfig module, EngineConfig engine) =>
             Path.GetFullPath(Path.Combine(Path.GetDirectoryName(engine.SourcePath)!,
                 $"{engine.ModuleEnvironment!.DirectoryPrefix}{NormalizeModuleSlug(module)}"));
 
         /// <summary>
         /// Applies environment variables declared by the engine's module environment.
+        /// The <c>{path}</c> token in a value expands to the current <c>PATH</c> of the start info, and
+        /// <c>ASLM_ENGINE_ENV_DIR</c> is always set to the environment directory.
         /// </summary>
         public void ApplyEnvironmentVariables(ModuleConfig module, EngineConfig engine, ProcessStartInfo psi)
         {
@@ -254,6 +281,8 @@ namespace ASLM.Services.Modules
         /// </summary>
         private static bool IsEnvironmentReady(EngineConfig engine, ModuleEnvironmentResolution resolution)
         {
+            // Without a create command the directory itself is the environment; otherwise the executable proves
+            // that creation finished.
             var config = engine.ModuleEnvironment;
             if (config == null || string.IsNullOrWhiteSpace(config.CreateCommand))
             {
@@ -268,6 +297,7 @@ namespace ASLM.Services.Modules
         /// </summary>
         private static bool IsPythonVirtualEnvironment(EngineConfig engine)
         {
+            // The declared environment kind wins; otherwise guess from the engine executable name.
             var kind = engine.ModuleEnvironment?.Kind ?? string.Empty;
             if (kind.Contains("python", StringComparison.OrdinalIgnoreCase))
             {
@@ -296,6 +326,7 @@ namespace ASLM.Services.Modules
 
             log?.Report("[Env] Python venv failed, trying virtualenv fallback...");
 
+            // Step 1: install the virtualenv package into the engine runtime with its package manager.
             var engineExecutable = ResolveEngineExecutable(engine);
             var packageManagerArguments = $"{engine.PackageManager.Command} virtualenv";
             var installed = await RunProcessAsync(
@@ -309,6 +340,7 @@ namespace ASLM.Services.Modules
                 return false;
             }
 
+            // Step 2: create the environment directory with `python -m virtualenv`, run from the module folder.
             var fallbackArguments = $"-m virtualenv {QuoteArgument(resolution.DirectoryPath)}";
             return await RunProcessAsync(
                 engineExecutable,
@@ -331,6 +363,7 @@ namespace ASLM.Services.Modules
             IProgress<string>? log,
             CancellationToken ct)
         {
+            // Run hidden with UTF-8 redirected output, so both streams can be forwarded to the log.
             var psi = new ProcessStartInfo
             {
                 FileName = fileName,
@@ -350,9 +383,11 @@ namespace ASLM.Services.Modules
                 return false;
             }
 
+            // Read both streams concurrently: an unread pipe that fills up would block the child process.
             var stdoutTask = DrainOutputAsync(process.StandardOutput, log, ct);
             var stderrTask = DrainOutputAsync(process.StandardError, log, ct);
 
+            // Wait for the exit first, then for the readers to reach end of stream so no output line is lost.
             await process.WaitForExitAsync(ct);
             await Task.WhenAll(stdoutTask, stderrTask);
 
@@ -408,6 +443,7 @@ namespace ASLM.Services.Modules
             var engineExecutable = ResolveEngineExecutable(engine);
             var runtimeDir = Path.Combine(engineDir, "runtime");
 
+            // Tokens are matched case-insensitively and replaced in a single chain; unknown tokens stay untouched.
             return (template ?? string.Empty)
                 .Replace("{engineDir}", engineDir, StringComparison.OrdinalIgnoreCase)
                 .Replace("{runtimeDir}", runtimeDir, StringComparison.OrdinalIgnoreCase)
@@ -421,6 +457,8 @@ namespace ASLM.Services.Modules
         /// </summary>
         private static string NormalizeModuleSlug(ModuleConfig module)
         {
+            // Keep ASCII letters and digits; collapse runs of '-', '_' and whitespace into a single '-'
+            // and drop every other character. Leading separators are never emitted.
             var raw = string.IsNullOrWhiteSpace(module.Id) ? module.Name : module.Id;
             var builder = new StringBuilder();
             var previousWasSeparator = false;
@@ -448,6 +486,8 @@ namespace ASLM.Services.Modules
                 return slug;
             }
 
+            // Names without any ASCII letter or digit (for example non-Latin ones) fall back to a short hash
+            // of the original text, which keeps the folder name stable.
             var hash = Convert
                 .ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw ?? string.Empty)))
                 .ToLowerInvariant()[..8];
@@ -506,6 +546,11 @@ namespace ASLM.Services.Modules
     /// <summary>
     /// Stores resolved per-module environment paths for one engine.
     /// </summary>
+    /// <param name="DirectoryPath">Absolute path of the module's environment directory.</param>
+    /// <param name="ExecutablePath">Absolute path of the executable that runs module commands.</param>
+    /// <param name="PackageManagerExecutablePath">Absolute path of the executable that installs packages.</param>
+    /// <param name="PackageManagerCommand">Command-line prefix passed to the package manager, before the package names.</param>
+    /// <param name="EnvironmentVariables">Process environment variables of the environment, with tokens already expanded.</param>
     public sealed record ModuleEnvironmentResolution(
         string DirectoryPath,
         string ExecutablePath,

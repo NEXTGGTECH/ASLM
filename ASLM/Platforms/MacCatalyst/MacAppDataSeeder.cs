@@ -15,9 +15,20 @@ namespace ASLM
     /// </remarks>
     public static class MacAppDataSeeder
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Name of the bundle resource folder that holds the template files.
+        /// </summary>
         private const string SeedFolderName = "seed";
 
+        /// <summary>
+        /// Top-level data folders that always exist in the data root, even when the bundle has no template for them.
+        /// </summary>
         private static readonly string[] RootFolders = ["Data", "Engines", "Models", "Modules"];
+
+
+        // Seeding
 
         /// <summary>
         /// Creates the data root and copies missing template files from the app bundle.
@@ -26,11 +37,13 @@ namespace ASLM
         {
             var rootDir = AppRoot.Directory;
 
+            // Create the standard folder layout so later code can rely on it.
             foreach (var folder in RootFolders)
             {
                 Directory.CreateDirectory(Path.Combine(rootDir, folder));
             }
 
+            // Locate the bundled templates; a bundle without a seed folder has nothing to copy.
             var resourcePath = NSBundle.MainBundle.ResourcePath;
             if (string.IsNullOrEmpty(resourcePath))
             {
@@ -43,6 +56,7 @@ namespace ASLM
                 return;
             }
 
+            // Mirror the seed tree into the data root, skipping files that already exist so user state survives updates.
             foreach (var sourceFile in Directory.EnumerateFiles(seedDir, "*", SearchOption.AllDirectories))
             {
                 var relativePath = Path.GetRelativePath(seedDir, sourceFile);

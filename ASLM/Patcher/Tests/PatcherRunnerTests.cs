@@ -4,327 +4,446 @@ using System.Text.Json;
 using ASLM.Patcher;
 using FluentAssertions;
 
-namespace ASLM.Patcher.Tests;
-
-/// <summary>
-/// Applies real pending updates against a throwaway installation tree: replacement,
-/// preserve rules, rollback, unsafe-path rejection, and the launcher restart contract.
-/// </summary>
-public sealed class PatcherRunnerTests : IDisposable
+namespace ASLM.Patcher.Tests
 {
-    private readonly string _root;
-    private readonly string _markerScript;
-    private readonly string _markerPath;
-    private readonly List<string> _progress = [];
-
-    public PatcherRunnerTests()
-    {
-        _root = Path.Combine(Path.GetTempPath(), "ASLM-Patcher-Tests", Guid.NewGuid().ToString("N"));
-        _markerScript = Path.Combine(_root, "marker.ps1");
-        _markerPath = Path.Combine(_root, "launched.txt");
-        Directory.CreateDirectory(Path.Combine(_root, "Data", "App"));
-        Directory.CreateDirectory(Path.Combine(_root, "Modules"));
-        File.WriteAllText(Path.Combine(_root, "Data", "App", "ASLM_Data.json"),
-            """{ "updates": { "checkEnabled": true }, "firstRunCompleted": true }""");
-        File.WriteAllText(_markerScript,
-            $"Add-Content -Path '{_markerPath}' -Value ($args -join ' ')");
-    }
-
-    public void Dispose()
-    {
-        TryDelete(_root);
-    }
-
-    private string TargetRoot => Path.Combine(_root, "target");
-
-    private string LauncherArgs() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
-
     /// <summary>
-    /// Seeds an installation with one old app file, preserved user data, and a payload
-    /// that replaces the app while shipping a brand-new file.
+    /// Verifies the patcher by applying real pending updates against a throwaway installation tree: replacement,
+    /// preserve rules, rollback, unsafe-path rejection, and the launcher restart contract.
     /// </summary>
-    private string SeedPendingUpdate(
-        string[]? preserve = null,
-        Action<string>? seedTarget = null,
-        Action<string>? seedStaging = null,
-        string kind = "app",
-        string? stagingOverride = null,
-        string? targetOverride = null)
+    public sealed class PatcherRunnerTests : IDisposable
     {
-        var target = targetOverride ?? TargetRoot;
-        Directory.CreateDirectory(Path.Combine(target, "App"));
-        Directory.CreateDirectory(Path.Combine(target, "Data", "App"));
-        Directory.CreateDirectory(Path.Combine(target, "Modules", "chat"));
-        File.WriteAllText(Path.Combine(target, "App", "ASLM.dll"), "old-app");
-        File.WriteAllText(Path.Combine(target, "App", "removed-in-update.bin"), "obsolete");
-        File.WriteAllText(Path.Combine(target, "Data", "App", "ASLM_Data.json"),
-            """{ "updates": { "checkEnabled": true }, "firstRunCompleted": true }""");
-        File.WriteAllText(Path.Combine(target, "Modules", "chat", "user-state.json"), "{ }");
-        seedTarget?.Invoke(target);
+        // Fixture
 
-        var stagingRoot = Path.Combine(_root, ".aslm-update", "staging");
-        var version = "9.9.9";
-        var wrapper = Path.Combine(stagingRoot, version, "wrapper");
-        Directory.CreateDirectory(Path.Combine(wrapper, "App"));
-        File.WriteAllText(Path.Combine(wrapper, "App", "ASLM.dll"), "new-app");
-        File.WriteAllText(Path.Combine(wrapper, "App", "added.bin"), "fresh");
-        seedStaging?.Invoke(wrapper);
+        /// <summary>
+        /// Unique temporary data root that holds the update folders, the settings file, and the logs of one test.
+        /// </summary>
+        private readonly string _root;
 
-        var backup = Path.Combine(_root, ".aslm-update", "backup", "20260101000000");
-        var pending = new
+        /// <summary>
+        /// PowerShell script that stands in for the launcher and records the arguments it receives.
+        /// </summary>
+        private readonly string _markerScript;
+
+        /// <summary>
+        /// File the launcher stand-in writes its arguments to, proving that the patcher restarted it.
+        /// </summary>
+        private readonly string _markerPath;
+
+        /// <summary>
+        /// Progress messages reported by the patcher during the test.
+        /// </summary>
+        private readonly List<string> _progress = [];
+
+        /// <summary>
+        /// Creates the temporary data root with a settings file and the launcher stand-in script.
+        /// </summary>
+        public PatcherRunnerTests()
         {
-            kind,
-            version,
-            stagingPath = stagingOverride ?? wrapper,
-            targetRoot = target,
-            backupPath = backup,
-            preserve = preserve ?? new[] { "Data", "Modules" },
-            createdUtc = DateTimeOffset.UtcNow.ToString("o")
-        };
-        File.WriteAllText(Path.Combine(_root, ".aslm-update", "pending.json"),
-            JsonSerializer.Serialize(pending));
-        return version;
-    }
+            _root = Path.Combine(Path.GetTempPath(), "ASLM-Patcher-Tests", Guid.NewGuid().ToString("N"));
+            _markerScript = Path.Combine(_root, "marker.ps1");
+            _markerPath = Path.Combine(_root, "launched.txt");
+            Directory.CreateDirectory(Path.Combine(_root, "Data", "App"));
+            Directory.CreateDirectory(Path.Combine(_root, "Modules"));
+            File.WriteAllText(Path.Combine(_root, "Data", "App", "ASLM_Data.json"),
+                """{ "updates": { "checkEnabled": true }, "firstRunCompleted": true }""");
+            File.WriteAllText(_markerScript,
+                $"Add-Content -Path '{_markerPath}' -Value ($args -join ' ')");
+        }
 
-    private Task<int> RunPatcher(params string[] extraArgs) =>
-        PatcherRunner.RunAsync(
-            ["--root", _root, "--launcher", LauncherArgs(), "--", .. extraArgs],
-            new Progress<PatcherProgress>(update => _progress.Add(update.Message)));
+        /// <summary>
+        /// Removes the temporary data root created for the test.
+        /// </summary>
+        public void Dispose()
+        {
+            TryDelete(_root);
+        }
 
-    private async Task<string> WaitForLauncherMarkerAsync()
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(15);
-        while (DateTime.UtcNow < deadline)
+
+        // Test helpers
+
+        /// <summary>
+        /// Installation directory that the seeded update replaces, kept separate from the data root.
+        /// </summary>
+        private string TargetRoot => Path.Combine(_root, "target");
+
+        /// <summary>
+        /// Path of Windows PowerShell, which the tests pass as the launcher executable so that the restart can be
+        /// observed.
+        /// </summary>
+        private string LauncherArgs() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
+
+        /// <summary>
+        /// Seeds an installation with one old app file, preserved user data, and a payload
+        /// that replaces the app while shipping a brand-new file.
+        /// </summary>
+        /// <param name="preserve">Preserve patterns written to the pending file; defaults to Data and Modules.</param>
+        /// <param name="seedTarget">Adds extra files to the installation (receives the target directory).</param>
+        /// <param name="seedStaging">Adds extra files to the payload (receives the payload directory).</param>
+        /// <param name="kind">Update kind written to the pending file.</param>
+        /// <param name="stagingOverride">Replaces the staging path written to the pending file.</param>
+        /// <param name="targetOverride">Replaces the installation directory that is seeded and written as the
+        /// target.</param>
+        /// <returns>The version of the seeded update.</returns>
+        private string SeedPendingUpdate(
+            string[]? preserve = null,
+            Action<string>? seedTarget = null,
+            Action<string>? seedStaging = null,
+            string kind = "app",
+            string? stagingOverride = null,
+            string? targetOverride = null)
+        {
+            // Old installation: application files (one obsolete), user data, and a module with its own state.
+            var target = targetOverride ?? TargetRoot;
+            Directory.CreateDirectory(Path.Combine(target, "App"));
+            Directory.CreateDirectory(Path.Combine(target, "Data", "App"));
+            Directory.CreateDirectory(Path.Combine(target, "Modules", "chat"));
+            File.WriteAllText(Path.Combine(target, "App", "ASLM.dll"), "old-app");
+            File.WriteAllText(Path.Combine(target, "App", "removed-in-update.bin"), "obsolete");
+            File.WriteAllText(Path.Combine(target, "Data", "App", "ASLM_Data.json"),
+                """{ "updates": { "checkEnabled": true }, "firstRunCompleted": true }""");
+            File.WriteAllText(Path.Combine(target, "Modules", "chat", "user-state.json"), "{ }");
+            seedTarget?.Invoke(target);
+
+            // Payload: the replacement application file and a new file, below a versioned staging wrapper folder.
+            var stagingRoot = Path.Combine(_root, ".aslm-update", "staging");
+            var version = "9.9.9";
+            var wrapper = Path.Combine(stagingRoot, version, "wrapper");
+            Directory.CreateDirectory(Path.Combine(wrapper, "App"));
+            File.WriteAllText(Path.Combine(wrapper, "App", "ASLM.dll"), "new-app");
+            File.WriteAllText(Path.Combine(wrapper, "App", "added.bin"), "fresh");
+            seedStaging?.Invoke(wrapper);
+
+            // Pending descriptor that tells the patcher what to apply, where, and what to preserve.
+            var backup = Path.Combine(_root, ".aslm-update", "backup", "20260101000000");
+            var pending = new
+            {
+                kind,
+                version,
+                stagingPath = stagingOverride ?? wrapper,
+                targetRoot = target,
+                backupPath = backup,
+                preserve = preserve ?? new[] { "Data", "Modules" },
+                createdUtc = DateTimeOffset.UtcNow.ToString("o")
+            };
+            File.WriteAllText(Path.Combine(_root, ".aslm-update", "pending.json"),
+                JsonSerializer.Serialize(pending));
+            return version;
+        }
+
+        /// <summary>
+        /// Runs the patcher against the test data root with the launcher stand-in, recording its progress messages.
+        /// </summary>
+        /// <param name="extraArgs">Arguments placed after the <c>--</c> separator, forwarded to the restarted
+        /// launcher.</param>
+        private Task<int> RunPatcher(params string[] extraArgs) =>
+            PatcherRunner.RunAsync(
+                ["--root", _root, "--launcher", LauncherArgs(), "--", .. extraArgs],
+                new Progress<PatcherProgress>(update => _progress.Add(update.Message)));
+
+        /// <summary>
+        /// Waits until the launcher stand-in has written its marker file and returns the recorded arguments.
+        /// </summary>
+        private async Task<string> WaitForLauncherMarkerAsync()
+        {
+            // Poll for up to 15 seconds because the launcher is started asynchronously.
+            var deadline = DateTime.UtcNow.AddSeconds(15);
+            while (DateTime.UtcNow < deadline)
+            {
+                try
+                {
+                    if (File.Exists(_markerPath))
+                    {
+                        // The stub appends through Add-Content; the file can exist while still open
+                        // for writing, so retry the access itself instead of only the existence check.
+                        return await File.ReadAllTextAsync(_markerPath);
+                    }
+                }
+                catch (IOException) when (DateTime.UtcNow < deadline)
+                {
+                    // The stub process still holds the marker; fall through and poll again.
+                }
+
+                await Task.Delay(50);
+            }
+
+            throw new TimeoutException("The launcher stub never started.");
+        }
+
+
+        // Applying updates
+
+        /// <summary>
+        /// Verifies that an update replaces and adds application files, removes files missing from the payload,
+        /// keeps preserved directories, records the installed release tag, cleans up its bookkeeping, and restarts
+        /// the launcher with only the forwarded user arguments.
+        /// </summary>
+        [Fact]
+        public async Task Applies_payload_preserves_user_data_and_restarts_the_launcher_with_forwarded_args()
+        {
+            // Arrange: an installation with a pending update, and a launcher stand-in that records its arguments.
+            SeedPendingUpdate();
+
+            // Act: apply the update.
+            var exitCode = await RunPatcher("-File", _markerScript, "v9.9.9");
+
+            // Assert: the patch succeeded.
+            exitCode.Should().Be(0);
+
+            // Replaced and added application files.
+            File.ReadAllText(Path.Combine(TargetRoot, "App", "ASLM.dll")).Should().Be("new-app");
+            File.ReadAllText(Path.Combine(TargetRoot, "App", "added.bin")).Should().Be("fresh");
+            File.Exists(Path.Combine(TargetRoot, "App", "removed-in-update.bin")).Should()
+                .BeFalse("files absent from the payload are removed");
+
+            // Preserved directories survive untouched.
+            File.Exists(Path.Combine(TargetRoot, "Data", "App", "ASLM_Data.json")).Should().BeTrue();
+            File.Exists(Path.Combine(TargetRoot, "Modules", "chat", "user-state.json")).Should().BeTrue();
+
+            // The installed release tag is merged into the data root's updates block.
+            var data = JsonDocument.Parse(File.ReadAllText(
+                Path.Combine(_root, "Data", "App", "ASLM_Data.json")));
+            data.RootElement.GetProperty("updates").GetProperty("installedReleaseTag").GetString()
+                .Should().Be("9.9.9");
+            data.RootElement.GetProperty("updates").GetProperty("checkEnabled").GetBoolean().Should().BeTrue();
+            data.RootElement.GetProperty("firstRunCompleted").GetBoolean().Should().BeTrue();
+
+            // Update bookkeeping is cleaned up (empty staging/backup parents may remain).
+            File.Exists(Path.Combine(_root, ".aslm-update", "pending.json")).Should().BeFalse();
+            Directory.GetDirectories(Path.Combine(_root, ".aslm-update", "staging")).Should().BeEmpty();
+            Directory.GetDirectories(Path.Combine(_root, ".aslm-update", "backup")).Should().BeEmpty();
+            File.Exists(Path.Combine(_root, ".aslm-update", "logs", "Patcher.log")).Should().BeTrue();
+
+            // The launcher restart forwards only user arguments.
+            (await WaitForLauncherMarkerAsync()).Should().Contain("v9.9.9").And.NotContain("--root");
+        }
+
+        /// <summary>
+        /// Verifies that preserve patterns keep files below a wildcard directory and exact files, while
+        /// everything else, including a directory that is no longer preserved, is removed.
+        /// </summary>
+        [Fact]
+        public async Task Preserve_patterns_support_directory_prefixes_and_per_segment_wildcards()
+        {
+            SeedPendingUpdate(
+                preserve: ["Logs/*", "settings.json"],
+                seedTarget: target =>
+                {
+                    Directory.CreateDirectory(Path.Combine(target, "Logs"));
+                    File.WriteAllText(Path.Combine(target, "Logs", "run.log"), "log");
+                    File.WriteAllText(Path.Combine(target, "settings.json"), "keep");
+                    File.WriteAllText(Path.Combine(target, "dropped.txt"), "gone");
+                });
+
+            (await RunPatcher()).Should().Be(0);
+
+            File.Exists(Path.Combine(TargetRoot, "Logs", "run.log")).Should().BeTrue();
+            File.Exists(Path.Combine(TargetRoot, "settings.json")).Should().BeTrue();
+            File.Exists(Path.Combine(TargetRoot, "dropped.txt")).Should().BeFalse();
+
+            // The payload had no Data folder, but "Data" was not preserved this time.
+            File.Exists(Path.Combine(TargetRoot, "Data", "App", "ASLM_Data.json")).Should().BeFalse();
+        }
+
+
+        // Launcher restart
+
+        /// <summary>
+        /// Verifies that the launcher is restarted with the forwarded arguments even when no update is pending.
+        /// </summary>
+        [Fact]
+        public async Task Without_a_pending_update_the_launcher_still_restarts()
+        {
+            var exitCode = await RunPatcher("-File", _markerScript, "clean-start");
+
+            exitCode.Should().Be(0);
+            (await WaitForLauncherMarkerAsync()).Should().Contain("clean-start");
+        }
+
+
+        // Rejected updates
+
+        /// <summary>
+        /// Verifies that a staging path outside the updater's staging folder fails the patch, leaves the installation
+        /// intact, and renames the pending file so it is not retried.
+        /// </summary>
+        [Fact]
+        public async Task Unsafe_update_paths_are_rejected_target_stays_intact_and_pending_is_marked_failed()
+        {
+            var outsideStaging = Path.Combine(Path.GetTempPath(), "ASLM-Patcher-Tests", Guid.NewGuid().ToString("N"), "evil");
+            Directory.CreateDirectory(outsideStaging);
+            SeedPendingUpdate(stagingOverride: outsideStaging);
+
+            var exitCode = await RunPatcher();
+
+            exitCode.Should().Be(1);
+            File.ReadAllText(Path.Combine(TargetRoot, "App", "ASLM.dll")).Should().Be("old-app");
+            Directory.GetFiles(Path.Combine(_root, ".aslm-update"))
+                .Should().ContainSingle(path => Path.GetFileName(path).StartsWith("pending.json.failed-"));
+        }
+
+        /// <summary>
+        /// Verifies that an unsupported update kind and a relative staging path each fail the patch.
+        /// </summary>
+        [Fact]
+        public async Task Unsupported_kind_and_relative_staging_are_rejected()
+        {
+            SeedPendingUpdate(kind: "module");
+            (await RunPatcher()).Should().Be(1);
+
+            Directory.Delete(TargetRoot, recursive: true);
+            SeedPendingUpdate(stagingOverride: "relative/path");
+            (await RunPatcher()).Should().Be(1);
+        }
+
+        /// <summary>
+        /// Verifies that targets at the drive root, inside the updater folder, or overlapping the staging folder, and
+        /// a non-empty backup folder, fail the patch without damaging the installation.
+        /// </summary>
+        /// <param name="variant">Which degenerate layout to seed.</param>
+        [Theory]
+        [InlineData("drive-root")]
+        [InlineData("inside-update-dir")]
+        [InlineData("overlapping-staging")]
+        [InlineData("non-empty-backup")]
+        public async Task Overlapping_or_degenerate_directories_are_rejected(string variant)
+        {
+            // Arrange: every variant seeds a normal installation and then swaps only the rejected path;
+            // the drive-root variant must not seed files at the actual drive root.
+            var target = variant switch
+            {
+                "drive-root" => Path.GetPathRoot(Path.GetTempPath())!,
+                "inside-update-dir" => Path.Combine(_root, ".aslm-update", "sneaky"),
+                "overlapping-staging" => Path.Combine(_root, ".aslm-update", "staging", "9.9.9", "wrapper", "App"),
+                _ => TargetRoot
+            };
+            if (variant == "drive-root")
+            {
+                // Seed the payload and pending marker without touching the target root.
+                var stagingRoot = Path.Combine(_root, ".aslm-update", "staging");
+                var wrapper = Path.Combine(stagingRoot, "9.9.9", "wrapper");
+                Directory.CreateDirectory(Path.Combine(wrapper, "App"));
+                File.WriteAllText(Path.Combine(wrapper, "App", "ASLM.dll"), "new-app");
+                File.WriteAllText(Path.Combine(_root, ".aslm-update", "pending.json"), JsonSerializer.Serialize(new
+                {
+                    kind = "app",
+                    version = "9.9.9",
+                    stagingPath = wrapper,
+                    targetRoot = target,
+                    backupPath = Path.Combine(_root, ".aslm-update", "backup", "20260101000000"),
+                    preserve = new[] { "Data", "Modules" },
+                    createdUtc = DateTimeOffset.UtcNow.ToString("o")
+                }));
+            }
+            else
+            {
+                SeedPendingUpdate(targetOverride: target);
+                if (variant == "non-empty-backup")
+                {
+                    Directory.CreateDirectory(Path.Combine(_root, ".aslm-update", "backup", "20260101000000"));
+                    File.WriteAllText(
+                        Path.Combine(_root, ".aslm-update", "backup", "20260101000000", "stale.txt"), "old");
+                }
+            }
+
+            // Act: run the patcher, which must refuse the update.
+            var exitCode = await RunPatcher();
+
+            // Assert: the patch failed and the original installation (or the bare drive root) is untouched.
+            exitCode.Should().Be(1);
+            if (variant == "drive-root")
+            {
+                // Nothing was seeded and nothing may be created at the drive root itself.
+                Directory.Exists(Path.Combine(target, "App")).Should().BeFalse();
+            }
+            else if (variant == "non-empty-backup")
+            {
+                File.ReadAllText(Path.Combine(TargetRoot, "App", "ASLM.dll")).Should().Be("old-app");
+            }
+            else
+            {
+                File.ReadAllText(Path.Combine(target, "App", "ASLM.dll")).Should().Be("old-app");
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a file held open exclusively makes the backup step fail before anything is replaced, and
+        /// that the pending update is marked as failed.
+        /// </summary>
+        [Fact]
+        public async Task A_locked_file_fails_the_patch_before_any_replacement_and_marks_the_update_failed()
+        {
+            SeedPendingUpdate();
+            var locked = Path.Combine(TargetRoot, "App", "ASLM.dll");
+            using var held = File.Open(locked, FileMode.Open, FileAccess.Read, FileShare.None);
+
+            var exitCode = await RunPatcher();
+
+            exitCode.Should().Be(1);
+            held.Close();
+
+            // The backup copy fails while the file is exclusively held, so nothing was replaced.
+            File.ReadAllText(locked).Should().Be("old-app");
+            Directory.GetFiles(Path.Combine(_root, ".aslm-update"))
+                .Should().ContainSingle(path => Path.GetFileName(path).StartsWith("pending.json.failed-"));
+        }
+
+
+        // Launcher resolution and progress
+
+        /// <summary>
+        /// Verifies that without a <c>--launcher</c> argument the launcher path is read from
+        /// <c>launcher-ref.json</c> in the data root.
+        /// </summary>
+        [Fact]
+        public async Task Launcher_resolution_falls_back_to_launcher_ref_json()
+        {
+            SeedPendingUpdate();
+            var launcherDir = Path.Combine(_root, "launcher");
+            Directory.CreateDirectory(launcherDir);
+            File.WriteAllText(Path.Combine(_root, "launcher-ref.json"),
+                JsonSerializer.Serialize(new { launcherPath = LauncherArgs() }));
+
+            // No --launcher argument: tier 2 (launcher-ref.json) must resolve the stub.
+            var exitCode = await PatcherRunner.RunAsync(
+                ["--root", _root, "--", "-File", _markerScript, "via-ref"],
+                new Progress<PatcherProgress>(_ => { }));
+
+            exitCode.Should().Be(0);
+            (await WaitForLauncherMarkerAsync()).Should().Contain("via-ref");
+        }
+
+        /// <summary>
+        /// Verifies that progress messages announce the backup, the replacement, and the successful result.
+        /// </summary>
+        [Fact]
+        public async Task Progress_messages_report_the_replacement_phases()
+        {
+            SeedPendingUpdate();
+
+            await RunPatcher();
+
+            _progress.Should().Contain(m => m.Contains("Creating backup"));
+            _progress.Should().Contain(m => m.Contains("Replacing application files"));
+            _progress.Should().Contain(m => m.Contains("applied successfully"));
+        }
+
+
+        // Cleanup
+
+        /// <summary>
+        /// Deletes a directory tree on a best-effort basis.
+        /// </summary>
+        private static void TryDelete(string path)
         {
             try
             {
-                if (File.Exists(_markerPath))
-                {
-                    // The stub appends through Add-Content; the file can exist while still open
-                    // for writing, so retry the access itself instead of only the existence check.
-                    return await File.ReadAllTextAsync(_markerPath);
-                }
+                if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
             }
-            catch (IOException) when (DateTime.UtcNow < deadline)
+            catch
             {
-                // The stub process still holds the marker; fall through and poll again.
+                // Best effort cleanup for the throwaway tree.
             }
-
-            await Task.Delay(50);
-        }
-
-        throw new TimeoutException("The launcher stub never started.");
-    }
-
-    [Fact]
-    public async Task Applies_payload_preserves_user_data_and_restarts_the_launcher_with_forwarded_args()
-    {
-        SeedPendingUpdate();
-
-        var exitCode = await RunPatcher("-File", _markerScript, "v9.9.9");
-
-        exitCode.Should().Be(0);
-        // Replaced and added application files.
-        File.ReadAllText(Path.Combine(TargetRoot, "App", "ASLM.dll")).Should().Be("new-app");
-        File.ReadAllText(Path.Combine(TargetRoot, "App", "added.bin")).Should().Be("fresh");
-        File.Exists(Path.Combine(TargetRoot, "App", "removed-in-update.bin")).Should()
-            .BeFalse("files absent from the payload are removed");
-        // Preserved directories survive untouched.
-        File.Exists(Path.Combine(TargetRoot, "Data", "App", "ASLM_Data.json")).Should().BeTrue();
-        File.Exists(Path.Combine(TargetRoot, "Modules", "chat", "user-state.json")).Should().BeTrue();
-        // The installed release tag is merged into the data root's updates block.
-        var data = JsonDocument.Parse(File.ReadAllText(
-            Path.Combine(_root, "Data", "App", "ASLM_Data.json")));
-        data.RootElement.GetProperty("updates").GetProperty("installedReleaseTag").GetString()
-            .Should().Be("9.9.9");
-        data.RootElement.GetProperty("updates").GetProperty("checkEnabled").GetBoolean().Should().BeTrue();
-        data.RootElement.GetProperty("firstRunCompleted").GetBoolean().Should().BeTrue();
-        // Update bookkeeping is cleaned up (empty staging/backup parents may remain).
-        File.Exists(Path.Combine(_root, ".aslm-update", "pending.json")).Should().BeFalse();
-        Directory.GetDirectories(Path.Combine(_root, ".aslm-update", "staging")).Should().BeEmpty();
-        Directory.GetDirectories(Path.Combine(_root, ".aslm-update", "backup")).Should().BeEmpty();
-        File.Exists(Path.Combine(_root, ".aslm-update", "logs", "Patcher.log")).Should().BeTrue();
-        // The launcher restart forwards only user arguments.
-        (await WaitForLauncherMarkerAsync()).Should().Contain("v9.9.9").And.NotContain("--root");
-    }
-
-    [Fact]
-    public async Task Preserve_patterns_support_directory_prefixes_and_per_segment_wildcards()
-    {
-        SeedPendingUpdate(
-            preserve: ["Logs/*", "settings.json"],
-            seedTarget: target =>
-            {
-                Directory.CreateDirectory(Path.Combine(target, "Logs"));
-                File.WriteAllText(Path.Combine(target, "Logs", "run.log"), "log");
-                File.WriteAllText(Path.Combine(target, "settings.json"), "keep");
-                File.WriteAllText(Path.Combine(target, "dropped.txt"), "gone");
-            });
-
-        (await RunPatcher()).Should().Be(0);
-
-        File.Exists(Path.Combine(TargetRoot, "Logs", "run.log")).Should().BeTrue();
-        File.Exists(Path.Combine(TargetRoot, "settings.json")).Should().BeTrue();
-        File.Exists(Path.Combine(TargetRoot, "dropped.txt")).Should().BeFalse();
-        // The payload had no Data folder, but "Data" was not preserved this time.
-        File.Exists(Path.Combine(TargetRoot, "Data", "App", "ASLM_Data.json")).Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task Without_a_pending_update_the_launcher_still_restarts()
-    {
-        var exitCode = await RunPatcher("-File", _markerScript, "clean-start");
-
-        exitCode.Should().Be(0);
-        (await WaitForLauncherMarkerAsync()).Should().Contain("clean-start");
-    }
-
-    [Fact]
-    public async Task Unsafe_update_paths_are_rejected_target_stays_intact_and_pending_is_marked_failed()
-    {
-        var outsideStaging = Path.Combine(Path.GetTempPath(), "ASLM-Patcher-Tests", Guid.NewGuid().ToString("N"), "evil");
-        Directory.CreateDirectory(outsideStaging);
-        SeedPendingUpdate(stagingOverride: outsideStaging);
-
-        var exitCode = await RunPatcher();
-
-        exitCode.Should().Be(1);
-        File.ReadAllText(Path.Combine(TargetRoot, "App", "ASLM.dll")).Should().Be("old-app");
-        Directory.GetFiles(Path.Combine(_root, ".aslm-update"))
-            .Should().ContainSingle(path => Path.GetFileName(path).StartsWith("pending.json.failed-"));
-    }
-
-    [Fact]
-    public async Task Unsupported_kind_and_relative_staging_are_rejected()
-    {
-        SeedPendingUpdate(kind: "module");
-        (await RunPatcher()).Should().Be(1);
-
-        Directory.Delete(TargetRoot, recursive: true);
-        SeedPendingUpdate(stagingOverride: "relative/path");
-        (await RunPatcher()).Should().Be(1);
-    }
-
-    [Theory]
-    [InlineData("drive-root")]
-    [InlineData("inside-update-dir")]
-    [InlineData("overlapping-staging")]
-    [InlineData("non-empty-backup")]
-    public async Task Overlapping_or_degenerate_directories_are_rejected(string variant)
-    {
-        // Every variant seeds a normal installation and then swaps only the rejected path;
-        // the drive-root variant must not seed files at the actual drive root.
-        var target = variant switch
-        {
-            "drive-root" => Path.GetPathRoot(Path.GetTempPath())!,
-            "inside-update-dir" => Path.Combine(_root, ".aslm-update", "sneaky"),
-            "overlapping-staging" => Path.Combine(_root, ".aslm-update", "staging", "9.9.9", "wrapper", "App"),
-            _ => TargetRoot
-        };
-        if (variant == "drive-root")
-        {
-            // Seed the payload and pending marker without touching the target root.
-            var stagingRoot = Path.Combine(_root, ".aslm-update", "staging");
-            var wrapper = Path.Combine(stagingRoot, "9.9.9", "wrapper");
-            Directory.CreateDirectory(Path.Combine(wrapper, "App"));
-            File.WriteAllText(Path.Combine(wrapper, "App", "ASLM.dll"), "new-app");
-            File.WriteAllText(Path.Combine(_root, ".aslm-update", "pending.json"), JsonSerializer.Serialize(new
-            {
-                kind = "app",
-                version = "9.9.9",
-                stagingPath = wrapper,
-                targetRoot = target,
-                backupPath = Path.Combine(_root, ".aslm-update", "backup", "20260101000000"),
-                preserve = new[] { "Data", "Modules" },
-                createdUtc = DateTimeOffset.UtcNow.ToString("o")
-            }));
-        }
-        else
-        {
-            SeedPendingUpdate(targetOverride: target);
-            if (variant == "non-empty-backup")
-            {
-                Directory.CreateDirectory(Path.Combine(_root, ".aslm-update", "backup", "20260101000000"));
-                File.WriteAllText(
-                    Path.Combine(_root, ".aslm-update", "backup", "20260101000000", "stale.txt"), "old");
-            }
-        }
-
-        var exitCode = await RunPatcher();
-
-        exitCode.Should().Be(1);
-        if (variant == "drive-root")
-        {
-            // Nothing was seeded and nothing may be created at the drive root itself.
-            Directory.Exists(Path.Combine(target, "App")).Should().BeFalse();
-        }
-        else if (variant == "non-empty-backup")
-        {
-            File.ReadAllText(Path.Combine(TargetRoot, "App", "ASLM.dll")).Should().Be("old-app");
-        }
-        else
-        {
-            File.ReadAllText(Path.Combine(target, "App", "ASLM.dll")).Should().Be("old-app");
-        }
-    }
-
-    [Fact]
-    public async Task A_locked_file_fails_the_patch_before_any_replacement_and_marks_the_update_failed()
-    {
-        SeedPendingUpdate();
-        var locked = Path.Combine(TargetRoot, "App", "ASLM.dll");
-        using var held = File.Open(locked, FileMode.Open, FileAccess.Read, FileShare.None);
-
-        var exitCode = await RunPatcher();
-
-        exitCode.Should().Be(1);
-        held.Close();
-        // The backup copy fails while the file is exclusively held, so nothing was replaced.
-        File.ReadAllText(locked).Should().Be("old-app");
-        Directory.GetFiles(Path.Combine(_root, ".aslm-update"))
-            .Should().ContainSingle(path => Path.GetFileName(path).StartsWith("pending.json.failed-"));
-    }
-
-    [Fact]
-    public async Task Launcher_resolution_falls_back_to_launcher_ref_json()
-    {
-        SeedPendingUpdate();
-        var launcherDir = Path.Combine(_root, "launcher");
-        Directory.CreateDirectory(launcherDir);
-        File.WriteAllText(Path.Combine(_root, "launcher-ref.json"),
-            JsonSerializer.Serialize(new { launcherPath = LauncherArgs() }));
-
-        // No --launcher argument: tier 2 (launcher-ref.json) must resolve the stub.
-        var exitCode = await PatcherRunner.RunAsync(
-            ["--root", _root, "--", "-File", _markerScript, "via-ref"],
-            new Progress<PatcherProgress>(_ => { }));
-
-        exitCode.Should().Be(0);
-        (await WaitForLauncherMarkerAsync()).Should().Contain("via-ref");
-    }
-
-    [Fact]
-    public async Task Progress_messages_report_the_replacement_phases()
-    {
-        SeedPendingUpdate();
-
-        await RunPatcher();
-
-        _progress.Should().Contain(m => m.Contains("Creating backup"));
-        _progress.Should().Contain(m => m.Contains("Replacing application files"));
-        _progress.Should().Contain(m => m.Contains("applied successfully"));
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
-        }
-        catch
-        {
-            // Best effort cleanup for the throwaway tree.
         }
     }
 }

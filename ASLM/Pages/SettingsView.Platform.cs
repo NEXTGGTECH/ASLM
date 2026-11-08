@@ -2,6 +2,10 @@
 
 namespace ASLM.Pages
 {
+    /// <summary>
+    /// Platform part of the settings view: theme-aware account link icons, native scroll chrome
+    /// and the native save picker for theme export.
+    /// </summary>
     public partial class SettingsView
     {
         // Styling helpers
@@ -82,6 +86,7 @@ namespace ASLM.Pages
         /// </summary>
         private static void ApplyScrollViewChrome(ScrollView scrollView)
         {
+            // Restyles the native scroll viewer on Windows; other platforms keep the default chrome.
             void ApplyPlatformStyle()
             {
 #if WINDOWS
@@ -98,20 +103,29 @@ namespace ASLM.Pages
 #endif
             }
 
+            // The native handler can appear or change after construction, so restyle on every handler change
+            // as well as now.
             scrollView.HandlerChanged += (_, _) => ApplyPlatformStyle();
             ApplyPlatformStyle();
         }
 
 
 #if WINDOWS
+        // Native file dialogs
+
+        /// <summary>
+        /// Win32 call that returns the window the user is currently working in, used as a fallback picker owner.
+        /// </summary>
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern nint GetForegroundWindow();
 
         /// <summary>
         /// Shows the Windows save picker for exporting a custom theme JSON file.
+        /// Returns the chosen path, or null when no window handle is available or the user cancels.
         /// </summary>
         private static async Task<string?> PickExportThemeFilePathAsync(string suggestedFileName)
         {
+            // Find the window handle that owns the picker: the main window, or the foreground window as a fallback.
             var native = Application.Current?.Windows.FirstOrDefault()?.Handler?.PlatformView;
             nint hwnd = 0;
             if (native is Microsoft.UI.Xaml.Window win)
@@ -126,11 +140,13 @@ namespace ASLM.Pages
                 }
                 catch
                 {
+                    // The native object yielded no usable window handle, so use the foreground window.
                     hwnd = GetForegroundWindow();
                 }
             }
             else
             {
+                // No platform window is available yet, so use the foreground window.
                 hwnd = GetForegroundWindow();
             }
 
@@ -139,6 +155,7 @@ namespace ASLM.Pages
                 return null;
             }
 
+            // In a desktop app the WinRT picker must be initialized with the owner window handle before it is shown.
             var picker = new Windows.Storage.Pickers.FileSavePicker
             {
                 SuggestedFileName = string.IsNullOrWhiteSpace(suggestedFileName) ? "ASLM_theme" : suggestedFileName

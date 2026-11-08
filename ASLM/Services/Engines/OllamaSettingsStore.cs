@@ -15,24 +15,66 @@ namespace ASLM.Services.Engines
     /// </summary>
     public sealed class OllamaSettingsStore
     {
+        // Constants and dependencies
+
+        /// <summary>
+        /// Standard local Ollama port on which the managed runtime listens unless a test overrides it.
+        /// </summary>
         private const int ManagedOllamaPort = 11434;
 
+        /// <summary>
+        /// Locates the installed ASLM-managed Ollama engine executable.
+        /// </summary>
         private readonly EngineInstaller _engineInstaller;
+
+        /// <summary>
+        /// HTTP client for the local Ollama API probes and account queries.
+        /// </summary>
         private readonly HttpClient _httpClient;
+
+        /// <summary>
+        /// Logger for runtime start-up and API diagnostics.
+        /// </summary>
         private readonly ILogger<OllamaSettingsStore> _logger;
 
+
+        // Runtime and account state
+
+        /// <summary>
+        /// Guards the managed runtime process handle against concurrent start and stop.
+        /// </summary>
         private readonly object _runtimeSync = new();
+
+        /// <summary>
+        /// Runtime process started by this service for the settings UI, or null when none is owned.
+        /// </summary>
         private Process? _managedRuntimeProcess;
+
+        /// <summary>
+        /// Whether the sign-in state was confirmed by the runtime, so unverified state is never shown as signed in.
+        /// </summary>
         private bool _hasVerifiedSignInState;
+
+        /// <summary>
+        /// Last verified sign-in result of the managed runtime.
+        /// </summary>
         private bool _isSignedIn;
+
+        /// <summary>
+        /// Account profile from the last successful sign-in check, or an empty profile.
+        /// </summary>
         private OllamaPersistentSettings _accountDetails = new();
+
+        /// <summary>
+        /// Port used instead of <see cref="ManagedOllamaPort"/> when set, so tests can avoid the real Ollama port.
+        /// </summary>
         private readonly int? _managedPortOverride;
 
 
         // Construction
 
         /// <summary>
-        /// Initializes a new Ollama settings service instance.
+        /// Initializes a new Ollama settings service instance with a short-timeout HTTP client for local probes.
         /// </summary>
         public OllamaSettingsStore(
             EngineInstaller engineInstaller,
@@ -151,6 +193,7 @@ namespace ASLM.Services.Engines
         /// </summary>
         public void StopManagedRuntime()
         {
+            // Take ownership of the handle under the lock so a concurrent call cannot stop the same process twice.
             Process? ownedProcess;
             lock (_runtimeSync)
             {
@@ -158,11 +201,13 @@ namespace ASLM.Services.Engines
                 _managedRuntimeProcess = null;
             }
 
+            // A runtime that ASLM did not start (already running elsewhere) is never stopped.
             if (ownedProcess == null)
             {
                 return;
             }
 
+            // Kill the whole tree and wait briefly; failures are only logged because this is cleanup.
             try
             {
                 if (!ownedProcess.HasExited)
@@ -221,18 +266,21 @@ namespace ASLM.Services.Engines
         /// </summary>
         private async Task<ManagedRuntimeState> EnsureManagedRuntimeAsync(CancellationToken ct)
         {
+            // Without an installed engine there is nothing to start.
             var executablePath = ResolveExecutable();
             if (string.IsNullOrWhiteSpace(executablePath))
             {
                 return ManagedRuntimeState.Unavailable;
             }
 
+            // Reuse a runtime that already answers on the managed port, whoever started it.
             var port = ResolveManagedPort();
             if (await IsRuntimeAvailableAsync(port, ct))
             {
                 return new ManagedRuntimeState(true, executablePath, port);
             }
 
+            // Drop the handle of a previously started runtime that has since exited.
             lock (_runtimeSync)
             {
                 if (_managedRuntimeProcess is { HasExited: true })
@@ -242,6 +290,7 @@ namespace ASLM.Services.Engines
                 }
             }
 
+            // Prepare `ollama serve` bound to loopback with the shared ASLM models directory.
             var workingDirectory = Path.GetDirectoryName(executablePath) ?? GetRootDirectory();
             Directory.CreateDirectory(GetManagedModelsDirectory());
 
@@ -261,6 +310,7 @@ namespace ASLM.Services.Engines
             psi.Environment["OLLAMA_HOST"] = $"127.0.0.1:{port}";
             psi.Environment["OLLAMA_MODELS"] = GetManagedModelsDirectory();
 
+            // Start the process at most once; output is drained to trace logs so the pipes never fill up.
             lock (_runtimeSync)
             {
                 if (_managedRuntimeProcess is null)
@@ -294,6 +344,7 @@ namespace ASLM.Services.Engines
                 }
             }
 
+            // Give the runtime time to open its port; a runtime that never answers is stopped again.
             if (!await WaitForRuntimeAsync(port, ct))
             {
                 StopManagedRuntime();
@@ -306,10 +357,13 @@ namespace ASLM.Services.Engines
         /// <summary>
         /// Queries the managed Ollama API for the current authenticated account state.
         /// </summary>
+        /// <param name="port">Port of the running managed runtime.</param>
+        /// <returns>True when signed in, false when signed out, or null when the state could not be determined.</returns>
         private async Task<bool?> TryRefreshSignInStateAsync(int port, CancellationToken ct)
         {
             try
             {
+                // POST /api/me answers 200 with the account profile when signed in.
                 using var request = new HttpRequestMessage(HttpMethod.Post, BuildApiUri(port, "api/me"))
                 {
                     Content = new StringContent("{}", Encoding.UTF8, "application/json")
@@ -325,6 +379,7 @@ namespace ASLM.Services.Engines
                     return true;
                 }
 
+                // 401 is the definitive "signed out" answer and clears any cached profile.
                 if (response.StatusCode == HttpStatusCode.Unauthorized)
                 {
                     _hasVerifiedSignInState = true;
@@ -333,6 +388,7 @@ namespace ASLM.Services.Engines
                     return false;
                 }
 
+                // Any other status leaves the previous state untouched and reports "unknown".
                 _logger.LogDebug("Unexpected status code {StatusCode} returned by managed Ollama /api/me.", response.StatusCode);
                 return null;
             }
@@ -342,6 +398,7 @@ namespace ASLM.Services.Engines
             }
             catch (Exception ex)
             {
+                // Network failures are expected while the runtime is starting or stopping; report an unknown state.
                 _logger.LogDebug(ex, "Failed to query the managed Ollama sign-in state from /api/me.");
                 return null;
             }
@@ -353,6 +410,10 @@ namespace ASLM.Services.Engines
         /// <summary>
         /// Runs one Ollama account command and captures its output for the settings UI.
         /// </summary>
+        /// <param name="command">Ollama subcommand to run, such as <c>signin</c> or <c>signout</c>.</param>
+        /// <param name="successFallbackMessage">Message used when a successful command printed nothing.</param>
+        /// <param name="runtime">Running managed runtime whose executable and port the command uses.</param>
+        /// <returns>The command outcome with its output, or a failure message; cancellation is reported as a failure result.</returns>
         private async Task<OllamaAccountActionResult> RunAccountCommandAsync(
             string command,
             string successFallbackMessage,
@@ -364,6 +425,7 @@ namespace ASLM.Services.Engines
                 var output = new StringBuilder();
                 var error = new StringBuilder();
 
+                // Run the CLI against the managed runtime's port and models directory.
                 var processStartInfo = new ProcessStartInfo
                 {
                     FileName = runtime.ExecutablePath,
@@ -380,6 +442,7 @@ namespace ASLM.Services.Engines
                 processStartInfo.Environment["OLLAMA_HOST"] = $"127.0.0.1:{runtime.Port}";
                 processStartInfo.Environment["OLLAMA_MODELS"] = GetManagedModelsDirectory();
 
+                // Read both streams concurrently with the wait so a full pipe cannot block the command.
                 using var process = new Process { StartInfo = processStartInfo };
                 process.Start();
 
@@ -388,6 +451,7 @@ namespace ASLM.Services.Engines
 
                 await Task.WhenAll(outputTask, errorTask, process.WaitForExitAsync(ct));
 
+                // The exit code decides success; the captured output becomes the user-facing message.
                 var combinedMessage = BuildCommandMessage(output, error);
                 if (process.ExitCode != 0)
                 {
@@ -465,6 +529,7 @@ namespace ASLM.Services.Engines
             }
             catch
             {
+                // Connection refused, timeouts and cancellation all mean the endpoint is not ready.
                 return false;
             }
         }
@@ -504,6 +569,7 @@ namespace ASLM.Services.Engines
 
             try
             {
+                // The display name falls back to the e-mail address; other fields accept snake_case aliases.
                 using var document = JsonDocument.Parse(payload);
                 var root = document.RootElement;
                 var name = ReadStringProperty(root, "name", "username", "user");
@@ -522,6 +588,7 @@ namespace ASLM.Services.Engines
             }
             catch
             {
+                // A malformed response is treated as a signed-in account without profile details.
                 return new OllamaPersistentSettings();
             }
         }
@@ -635,6 +702,9 @@ namespace ASLM.Services.Engines
         /// </summary>
         private readonly record struct ManagedRuntimeState(bool IsAvailable, string ExecutablePath, int Port)
         {
+            /// <summary>
+            /// Result for a runtime that is not installed or could not be started.
+            /// </summary>
             public static ManagedRuntimeState Unavailable => new(false, string.Empty, 0);
         }
     }

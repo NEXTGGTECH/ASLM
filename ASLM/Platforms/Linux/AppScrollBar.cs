@@ -1,20 +1,24 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
-namespace ASLM.Controls;
-
-public sealed partial class AppScrollBar
+namespace ASLM.Controls
 {
     /// <summary>
-    /// Hides GTK scrollbars while retaining a scrollable viewport on the configured axes.
+    /// Linux part: hides GTK's native scrollbars so the shared scrollbar is the only one shown.
     /// </summary>
-    partial void ApplyPlatformChrome()
+    public sealed partial class AppScrollBar
     {
-        if (_connected is not ScrollView { Handler.PlatformView: Gtk.ScrolledWindow viewer } scroll) return;
+        /// <summary>
+        /// Hides GTK scrollbars while retaining a scrollable viewport on the configured axes.
+        /// </summary>
+        partial void ApplyPlatformChrome()
+        {
+            if (_connected is not ScrollView { Handler.PlatformView: Gtk.ScrolledWindow viewer } scroll) return;
 
-        // External retains scrollable content; Never would constrain it to the viewport in GTK.
-        viewer.SetPolicy(scroll.Orientation is ScrollOrientation.Horizontal or ScrollOrientation.Both
-                ? Gtk.PolicyType.External : Gtk.PolicyType.Never,
-            scroll.Orientation is ScrollOrientation.Vertical or ScrollOrientation.Both
-                ? Gtk.PolicyType.External : Gtk.PolicyType.Never);
+            // External retains scrollable content; Never would constrain it to the viewport in GTK.
+            viewer.SetPolicy(scroll.Orientation is ScrollOrientation.Horizontal or ScrollOrientation.Both
+                    ? Gtk.PolicyType.External : Gtk.PolicyType.Never,
+                scroll.Orientation is ScrollOrientation.Vertical or ScrollOrientation.Both
+                    ? Gtk.PolicyType.External : Gtk.PolicyType.Never);
+        }
     }
 }

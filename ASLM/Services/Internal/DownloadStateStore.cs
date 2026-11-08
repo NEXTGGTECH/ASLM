@@ -12,16 +12,35 @@ namespace ASLM.Services.Internal
     /// </summary>
     public class DownloadStateStore
     {
+        // Fields
+
+        /// <summary>
+        /// Absolute path of the <c>ASLM_Downloads.json</c> state file.
+        /// </summary>
         private readonly string _filePath;
+
+        /// <summary>
+        /// Logger for state load and save failures.
+        /// </summary>
         private readonly ILogger<DownloadStateStore> _logger;
+
+        /// <summary>
+        /// Guards the in-memory state against concurrent access.
+        /// </summary>
         private readonly object _lock = new();
 
+        /// <summary>
+        /// JSON settings used to read and write the state file.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
+        /// <summary>
+        /// In-memory copy of the state file, or null until the first access loads it.
+        /// </summary>
         private DownloadCatalogStateFile? _state;
 
 
@@ -30,6 +49,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates the state store and resolves the on-disk storage path.
         /// </summary>
+        /// <param name="logger">Logger that receives load and save failures.</param>
         public DownloadStateStore(ILogger<DownloadStateStore> logger)
         {
             _logger = logger;
@@ -42,7 +62,7 @@ namespace ASLM.Services.Internal
         // State access
 
         /// <summary>
-        /// Returns the persisted state for one resource.
+        /// Returns the persisted state for one resource, or null when the key is blank or the resource is unknown.
         /// </summary>
         public DownloadCatalogResourceState? GetResourceState(string resourceKey)
         {
@@ -65,7 +85,11 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Marks one resource as installed and persists the change.
+        /// Blank version or provider values are stored as null.
         /// </summary>
+        /// <param name="resourceKey">Key of the resource that was installed; a blank key is ignored.</param>
+        /// <param name="version">Installed version label.</param>
+        /// <param name="providerModuleId">Identifier of the module that installed the resource.</param>
         public async Task MarkInstalledAsync(string resourceKey, string version, string providerModuleId)
         {
             if (string.IsNullOrWhiteSpace(resourceKey))
@@ -73,6 +97,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            // Replace the entry in memory under the lock, then write the file.
             lock (_lock)
             {
                 var state = EnsureLoaded();
@@ -89,8 +114,9 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Marks one resource as removed and persists the change.
+        /// Marks one resource as removed, clearing its version and provider, and persists the change.
         /// </summary>
+        /// <param name="resourceKey">Key of the resource that was removed; a blank key is ignored.</param>
         public async Task MarkUninstalledAsync(string resourceKey)
         {
             if (string.IsNullOrWhiteSpace(resourceKey))
@@ -98,6 +124,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            // Overwrite the entry with a cleared not-installed state rather than removing the key.
             lock (_lock)
             {
                 var state = EnsureLoaded();
@@ -117,7 +144,8 @@ namespace ASLM.Services.Internal
         // Loading and saving
 
         /// <summary>
-        /// Loads the persisted state on first access.
+        /// Loads the persisted state on first access and returns the cached copy afterwards.
+        /// A missing, empty or unreadable file yields an empty state. Callers hold <see cref="_lock"/>.
         /// </summary>
         private DownloadCatalogStateFile EnsureLoaded()
         {
@@ -153,12 +181,13 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Persists the current state snapshot to disk.
+        /// Persists the current state snapshot to disk; write failures are logged and not propagated.
         /// </summary>
         private async Task SaveAsync()
         {
             DownloadCatalogStateFile snapshot;
 
+            // Take the state reference under the lock; serialization and file I/O run outside it.
             lock (_lock)
             {
                 snapshot = EnsureLoaded();

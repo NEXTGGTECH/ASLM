@@ -7,6 +7,8 @@ namespace ASLM.Services.Modules
     /// </summary>
     public static class ModuleManifestDiscovery
     {
+        // Manifest lookup
+
         /// <summary>
         /// The module manifest file name.
         /// </summary>
@@ -14,7 +16,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Enumerates <c>Modules/{moduleFolder}/ASLM_Module.json</c> files.
-        /// Manifests in nested subfolders are not returned.
+        /// Manifests in nested subfolders are not returned. A missing or blank root yields nothing.
         /// </summary>
         public static IEnumerable<string> EnumerateInstalledManifests(string modulesRoot)
         {
@@ -25,6 +27,7 @@ namespace ASLM.Services.Modules
 
             var normalizedRoot = Path.GetFullPath(modulesRoot);
 
+            // Each first-level folder is one module; it counts only when it holds a manifest file.
             foreach (var moduleDir in Directory.EnumerateDirectories(normalizedRoot))
             {
                 var manifestPath = Path.Combine(moduleDir, ManifestFileName);
@@ -34,6 +37,9 @@ namespace ASLM.Services.Modules
                 }
             }
         }
+
+
+        // Path checks
 
         /// <summary>
         /// Returns whether <paramref name="manifestPath"/> is the root manifest for one installed module:
@@ -51,6 +57,7 @@ namespace ASLM.Services.Modules
                 return false;
             }
 
+            // The file name must be the manifest name and the file must have a parent directory.
             var normalizedRoot = Path.GetFullPath(modulesRoot);
             var normalizedManifest = Path.GetFullPath(manifestPath);
 
@@ -91,6 +98,7 @@ namespace ASLM.Services.Modules
                 return false;
             }
 
+            // The trailing separator keeps a sibling such as "Modules2" from matching "Modules".
             var normalizedDirectory = Path.GetFullPath(directory);
             if (!normalizedDirectory.EndsWith(Path.DirectorySeparatorChar))
             {

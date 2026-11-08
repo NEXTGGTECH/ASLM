@@ -17,7 +17,8 @@ namespace ASLM.Services.Internal
             var leftNormalized = NormalizeVersionReference(left);
             var rightNormalized = NormalizeVersionReference(right);
 
-            // Stable numeric versions should compare semantically so 1.0 and 1.0.0 are treated as the same release.
+            // Stable numeric versions compare as parsed Version values, so formatting differences such as
+            // leading zeros ("1.02.3" and "1.2.3") do not make two tags differ.
             if (!leftNormalized.Contains('-', StringComparison.Ordinal) &&
                 !rightNormalized.Contains('-', StringComparison.Ordinal) &&
                 Version.TryParse(leftNormalized, out var leftVersion) &&
@@ -37,6 +38,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public static int ComparePrecedence(string? leftTag, string? rightTag)
         {
+            // Tags that name the same release (for example "v1.2.3" and "1.2.3") never outrank each other.
             if (AreEquivalentVersionReferences(leftTag ?? string.Empty, rightTag ?? string.Empty))
             {
                 return 0;
@@ -45,6 +47,7 @@ namespace ASLM.Services.Internal
             var left = NormalizeVersionReference(leftTag ?? string.Empty);
             var right = NormalizeVersionReference(rightTag ?? string.Empty);
 
+            // Compare the numeric cores first, so a pre-release suffix never outweighs a higher version number.
             var leftCore = ExtractSemverNumericCore(left);
             var rightCore = ExtractSemverNumericCore(right);
 
@@ -58,6 +61,7 @@ namespace ASLM.Services.Internal
             }
             else
             {
+                // At least one core is not a dotted number: fall back to a text comparison of the cores.
                 var coreString = string.Compare(leftCore, rightCore, StringComparison.OrdinalIgnoreCase);
                 if (coreString != 0)
                 {
@@ -65,6 +69,7 @@ namespace ASLM.Services.Internal
                 }
             }
 
+            // Equal cores: the full tags decide through a case-insensitive text comparison.
             return string.Compare(left, right, StringComparison.OrdinalIgnoreCase);
         }
 
@@ -73,12 +78,14 @@ namespace ASLM.Services.Internal
         /// </summary>
         public static int CompareGitHubReleasesNewestFirst(GitHubReleaseInfo left, GitHubReleaseInfo right)
         {
+            // The tag version is the primary key; the sign is flipped so newer tags sort first.
             var versionCmp = -ComparePrecedence(left.TagName, right.TagName);
             if (versionCmp != 0)
             {
                 return versionCmp;
             }
 
+            // Equivalent tags: the most recently published release wins.
             var leftStamp = left.PublishedAt ?? left.CreatedAt ?? DateTimeOffset.MinValue;
             var rightStamp = right.PublishedAt ?? right.CreatedAt ?? DateTimeOffset.MinValue;
             return rightStamp.CompareTo(leftStamp);

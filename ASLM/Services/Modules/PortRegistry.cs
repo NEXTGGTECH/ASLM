@@ -13,46 +13,96 @@ namespace ASLM.Services.Modules
     /// </summary>
     public class PortRegistry
     {
-        // Port-map owner used by the internal ASLM API mirror server.
+        // Fields and constants
+
+        /// <summary>
+        /// Port-map owner used by the internal ASLM API mirror server.
+        /// </summary>
         public const string AslmMirrorServiceId = "__aslm-mirror";
 
-        // Port key used by the internal ASLM API mirror server.
+        /// <summary>
+        /// Port key used by the internal ASLM API mirror server.
+        /// </summary>
         public const string AslmMirrorPortKey = "mirror-port";
 
+        /// <summary>
+        /// Highest valid TCP port number.
+        /// </summary>
         private const int MaxPort = 65535;
 
-        // Port-map owner used by the internal module interop JSON server.
+        /// <summary>
+        /// Port-map owner used by the internal module interop JSON server.
+        /// </summary>
         public const string AslmModuleInteropServiceId = "__aslm-module-interop";
 
-        // Port key used by the internal module interop server.
+        /// <summary>
+        /// Port key used by the internal module interop server.
+        /// </summary>
         public const string AslmModuleInteropPortKey = "server-port";
 
+        /// <summary>
+        /// Application data store that supplies the configured start of the module port range.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Absolute path of the JSON file that persists the port map.
+        /// </summary>
         private readonly string _portMapPath;
+
+        /// <summary>
+        /// Serializes every read and write of the port map and its persistence.
+        /// </summary>
         private readonly object _lock = new();
 
+        /// <summary>
+        /// JSON settings used to read and write the port map file.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
-        // moduleId -> portName -> assigned port
+        /// <summary>
+        /// Assigned ports keyed by owner id (module or internal service), then by port key.
+        /// </summary>
         private Dictionary<string, Dictionary<string, int>> _portMap = [];
+
+        /// <summary>
+        /// Whether the persisted port map has been read already; loading happens lazily on first access.
+        /// </summary>
         private bool _loaded;
+
+        /// <summary>
+        /// Time of the last successful orphan cleanup, used to rate-limit the cleanup.
+        /// </summary>
         private DateTimeOffset _lastOrphanCleanupUtc = DateTimeOffset.MinValue;
+
+        /// <summary>
+        /// Registry of installed modules; the source of truth for which port owners still exist.
+        /// </summary>
         private readonly ModuleRegistry _modules = new();
+
+        /// <summary>
+        /// Module ids that reserved ports in this process before their installation reached the registry;
+        /// the orphan cleanup keeps them.
+        /// </summary>
         private readonly HashSet<string> _sessionPortOwners = new(StringComparer.OrdinalIgnoreCase);
+
+
+        // Events
 
         /// <summary>
         /// Raised after runtime port assignments are redistributed and persisted.
         /// </summary>
         public event EventHandler? PortsRedistributed;
 
+
         // Initialization
 
         /// <summary>
-        /// Creates the port manager.
+        /// Creates the port manager that persists assignments to <c>Data/App/ASLM_Ports.json</c>.
         /// </summary>
         public PortRegistry(AppDataStore appData)
         {
@@ -76,6 +126,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Returns all ports assigned to a module and allocates missing ones when needed.
+        /// The returned dictionary is the live map entry, so callers must not modify it.
         /// </summary>
         public IReadOnlyDictionary<string, int> GetOrAssignPorts(ModuleConfig module)
         {
@@ -87,6 +138,7 @@ namespace ASLM.Services.Modules
                 _sessionPortOwners.Add(module.Id);
                 CleanupOrphanedPortsIfDue();
 
+                // Collect the port keys the module declares; a module without port settings gets a single "http" port.
                 var portSettings = module.Settings?
                     .Where(setting => setting.Type.Equals("port", StringComparison.OrdinalIgnoreCase))
                     .Select(setting => setting.Key)
@@ -97,6 +149,7 @@ namespace ASLM.Services.Modules
                     portSettings.Add("http");
                 }
 
+                // Find or create the module's entry in the port map.
                 if (!_portMap.TryGetValue(module.Id, out var existing))
                 {
                     existing = new Dictionary<string, int>();
@@ -150,9 +203,11 @@ namespace ASLM.Services.Modules
                     return false;
                 }
 
+                // Ports of all owners are treated as taken so a replacement never collides with another assignment.
                 var changed = false;
                 var usedPorts = new HashSet<int>(_portMap.Values.SelectMany(value => value.Values));
 
+                // Probe every assigned port by binding it; a busy or invalid port is replaced by a fresh allocation.
                 foreach (var portKey in existing.Keys.ToList())
                 {
                     var port = existing[portKey];
@@ -161,6 +216,7 @@ namespace ASLM.Services.Modules
                         continue;
                     }
 
+                    // Drop the old assignment from the used set, then allocate a replacement for this key.
                     usedPorts.Remove(port);
                     existing[portKey] = AllocatePort(ownerId, usedPorts);
                     changed = true;
@@ -223,6 +279,7 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Rebuilds persisted port assignments for modules and internal listeners.
         /// When <paramref name="reserveAslmMirrorServer"/> is true, reserves the ASLM mirror server port; always reserves the module interop listener port.
+        /// Returns true when the map changed; <see cref="PortsRedistributed"/> is raised outside the lock in that case.
         /// </summary>
         public bool RedistributePorts(bool reserveAslmMirrorServer)
         {
@@ -231,9 +288,12 @@ namespace ASLM.Services.Modules
             lock (_lock)
             {
                 EnsureLoaded();
+
                 // Startup must also retire assignments left by versions that retained removed catalog manifests.
                 CleanupOrphanedPortsIfDue(force: true);
 
+                // Make sure the internal listeners own a placeholder entry (port 0) so they take part in the
+                // redistribution; the mirror server entry is dropped when it is not wanted.
                 if (reserveAslmMirrorServer)
                 {
                     if (!_portMap.TryGetValue(AslmMirrorServiceId, out var apiPorts))
@@ -257,6 +317,7 @@ namespace ASLM.Services.Modules
 
                 interopPorts.TryAdd(AslmModuleInteropPortKey, 0);
 
+                // Allocate every port from scratch in a stable owner order, so the result is compact and deterministic.
                 var nextMap = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
                 var usedPorts = new HashSet<int>();
 
@@ -274,6 +335,7 @@ namespace ASLM.Services.Modules
                     }
                 }
 
+                // Persist and publish only when the new layout differs from the current one.
                 if (PortMapsEqual(_portMap, nextMap))
                 {
                     return false;
@@ -284,14 +346,17 @@ namespace ASLM.Services.Modules
                 changed = true;
             }
 
+            // Notify listeners after the lock is released so handlers can call back into the registry.
             PortsRedistributed?.Invoke(this, EventArgs.Empty);
             return changed;
         }
+
 
         // Single port
 
         /// <summary>
         /// Returns one assigned port for a module when it already exists.
+        /// Falls back to the <c>http</c> port and then to any assigned port when the requested key is missing.
         /// </summary>
         public int? TryGetPort(string moduleId, string portKey = "port")
         {
@@ -301,6 +366,7 @@ namespace ASLM.Services.Modules
 
                 if (_portMap.TryGetValue(moduleId, out var ports))
                 {
+                    // Prefer the requested key, then the conventional "http" key, then whatever the module has.
                     if (ports.TryGetValue(portKey, out var port))
                     {
                         return port;
@@ -320,6 +386,7 @@ namespace ASLM.Services.Modules
                 return null;
             }
         }
+
 
         // Read-only port access
 
@@ -348,6 +415,7 @@ namespace ASLM.Services.Modules
             if (ports == null || ports.Count == 0)
                 return null;
 
+            // Use the preferred page port, or the first positive port when that key is missing or unset.
             var portKey = ResolveModulePagePortKey(module);
             if (!ports.TryGetValue(portKey, out var port) || port <= 0)
             {
@@ -369,6 +437,8 @@ namespace ASLM.Services.Modules
         public static string BuildHostRouteKey(string hostKey)
         {
             var value = (hostKey ?? string.Empty).Trim();
+
+            // Strip at most one suffix, and never reduce the key to an empty string.
             foreach (var suffix in new[] { "-port", "_port", " port" })
             {
                 if (value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
@@ -401,6 +471,7 @@ namespace ASLM.Services.Modules
                 return "http";
             }
 
+            // Pick the first declared key matching the preference order; otherwise the first declared port key.
             foreach (var preferred in new[] { "ui-port", "http", "port" })
             {
                 var match = portKeys.FirstOrDefault(key =>
@@ -415,13 +486,15 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Returns the base HTTP URL for a module page.
+        /// Returns the base HTTP URL for a module page, allocating its ports first when none exist yet.
         /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when no positive port can be determined.</exception>
         public string GetModuleUrl(ModuleConfig module)
         {
             var ports = GetOrAssignPorts(module);
             var portKey = ResolveModulePagePortKey(module);
 
+            // Use the preferred page port, or the first positive port when that key is missing or unset.
             if (!ports.TryGetValue(portKey, out var port) || port <= 0)
             {
                 port = ports.Values.FirstOrDefault(value => value > 0);
@@ -434,6 +507,7 @@ namespace ASLM.Services.Modules
 
             return $"http://127.0.0.1:{port}/";
         }
+
 
         // Module cleanup
 
@@ -454,10 +528,12 @@ namespace ASLM.Services.Modules
             }
         }
 
+
         // Orphan cleanup
 
         /// <summary>
         /// Removes assignments for modules that are no longer present.
+        /// Internal service owners (ids starting with <c>__</c>) are never removed.
         /// </summary>
         public void CleanupOrphanedPorts(IEnumerable<string> activeModuleIds)
         {
@@ -486,9 +562,11 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Removes unregistered owners while preserving ports reserved by installations in this process.
+        /// Runs at most every 30 seconds unless <paramref name="force"/> is set.
         /// </summary>
         private void CleanupOrphanedPortsIfDue(bool force = false)
         {
+            // Skip the registry read when a cleanup ran recently.
             var now = DateTimeOffset.UtcNow;
             if (!force && now - _lastOrphanCleanupUtc < TimeSpan.FromSeconds(30))
             {
@@ -515,6 +593,7 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Checks whether an assigned port is still valid for the current start port.
+        /// A port is valid inside the configured module range or inside the legacy fallback range.
         /// </summary>
         private bool IsPortValid(string ownerId, int port)
         {
@@ -528,6 +607,7 @@ namespace ASLM.Services.Modules
             // Keep older fallback assignments valid to avoid unnecessary churn.
             return port >= 40000 && port < 50000;
         }
+
 
         // Port allocation
 
@@ -552,10 +632,13 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Allocates the next available port from the configured start or deterministic fallback.
+        /// Allocates the next available port from the configured start, or from the owner-dependent fallback range
+        /// when the primary range is exhausted.
+        /// The chosen port is added to <paramref name="usedPorts"/>.
         /// </summary>
         private static int AllocatePort(string ownerId, HashSet<int> usedPorts, int start)
         {
+            // Primary range: the lowest port at or above the configured start that no owner has taken.
             for (var candidate = start; candidate <= MaxPort; candidate++)
             {
                 if (!usedPorts.Contains(candidate))
@@ -565,6 +648,8 @@ namespace ASLM.Services.Modules
                 }
             }
 
+            // Fallback range 40000-49999: probe from an offset derived from the owner id hash, wrapping around
+            // inside the range, and take the first free port. Used only when the primary range is exhausted.
             const int fallbackStart = 40000;
             const int fallbackCount = 10000;
             var seed = (int)(uint)ownerId.GetHashCode();
@@ -592,6 +677,7 @@ namespace ASLM.Services.Modules
                 return false;
             }
 
+            // A short-lived listener is the most direct test: if binding fails, another process owns the port.
             try
             {
                 var listener = new TcpListener(IPAddress.Loopback, port);
@@ -605,8 +691,12 @@ namespace ASLM.Services.Modules
             }
         }
 
+
+        // Redistribution helpers
+
         /// <summary>
         /// Returns the owners and port keys in stable redistribution order.
+        /// Internal services come first, then module owners by their lowest current port and finally by id.
         /// </summary>
         private List<RedistributionOwner> GetRedistributionOwners(bool reserveAslmMirrorServer)
         {
@@ -660,6 +750,7 @@ namespace ASLM.Services.Modules
                 return false;
             }
 
+            // Every owner of the left map must exist on the right with the same number of ports...
             foreach (var owner in left)
             {
                 if (!right.TryGetValue(owner.Key, out var rightPorts) ||
@@ -668,6 +759,7 @@ namespace ASLM.Services.Modules
                     return false;
                 }
 
+                // ...and each port key must map to the same port number.
                 foreach (var port in owner.Value)
                 {
                     if (!rightPorts.TryGetValue(port.Key, out var rightPort) ||
@@ -689,15 +781,20 @@ namespace ASLM.Services.Modules
             return ownerId.StartsWith("__", StringComparison.Ordinal);
         }
 
+
+        // Nested types
+
         /// <summary>
         /// Stores one owner and its port keys while rebuilding the runtime map.
         /// </summary>
         private sealed record RedistributionOwner(string Id, List<string> PortKeys, int FirstPort);
 
+
         // Lazy load
 
         /// <summary>
         /// Loads the persisted port map once on first access.
+        /// A missing or unreadable file leaves the map empty; assignments are then created on demand.
         /// </summary>
         private void EnsureLoaded()
         {
@@ -706,6 +803,7 @@ namespace ASLM.Services.Modules
                 return;
             }
 
+            // Mark as loaded before reading so a failed read is not retried on every access.
             _loaded = true;
 
             if (!File.Exists(_portMapPath))
@@ -717,6 +815,7 @@ namespace ASLM.Services.Modules
             {
                 var json = File.ReadAllText(_portMapPath);
 
+                // Try the current schema (owner -> port key -> port) first, then the legacy flat schema.
                 try
                 {
                     _portMap = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, int>>>(json, _jsonOptions) ?? [];
@@ -732,9 +831,11 @@ namespace ASLM.Services.Modules
             }
             catch
             {
+                // An unreadable or corrupt file is treated as no assignments; fresh ports are allocated on demand.
                 _portMap = [];
             }
         }
+
 
         // Persistence
 

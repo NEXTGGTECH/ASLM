@@ -4,15 +4,23 @@ using ASLM.Pages;
 
 namespace ASLM
 {
-    // Application host
-
     /// <summary>
     /// Creates the main window and coordinates application shutdown.
     /// </summary>
     public partial class App : Application
     {
+        // Fields
+
+        /// <summary>
+        /// Root service provider used to resolve the startup page and the services that are stopped on shutdown.
+        /// </summary>
         private readonly IServiceProvider _services;
+
+        /// <summary>
+        /// Single cleanup task shared by every close and quit request, or null before shutdown starts.
+        /// </summary>
         private Task? _shutdownTask;
+
 
         // Initialization
 
@@ -21,6 +29,7 @@ namespace ASLM
         /// </summary>
         public App(IServiceProvider services)
         {
+            // On Linux the UI dispatcher is registered first, before resources or services can request UI work.
 #if LINUX
             LinuxMainThread.Initialize(Dispatcher);
 #endif
@@ -54,6 +63,7 @@ namespace ASLM
             return window;
         }
 
+
         // Startup page
 
         /// <summary>
@@ -68,7 +78,7 @@ namespace ASLM
         // Shutdown
 
         /// <summary>
-        /// Stops tracked module processes during application shutdown.
+        /// Runs the shared shutdown cleanup and blocks the destroying window until it has finished.
         /// </summary>
         private void OnWindowDestroying(object? sender, EventArgs e)
         {
@@ -124,6 +134,7 @@ namespace ASLM
                 catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[App] Module runner disposal failed: {ex}"); }
             }
 
+            // Release the remaining services once no module process can use them; each disposal is isolated.
             DisposeService<ProcessTracker>();
             DisposeService<AslmMirrorServer>();
             DisposeService<AslmModuleInteropServer>();

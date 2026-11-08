@@ -13,17 +13,37 @@ namespace ASLM.Services.Internal
     /// </summary>
     public class CustomThemesStore
     {
+        // Fields
+
+        /// <summary>
+        /// Absolute path of the custom themes data file.
+        /// </summary>
         private readonly string _filePath;
+
+        /// <summary>
+        /// Logger for load failures and import parse problems.
+        /// </summary>
         private readonly ILogger<CustomThemesStore> _logger;
+
+        /// <summary>
+        /// Serializes concurrent saves so only one writer replaces the data file at a time.
+        /// </summary>
         private readonly SemaphoreSlim _saveLock = new(1, 1);
 
+        /// <summary>
+        /// JSON settings used to read and write the themes file and exported themes.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
+        /// <summary>
+        /// Matches the trailing " #N" counter that unique display names carry, so it can be replaced rather than stacked.
+        /// </summary>
         private static readonly Regex TrailingNumberSuffix = new(@"\s+#\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
 
         // State access
 
@@ -32,11 +52,13 @@ namespace ASLM.Services.Internal
         /// </summary>
         public CustomThemesRoot Root { get; private set; } = new();
 
+
         // Initialization
 
         /// <summary>
         /// Creates the custom themes store.
         /// </summary>
+        /// <param name="logger">Logger for load and import problems.</param>
         public CustomThemesStore(ILogger<CustomThemesStore> logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -53,6 +75,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public async Task LoadAsync()
         {
+            // A missing, blank or unreadable file yields an empty collection instead of failing startup.
             try
             {
                 if (File.Exists(_filePath))
@@ -102,7 +125,7 @@ namespace ASLM.Services.Internal
         }
 
 
-        // Theme helpers
+        // Theme registry
 
         /// <summary>
         /// Returns the theme with the requested identifier, or null when not found.
@@ -113,7 +136,8 @@ namespace ASLM.Services.Internal
                 : Root.Themes.FirstOrDefault(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
-        /// Adds a new theme with a generated identifier and returns it.
+        /// Adds a new, empty theme with a generated identifier and a unique display name, and returns it.
+        /// The theme is only added to memory; call <see cref="SaveAsync"/> to persist it.
         /// </summary>
         public CustomTheme CreateTheme(string name, string baseAppearance)
         {
@@ -135,6 +159,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public async Task<CustomTheme> CreateThemeAsync(CustomTheme draft)
         {
+            // Register a copy of the draft first so the save below writes it together with the other themes.
             var theme = ImportThemeCopy(draft);
             try
             {
@@ -151,15 +176,18 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Returns a display name that does not collide with existing themes (adds " #2", " #3", … when needed).
+        /// The theme identified by <paramref name="exceptThemeId"/> is ignored, so a theme can keep its own name.
         /// </summary>
         public string AllocateUniqueDisplayName(string desiredName, string? exceptThemeId = null)
         {
+            // The desired name is used as is when it is free.
             var candidate = string.IsNullOrWhiteSpace(desiredName) ? "Theme" : desiredName.Trim();
             if (!IsDisplayNameTaken(candidate, exceptThemeId))
             {
                 return candidate;
             }
 
+            // Otherwise replace any existing " #N" suffix and take the first free number starting at 2.
             var stem = TrailingNumberSuffix.Replace(candidate, string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(stem))
             {
@@ -177,6 +205,7 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Renames one theme while preserving display-name uniqueness.
+        /// Returns the renamed theme, or null when the theme does not exist or the new name is blank.
         /// </summary>
         public CustomTheme? RenameTheme(string id, string desiredName)
         {
@@ -192,6 +221,7 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Adds a copy of an imported theme with a new id and a non-colliding name.
+        /// The copy is only added to memory; call <see cref="SaveAsync"/> to persist it.
         /// </summary>
         public CustomTheme ImportThemeCopy(CustomTheme source)
         {
@@ -227,6 +257,7 @@ namespace ASLM.Services.Internal
                 return null;
             }
 
+            // First try the root document format, which wraps the themes in a "themes" array.
             try
             {
                 using var doc = JsonDocument.Parse(json);
@@ -244,6 +275,7 @@ namespace ASLM.Services.Internal
                 _logger.LogWarning(ex, "Failed to parse custom themes root from import JSON.");
             }
 
+            // Otherwise the text must be a single exported theme.
             try
             {
                 var theme = JsonSerializer.Deserialize<CustomTheme>(json, _jsonOptions);
@@ -267,7 +299,7 @@ namespace ASLM.Services.Internal
                 string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
-        /// Removes the theme with the requested identifier.
+        /// Removes the theme with the requested identifier from memory and returns whether one was removed.
         /// </summary>
         public bool DeleteTheme(string id) =>
             Root.Themes.RemoveAll(t => string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase)) > 0;
@@ -286,6 +318,7 @@ namespace ASLM.Services.Internal
                 Directory.CreateDirectory(directory);
             }
         }
+
 
         // Root path
 

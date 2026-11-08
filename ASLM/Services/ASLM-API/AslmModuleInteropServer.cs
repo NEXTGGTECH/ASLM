@@ -14,34 +14,106 @@ namespace ASLM.Services.API
     /// </summary>
     public sealed class AslmModuleInteropServer : IDisposable
     {
+        // Dependencies
+
+        /// <summary>
+        /// Persisted application settings; provide the API server switch and the fallback port for the interop endpoint.
+        /// </summary>
         private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Shared port map from which the interop port and the mirror server port are read.
+        /// </summary>
         private readonly PortRegistry _ports;
+
+        /// <summary>
+        /// Mirror server whose running state is reported to modules.
+        /// </summary>
         private readonly AslmMirrorServer _mirrorServer;
+
+        /// <summary>
+        /// Discovers the installed module manifests listed by the registry endpoint.
+        /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Source of the running module snapshots used by the registry, ports and start endpoints.
+        /// </summary>
         private readonly ModuleRunner _moduleRunner;
+
+        /// <summary>
+        /// Starts requested modules or confirms that they are already running.
+        /// </summary>
         private readonly ModuleLaunchCoordinator _launchCoordinator;
+
+        /// <summary>
+        /// Published endpoint of this listener, so other host components can tell modules where to reach it.
+        /// </summary>
         private readonly ModuleInteropHostState _interopHostState;
+
+        /// <summary>
+        /// Logger for startup failures and request errors.
+        /// </summary>
         private readonly ILogger<AslmModuleInteropServer> _logger;
 
+
+        // Server state
+
+        /// <summary>
+        /// Guards the listener fields and the last error against concurrent start, stop and reads.
+        /// </summary>
         private readonly object _stateLock = new();
+
+        /// <summary>
+        /// JSON settings used to read request bodies; property names are case-insensitive camelCase.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonReadOptions = new()
         {
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
+        /// <summary>
+        /// JSON settings used to write responses; camelCase names, null values omitted.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonWriteOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
+        /// <summary>
+        /// Active HTTP listener, or null while the server is stopped.
+        /// </summary>
         private HttpListener? _listener;
+
+        /// <summary>
+        /// Cancellation source that ends the request loop of the active listener.
+        /// </summary>
         private CancellationTokenSource? _listenerCts;
+
+        /// <summary>
+        /// Background task that accepts requests for the active listener.
+        /// </summary>
         private Task? _listenerTask;
+
+        /// <summary>
+        /// Port the listener is bound to, or null while the server is stopped.
+        /// </summary>
         private int? _activePort;
+
+        /// <summary>
+        /// Set once the server was disposed, so a repeated disposal does nothing.
+        /// </summary>
         private bool _disposed;
+
+        /// <summary>
+        /// Message of the most recent startup failure; empty after a successful start.
+        /// </summary>
         private string _lastError = string.Empty;
+
+
+        // Events
 
         /// <summary>
         /// Raised when the server state changes and bound views should refresh.
@@ -52,7 +124,7 @@ namespace ASLM.Services.API
         // Initialization
 
         /// <summary>
-        /// Creates the module interop server.
+        /// Creates the module interop server. The server does not listen until it is started.
         /// </summary>
         public AslmModuleInteropServer(
             AppDataStore appData,
@@ -92,7 +164,8 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Gets the localhost port reserved for the interop server.
+        /// Gets the localhost port of the interop server: the bound port while listening, otherwise the port reserved
+        /// in the shared port map, otherwise the start of the module port range.
         /// </summary>
         public int Port
         {
@@ -141,7 +214,8 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Starts the local listener and background request loop.
+        /// Starts the local listener and background request loop. Does nothing when the listener is already running;
+        /// a startup failure is stored in <see cref="LastError"/> instead of being thrown.
         /// </summary>
         public Task StartAsync()
         {
@@ -154,11 +228,14 @@ namespace ASLM.Services.API
 
                 try
                 {
+                    // Bind to the loopback address on the port reserved for this service.
                     var assignedPort = GetAssignedPort();
                     _listenerCts = new CancellationTokenSource();
                     _listener = new HttpListener();
                     _listener.Prefixes.Add(BuildBaseUrl(assignedPort));
                     _listener.Start();
+
+                    // Publish the endpoint to other host components and begin accepting requests.
                     _activePort = assignedPort;
                     _lastError = string.Empty;
                     _interopHostState.SetListening(BuildBaseUrl(assignedPort), assignedPort);
@@ -166,6 +243,7 @@ namespace ASLM.Services.API
                 }
                 catch (Exception ex)
                 {
+                    // Roll back to the stopped state so a later start can retry.
                     _lastError = ex.Message;
                     _logger.LogError(ex, "Failed to start module interop server.");
                     _interopHostState.Clear();
@@ -186,6 +264,7 @@ namespace ASLM.Services.API
 
             lock (_stateLock)
             {
+                // Signal the request loop and close the listener; a failure here is only logged.
                 _listenerCts?.Cancel();
 
                 try
@@ -198,12 +277,15 @@ namespace ASLM.Services.API
                     _logger.LogDebug(ex, "Module interop listener stop failed.");
                 }
 
+                // Keep the loop task to await it outside the lock, then reset the listener fields.
                 listenerTask = _listenerTask;
                 CleanupListener();
             }
 
+            // Withdraw the published endpoint so modules do not try to reach a stopped server.
             _interopHostState.Clear();
 
+            // Give the request loop a short time to exit.
             if (listenerTask != null)
             {
                 try
@@ -237,17 +319,21 @@ namespace ASLM.Services.API
                 }
                 catch (ObjectDisposedException)
                 {
+                    // The listener was closed by a stop request, so the loop ends.
                     break;
                 }
                 catch (HttpListenerException)
                 {
+                    // The pending accept was aborted (for example by stopping the listener), so the loop ends.
                     break;
                 }
                 catch (InvalidOperationException)
                 {
+                    // The listener is no longer listening, so the loop ends.
                     break;
                 }
 
+                // Each request is handled on its own task so a slow handler never blocks the accept loop.
                 _ = Task.Run(() => HandleContextAsync(context), ct);
             }
         }
@@ -293,6 +379,7 @@ namespace ASLM.Services.API
             }
             catch (Exception ex)
             {
+                // Unexpected failures are logged and answered with a 500 error envelope.
                 _logger.LogError(ex, "Module interop request failed.");
                 await WriteJsonAsync(context, 500, new ErrorEnvelope("error", ex.Message), CancellationToken.None);
             }
@@ -320,6 +407,7 @@ namespace ASLM.Services.API
             await WriteJsonAsync(context, 200, payload, CancellationToken.None);
         }
 
+
         // Ports endpoint
 
         /// <summary>
@@ -336,7 +424,8 @@ namespace ASLM.Services.API
             await WriteJsonAsync(context, 200, payload, CancellationToken.None);
         }
 
-        // Ports / host builder helpers
+
+        // Ports and host builders
 
         /// <summary>
         /// Builds the ASLM API status block for interop responses.
@@ -358,6 +447,7 @@ namespace ASLM.Services.API
             var apiPort = _ports.TryGetInternalServicePort(PortRegistry.AslmMirrorServiceId, PortRegistry.AslmMirrorPortKey);
             var mirrorBase = ModuleInteropPortsBuilder.ResolveMirrorBaseUrl(apiEnabled, apiPort);
 
+            // Describe each running module with its assigned ports and, when the mirror is active, its mirror URLs.
             return _moduleRunner.GetRunningModuleConfigs()
                 .Select(module =>
                 {
@@ -486,7 +576,8 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Maps a coordinator launch status to the interop JSON status string.
+        /// Maps a coordinator launch status to the interop JSON status string and the message that accompanies it.
+        /// Unknown statuses are reported as <c>error</c>.
         /// </summary>
         private static (string status, string? message) MapLaunchStatus(ModuleLaunchStatus status, string? message)
         {
@@ -581,7 +672,9 @@ namespace ASLM.Services.API
 
         // Disposal
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Stops the listener once and blocks until the shutdown has finished.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed)

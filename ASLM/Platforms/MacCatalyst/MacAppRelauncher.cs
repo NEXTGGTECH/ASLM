@@ -16,7 +16,10 @@ namespace ASLM
     /// </remarks>
     public static class MacAppRelauncher
     {
-        // Single-file .NET binaries cannot be lipo-merged, so the bundle ships one helper per arch.
+        /// <summary>
+        /// Base file name of the bundled patcher helper. Single-file .NET binaries cannot be lipo-merged,
+        /// so the bundle ships one helper per architecture with an <c>-arm64</c> or <c>-x64</c> suffix.
+        /// </summary>
         private const string HelperFileName = "aslm-patcher";
 
         /// <summary>
@@ -27,6 +30,7 @@ namespace ASLM
             var bundlePath = MacBundleLocator.FindBundleRoot()
                 ?? throw new InvalidOperationException("The ASLM .app bundle was not found.");
 
+            // Pick the helper that matches the process architecture, falling back to the unsuffixed name.
             var helpersDir = Path.Combine(bundlePath, "Contents", "Helpers");
             var archSuffix = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64";
             var helperSource = Path.Combine(helpersDir, $"{HelperFileName}-{archSuffix}");
@@ -40,6 +44,7 @@ namespace ASLM
                 throw new FileNotFoundException("The ASLM update helper was not found.", helperSource);
             }
 
+            // Run a copy from a temp folder with the execute bit set, because the bundle itself may be replaced.
             var shadowDir = Path.Combine(Path.GetTempPath(), "ASLM-Patcher-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(shadowDir);
 
@@ -50,6 +55,7 @@ namespace ASLM
                 File.GetUnixFileMode(shadowHelper) |
                 UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
 
+            // Pass the data root, the bundle to relaunch and this process id so the helper waits for it to exit.
             var startInfo = new ProcessStartInfo
             {
                 FileName = shadowHelper,

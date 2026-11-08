@@ -7,20 +7,25 @@ using ASLM.Models;
 
 namespace ASLM.Pages
 {
+    /// <summary>
+    /// Account settings part of the settings view.
+    /// </summary>
     public partial class SettingsView
     {
-        // Account actions
+        // ASLM account
 
         /// <summary>
         /// Switches the ASLM profile between local mode and browser-authorized SUNRISE mode.
         /// </summary>
         private async void OnAslmAccountButtonClicked(object? sender, EventArgs e)
         {
+            // Account switching needs the SUNRISE integration, and only one switch may run at a time.
             if (!SunriseService.IsEnabled || _isAslmAccountActionRunning)
             {
                 return;
             }
 
+            // Switching from the cloud account back to the local one requires the user's confirmation.
             if (_sunriseService.IsCloudAccount)
             {
                 var confirmed = await ShowAlertAsync(
@@ -36,12 +41,14 @@ namespace ASLM.Pages
 
             try
             {
+                // Mark the action as running with a cancellable token, and lock the account card and the footer.
                 _isAslmAccountActionRunning = true;
                 var actionCts = new CancellationTokenSource();
                 _aslmAccountActionCts = actionCts;
                 UpdateAslmAccountActionControls();
                 UpdateActionButtons();
 
+                // Switch to local mode directly; switching to the cloud needs the browser authorization.
                 if (_sunriseService.IsCloudAccount)
                 {
                     await _sunriseService.SelectLocalAccountAsync(actionCts.Token);
@@ -51,6 +58,7 @@ namespace ASLM.Pages
                     var result = await _sunriseService.AuthenticateApplicationAsync(actionCts.Token);
                     if (!result.Success)
                     {
+                        // A cancelled authorization (settings closed) is not reported as an error.
                         if (actionCts.IsCancellationRequested)
                         {
                             return;
@@ -66,6 +74,8 @@ namespace ASLM.Pages
                     }
                 }
 
+                // Re-read the display name from app data after the switch and adopt it as both draft and
+                // baseline, so it does not count as an unsaved edit.
                 _userNameDraft = _appData.Data.User.Name;
                 _aslmBaseline = _aslmBaseline with { UserName = _userNameDraft };
                 UsernameEntry.Text = _userNameDraft;
@@ -88,6 +98,7 @@ namespace ASLM.Pages
             }
             finally
             {
+                // Release the token and unlock the card and the footer, whatever the outcome.
                 _aslmAccountActionCts?.Dispose();
                 _aslmAccountActionCts = null;
                 _isAslmAccountActionRunning = false;
@@ -136,6 +147,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Account type badge and profile link.
             var isCloudAccount = _sunriseService.IsCloudAccount;
             BuiltInSettingsContainer.AslmAccountTypeBadge.Text = L.Get(
                 isCloudAccount
@@ -148,6 +160,7 @@ namespace ASLM.Pages
                 _aslmAccountStatusLabel.Text = BuildAslmAccountStatusText();
             }
 
+            // The button offers the opposite mode and is disabled while a switch runs.
             if (_aslmAccountButton != null)
             {
                 _aslmAccountButton.Text = _isAslmAccountActionRunning
@@ -173,6 +186,9 @@ namespace ASLM.Pages
             await OpenAccountLinkAsync(() => _sunriseService.CreateFullUri(SunriseService.ProfileEndpoint));
         }
 
+
+        // GitHub account
+
         /// <summary>
         /// Handles the GitHub account connect or disconnect button click.
         /// </summary>
@@ -193,11 +209,13 @@ namespace ASLM.Pages
 
             try
             {
+                // Show the busy state on the account card while the action runs.
                 _isGitHubAccountActionRunning = true;
                 UpdateGitHubAccountActionControls();
 
                 if (connect)
                 {
+                    // Connect: open the browser page for creating an access token, then ask the user to paste it.
                     try
                     {
                         await Launcher.OpenAsync(GitHubAccountStore.BuildTokenCreationUrl());
@@ -214,6 +232,7 @@ namespace ASLM.Pages
                         return;
                     }
 
+                    // The returned state is kept even on failure, so the card can show the error message.
                     var result = await _githubAccountStore.ConnectAsync(token);
                     _githubDraft = result.State;
 
@@ -234,6 +253,7 @@ namespace ASLM.Pages
                 }
                 else
                 {
+                    // Disconnect: ask for confirmation first.
                     if (!await DialogService.For(this).ConfirmAsync(this,
                         DialogText.Localized(LocalizationKeys.Settings_GitHub_DisconnectTitle),
                         DialogText.Localized(LocalizationKeys.Settings_GitHub_DisconnectMessage),
@@ -249,6 +269,7 @@ namespace ASLM.Pages
             }
             finally
             {
+                // Leave the busy state and show the resulting account state, whatever the outcome.
                 _isGitHubAccountActionRunning = false;
                 UpdateGitHubAccountActionControls();
             }
@@ -269,6 +290,7 @@ namespace ASLM.Pages
                 return L.Get(LocalizationKeys.Settings_GitHub_Connecting);
             }
 
+            // Every state ends with the API usage line; the first line depends on the connection state.
             var usage = BuildGitHubRateLimitUsageText();
             if (!_githubDraft.IsConnected && !string.IsNullOrWhiteSpace(_githubDraft.ErrorMessage))
             {
@@ -352,6 +374,9 @@ namespace ASLM.Pages
                 placeholder: DialogText.Localized(LocalizationKeys.Settings_GitHub_TokenPlaceholder),
                 kind: DialogFieldKind.Password, maxLength: 256);
 
+
+        // Ollama account
+
         /// <summary>
         /// Handles the single Ollama account action button click.
         /// </summary>
@@ -370,8 +395,10 @@ namespace ASLM.Pages
                 return;
             }
 
+            // A sign-in poll from an earlier action is obsolete once a new action starts.
             StopOllamaStatusPolling();
 
+            // Signing out needs the user's confirmation.
             if (!signIn)
             {
                 var confirmed = await ShowAlertAsync(
@@ -388,6 +415,7 @@ namespace ASLM.Pages
 
             try
             {
+                // Show which action runs on the account card.
                 _isOllamaAccountActionRunning = true;
                 _ollamaAccountAction = signIn ? "signin" : "signout";
                 UpdateOllamaAccountActionControls();
@@ -396,6 +424,7 @@ namespace ASLM.Pages
                     ? await _ollamaSettings.SignInAsync()
                     : await _ollamaSettings.SignOutAsync();
 
+                // Update the card from the new account state; sign-out reads the cached state, sign-in the live one.
                 await RefreshOllamaRuntimeMetadataAsync(queryLiveStatus: signIn);
                 UpdateOllamaAccountActionControls();
 
@@ -405,6 +434,7 @@ namespace ASLM.Pages
                     return;
                 }
 
+                // Browser sign-in completes outside the app, so keep polling until the account shows as signed in.
                 if (signIn && result.IsPendingVerification && !IsOllamaSignedIn())
                 {
                     StartOllamaStatusPolling();
@@ -425,6 +455,7 @@ namespace ASLM.Pages
         {
             try
             {
+                // Query the runtime for live data, or read the cached settings, away from the UI thread.
                 var refreshed = queryLiveStatus
                     ? await Task.Run(() => _ollamaSettings.RefreshSettingsAsync(ct), ct)
                     : await Task.Run(() => _ollamaSettings.LoadSettings(), ct);
@@ -436,6 +467,7 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
+                // Any other failure resets the metadata to the empty state instead of keeping stale data.
                 Debug.WriteLine($"Failed to refresh Ollama settings: {ex.Message}");
                 ApplyOllamaRuntimeMetadata(new OllamaPersistentSettings());
             }
@@ -468,6 +500,8 @@ namespace ASLM.Pages
                 _ollamaAccountStatusLabel.Text = BuildOllamaAccountStatusText();
             }
 
+            // The label names the running action, otherwise the action the button would start; the button is
+            // disabled without a CLI and while an action or metadata refresh is running.
             if (_ollamaAccountButton != null)
             {
                 var isSignedIn = IsOllamaSignedIn();
@@ -494,6 +528,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Replace any earlier refresh; without an Ollama CLI there is nothing to query.
             StopOllamaMetadataRefresh();
 
             if (!_ollamaDraft.IsCliAvailable)
@@ -502,6 +537,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Start the refresh in the background so the accounts page appears immediately.
             var refreshCts = new CancellationTokenSource();
             _ollamaMetadataRefreshCts = refreshCts;
             _isOllamaMetadataRefreshRunning = true;
@@ -534,9 +570,11 @@ namespace ASLM.Pages
             }
             catch (OperationCanceledException)
             {
+                // A newer refresh or closing the dialog cancelled this one; its result is obsolete.
             }
             finally
             {
+                // Finish on the UI thread, unless a newer refresh has already replaced this one.
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     if (!ReferenceEquals(_ollamaMetadataRefreshCts, refreshCts))
@@ -593,6 +631,7 @@ namespace ASLM.Pages
 
             try
             {
+                // Query the live account state at a fixed interval until the sign-in shows up or time runs out.
                 while (!ct.IsCancellationRequested && DateTime.UtcNow < deadline)
                 {
                     await RefreshOllamaRuntimeMetadataAsync(queryLiveStatus: true, ct);
@@ -612,9 +651,11 @@ namespace ASLM.Pages
             }
             catch (OperationCanceledException)
             {
+                // Polling was stopped by a new account action or by closing the dialog.
             }
             finally
             {
+                // Release the poll's token on the UI thread, unless a newer poll has already replaced it.
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     if (!ReferenceEquals(_ollamaStatusPollingCts, pollingCts))
@@ -634,6 +675,8 @@ namespace ASLM.Pages
         /// </summary>
         private string BuildOllamaAccountStatusText()
         {
+            // Pick the first state that applies: missing CLI, a running action, a refresh or poll in progress,
+            // signed out, and finally the signed-in account details.
             if (!_ollamaDraft.IsCliAvailable)
             {
                 return L.Get(LocalizationKeys.Settings_Ollama_NotInstalled);
@@ -678,6 +721,9 @@ namespace ASLM.Pages
             await OpenAccountLinkAsync(() => new Uri(OllamaSettingsUrl, UriKind.Absolute));
         }
 
+
+        // Account helpers
+
         /// <summary>
         /// Resolves and opens an account link while keeping launcher failures out of UI event handlers.
         /// </summary>
@@ -721,6 +767,5 @@ namespace ASLM.Pages
         {
             return string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
         }
-
     }
 }

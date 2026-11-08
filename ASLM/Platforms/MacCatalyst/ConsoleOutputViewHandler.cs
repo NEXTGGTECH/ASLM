@@ -15,10 +15,25 @@ namespace ASLM.Services.Internal
     {
         // Fields and constants
 
+        /// <summary>
+        /// Palette key of the console background color.
+        /// </summary>
         private const string ConsoleSurfaceColorKey = "BackgroundSecondary";
+
+        /// <summary>
+        /// Palette key of the console text color.
+        /// </summary>
         private const string ConsoleTextColorKey = "LabelPrimary";
+
+        /// <summary>
+        /// Distance from the bottom, in points, within which the view still counts as scrolled to the end
+        /// and keeps following new output.
+        /// </summary>
         private const double BottomStickinessThreshold = 48;
 
+        /// <summary>
+        /// Routes changes of the virtual view's text, session key and scrollbar mode to the native text view.
+        /// </summary>
         public static readonly IPropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler> Mapper =
             new PropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler>(ViewHandler.ViewMapper)
             {
@@ -27,7 +42,15 @@ namespace ASLM.Services.Internal
                 [nameof(ConsoleOutputView.UseCustomScrollBar)] = static (handler, view) => handler.ApplyScrollChrome()
             };
 
+        /// <summary>
+        /// Session key applied last, used to detect a switch to another console session.
+        /// </summary>
         private string _lastSessionKey = string.Empty;
+
+        /// <summary>
+        /// Whether the next text update must scroll to the end regardless of the current position,
+        /// as after the first load or a session switch.
+        /// </summary>
         private bool _forceScrollToEnd = true;
 
 
@@ -48,6 +71,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         protected override UITextView CreatePlatformView()
         {
+            // Read-only, selectable monospaced output.
             var textView = new UITextView
             {
                 Editable = false,
@@ -57,6 +81,7 @@ namespace ASLM.Services.Internal
                 ClipsToBounds = true
             };
 
+            // Rounded corners and palette colors give the console its card appearance.
             textView.Layer.CornerRadius = 10;
             ApplyConsoleTheme(textView);
             return textView;
@@ -69,6 +94,7 @@ namespace ASLM.Services.Internal
         {
             base.ConnectHandler(platformView);
 
+            // Follow light/dark switches and custom palettes; unsubscribing first prevents duplicate handlers.
             if (Microsoft.Maui.Controls.Application.Current is { } app)
             {
                 app.RequestedThemeChanged -= OnApplicationRequestedThemeChanged;
@@ -78,6 +104,7 @@ namespace ASLM.Services.Internal
             ThemeService.PaletteApplied -= OnPaletteApplied;
             ThemeService.PaletteApplied += OnPaletteApplied;
 
+            // Report scroll geometry to the shared scrollbar and let it drive the native scroll offset.
             ApplyConsoleTheme(platformView);
             platformView.Scrolled += OnScrolled;
             VirtualView.SizeChanged += OnScrolled;
@@ -102,6 +129,7 @@ namespace ASLM.Services.Internal
                 VirtualView.SizeChanged -= OnScrolled;
                 VirtualView.ScrollToOffset = null;
             }
+
             base.DisconnectHandler(platformView);
         }
 
@@ -175,8 +203,15 @@ namespace ASLM.Services.Internal
             });
         }
 
+        /// <summary>
+        /// Reports the new scroll geometry when the native view scrolls or the virtual view is resized.
+        /// </summary>
         private void OnScrolled(object? sender, EventArgs e) => PublishScrollMetrics();
 
+        /// <summary>
+        /// Sends viewport height, content height and scroll offset to the virtual view, but only while the
+        /// shared custom scrollbar is in use.
+        /// </summary>
         private void PublishScrollMetrics()
         {
             if (VirtualView?.UseCustomScrollBar == true && PlatformView is { } view)
@@ -186,6 +221,9 @@ namespace ASLM.Services.Internal
             }
         }
 
+        /// <summary>
+        /// Hides the native vertical scroll indicator when the custom scrollbar is used and republishes the geometry.
+        /// </summary>
         private void ApplyScrollChrome()
         {
             if (PlatformView == null) return;

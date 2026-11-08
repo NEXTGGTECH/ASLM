@@ -11,29 +11,46 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleDownloadsBridge
     {
-        // Version of the bridge protocol spoken over JSON stdio.
+        // Manifest properties
+
+        /// <summary>
+        /// Version of the bridge protocol spoken over JSON stdio.
+        /// </summary>
         [JsonPropertyName("protocolVersion")]
         public int ProtocolVersion { get; set; } = 1;
 
-        // Engine identifier used to launch the bridge command, if required.
+        /// <summary>
+        /// Engine identifier used to launch the bridge command, if required.
+        /// </summary>
         [JsonPropertyName("engine")]
         public string Engine { get; set; } = string.Empty;
 
-        // Command or script entrypoint executed inside the module directory.
+        /// <summary>
+        /// Command or script entrypoint executed inside the module directory.
+        /// </summary>
         [JsonPropertyName("entryPoint")]
         public string EntryPoint { get; set; } = string.Empty;
 
-        // Operations supported by the bridge, for example list_items or resolve_install.
+        /// <summary>
+        /// Operations supported by the bridge, for example <c>list_items</c> or <c>resolve_install</c>.
+        /// </summary>
         [JsonPropertyName("operations")]
         public List<string> Operations { get; set; } = [];
 
-        // Categories that the module may expose to the shared download catalog.
+        /// <summary>
+        /// Categories that the module may expose to the shared download catalog.
+        /// </summary>
         [JsonPropertyName("categories")]
         public List<ModuleDownloadBridgeCategory> Categories { get; set; } = [];
 
-        // Named install targets that map bridge manifests to safe directories inside ASLM.
+        /// <summary>
+        /// Named install targets that map bridge manifests to safe directories inside ASLM.
+        /// </summary>
         [JsonPropertyName("targets")]
         public Dictionary<string, ModuleDownloadBridgeTarget> Targets { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+
+        // Computed properties
 
         /// <summary>
         /// Gets whether the bridge has enough data for ASLM to invoke it.
@@ -42,14 +59,19 @@ namespace ASLM.Models
         public bool IsConfigured =>
             !string.IsNullOrWhiteSpace(EntryPoint);
 
+
+        // Normalization
+
         /// <summary>
         /// Restores nested objects and collections after JSON deserialization.
         /// </summary>
         public void Normalize()
         {
+            // Keep scalar string fields non-null.
             Engine ??= string.Empty;
             EntryPoint ??= string.Empty;
 
+            // Drop blank operation names and collapse duplicates ignoring case.
             Operations ??= [];
             Operations = Operations
                 .Where(static operation => !string.IsNullOrWhiteSpace(operation))
@@ -57,12 +79,14 @@ namespace ASLM.Models
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            // Normalize every declared category.
             Categories ??= [];
             foreach (var category in Categories)
             {
                 category?.Normalize();
             }
 
+            // Rebuild the target map without blank keys or null entries, using trimmed keys.
             Targets ??= new(StringComparer.OrdinalIgnoreCase);
 
             var normalizedTargets = new Dictionary<string, ModuleDownloadBridgeTarget>(StringComparer.OrdinalIgnoreCase);
@@ -89,29 +113,46 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleDownloadBridgeCategory
     {
-        // Stable category identifier used by bridge requests.
+        // Manifest properties
+
+        /// <summary>
+        /// Stable category identifier used by bridge requests.
+        /// </summary>
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
-        // Display title shown in ASLM.
+        /// <summary>
+        /// Display title shown in ASLM.
+        /// </summary>
         [JsonPropertyName("title")]
         public string Title { get; set; } = string.Empty;
 
-        // Optional description shown under the category title.
+        /// <summary>
+        /// Optional description shown under the category title.
+        /// </summary>
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
-        // Shared grouping key used to merge equivalent categories across modules.
+        /// <summary>
+        /// Shared grouping key used to merge equivalent categories across modules.
+        /// </summary>
         [JsonPropertyName("groupKey")]
         public string GroupKey { get; set; } = string.Empty;
 
-        // Optional target reference used when the category usually installs into one managed location.
+        /// <summary>
+        /// Optional target reference used when the category usually installs into one managed location.
+        /// </summary>
         [JsonPropertyName("targetRef")]
         public string TargetRef { get; set; } = string.Empty;
 
-        // Optional sort order applied after categories from multiple modules are merged.
+        /// <summary>
+        /// Optional sort order applied after categories from multiple modules are merged.
+        /// </summary>
         [JsonPropertyName("sortOrder")]
         public int SortOrder { get; set; }
+
+
+        // Normalization
 
         /// <summary>
         /// Restores string values after JSON deserialization.
@@ -134,15 +175,21 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleDownloadBridgeTarget
     {
-        // Root bucket inside ASLM, for example Models or Data.
+        /// <summary>
+        /// Root bucket inside ASLM, for example <c>Models</c> or <c>Data</c>.
+        /// </summary>
         [JsonPropertyName("root")]
         public string Root { get; set; } = string.Empty;
 
-        // Relative path inside the selected root bucket.
+        /// <summary>
+        /// Relative path inside the selected root bucket.
+        /// </summary>
         [JsonPropertyName("relative")]
         public string Relative { get; set; } = string.Empty;
 
-        // Optional help text shown in diagnostics or future UI.
+        /// <summary>
+        /// Optional help text shown in diagnostics or future UI.
+        /// </summary>
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 

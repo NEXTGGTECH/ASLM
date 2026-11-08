@@ -12,8 +12,6 @@ using Microsoft.Maui.Handlers;
 
 namespace ASLM
 {
-    // MAUI bootstrap
-
     /// <summary>
     /// Configures the MAUI host, services, and page registrations.
     /// </summary>
@@ -22,13 +20,14 @@ namespace ASLM
         // App builder
 
         /// <summary>
-        /// Creates the configured MAUI application instance.
+        /// Creates the configured MAUI application instance: platform host, handlers, fonts, the dependency
+        /// injection container with all services and pages, and the localization entry point.
         /// </summary>
         public static MauiApp CreateMauiApp()
         {
             var builder = MauiApp.CreateBuilder();
 
-            // Configure the shared application host and bundled fonts.
+            // Select the platform host: the GTK4 head on Linux, the standard MAUI host elsewhere.
 #if LINUX
             App.ConfigureLinuxLifetime();
             LinuxLayoutManager.Configure();
@@ -39,6 +38,8 @@ namespace ASLM
 #else
             builder.UseMauiApp<App>();
 #endif
+
+            // Register custom control handlers (per platform) and the bundled fonts.
             builder.ConfigureMauiHandlers(handlers =>
                 {
                     handlers.AddHandler<ConsoleOutputView, ConsoleOutputViewHandler>();
@@ -73,7 +74,7 @@ namespace ASLM
             builder.Services.AddLogging(configure => configure.AddDebug());
 #endif
 
-            // Service registrations
+            // Service registrations: singletons share state for the whole application lifetime
             builder.Services.AddSingleton<AppDataStore>();
             builder.Services.AddSingleton<DialogService>();
             builder.Services.AddSingleton<LegalAcceptanceService>();
@@ -114,13 +115,13 @@ namespace ASLM
             builder.Services.AddSingleton<ThemeService>();
             builder.Services.AddSingleton<SunriseService>();
 
-            // Page registrations
+            // Page registrations: transient, so each navigation gets a fresh page
             builder.Services.AddTransient<AppShellPage>();
             builder.Services.AddTransient<SetupWizardPage>();
             builder.Services.AddTransient<LoadingPage>();
             builder.Services.AddTransient<LegalAcceptanceView>();
 
-            // Content view registrations
+            // Content view registrations: transient views hosted inside the application shell
             builder.Services.AddTransient<HomeView>();
             builder.Services.AddTransient<ConsolesView>();
             builder.Services.AddTransient<ModulesView>();
@@ -134,9 +135,11 @@ namespace ASLM
             ConfigureWindowsCompactControlSizing();
 #endif
 
+            // Build the container, then bind the static string accessor to the localization service.
             var app = builder.Build();
             var localization = app.Services.GetRequiredService<AppLocalizationService>();
             Localization.L.Initialize(localization);
+
             // Cache maintenance must not delay the first window or initial setup.
             var moduleIcons = app.Services.GetRequiredService<ModuleIconCache>();
             _ = Task.Run(() => moduleIcons.PruneAsync());

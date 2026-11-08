@@ -38,6 +38,9 @@ namespace ASLM.Models
         /// <summary>
         /// Creates and normalizes one official trust rule.
         /// </summary>
+        /// <param name="source">Expected source provider, for example <c>github</c>.</param>
+        /// <param name="id">Exact module id, or null for a source-author rule.</param>
+        /// <param name="repo">Exact repository or an <c>Author/*</c> pattern.</param>
         public OfficialModuleTrustEntry(string source, string? id, string repo)
         {
             Source = ModuleTrustIdentity.NormalizeSource(source);
@@ -69,13 +72,22 @@ namespace ASLM.Models
     /// </summary>
     public sealed class ReviewedModuleTrustEntry
     {
+        /// <summary>
+        /// Gets or sets the expected source provider, for example <c>github</c>.
+        /// </summary>
         [JsonPropertyName("source")]
         public string Source { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Gets or sets the exact module id, or null for an author rule.
+        /// </summary>
         [JsonPropertyName("id")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Id { get; set; }
 
+        /// <summary>
+        /// Gets or sets an exact repository or an <c>Author/*</c> pattern.
+        /// </summary>
         [JsonPropertyName("repo")]
         public string Repo { get; set; } = string.Empty;
 
@@ -98,15 +110,27 @@ namespace ASLM.Models
     /// </summary>
     public sealed class ModuleTrustSourceConfig
     {
+        /// <summary>
+        /// Gets or sets the version of the config file schema.
+        /// </summary>
         [JsonPropertyName("fileVersion")]
         public int FileVersion { get; set; } = 1;
 
+        /// <summary>
+        /// Gets or sets the URL of the signed community-reviewed list; null disables remote loading.
+        /// </summary>
         [JsonPropertyName("reviewedListUrl")]
         public string? ReviewedListUrl { get; set; }
 
+        /// <summary>
+        /// Gets or sets the Base64 SubjectPublicKeyInfo RSA public key that verifies the list signature.
+        /// </summary>
         [JsonPropertyName("publicKeyBase64")]
         public string? PublicKeyBase64 { get; set; }
 
+        /// <summary>
+        /// Gets or sets the minimum number of hours between remote list refreshes.
+        /// </summary>
         [JsonPropertyName("refreshIntervalHours")]
         public int RefreshIntervalHours { get; set; } = 24;
 
@@ -115,14 +139,17 @@ namespace ASLM.Models
         /// </summary>
         public void Normalize()
         {
+            // A missing or invalid schema version means the first version.
             if (FileVersion <= 0)
             {
                 FileVersion = 1;
             }
 
+            // Blank text values are treated as not configured.
             ReviewedListUrl = string.IsNullOrWhiteSpace(ReviewedListUrl) ? null : ReviewedListUrl.Trim();
             PublicKeyBase64 = string.IsNullOrWhiteSpace(PublicKeyBase64) ? null : PublicKeyBase64.Trim();
 
+            // A non-positive interval falls back to the daily default.
             if (RefreshIntervalHours <= 0)
             {
                 RefreshIntervalHours = 24;
@@ -138,15 +165,27 @@ namespace ASLM.Models
     /// </summary>
     public sealed class SignedReviewedModulesPayload
     {
+        /// <summary>
+        /// Gets or sets the version of the payload schema.
+        /// </summary>
         [JsonPropertyName("fileVersion")]
         public int FileVersion { get; set; } = 1;
 
+        /// <summary>
+        /// Gets or sets the timestamp at which the server issued the list.
+        /// </summary>
         [JsonPropertyName("issuedAt")]
         public string IssuedAt { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Gets or sets the community-reviewed trust rules.
+        /// </summary>
         [JsonPropertyName("modules")]
         public List<ReviewedModuleTrustEntry> Modules { get; set; } = [];
 
+        /// <summary>
+        /// Gets or sets the detached Base64 RSA signature over the unsigned body.
+        /// </summary>
         [JsonPropertyName("signature")]
         public string Signature { get; set; } = string.Empty;
 
@@ -155,20 +194,24 @@ namespace ASLM.Models
         /// </summary>
         public void Normalize()
         {
+            // A missing or invalid schema version means the first version.
             if (FileVersion <= 0)
             {
                 FileVersion = 1;
             }
 
+            // Trim the textual fields; blank values become empty strings.
             IssuedAt = string.IsNullOrWhiteSpace(IssuedAt) ? string.Empty : IssuedAt.Trim();
             Signature = string.IsNullOrWhiteSpace(Signature) ? string.Empty : Signature.Trim();
             Modules ??= [];
 
+            // Normalize each rule first so the validity check below sees canonical identities.
             foreach (var module in Modules)
             {
                 module?.Normalize();
             }
 
+            // Keep only rules that form a complete exact identity or a GitHub author pattern.
             Modules = Modules
                 .Where(module => module != null && ModuleTrustIdentity.IsValidRule(
                     module.Source,
@@ -179,6 +222,7 @@ namespace ASLM.Models
 
         /// <summary>
         /// Builds the unsigned body used for signature verification.
+        /// The body carries every field except <see cref="Signature"/>.
         /// </summary>
         public ReviewedModulesPayloadBody ToUnsignedBody() =>
             new()
@@ -194,12 +238,21 @@ namespace ASLM.Models
     /// </summary>
     public sealed class ReviewedModulesPayloadBody
     {
+        /// <summary>
+        /// Gets or sets the version of the payload schema.
+        /// </summary>
         [JsonPropertyName("fileVersion")]
         public int FileVersion { get; set; } = 1;
 
+        /// <summary>
+        /// Gets or sets the timestamp at which the server issued the list.
+        /// </summary>
         [JsonPropertyName("issuedAt")]
         public string IssuedAt { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Gets or sets the community-reviewed trust rules covered by the signature.
+        /// </summary>
         [JsonPropertyName("modules")]
         public List<ReviewedModuleTrustEntry> Modules { get; set; } = [];
     }
@@ -212,12 +265,21 @@ namespace ASLM.Models
     /// </summary>
     public sealed class ReviewedModulesCacheDocument
     {
+        /// <summary>
+        /// Gets or sets the UTC timestamp (round-trip format) at which the list was verified and cached.
+        /// </summary>
         [JsonPropertyName("fetchedAt")]
         public string FetchedAt { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Gets or sets the cached payload; its signature is checked again every time the cache is loaded.
+        /// </summary>
         [JsonPropertyName("payload")]
         public SignedReviewedModulesPayload Payload { get; set; } = new();
 
+        /// <summary>
+        /// Gets or sets the signature stored beside the payload; it takes precedence over the payload's own signature.
+        /// </summary>
         [JsonPropertyName("signature")]
         public string Signature { get; set; } = string.Empty;
     }
@@ -230,7 +292,15 @@ namespace ASLM.Models
     /// </summary>
     public static class ModuleTrustIdentity
     {
+        // Constants
+
+        /// <summary>
+        /// Normalized source provider name of GitHub, the only provider that supports author rules.
+        /// </summary>
         public const string GitHubSource = "github";
+
+
+        // Normalization
 
         /// <summary>
         /// Normalizes a source provider for trust comparisons.
@@ -259,11 +329,15 @@ namespace ASLM.Models
         public static string NormalizeRepo(string? value) =>
             string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToLowerInvariant();
 
+
+        // Rule validation and matching
+
         /// <summary>
         /// Returns whether a rule contains a complete exact identity or GitHub author pattern.
         /// </summary>
         public static bool IsValidRule(string? source, string? id, string? repo)
         {
+            // A rule needs both a source provider and a repository.
             var normalizedSource = NormalizeSource(source);
             var normalizedId = NormalizeOptionalId(id);
             var normalizedRepo = NormalizeRepo(repo);
@@ -272,6 +346,7 @@ namespace ASLM.Models
                 return false;
             }
 
+            // Author rules (Author/*) are GitHub only and carry no module id; exact rules need an id and no wildcard.
             var isAuthorRule = TrySplitGitHubRepo(normalizedRepo, out _, out var repository) && repository == "*";
             return isAuthorRule
                 ? normalizedSource == GitHubSource && normalizedId == null
@@ -286,6 +361,7 @@ namespace ASLM.Models
             ArgumentNullException.ThrowIfNull(config);
             config.Normalize();
 
+            // The module must come from the rule's source provider and the rule itself must be well formed.
             var expectedSource = NormalizeSource(source);
             var actualSource = NormalizeSource(config.Source.Type);
             if (!string.Equals(actualSource, expectedSource, StringComparison.Ordinal) ||
@@ -304,6 +380,7 @@ namespace ASLM.Models
                        string.Equals(actualOwner, expectedOwner, StringComparison.Ordinal);
             }
 
+            // Exact rules require the same module id and the same repository.
             return string.Equals(NormalizeId(config.Id), NormalizeId(id), StringComparison.Ordinal) &&
                    string.Equals(NormalizeRepo(config.Source.Repo), NormalizeRepo(repo), StringComparison.Ordinal);
         }

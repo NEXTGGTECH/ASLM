@@ -13,134 +13,210 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleConfig
     {
-        // Version of the manifest schema used for compatibility checks.
+        // Manifest properties
+
+        /// <summary>
+        /// Version of the manifest schema used for compatibility checks.
+        /// </summary>
         [JsonPropertyName("fileVersion")]
         public int FileVersion { get; set; } = 1;
 
-        // Stable module identifier used throughout the application.
+        /// <summary>
+        /// Stable module identifier used throughout the application.
+        /// </summary>
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
-        // Human-readable module name shown in the UI.
+        /// <summary>
+        /// Human-readable module name shown in the UI.
+        /// </summary>
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        // Short description of the module's purpose.
+        /// <summary>
+        /// Short description of the module's purpose.
+        /// </summary>
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
-        // Version string of the packaged module.
+        /// <summary>
+        /// Version string of the packaged module.
+        /// </summary>
         [JsonPropertyName("version")]
         public string Version { get; set; } = string.Empty;
 
-        // Optional development-stage badges, independent of trust and the update channel.
+        /// <summary>
+        /// Optional development-stage badge marking the module as beta, independent of trust and the update channel.
+        /// Omitted from the manifest when false.
+        /// </summary>
         [JsonPropertyName("is_beta")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public bool IsBeta { get; set; }
 
+        /// <summary>
+        /// Optional development-stage badge marking the module as experimental, independent of trust and the
+        /// update channel. The manifest key keeps its established spelling <c>is_experemental</c>; it is omitted
+        /// from the manifest when false.
+        /// </summary>
         [JsonPropertyName("is_experemental")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public bool IsExperimental { get; set; }
 
-        // Module author displayed to the user.
+        /// <summary>
+        /// Module author displayed to the user.
+        /// </summary>
         [JsonPropertyName("author")]
         public string Author { get; set; } = string.Empty;
 
-        // Module type used by the application to interpret the package.
+        /// <summary>
+        /// Module type used by the application to interpret the package.
+        /// </summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = string.Empty;
 
-        // Optional category tags for future grouping or discovery (manifest-only metadata).
+        /// <summary>
+        /// Optional category tags for future grouping or discovery (manifest-only metadata).
+        /// </summary>
         [JsonPropertyName("category")]
         public List<string> Category { get; set; } = [];
 
-        // Indicates whether the module contributes a page to the shell UI.
+        /// <summary>
+        /// Indicates whether the module contributes a page to the shell UI.
+        /// </summary>
         [JsonPropertyName("hasPage")]
         public bool HasPage { get; set; }
 
-        // Optional relative path to the main module icon.
+        /// <summary>
+        /// Optional relative path to the main module icon.
+        /// </summary>
         [JsonPropertyName("icon")]
         public string? Icon { get; set; }
 
-        // Resolved absolute path to the main module icon inside the module directory.
+        /// <summary>
+        /// Resolved absolute path to the main module icon inside the module directory.
+        /// </summary>
         [JsonIgnore]
         public string? IconFullPath => ResolveModuleAssetPath(Icon);
 
-        // Optional relative path to the sidebar icon.
+        /// <summary>
+        /// Optional relative path to the sidebar icon.
+        /// </summary>
         [JsonPropertyName("sidebarIcon")]
         public string? SidebarIcon { get; set; }
 
-        // Resolved absolute path to the sidebar icon inside the module directory.
+        /// <summary>
+        /// Resolved absolute path to the sidebar icon inside the module directory.
+        /// </summary>
         [JsonIgnore]
         public string? SidebarIconFullPath => ResolveModuleAssetPath(SidebarIcon);
 
-        // Remote source definition for the module package.
+        /// <summary>
+        /// Remote source definition for the module package.
+        /// </summary>
         [JsonPropertyName("source")]
         public ModuleSource Source { get; set; } = new();
 
-        // Optional module-level restriction, required by the v2 schema.
+        /// <summary>
+        /// Optional module-level restriction, required by the v2 schema.
+        /// </summary>
         [JsonPropertyName("supportedPlatforms")]
         public List<SupportedPlatform> SupportedPlatforms { get; set; } = [];
 
-        // Third-party engine manifests provided by this module (ModulesAPI v2 only).
+        /// <summary>
+        /// Third-party engine manifests provided by this module (ModulesAPI v2 only).
+        /// </summary>
         [JsonPropertyName("engines")]
         public List<EngineConfig> Engines { get; set; } = [];
 
-        // Update behavior for this module package.
+        /// <summary>
+        /// Update behavior for this module package.
+        /// </summary>
         [JsonPropertyName("update")]
         public ModuleUpdateConfig Update { get; set; } = new();
 
-        // Engine, module, and model dependencies required by the module.
+        /// <summary>
+        /// Engine, module, and model dependencies required by the module.
+        /// </summary>
         [JsonPropertyName("dependencies")]
         public ModuleDependencies Dependencies { get; set; } = new();
 
-        // Commands used to prepare and launch the module.
+        /// <summary>
+        /// Commands used to prepare and launch the module.
+        /// </summary>
         [JsonPropertyName("commands")]
         public ModuleCommands Commands { get; set; } = new();
 
-        // Declarative groups used to render user-configurable settings.
+        /// <summary>
+        /// Declarative groups used to render user-configurable settings.
+        /// </summary>
         [JsonPropertyName("settingCategories")]
         public List<ModuleSettingCategory> SettingCategories { get; set; } = [];
 
-        // User-configurable settings exposed by the module.
+        /// <summary>
+        /// User-configurable settings exposed by the module.
+        /// </summary>
         [JsonPropertyName("settings")]
         public List<ModuleSetting> Settings { get; set; } = [];
 
-        // Optional bridge that exposes dynamic download catalogs and install plans to ASLM.
+        /// <summary>
+        /// Optional bridge that exposes dynamic download catalogs and install plans to ASLM.
+        /// </summary>
         [JsonPropertyName("downloadsBridge")]
         public ModuleDownloadsBridge? DownloadsBridge { get; set; }
 
-        // Optional declaration that the module consumes the host module interop API and env injection.
+        /// <summary>
+        /// Optional declaration that the module consumes the host module interop API and env injection.
+        /// </summary>
         [JsonPropertyName("moduleInterop")]
         public ModuleInteropManifest? ModuleInterop { get; set; }
 
-        // Persisted installation and runtime state of the module.
+        /// <summary>
+        /// Persisted installation and runtime state of the module.
+        /// </summary>
         [JsonPropertyName("status")]
         public ModuleStatus Status { get; set; } = new();
 
-        // Absolute path to the source manifest file resolved at runtime.
+
+        // Runtime state
+
+        /// <summary>
+        /// Absolute path to the source manifest file resolved at runtime.
+        /// </summary>
         [JsonIgnore]
         public string SourcePath { get; set; } = string.Empty;
 
-        // Indicates whether the original manifest explicitly declared an update block.
+        /// <summary>
+        /// Indicates whether the original manifest explicitly declared an update block.
+        /// </summary>
         [JsonIgnore]
         public bool HasDeclaredUpdateConfig { get; set; }
 
-        // Whether the manifest supports the currently resolved host platform.
+        /// <summary>
+        /// Whether the manifest supports the currently resolved host platform.
+        /// </summary>
         [JsonIgnore]
         public bool IsSupportedOnCurrentPlatform { get; private set; } = true;
 
-        // Runtime intersection of module and required-engine platforms; never persisted to the manifest.
+        /// <summary>
+        /// Runtime intersection of module and required-engine platforms; never persisted to the manifest.
+        /// </summary>
         [JsonIgnore]
         public IReadOnlyList<SupportedPlatform> EffectiveSupportedPlatforms { get; private set; } = [];
 
-        // Canonical platform key used for the latest compatibility resolution.
+        /// <summary>
+        /// Canonical platform key used for the latest compatibility resolution.
+        /// </summary>
         [JsonIgnore]
         public string ActivePlatformKey { get; private set; } = string.Empty;
 
-        // Non-fatal schema diagnostics retained for logs and authoring tools.
+        /// <summary>
+        /// Non-fatal schema diagnostics retained for logs and authoring tools.
+        /// </summary>
         [JsonIgnore]
         public List<string> ValidationWarnings { get; set; } = [];
+
+
+        // Normalization and platform resolution
 
         /// <summary>
         /// Restores nested objects, collections, and strings after JSON deserialization.
@@ -154,12 +230,16 @@ namespace ASLM.Models
             Version ??= string.Empty;
             Author ??= string.Empty;
             Type ??= string.Empty;
+
+            // Trim category tags and drop blank and case-insensitive duplicate ones.
             Category ??= [];
             Category = Category
                 .Where(static tag => !string.IsNullOrWhiteSpace(tag))
                 .Select(static tag => tag.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            // Normalize the platform restriction, then keep one entry per os/arch pair.
             SupportedPlatforms ??= [];
             foreach (var platform in SupportedPlatforms)
             {
@@ -174,12 +254,14 @@ namespace ASLM.Models
                 .Select(static group => group.First())
                 .ToList();
 
+            // Normalize the engine definitions embedded in the module manifest.
             Engines ??= [];
             foreach (var engine in Engines)
             {
                 engine?.Normalize();
             }
 
+            // Keep only setting categories that have an id, since settings reference them by id.
             SettingCategories ??= [];
             foreach (var settingCategory in SettingCategories)
             {
@@ -189,6 +271,8 @@ namespace ASLM.Models
             SettingCategories = SettingCategories
                 .Where(static category => category != null && !string.IsNullOrWhiteSpace(category.Id))
                 .ToList();
+
+            // Treat blank icon paths as absent and make sure the runtime path is never null.
             Icon = string.IsNullOrWhiteSpace(Icon) ? null : Icon;
             SidebarIcon = string.IsNullOrWhiteSpace(SidebarIcon) ? null : SidebarIcon;
             SourcePath ??= string.Empty;
@@ -231,8 +315,12 @@ namespace ASLM.Models
         /// Intersects declared module platforms, when present, with every required engine.
         /// Parsing alone resolves the module declaration; catalog/install callers supply engine lookup.
         /// </summary>
+        /// <param name="osKey">Host operating system token, for example <c>windows</c>.</param>
+        /// <param name="archKey">Host architecture token, for example <c>amd64</c>.</param>
+        /// <param name="findEngine">Looks up a required engine by id; null skips the engine intersection.</param>
         public void ResolveForPlatform(string osKey, string archKey, Func<string, EngineConfig?>? findEngine = null)
         {
+            // Start from the module's own platform declaration; null means it declares no restriction.
             ActivePlatformKey = $"{SupportedPlatform.CanonicalToken(osKey)}-{SupportedPlatform.CanonicalToken(archKey)}";
             List<SupportedPlatform>? platforms = SupportedPlatforms.Count > 0
                 ? SupportedPlatforms.Select(platform => SupportedPlatform.FromKey(
@@ -240,6 +328,7 @@ namespace ASLM.Models
                     .DistinctBy(platform => platform.Key, StringComparer.OrdinalIgnoreCase).ToList()
                 : null;
 
+            // Narrow the platforms to those that every required engine supports as well.
             if (findEngine != null)
             {
                 foreach (var engineId in Dependencies.Engines
@@ -256,6 +345,7 @@ namespace ASLM.Models
                 }
             }
 
+            // Without any restriction every platform is supported; otherwise the host must be in the result.
             EffectiveSupportedPlatforms = platforms ?? [];
             IsSupportedOnCurrentPlatform = platforms == null ||
                 platforms.Any(platform => platform.Matches(osKey, archKey));
@@ -302,48 +392,75 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleUpdateConfig
     {
-        // Virtual picker value that tracks the newest allowed GitHub release.
+        // Constants
+
+        /// <summary>
+        /// Virtual picker value that tracks the newest allowed GitHub release.
+        /// </summary>
         public const string LatestReleaseTag = "latest";
 
-        // Update mode: release assets/release archive, pre-release stream, or a repository branch archive.
+
+        // Update settings
+
+        /// <summary>
+        /// Update mode: release assets/release archive, pre-release stream, or a repository branch archive.
+        /// </summary>
         [JsonPropertyName("mode")]
         public string Mode { get; set; } = "release";
 
-        // Release channel: release only, or release plus pre-release.
+        /// <summary>
+        /// Release channel: release only, or release plus pre-release.
+        /// </summary>
         [JsonPropertyName("channel")]
         public string Channel { get; set; } = "release";
 
-        // Catalog entries follow ASLM's default until the user saves their own selection.
-        // Installed modules always retain their own update configuration.
+        /// <summary>
+        /// Catalog entries follow ASLM's default until the user saves their own selection.
+        /// Installed modules always retain their own update configuration.
+        /// </summary>
         [JsonPropertyName("useDefaultChannel")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public bool? UseDefaultChannel { get; set; }
 
-        // Branch selected when mode is branch.
+        /// <summary>
+        /// Branch selected when mode is branch.
+        /// </summary>
         [JsonPropertyName("branch")]
         public string Branch { get; set; } = "main";
 
-        // Optional release asset name. When absent, release zipball is used for modules.
+        /// <summary>
+        /// Optional release asset name. When absent, release zipball is used for modules.
+        /// </summary>
         [JsonPropertyName("assetName")]
         public string? AssetName { get; set; }
 
-        // Relative files and directories copied out before replacement and restored after update.
+        /// <summary>
+        /// Relative files and directories copied out before replacement and restored after update.
+        /// </summary>
         [JsonPropertyName("preserve")]
         public List<string> Preserve { get; set; } = [];
 
-        // Indicates whether first-run setup should run again after files are replaced.
+        /// <summary>
+        /// Indicates whether first-run setup should run again after files are replaced.
+        /// </summary>
         [JsonPropertyName("runFirstRunAfterUpdate")]
         public bool RunFirstRunAfterUpdate { get; set; } = true;
 
-        // Commit identifying the current branch installation; null after installing a release.
+        /// <summary>
+        /// Commit identifying the current branch installation; null after installing a release.
+        /// </summary>
         [JsonPropertyName("installedCommitSha")]
         public string? InstalledCommitSha { get; set; }
 
-        // Tag identifying the current release installation; null after installing a branch.
+        /// <summary>
+        /// Tag identifying the current release installation; null after installing a branch.
+        /// </summary>
         [JsonPropertyName("installedReleaseTag")]
         public string? InstalledReleaseTag { get; set; }
 
-        // User-selected release tag used for installs, including rollbacks.
+        /// <summary>
+        /// User-selected release tag used for installs, including rollbacks.
+        /// </summary>
         [JsonPropertyName("selectedReleaseTag")]
         public string? SelectedReleaseTag { get; set; }
 
@@ -352,6 +469,9 @@ namespace ASLM.Models
         /// </summary>
         [JsonPropertyName("pendingUpdate")]
         public ModulePendingUpdate? PendingUpdate { get; set; }
+
+
+        // Normalization
 
         /// <summary>
         /// Restores defaults and removes unsafe empty preservation entries.
@@ -367,6 +487,8 @@ namespace ASLM.Models
             InstalledReleaseTag = string.IsNullOrWhiteSpace(InstalledReleaseTag) ? null : InstalledReleaseTag.Trim();
             SelectedReleaseTag = NormalizeSelectedReleaseTag(SelectedReleaseTag);
 
+            // Keep only relative preserve paths that stay inside the module folder: drop blanks, "." and any path
+            // containing "..", and use forward slashes without leading or trailing separators.
             Preserve ??= [];
             Preserve = Preserve
                 .Where(static path => !string.IsNullOrWhiteSpace(path))
@@ -375,6 +497,7 @@ namespace ASLM.Models
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            // A pending update without a remote version cannot be shown or applied, so it is dropped.
             if (PendingUpdate != null)
             {
                 PendingUpdate.Normalize();
@@ -390,6 +513,7 @@ namespace ASLM.Models
         /// </summary>
         private static string NormalizeMode(string? mode, string? channel)
         {
+            // An explicit mode wins over the channel.
             if (string.Equals(mode, "branch", StringComparison.OrdinalIgnoreCase))
             {
                 return "branch";
@@ -405,6 +529,7 @@ namespace ASLM.Models
                 return "release";
             }
 
+            // Without a mode, older manifests signalled the pre-release stream through the channel only.
             if (string.IsNullOrWhiteSpace(mode) && IsPrereleaseValue(channel))
             {
                 return "pre-release";
@@ -439,56 +564,102 @@ namespace ASLM.Models
         }
     }
 
-
     /// <summary>
     /// Persisted snapshot of a discovered module update used to restore the card &quot;Update&quot; badge.
     /// </summary>
     public sealed class ModulePendingUpdate
     {
+        // Snapshot properties
+
+        /// <summary>
+        /// Update mode (release, pre-release or branch) that was active when the snapshot was taken.
+        /// A snapshot is ignored once the module switches to a different mode.
+        /// </summary>
         [JsonPropertyName("updateMode")]
         public string UpdateMode { get; set; } = "release";
 
+        /// <summary>
+        /// Tracked branch of a branch-mode snapshot; null for release snapshots.
+        /// </summary>
         [JsonPropertyName("branch")]
         public string? Branch { get; set; }
 
+        /// <summary>
+        /// Selected release tag (possibly the virtual latest alias) that the snapshot belongs to;
+        /// null for branch snapshots.
+        /// </summary>
         [JsonPropertyName("releaseSelectionKey")]
         public string? ReleaseSelectionKey { get; set; }
 
+        /// <summary>
+        /// Version text of the available update. A snapshot without it is discarded.
+        /// </summary>
         [JsonPropertyName("remoteVersion")]
         public string RemoteVersion { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Optional human-readable label of the update.
+        /// </summary>
         [JsonPropertyName("displayName")]
         public string? DisplayName { get; set; }
 
+        /// <summary>
+        /// Git tag of the release that the update comes from, if any.
+        /// </summary>
         [JsonPropertyName("releaseTag")]
         public string? ReleaseTag { get; set; }
 
+        /// <summary>
+        /// Commit that a branch update points to; compared with the installed commit to detect changes.
+        /// </summary>
         [JsonPropertyName("commitSha")]
         public string? CommitSha { get; set; }
 
+        /// <summary>
+        /// Name of the Git reference (tag or branch) that the update was resolved from.
+        /// </summary>
         [JsonPropertyName("referenceName")]
         public string? ReferenceName { get; set; }
 
+        /// <summary>
+        /// URL of the archive or release asset to download.
+        /// </summary>
         [JsonPropertyName("downloadUrl")]
         public string? DownloadUrl { get; set; }
 
+        /// <summary>
+        /// Whether the update is the moving <c>latest</c> alias rather than a fixed release.
+        /// </summary>
         [JsonPropertyName("isVirtualLatest")]
         public bool IsVirtualLatest { get; set; }
 
+        /// <summary>
+        /// Whether the update is a pre-release.
+        /// </summary>
         [JsonPropertyName("isPrerelease")]
         public bool IsPrerelease { get; set; }
 
+        /// <summary>
+        /// Release channel of the update.
+        /// </summary>
         [JsonPropertyName("channel")]
         public string? Channel { get; set; }
 
+        /// <summary>
+        /// UTC timestamp (round-trip format) at which the update was discovered.
+        /// </summary>
         [JsonPropertyName("checkedUtc")]
         public string? CheckedUtc { get; set; }
+
+
+        // Normalization and creation
 
         /// <summary>
         /// Trims optional fields and normalizes mode text after deserialization.
         /// </summary>
         public void Normalize()
         {
+            // Blank optional fields become null so they are not persisted as empty text.
             UpdateMode = string.IsNullOrWhiteSpace(UpdateMode) ? "release" : UpdateMode.Trim();
             Branch = string.IsNullOrWhiteSpace(Branch) ? null : Branch.Trim();
             ReleaseSelectionKey = string.IsNullOrWhiteSpace(ReleaseSelectionKey) ? null : ReleaseSelectionKey.Trim();
@@ -507,6 +678,7 @@ namespace ASLM.Models
         /// </summary>
         public static ModulePendingUpdate FromCandidate(ModuleConfig module, UpdateCandidate candidate)
         {
+            // Branch updates remember the tracked branch; release updates remember the selected release instead.
             var isBranch = string.Equals(module.Update.Mode, "branch", StringComparison.OrdinalIgnoreCase);
             return new ModulePendingUpdate
             {
@@ -535,11 +707,15 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleSource
     {
-        // Source provider identifier. The default provider is GitHub.
+        /// <summary>
+        /// Source provider identifier. The default provider is GitHub.
+        /// </summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = "github";
 
-        // Repository path in provider-specific format, for example "User/Repo".
+        /// <summary>
+        /// Repository path in provider-specific format, for example <c>User/Repo</c>.
+        /// </summary>
         [JsonPropertyName("repo")]
         public string Repo { get; set; } = string.Empty;
 
@@ -562,15 +738,21 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleDependencies
     {
-        // Required engine runtimes and their package dependencies.
+        /// <summary>
+        /// Required engine runtimes and their package dependencies.
+        /// </summary>
         [JsonPropertyName("engines")]
         public List<ModuleEngineDependency> Engines { get; set; } = [];
 
-        // Required ASLM modules that must be installed and running before this module starts.
+        /// <summary>
+        /// Required ASLM modules that must be installed and running before this module starts.
+        /// </summary>
         [JsonPropertyName("modules")]
         public List<ModuleModuleDependency> Modules { get; set; } = [];
 
-        // Required model categories matched against installed models.
+        /// <summary>
+        /// Required model categories matched against installed models.
+        /// </summary>
         [JsonPropertyName("models")]
         public List<string> Models { get; set; } = [];
 
@@ -586,6 +768,7 @@ namespace ASLM.Models
                 engine?.Normalize();
             }
 
+            // Recreate and normalize module dependencies when needed.
             Modules ??= [];
             foreach (var module in Modules)
             {
@@ -601,14 +784,16 @@ namespace ASLM.Models
     }
 
 
-    // Module dependencies
+    // Module-to-module dependencies
 
     /// <summary>
     /// Describes the dependency on another installed ASLM module.
     /// </summary>
     public class ModuleModuleDependency
     {
-        // Stable identifier of the required module (matches <see cref="ModuleConfig.Id"/>).
+        /// <summary>
+        /// Stable identifier of the required module (matches <see cref="ModuleConfig.Id"/>).
+        /// </summary>
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
@@ -630,11 +815,15 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleEngineDependency
     {
-        // Identifier of the required engine runtime.
+        /// <summary>
+        /// Identifier of the required engine runtime.
+        /// </summary>
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
-        // Additional libraries that must be installed for this engine.
+        /// <summary>
+        /// Additional libraries that must be installed for this engine.
+        /// </summary>
         [JsonPropertyName("libraries")]
         public List<string> Libraries { get; set; } = [];
 
@@ -662,11 +851,15 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleCommands
     {
-        // Commands executed once during the initial module setup.
+        /// <summary>
+        /// Commands executed once during the initial module setup.
+        /// </summary>
         [JsonPropertyName("firstRun")]
         public List<ModuleCommand> FirstRun { get; set; } = [];
 
-        // Commands executed during the normal module launch flow.
+        /// <summary>
+        /// Commands executed during the normal module launch flow.
+        /// </summary>
         [JsonPropertyName("run")]
         public List<ModuleCommand> Run { get; set; } = [];
 
@@ -699,19 +892,27 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleCommand
     {
-        // Human-readable command name shown in the UI.
+        /// <summary>
+        /// Human-readable command name shown in the UI.
+        /// </summary>
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        // Short explanation of what the command does.
+        /// <summary>
+        /// Short explanation of what the command does.
+        /// </summary>
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
-        // Engine identifier used to execute the command, if required.
+        /// <summary>
+        /// Engine identifier used to execute the command, if required.
+        /// </summary>
         [JsonPropertyName("engine")]
         public string Engine { get; set; } = string.Empty;
 
-        // Execution string relative to the module directory.
+        /// <summary>
+        /// Execution string relative to the module directory.
+        /// </summary>
         [JsonPropertyName("exec")]
         public string Exec { get; set; } = string.Empty;
 
@@ -736,12 +937,21 @@ namespace ASLM.Models
     /// </summary>
     public sealed class ModuleSettingCategory
     {
+        /// <summary>
+        /// Stable category identifier that settings reference through <see cref="ModuleSetting.Category"/>.
+        /// </summary>
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Title of the category group shown in the settings UI; falls back to the identifier when empty.
+        /// </summary>
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Optional help text shown with the category group.
+        /// </summary>
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
@@ -764,58 +974,89 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleSetting
     {
-        // Stable key used to read and persist the setting value.
+        // Manifest properties
+
+        /// <summary>
+        /// Stable key used to read and persist the setting value.
+        /// </summary>
         [JsonPropertyName("key")]
         public string Key { get; set; } = string.Empty;
 
-        // Human-readable setting name shown in the UI.
+        /// <summary>
+        /// Human-readable setting name shown in the UI.
+        /// </summary>
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        // Help text that explains the setting to the user.
+        /// <summary>
+        /// Help text that explains the setting to the user.
+        /// </summary>
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
-        // Setting type that controls validation and rendering behavior (string, port, bool, theme, locale, …).
-        // Host-managed types are resolved by ASLM and applied through setExec without UI or environment injection.
+        /// <summary>
+        /// Setting type that controls validation and rendering behavior (string, port, bool, theme, locale, …).
+        /// Host-managed types are resolved by ASLM and applied through setExec without UI or environment injection.
+        /// </summary>
         [JsonPropertyName("type")]
         public string Type { get; set; } = "string";
 
-        // Default persisted value used when the current value is absent.
+        /// <summary>
+        /// Default persisted value used when the current value is absent.
+        /// </summary>
         [JsonPropertyName("default")]
         public object? Default { get; set; }
 
-        // Current persisted value for the setting.
+        /// <summary>
+        /// Current persisted value for the setting.
+        /// </summary>
         [JsonPropertyName("value")]
         public object? Value { get; set; }
 
-        // Indicates whether a system-managed setting should use a user-provided custom value.
+        /// <summary>
+        /// Indicates whether a system-managed setting should use a user-provided custom value.
+        /// </summary>
         [JsonPropertyName("useCustomValue")]
         public bool UseCustomValue { get; set; }
 
-        // Allowed values for choice-based settings.
+        /// <summary>
+        /// Allowed values for choice-based settings.
+        /// </summary>
         [JsonPropertyName("allowedValues")]
         public List<string>? AllowedValues { get; set; }
 
-        // Engine identifier used to execute the get and set commands, if required.
+        /// <summary>
+        /// Engine identifier used to execute the get and set commands, if required.
+        /// </summary>
         [JsonPropertyName("engine")]
         public string Engine { get; set; } = string.Empty;
 
-        // Command that reads the current value of the setting.
+        /// <summary>
+        /// Command that reads the current value of the setting.
+        /// </summary>
         [JsonPropertyName("getExec")]
         public string GetExec { get; set; } = string.Empty;
 
-        // Command that applies a new value to the setting.
+        /// <summary>
+        /// Command that applies a new value to the setting.
+        /// </summary>
         [JsonPropertyName("setExec")]
         public string SetExec { get; set; } = string.Empty;
 
-        // Optional visual category id for user-configurable settings.
+        /// <summary>
+        /// Optional visual category id for user-configurable settings.
+        /// </summary>
         [JsonPropertyName("category")]
         public string? Category { get; set; }
 
-        // Optional bool setting key that controls whether this setting is shown.
+        /// <summary>
+        /// Optional bool setting key that controls whether this setting is shown.
+        /// </summary>
         [JsonPropertyName("dependsOn")]
         public string? DependsOn { get; set; }
+
+
+        // Computed properties
 
         /// <summary>
         /// Gets the normalized setting type used by parsing and rendering logic.
@@ -850,6 +1091,9 @@ namespace ASLM.Models
         [JsonIgnore]
         public bool IsHostKey => NormalizedType is "key-aslm" or "key-gh";
 
+
+        // Normalization
+
         /// <summary>
         /// Restores string fields and normalizes persisted scalar values after JSON deserialization.
         /// </summary>
@@ -880,7 +1124,7 @@ namespace ASLM.Models
         }
 
 
-        // Input parsing
+        // Input parsing and formatting
 
         /// <summary>
         /// Converts raw settings UI input into the most suitable persisted scalar value.
@@ -895,6 +1139,7 @@ namespace ASLM.Models
                 return null;
             }
 
+            // Blank input clears typed settings (booleans, numbers, JSON) but stays as text for string-like types.
             if (string.IsNullOrWhiteSpace(rawValue))
             {
                 return NormalizedType switch
@@ -912,8 +1157,11 @@ namespace ASLM.Models
         /// <summary>
         /// Normalizes values returned by controls before they are persisted.
         /// </summary>
+        /// <param name="rawValue">Value produced by a settings control: text, a JSON element or an already typed value.</param>
+        /// <returns>The value in the representation that is saved to the manifest.</returns>
         public object? NormalizeUserValue(object? rawValue)
         {
+            // Text is parsed by the declared type, JSON scalars are unwrapped, other values pass through.
             return rawValue switch
             {
                 null => null,
@@ -926,6 +1174,8 @@ namespace ASLM.Models
         /// <summary>
         /// Parses a textual setting value according to the declared setting type.
         /// </summary>
+        /// <param name="rawValue">Serialized value, for example an environment variable text or a command output.</param>
+        /// <returns>The typed value, or the original text when it does not fit the declared type.</returns>
         public object? ParseSerializedValue(string? rawValue)
         {
             if (rawValue is null)
@@ -933,6 +1183,7 @@ namespace ASLM.Models
                 return null;
             }
 
+            // Numbers are parsed with the invariant culture; unparsable text is kept so no input is lost.
             return NormalizedType switch
             {
                 "bool" or "engine" => bool.TryParse(rawValue, out var boolValue) ? boolValue : rawValue,
@@ -955,12 +1206,14 @@ namespace ASLM.Models
         /// </summary>
         public string FormatValueForDisplay(object? value)
         {
+            // Unwrap JSON scalars first so the checks below see plain CLR values.
             value = NormalizeScalarValue(value);
             if (value is null)
             {
                 return string.Empty;
             }
 
+            // Text and raw JSON (objects, arrays) are shown as they are.
             if (value is string text)
             {
                 return text;
@@ -971,6 +1224,7 @@ namespace ASLM.Models
                 return jsonElement.GetRawText();
             }
 
+            // Booleans use lower-case JSON spelling and numbers the invariant culture, so output is locale independent.
             if (value is bool boolValue)
             {
                 return boolValue ? "true" : "false";
@@ -981,6 +1235,7 @@ namespace ASLM.Models
                 return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
             }
 
+            // Any other object is serialized as JSON.
             return JsonSerializer.Serialize(value);
         }
 
@@ -1029,6 +1284,7 @@ namespace ASLM.Models
             }
             catch
             {
+                // Malformed JSON is not an error: the text is simply kept unchanged.
                 return rawValue;
             }
         }
@@ -1042,27 +1298,39 @@ namespace ASLM.Models
     /// </summary>
     public class ModuleStatus
     {
-        // Indicates whether the module manifest is present in the installed modules directory.
+        /// <summary>
+        /// Indicates whether the module manifest is present in the installed modules directory.
+        /// </summary>
         [JsonPropertyName("installed")]
         public bool Installed { get; set; }
 
-        // Indicates whether the module is currently enabled.
+        /// <summary>
+        /// Indicates whether the module is currently enabled.
+        /// </summary>
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; }
 
-        // Indicates whether the module completed its first-run setup.
+        /// <summary>
+        /// Indicates whether the module completed its first-run setup.
+        /// </summary>
         [JsonPropertyName("firstRunCompleted")]
         public bool FirstRunCompleted { get; set; }
 
-        // Version string of the installed module, if known.
+        /// <summary>
+        /// Version string of the installed module, if known.
+        /// </summary>
         [JsonPropertyName("installedVersion")]
         public string? InstalledVersion { get; set; }
 
-        // Timestamp of the latest update check.
+        /// <summary>
+        /// Timestamp of the latest update check.
+        /// </summary>
         [JsonPropertyName("lastChecked")]
         public string? LastChecked { get; set; }
 
-        // Timestamp of the latest successful update.
+        /// <summary>
+        /// Timestamp of the latest successful update.
+        /// </summary>
         [JsonPropertyName("lastUpdated")]
         public string? LastUpdated { get; set; }
 

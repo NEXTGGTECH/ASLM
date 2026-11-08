@@ -9,6 +9,8 @@ using Microsoft.Maui.ApplicationModel;
 
 namespace ASLM.Services.Internal
 {
+    // Event arguments
+
     /// <summary>
     /// Carries one user action on an update-available notification row or toast.
     /// </summary>
@@ -17,6 +19,8 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates the event payload.
         /// </summary>
+        /// <param name="notification">Notification that was acted on.</param>
+        /// <param name="updateNow">True for Update now, false for Update later.</param>
         public UpdateNotificationActionEventArgs(AppNotification notification, bool updateNow)
         {
             Notification = notification;
@@ -34,20 +38,50 @@ namespace ASLM.Services.Internal
         public bool UpdateNow { get; }
     }
 
+
+    // Notification service
+
     /// <summary>
     /// Stores internal ASLM notifications, persists them, and exposes helpers for update and download events.
+    /// All mutations of the notification list run on the UI thread; saves are debounced and written in the background.
     /// </summary>
     public sealed class NotificationCenter
     {
         // Fields
 
+        /// <summary>
+        /// Name of the notifications file inside <c>Data/App</c>.
+        /// </summary>
         private const string NotificationsFileName = "ASLM_Notifications.json";
+
+        /// <summary>
+        /// Upper bound of notifications kept in memory and written to disk; the oldest ones are dropped first.
+        /// </summary>
         private const int MaxPersistedNotifications = 200;
 
+        /// <summary>
+        /// Backing collection of notifications, newest first; changed only on the UI thread.
+        /// </summary>
         private readonly ObservableCollection<AppNotification> _notifications = [];
+
+        /// <summary>
+        /// Read-only view of <see cref="_notifications"/> that is exposed to the UI.
+        /// </summary>
         private readonly ReadOnlyObservableCollection<AppNotification> _readOnlyNotifications;
+
+        /// <summary>
+        /// Absolute path of the persisted notifications file.
+        /// </summary>
         private readonly string _filePath;
+
+        /// <summary>
+        /// Runs notification mutations on the UI thread.
+        /// </summary>
         private readonly Dispatcher _dispatcher;
+
+        /// <summary>
+        /// JSON settings used to read and write the notifications file; enums are stored by name.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
@@ -55,34 +89,77 @@ namespace ASLM.Services.Internal
             Converters = { new JsonStringEnumConverter() }
         };
 
+        /// <summary>
+        /// Cancellation source of the pending debounced save; replaced on every new save request.
+        /// </summary>
         private CancellationTokenSource? _saveCts;
+
+        /// <summary>
+        /// Whether persisted notifications were loaded; saves are skipped before that so the file is not overwritten early.
+        /// </summary>
         private bool _isInitialized;
+
+        /// <summary>
+        /// Computes the transfer speed label shown on download notifications.
+        /// </summary>
         private readonly DownloadTransferSpeedEstimator _downloadTransferSpeedEstimator = new();
 
+
+        // UI dispatcher
 
         /// <summary>
         /// Marshals notification mutations onto the MAUI UI thread; replaceable in tests.
         /// </summary>
         internal abstract class Dispatcher
         {
+            /// <summary>
+            /// Dispatcher that uses the MAUI main thread.
+            /// </summary>
             public static Dispatcher Default { get; } = new MainThreadDispatcher();
 
+            /// <summary>
+            /// Gets whether the current thread is the UI thread.
+            /// </summary>
             public abstract bool IsMainThread { get; }
 
+            /// <summary>
+            /// Schedules an action on the UI thread without waiting for it.
+            /// </summary>
             public abstract void BeginInvoke(Action action);
 
+            /// <summary>
+            /// Runs an action on the UI thread; the task completes when the action has finished.
+            /// </summary>
             public abstract Task InvokeAsync(Action action);
 
+            /// <summary>
+            /// Runs a function on the UI thread and returns its result through the task.
+            /// </summary>
             public abstract Task<T> InvokeAsync<T>(Func<T> work);
 
+            /// <summary>
+            /// Production dispatcher that forwards to the MAUI main thread.
+            /// </summary>
             private sealed class MainThreadDispatcher : Dispatcher
             {
+                /// <summary>
+                /// Gets whether the current thread is the MAUI main thread.
+                /// </summary>
                 public override bool IsMainThread => MainThread.IsMainThread;
 
+                /// <summary>
+                /// Schedules an action on the MAUI main thread without waiting for it.
+                /// </summary>
                 public override void BeginInvoke(Action action) => MainThread.BeginInvokeOnMainThread(action);
 
+                /// <summary>
+                /// Runs an action on the MAUI main thread and completes when it has finished.
+                /// </summary>
                 public override Task InvokeAsync(Action action) => MainThread.InvokeOnMainThreadAsync(action);
 
+                /// <summary>
+                /// Runs a function on the MAUI main thread and returns its result through the task.
+                /// </summary>
                 public override Task<T> InvokeAsync<T>(Func<T> work) => MainThread.InvokeOnMainThreadAsync(work);
             }
         }
@@ -101,6 +178,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates the notification service with an explicit UI dispatcher (test isolation).
         /// </summary>
+        /// <param name="dispatcher">Dispatcher that runs notification mutations on the UI thread.</param>
         internal NotificationCenter(Dispatcher dispatcher)
         {
             _dispatcher = dispatcher;
@@ -141,7 +219,7 @@ namespace ASLM.Services.Internal
         public event EventHandler<UpdateNotificationActionEventArgs>? UpdateNotificationActionRequested;
 
 
-        // Public surface
+        // Exposed collection
 
         /// <summary>
         /// Gets the live notification collection sorted by newest update first.
@@ -153,9 +231,12 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Publishes a notification for one newly discovered update candidate.
+        /// The notification id contains the remote version, so each new version gets its own row.
         /// </summary>
+        /// <param name="candidate">Update that was found; candidates without target or remote version are ignored.</param>
         public void PublishUpdateCandidate(UpdateCandidate candidate)
         {
+            // Without target and version there is nothing meaningful to show or to deduplicate on.
             if (string.IsNullOrWhiteSpace(candidate.TargetKind) ||
                 string.IsNullOrWhiteSpace(candidate.TargetId) ||
                 string.IsNullOrWhiteSpace(candidate.RemoteVersion))
@@ -163,6 +244,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            // Build the localized texts: the title depends on whether the target is the app, an engine or a module.
             var isApp = string.Equals(candidate.TargetKind, "app", StringComparison.OrdinalIgnoreCase);
             var isEngine = string.Equals(candidate.TargetKind, "engine", StringComparison.OrdinalIgnoreCase);
             var title = isApp
@@ -178,6 +260,7 @@ namespace ASLM.Services.Internal
                 ? string.Empty
                 : L.Get(LocalizationKeys.Notifications_ChannelFormat, candidate.Channel);
 
+            // Create or refresh the row and show a toast for a new one; the toast stays until the user acts on it.
             UpsertNotification(
                 id: BuildUpdateNotificationId(candidate),
                 category: AppNotificationCategory.Updates,
@@ -198,6 +281,8 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Raises the update notification action event on the UI thread for shell routing.
         /// </summary>
+        /// <param name="notification">Update notification the user acted on.</param>
+        /// <param name="updateNow">True for Update now, false for Update later.</param>
         public void RequestUpdateNotificationAction(AppNotification notification, bool updateNow)
         {
             RunOnMainThread(() =>
@@ -207,6 +292,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Hides inline update actions after the user defers from the notifications list.
         /// </summary>
+        /// <param name="notification">Update notification whose Update now / Update later actions are removed.</param>
         public void ClearUpdateNotificationDeferredActions(AppNotification notification)
         {
             RunOnMainThread(() =>
@@ -223,10 +309,15 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Publishes a short-lived system toast without adding it to the persisted notification list.
         /// </summary>
+        /// <param name="title">Toast title.</param>
+        /// <param name="message">Toast message.</param>
+        /// <param name="statusText">Status line shown below the message.</param>
+        /// <param name="sourceId">Identifier of the component that raised the toast; also part of the toast id.</param>
         public void PublishSystemToast(string title, string message, string statusText, string sourceId)
         {
             RunOnMainThread(() =>
             {
+                // The id contains a timestamp, so repeated toasts of one source never share a notification.
                 var notification = new AppNotification(
                     $"toast:system:{sourceId}:{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
                     AppNotificationCategory.System,
@@ -243,6 +334,7 @@ namespace ASLM.Services.Internal
                     statusText,
                     string.Empty);
 
+                // Only the toast is raised; the notification is never added to the list.
                 NotificationPublished?.Invoke(this, notification);
             });
         }
@@ -254,8 +346,14 @@ namespace ASLM.Services.Internal
         /// Starts or refreshes a download notification on the UI thread and waits until it is inserted
         /// so background download progress cannot race ahead of the notification row.
         /// </summary>
+        /// <param name="operationKey">Operation key from <see cref="BuildOperationKey"/> that identifies the download.</param>
+        /// <param name="title">Notification title.</param>
+        /// <param name="message">Notification message.</param>
+        /// <param name="sourceKind">Kind of operation or item that produced the download; stored with the notification.</param>
+        /// <param name="sourceId">Identifier of the item the download belongs to; stored with the notification.</param>
         public Task StartDownloadAsync(string operationKey, string title, string message, string sourceKind, string sourceId)
         {
+            // Start a fresh speed window for this operation.
             _downloadTransferSpeedEstimator.Reset(operationKey);
 
             return _dispatcher.InvokeAsync(() =>
@@ -278,16 +376,21 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Updates a download notification with byte progress.
         /// </summary>
+        /// <param name="operationKey">Operation key of the download.</param>
+        /// <param name="progress">Current byte counts and completed fraction.</param>
+        /// <param name="statusText">Status line to show, or null for the default "Downloading..." text.</param>
         public void ReportDownloadProgress(string operationKey, DownloadProgress progress, string? statusText = null)
         {
             RunOnMainThread(() =>
             {
+                // Late reports for a download that was never started or already removed are ignored.
                 var notification = FindNotification(BuildDownloadNotificationId(operationKey));
                 if (notification == null)
                 {
                     return;
                 }
 
+                // Sample the transfer speed and format the downloaded / total byte detail line.
                 var speedLabel = _downloadTransferSpeedEstimator.Sample(operationKey, progress.DownloadedBytes);
                 notification.ApplyDownloadTransferSample(progress, speedLabel);
 
@@ -302,6 +405,8 @@ namespace ASLM.Services.Internal
                     statusText ?? "Downloading...",
                     detail);
                 notification.UpdateProgress(hasProgress: true, progress.Fraction, isInProgress: true);
+
+                // Progress arrives often, so the save is debounced longer than for other changes.
                 Resort(notification);
                 RaiseNotificationsChanged();
                 QueueSave(1000);
@@ -311,6 +416,8 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Updates a download notification with a textual status line.
         /// </summary>
+        /// <param name="operationKey">Operation key of the download.</param>
+        /// <param name="statusText">Status line to show.</param>
         public void ReportDownloadStatus(string operationKey, string statusText)
         {
             RunOnMainThread(() =>
@@ -321,6 +428,7 @@ namespace ASLM.Services.Internal
                     return;
                 }
 
+                // A status phase (for example installing) is not a byte transfer, so the speed display is cleared.
                 _downloadTransferSpeedEstimator.Reset(operationKey);
                 notification.ResetDownloadTransferRow();
 
@@ -340,6 +448,8 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Marks a download notification as completed successfully.
         /// </summary>
+        /// <param name="operationKey">Operation key of the download.</param>
+        /// <param name="statusText">Result text to show.</param>
         public void CompleteDownload(string operationKey, string statusText)
         {
             FinishDownload(operationKey, AppNotificationSeverity.Success, statusText, 1.0);
@@ -348,6 +458,8 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Marks a download notification as failed.
         /// </summary>
+        /// <param name="operationKey">Operation key of the download.</param>
+        /// <param name="statusText">Failure text to show.</param>
         public void FailDownload(string operationKey, string statusText)
         {
             FinishDownload(operationKey, AppNotificationSeverity.Error, statusText, 0);
@@ -356,6 +468,8 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates a progress bridge that updates notifications and forwards progress to an existing sink.
         /// </summary>
+        /// <param name="operationKey">Operation key of the download whose notification receives the progress.</param>
+        /// <param name="innerProgress">Optional receiver that gets every report after the notification was updated.</param>
         public IProgress<DownloadProgress> CreateDownloadProgressBridge(
             string operationKey,
             IProgress<DownloadProgress>? innerProgress = null)
@@ -370,6 +484,10 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Finishes a download notification with the requested severity and status text.
         /// </summary>
+        /// <param name="operationKey">Operation key of the download.</param>
+        /// <param name="severity">Success or error severity of the final state.</param>
+        /// <param name="statusText">Result text to show.</param>
+        /// <param name="finalProgress">Progress fraction the caller associates with the outcome; a finished row shows no progress bar.</param>
         private void FinishDownload(
             string operationKey,
             AppNotificationSeverity severity,
@@ -394,6 +512,8 @@ namespace ASLM.Services.Internal
                     statusText,
                     string.Empty);
                 notification.UpdateProgress(hasProgress: false, 0, isInProgress: false);
+
+                // Save immediately and raise the toast so the user sees the final result.
                 Resort(notification);
                 RaiseNotificationsChanged();
                 QueueSave(0);
@@ -407,6 +527,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Removes one notification from the visible list.
         /// </summary>
+        /// <param name="notification">Notification to remove.</param>
         public void Dismiss(AppNotification notification)
         {
             RunOnMainThread(() =>
@@ -431,11 +552,13 @@ namespace ASLM.Services.Internal
         }
 
 
-        // Public helpers
+        // Operation keys
 
         /// <summary>
-        /// Builds a stable operation key for download notifications.
+        /// Builds a stable operation key for download notifications: trimmed, lowercase <c>kind:id</c>.
         /// </summary>
+        /// <param name="sourceKind">Kind of operation or item.</param>
+        /// <param name="sourceId">Identifier of the item.</param>
         public static string BuildOperationKey(string sourceKind, string sourceId)
         {
             return $"{sourceKind.Trim().ToLowerInvariant()}:{sourceId.Trim().ToLowerInvariant()}";
@@ -445,7 +568,8 @@ namespace ASLM.Services.Internal
         // Upsert and ordering
 
         /// <summary>
-        /// Inserts or updates one notification on the UI thread.
+        /// Inserts or updates one notification on the UI thread. The parameters are the same as for
+        /// <see cref="UpsertNotificationImpl"/>, which performs the work.
         /// </summary>
         private void UpsertNotification(
             string id,
@@ -476,7 +600,19 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Inserts or updates one notification while already executing on the UI thread.
+        /// A toast is raised only when the notification is new and <paramref name="showToastForNew"/> is set.
         /// </summary>
+        /// <param name="id">Stable identity; an existing notification with the same id is updated.</param>
+        /// <param name="category">Category of a newly created notification.</param>
+        /// <param name="severity">Severity shown after the update.</param>
+        /// <param name="title">Title shown after the update.</param>
+        /// <param name="message">Message shown after the update.</param>
+        /// <param name="statusText">Status line shown after the update.</param>
+        /// <param name="detailText">Detail line shown after the update.</param>
+        /// <param name="sourceKind">Source kind of a newly created notification.</param>
+        /// <param name="sourceId">Source id of a newly created notification.</param>
+        /// <param name="showToastForNew">Whether a newly created notification is also announced as a toast.</param>
+        /// <param name="afterUpdate">Optional callback that applies extra state to the notification after its content was refreshed.</param>
         private void UpsertNotificationImpl(
             string id,
             AppNotificationCategory category,
@@ -521,7 +657,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Finds one notification by stable identity.
+        /// Finds one notification by stable identity (case-insensitive); returns null when it does not exist.
         /// </summary>
         private AppNotification? FindNotification(string id)
         {
@@ -568,7 +704,8 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Keeps the persisted file bounded so startup remains quick.
+        /// Keeps the persisted file bounded so startup remains quick by dropping the oldest entries
+        /// (the list is ordered newest first).
         /// </summary>
         private void TrimOldNotifications()
         {
@@ -638,18 +775,22 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Queues a debounced save of the current notification snapshot.
         /// </summary>
+        /// <param name="delayMs">Milliseconds to wait before saving; 0 saves right away. A newer request replaces a pending one.</param>
         private void QueueSave(int delayMs)
         {
+            // Nothing is written before the persisted notifications were loaded, otherwise the file would be overwritten.
             if (!_isInitialized)
             {
                 return;
             }
 
+            // Replace any pending save: cancelling it restarts the debounce delay.
             _saveCts?.Cancel();
             _saveCts?.Dispose();
             _saveCts = new CancellationTokenSource();
             var ct = _saveCts.Token;
 
+            // Wait out the delay and save in the background, without blocking the caller.
             _ = Task.Run(async () =>
             {
                 try
@@ -663,6 +804,7 @@ namespace ASLM.Services.Internal
                 }
                 catch (OperationCanceledException)
                 {
+                    // Superseded by a newer save request, which writes the latest state.
                 }
             }, ct);
         }
@@ -672,6 +814,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task SaveSnapshotAsync(CancellationToken ct)
         {
+            // Copy the collection on the UI thread, where it is modified, then write the copy from the background.
             var snapshot = await _dispatcher.InvokeAsync(() => new NotificationStore
             {
                 Notifications = _notifications
@@ -716,7 +859,7 @@ namespace ASLM.Services.Internal
         // Threading and change notification
 
         /// <summary>
-        /// Runs one notification mutation on the MAUI UI thread.
+        /// Runs one notification mutation on the MAUI UI thread: immediately when already there, otherwise queued.
         /// </summary>
         private void RunOnMainThread(Action action)
         {
@@ -757,7 +900,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Formats byte counts into compact transfer labels.
+        /// Formats byte counts into compact transfer labels (B, KB, MB or GB with one decimal for larger units).
         /// </summary>
         private static string FormatBytes(long bytes)
         {
@@ -780,7 +923,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Returns the application root directory above the deployed App folder.
+        /// Returns the ASLM data root directory that contains the <c>Data</c> folder.
         /// </summary>
         private static string GetRootDirectory()
         {
@@ -795,7 +938,14 @@ namespace ASLM.Services.Internal
         /// </summary>
         private sealed class NotificationStore
         {
+            /// <summary>
+            /// Version of the file format.
+            /// </summary>
             public int FileVersion { get; set; } = 1;
+
+            /// <summary>
+            /// Persisted notifications, newest first.
+            /// </summary>
             public List<NotificationStoreItem> Notifications { get; set; } = [];
         }
 
@@ -804,23 +954,85 @@ namespace ASLM.Services.Internal
         /// </summary>
         private sealed class NotificationStoreItem
         {
+            /// <summary>
+            /// Stable identity of the notification.
+            /// </summary>
             public string Id { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Category of the notification: updates, downloads or system.
+            /// </summary>
             public AppNotificationCategory Category { get; set; }
+
+            /// <summary>
+            /// Severity (info, success, warning or error) that decides the accent color of the notification.
+            /// </summary>
             public AppNotificationSeverity Severity { get; set; }
+
+            /// <summary>
+            /// Notification title.
+            /// </summary>
             public string Title { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Notification message.
+            /// </summary>
             public string Message { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Status line shown below the message.
+            /// </summary>
             public string StatusText { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Detail line, for example the transferred byte counts of a download.
+            /// </summary>
             public string DetailText { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Kind of operation or item that produced the notification.
+            /// </summary>
             public string SourceKind { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Identifier of the item that produced the notification.
+            /// </summary>
             public string SourceId { get; set; } = string.Empty;
+
+            /// <summary>
+            /// When the notification was created.
+            /// </summary>
             public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
+
+            /// <summary>
+            /// When the notification was last changed; defines the list order.
+            /// </summary>
             public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+
+            /// <summary>
+            /// Whether the operation behind the notification was still running when it was saved.
+            /// </summary>
             public bool IsInProgress { get; set; }
+
+            /// <summary>
+            /// Completed fraction of the operation, from 0 to 1.
+            /// </summary>
             public double ProgressFraction { get; set; }
+
+            /// <summary>
+            /// Whether the notification shows a progress bar.
+            /// </summary>
             public bool HasProgress { get; set; }
+
+            /// <summary>
+            /// Whether the row offers Update now / Update later actions.
+            /// </summary>
             public bool OffersUpdateActions { get; set; }
+
+            /// <summary>
+            /// Whether the toast stays until the user dismisses it or acts on it.
+            /// </summary>
             public bool SuppressToastAutoDismiss { get; set; }
         }
-
     }
 }

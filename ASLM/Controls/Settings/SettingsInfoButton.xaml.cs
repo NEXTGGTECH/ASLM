@@ -9,10 +9,18 @@ namespace ASLM.Controls.Settings
     /// </summary>
     public partial class SettingsInfoButton : ContentView
     {
-        private const double MaximumTooltipWidth = 400;
+        // Constants
 
         /// <summary>
-        /// Identifies the help text displayed while the pointer rests on the icon.
+        /// Maximum width of the desktop tooltip; longer help text wraps.
+        /// </summary>
+        private const double MaximumTooltipWidth = 400;
+
+
+        // Bindable properties
+
+        /// <summary>
+        /// Identifies the bindable property that holds the help text displayed while the pointer rests on the icon.
         /// </summary>
         public static readonly BindableProperty DescriptionProperty = BindableProperty.Create(
             nameof(Description),
@@ -20,6 +28,9 @@ namespace ASLM.Controls.Settings
             typeof(SettingsInfoButton),
             string.Empty,
             propertyChanged: OnDescriptionChanged);
+
+
+        // Initialization
 
         /// <summary>
         /// Creates the info icon and connects its platform tooltip lifecycle.
@@ -31,6 +42,9 @@ namespace ASLM.Controls.Settings
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
         }
+
+
+        // Properties
 
         /// <summary>
         /// Gets or sets the description presented by the tooltip.
@@ -45,6 +59,9 @@ namespace ASLM.Controls.Settings
         /// Gets whether a non-empty description requires an info icon.
         /// </summary>
         public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+
+
+        // Description and tooltip
 
         /// <summary>
         /// Refreshes visibility and native tooltip content after description changes.
@@ -64,6 +81,9 @@ namespace ASLM.Controls.Settings
         {
             ApplyNativeTooltip();
         }
+
+
+        // Lifecycle and icon chrome
 
         /// <summary>
         /// Subscribes the icon to palette changes while it is in the visual tree.
@@ -119,23 +139,29 @@ namespace ASLM.Controls.Settings
             InfoIconButton.Source = PackagedIconTintCache.Get("icon_question.png", iconTint);
         }
 
+
+        // Native tooltip
+
         /// <summary>
         /// Limits desktop tooltip width while leaving placement to the native window manager.
         /// </summary>
         private void ApplyNativeTooltip()
         {
 #if WINDOWS
+            // Nothing to configure until the native button exists.
             if (InfoIconButton.Handler?.PlatformView is not Microsoft.UI.Xaml.FrameworkElement platformButton)
             {
                 return;
             }
 
+            // Without help text the tooltip is removed entirely.
             if (!HasDescription)
             {
                 Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(platformButton, null);
                 return;
             }
 
+            // Wrap long help text at the maximum width instead of letting the tooltip stretch across the screen.
             var content = new Microsoft.UI.Xaml.Controls.TextBlock
             {
                 Text = Description,

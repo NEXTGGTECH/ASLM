@@ -7,22 +7,59 @@ using Microsoft.Maui.Graphics;
 namespace ASLM.Pages
 {
     /// <summary>
-    /// Modal color picker (360×240 card) on the same dimmed overlay resource as Settings and Downloads.
-    /// HS plane: the saturation/hue field depends only on brightness (<see cref="_value"/>) and size, so it is painted on a
-    /// bottom <see cref="GraphicsView"/> that is not invalidated on pointer moves. The selector ring is a top layer
-    /// invalidated on every move for smooth tracking. Value/alpha sliders are not written on every HS move; hex/RGB
-    /// entries and preview update live while dragging.
+    /// Modal color picker card shown on the same dimmed overlay resource as Settings and Downloads.
+    /// HS plane: the saturation/hue field depends only on brightness (<see cref="_value"/>) and size, so it is
+    /// painted on a bottom <see cref="GraphicsView"/> that is not invalidated on pointer moves. The selector ring
+    /// is a top layer invalidated on every move for smooth tracking. Value/alpha sliders are not written on every
+    /// HS move; hex/RGB entries and preview update live while dragging.
     /// </summary>
     public partial class ThemeColorPickerView : ContentView, ILocalizable
     {
+        // Fields
+
+        /// <summary>
+        /// Completes with the chosen color, or with null when the picker is cancelled or dismissed.
+        /// </summary>
         private readonly TaskCompletionSource<Color?> _completion = new();
+
+        /// <summary>
+        /// Modal page that hosts the picker, or null before it is attached and after the picker completed.
+        /// </summary>
         private Page? _modalHostPage;
+
+        /// <summary>
+        /// Hue of the current color, normalized to the range 0 to 1.
+        /// </summary>
         private double _hue;
+
+        /// <summary>
+        /// Saturation of the current color, normalized to the range 0 to 1.
+        /// </summary>
         private double _saturation = 1;
+
+        /// <summary>
+        /// Brightness (HSV value) of the current color, normalized to the range 0 to 1.
+        /// </summary>
         private double _value = 1;
+
+        /// <summary>
+        /// Opacity of the current color, normalized to the range 0 to 1.
+        /// </summary>
         private double _alpha = 1;
+
+        /// <summary>
+        /// Whether a pointer press on the hue/saturation plane is in progress.
+        /// </summary>
         private bool _hsPointerDown;
+
+        /// <summary>
+        /// Set while sliders and text entries are updated from code, so their change handlers ignore the update.
+        /// </summary>
         private bool _suppressSync;
+
+        /// <summary>
+        /// Localization service the picker is hooked into.
+        /// </summary>
         private readonly AppLocalizationService _localization;
 
 
@@ -37,9 +74,11 @@ namespace ASLM.Pages
             InitializeComponent();
             LocalizableAttach.Hook(this, _localization, this);
 
+            // Seed the HSV state from the initial color.
             RgbToHsv(initial, out _hue, out _saturation, out _value);
             _alpha = initial.Alpha;
 
+            // The gradient layer depends only on size and brightness; the cursor layer follows every selection change.
             HsGradient.Drawable = new HsGradientDrawable(this);
             HsCursor.Drawable = new HsCursorDrawable(this);
 
@@ -49,12 +88,14 @@ namespace ASLM.Pages
                 HsCursor.Invalidate();
             };
 
+            // Pointer input on the cursor layer picks hue and saturation.
             var ptr = new PointerGestureRecognizer();
             ptr.PointerPressed += OnHsPointerPressed;
             ptr.PointerMoved += OnHsPointerMoved;
             ptr.PointerReleased += OnHsPointerReleased;
             HsCursor.GestureRecognizers.Add(ptr);
 
+            // Brightness changes the gradient, so both layers are redrawn; opacity only changes the output color.
             ValueSlider.ValueChanged += (_, _) =>
             {
                 if (_suppressSync)
@@ -79,16 +120,19 @@ namespace ASLM.Pages
                 SyncFromHsv();
             };
 
+            // Typed hex and RGB values update the HSV state.
             HexEntry.TextChanged += OnHexTextChanged;
             REntry.TextChanged += OnRgbTextChanged;
             GEntry.TextChanged += OnRgbTextChanged;
             BEntry.TextChanged += OnRgbTextChanged;
 
+            // Footer buttons confirm with the current color or cancel with no color.
             ApplyFooterButtonStyle(DoneButton, isPrimary: true);
             ApplyFooterButtonStyle(CancelButton, isPrimary: false);
             DoneButton.Clicked += async (_, _) => await CompleteAsync(GetCurrentColor());
             CancelButton.Clicked += async (_, _) => await CompleteAsync(null);
 
+            // Show the initial color in every control and draw both layers.
             ValueSlider.Value = _value;
             AlphaSlider.Value = _alpha;
             SyncFromHsv();
@@ -350,10 +394,13 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Take the parsed color over as the new HSV state and redraw both plane layers.
             RgbToHsv(c, out _hue, out _saturation, out _value);
             _alpha = c.Alpha;
             HsGradient.Invalidate();
             HsCursor.Invalidate();
+
+            // Update the preview, the RGB entries and the sliders without re-entering the text handlers.
             _suppressSync = true;
             ApplyPreviewColor(c);
             REntry.Text = ((int)(c.Red * 255)).ToString();
@@ -374,6 +421,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Wait until all three components are valid numbers.
             if (!int.TryParse(REntry.Text, out var ri) ||
                 !int.TryParse(GEntry.Text, out var gi) ||
                 !int.TryParse(BEntry.Text, out var bi))
@@ -381,6 +429,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Clamp the components, add the current opacity and take the color over as the new HSV state.
             _alpha = AlphaSlider.Value;
             ri = Math.Clamp(ri, 0, 255);
             gi = Math.Clamp(gi, 0, 255);
@@ -391,6 +440,8 @@ namespace ASLM.Pages
             ValueSlider.Value = _value;
             HsGradient.Invalidate();
             HsCursor.Invalidate();
+
+            // Update the preview and the hex entry without re-entering the text handlers.
             _suppressSync = true;
             ApplyPreviewColor(withAlpha);
             HexEntry.Text = ThemePaletteResolver.ToHex(withAlpha);
@@ -432,15 +483,18 @@ namespace ASLM.Pages
             var min = Math.Min(r, Math.Min(g, b));
             var delta = max - min;
 
+            // Value is the strongest channel; saturation is the spread relative to it.
             v = max;
             s = max < 1e-8 ? 0 : delta / max;
 
+            // Grays have no hue.
             if (delta < 1e-8)
             {
                 h = 0;
                 return;
             }
 
+            // The hue sector (in sixths of the color wheel) depends on which channel is the strongest.
             double hh;
             if (Math.Abs(max - r) < 1e-8)
             {
@@ -493,12 +547,22 @@ namespace ASLM.Pages
         /// </summary>
         private sealed class HsGradientDrawable : IDrawable
         {
+            /// <summary>
+            /// Picker whose current brightness the gradient is drawn for.
+            /// </summary>
             private readonly ThemeColorPickerView _owner;
 
+            /// <summary>
+            /// Creates the drawable for the given picker.
+            /// </summary>
             public HsGradientDrawable(ThemeColorPickerView owner) => _owner = owner;
 
+            /// <summary>
+            /// Fills the plane with small squares: hue grows from left to right, saturation falls from top to bottom.
+            /// </summary>
             public void Draw(ICanvas canvas, RectF dirtyRect)
             {
+                // The plane is painted in small squares of this size instead of pixel by pixel.
                 const int step = 3;
                 var w = dirtyRect.Width;
                 var h = dirtyRect.Height;
@@ -521,10 +585,20 @@ namespace ASLM.Pages
         /// </summary>
         private sealed class HsCursorDrawable : IDrawable
         {
+            /// <summary>
+            /// Picker whose current hue and saturation position the ring is drawn at.
+            /// </summary>
             private readonly ThemeColorPickerView _owner;
 
+            /// <summary>
+            /// Creates the drawable for the given picker.
+            /// </summary>
             public HsCursorDrawable(ThemeColorPickerView owner) => _owner = owner;
 
+            /// <summary>
+            /// Draws the selector ring at the current hue and saturation, with a white and a black outline
+            /// so it stays visible on any color.
+            /// </summary>
             public void Draw(ICanvas canvas, RectF dirtyRect)
             {
                 var w = dirtyRect.Width;

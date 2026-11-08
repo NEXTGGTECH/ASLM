@@ -18,16 +18,56 @@ namespace ASLM.Services.Internal
     /// </summary>
     public class DownloadInstaller
     {
+        // Fields
+
+        /// <summary>
+        /// Loads module manifests and guards module content during install operations.
+        /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Client that asks module bridges for install and uninstall manifests.
+        /// </summary>
         private readonly ModuleDownloadBridge _bridge;
+
+        /// <summary>
+        /// Locates installed engines whose executables run package managers and Ollama.
+        /// </summary>
         private readonly EngineInstaller _engineInstaller;
+
+        /// <summary>
+        /// Prepares the per-module environment used for package installation.
+        /// </summary>
         private readonly ModuleEnvironmentResolver _environmentResolver;
+
+        /// <summary>
+        /// Persisted installation state updated after a successful install or removal.
+        /// </summary>
         private readonly DownloadStateStore _stateStore;
+
+        /// <summary>
+        /// Shows progress, completion and failure of each operation to the user.
+        /// </summary>
         private readonly NotificationCenter _notifications;
+
+        /// <summary>
+        /// Logger for manifest resolution and execution failures.
+        /// </summary>
         private readonly ILogger<DownloadInstaller> _logger;
+
+        /// <summary>
+        /// Queue that serializes operations per lane and exposes their state.
+        /// </summary>
         private readonly DownloadQueue _downloadQueue;
+
+        /// <summary>
+        /// HTTP client used for file downloads and the temporary Ollama endpoint.
+        /// </summary>
         private readonly HttpClient _httpClient;
 
+        /// <summary>
+        /// JSON settings used for the request bodies sent to the temporary Ollama service.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNameCaseInsensitive = true,
@@ -80,27 +120,52 @@ namespace ASLM.Services.Internal
         }
 
 
-        // Catalog install
+        // Operation queue access
 
+        /// <summary>
+        /// Raised when an install or removal operation is queued, starts or finishes.
+        /// </summary>
         public event EventHandler? OperationsChanged
         {
             add => _downloadQueue.StateChanged += value;
             remove => _downloadQueue.StateChanged -= value;
         }
 
+        /// <summary>
+        /// Resolves the resource key that identifies an operation: the selected variant, else the item's default
+        /// variant, else the item itself.
+        /// </summary>
         internal static string GetResourceKey(DownloadCatalogItem item, DownloadCatalogVariant? variant) =>
             !string.IsNullOrWhiteSpace(variant?.ResourceKey) ? variant.ResourceKey
                 : !string.IsNullOrWhiteSpace(item.DefaultVariantResourceKey) ? item.DefaultVariantResourceKey : item.ResourceKey;
 
+        /// <summary>
+        /// Returns whether an install or removal for the selected variant is queued or running.
+        /// </summary>
         public bool IsPending(DownloadCatalogItem item, DownloadCatalogVariant? variant) =>
             _downloadQueue.Contains("resource:" + GetResourceKey(item, variant));
 
+        /// <summary>
+        /// Returns the queue phase of the operation for one resource key, or null when none is pending.
+        /// </summary>
         public DownloadOperationState? GetState(string resourceKey) => _downloadQueue.GetState("resource:" + resourceKey);
+
+        /// <summary>
+        /// Requests cancellation of the pending operation for one resource key.
+        /// </summary>
         public void Cancel(string resourceKey) => _downloadQueue.Cancel("resource:" + resourceKey);
+
+
+        // Install
 
         /// <summary>
         /// Installs one shared catalog item using the first module source that resolves a valid install manifest.
+        /// The operation is queued, and an operation already pending for the same resource is reused.
         /// </summary>
+        /// <param name="item">Catalog item to install.</param>
+        /// <param name="selectedVariant">Variant chosen by the user, or null for the item's default variant.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token that also cancels the queued operation.</param>
         public Task<DownloadInstallResult> InstallAsync(
             DownloadCatalogItem item,
             DownloadCatalogVariant? selectedVariant,
@@ -109,6 +174,14 @@ namespace ASLM.Services.Internal
             => _downloadQueue.EnqueueAsync("resource:" + GetResourceKey(item, selectedVariant),
                 token => InstallCoreAsync(item, selectedVariant, log, token), ct);
 
+        /// <summary>
+        /// Runs the queued install: announces it to the user, then tries each module source in order until one
+        /// resolves an install manifest that executes successfully.
+        /// </summary>
+        /// <param name="item">Catalog item to install.</param>
+        /// <param name="selectedVariant">Variant chosen by the user, or null for the item's default variant.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token; cancellation is reported to the user and rethrown.</param>
         private async Task<DownloadInstallResult> InstallCoreAsync(DownloadCatalogItem item,
             DownloadCatalogVariant? selectedVariant, IProgress<string>? log, CancellationToken ct)
         {
@@ -117,6 +190,7 @@ namespace ASLM.Services.Internal
                 return new DownloadInstallResult(false, "No module source is available for this download item.");
             }
 
+            // Work out the resource and display names, then show the operation in the notification center.
             var selectedResourceKey = GetResourceKey(item, selectedVariant);
             var selectedTitle = !string.IsNullOrWhiteSpace(selectedVariant?.Title)
                 ? selectedVariant!.Title
@@ -133,12 +207,14 @@ namespace ASLM.Services.Internal
                 "download",
                 selectedResourceKey);
 
+            // The last failure is reported if no source succeeds.
             var lastError = "No module source produced an install manifest.";
 
             foreach (var source in item.Sources)
             {
                 ct.ThrowIfCancellationRequested();
 
+                // Load the manifest of the module behind this source; try the next source when it is gone.
                 var module = await _moduleInstaller.LoadModuleConfig(source.ModuleSourcePath);
                 if (module == null)
                 {
@@ -146,6 +222,8 @@ namespace ASLM.Services.Internal
                     continue;
                 }
 
+                // Register a content operation for the module, which blocks overlapping module removals until this
+                // iteration ends, then ask the module bridge how the resource is installed.
                 using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
                 ModuleDownloadInstallManifest? manifest;
                 try
@@ -159,11 +237,13 @@ namespace ASLM.Services.Internal
                 }
                 catch (Exception ex)
                 {
+                    // A failing source is not fatal: remember the reason and try the next source.
                     _logger.LogWarning(ex, "Failed to resolve install manifest for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
                     lastError = ex.Message;
                     continue;
                 }
 
+                // A usable manifest has at least one action.
                 if (manifest == null)
                 {
                     lastError = $"Module '{module.Name}' did not return an install manifest.";
@@ -179,6 +259,7 @@ namespace ASLM.Services.Internal
 
                 try
                 {
+                    // Execute the manifest, record the installation and finish the notification.
                     var effectiveTitle = !string.IsNullOrWhiteSpace(manifest.Title) ? manifest.Title : selectedTitle;
                     log?.Report($"Installing {effectiveTitle} via {module.Name}...");
 
@@ -205,6 +286,7 @@ namespace ASLM.Services.Internal
                 }
                 catch (Exception ex)
                 {
+                    // Execution failed: report it and let the next source try.
                     _logger.LogError(ex, "Install manifest execution failed for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
                     lastError = ex.Message;
                     log?.Report($"Install failed via {module.Name}: {ex.Message}");
@@ -212,13 +294,22 @@ namespace ASLM.Services.Internal
                 }
             }
 
+            // No source succeeded.
             _notifications.FailDownload(operationKey, lastError);
             return new DownloadInstallResult(false, lastError);
         }
 
+
+        // Uninstall
+
         /// <summary>
         /// Removes one shared catalog variant using the first module source that resolves a valid uninstall manifest.
+        /// The operation is queued in the removal state, and an operation already pending for the same resource is reused.
         /// </summary>
+        /// <param name="item">Catalog item whose variant is removed.</param>
+        /// <param name="selectedVariant">Variant chosen by the user, or null for the item's default variant.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token that also cancels the queued operation.</param>
         public Task<DownloadInstallResult> UninstallAsync(
             DownloadCatalogItem item,
             DownloadCatalogVariant? selectedVariant,
@@ -227,6 +318,14 @@ namespace ASLM.Services.Internal
             => _downloadQueue.EnqueueAsync("resource:" + GetResourceKey(item, selectedVariant),
                 token => UninstallCoreAsync(item, selectedVariant, log, token), ct, removal: true);
 
+        /// <summary>
+        /// Runs the queued removal: announces it to the user, then tries each module source in order until one
+        /// resolves an uninstall manifest that executes successfully.
+        /// </summary>
+        /// <param name="item">Catalog item whose variant is removed.</param>
+        /// <param name="selectedVariant">Variant chosen by the user, or null for the item's default variant.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token; cancellation is reported to the user and rethrown.</param>
         private async Task<DownloadInstallResult> UninstallCoreAsync(DownloadCatalogItem item,
             DownloadCatalogVariant? selectedVariant, IProgress<string>? log, CancellationToken ct)
         {
@@ -235,6 +334,7 @@ namespace ASLM.Services.Internal
                 return new DownloadInstallResult(false, "No module source is available for this download item.");
             }
 
+            // Work out the resource and display names, then show the operation in the notification center.
             var selectedResourceKey = GetResourceKey(item, selectedVariant);
             var selectedTitle = !string.IsNullOrWhiteSpace(selectedVariant?.Title)
                 ? selectedVariant!.Title
@@ -251,12 +351,14 @@ namespace ASLM.Services.Internal
                 "download",
                 selectedResourceKey);
 
+            // The last failure is reported if no source succeeds.
             var lastError = "No module source produced an uninstall manifest.";
 
             foreach (var source in item.Sources)
             {
                 ct.ThrowIfCancellationRequested();
 
+                // Load the manifest of the module behind this source; try the next source when it is gone.
                 var module = await _moduleInstaller.LoadModuleConfig(source.ModuleSourcePath);
                 if (module == null)
                 {
@@ -264,6 +366,8 @@ namespace ASLM.Services.Internal
                     continue;
                 }
 
+                // Register a content operation for the module, which blocks overlapping module removals until this
+                // iteration ends, then ask the module bridge how the resource is removed.
                 using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
                 ModuleDownloadInstallManifest? manifest;
                 try
@@ -277,11 +381,13 @@ namespace ASLM.Services.Internal
                 }
                 catch (Exception ex)
                 {
+                    // A failing source is not fatal: remember the reason and try the next source.
                     _logger.LogWarning(ex, "Failed to resolve uninstall manifest for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
                     lastError = ex.Message;
                     continue;
                 }
 
+                // A usable manifest has at least one action.
                 if (manifest == null)
                 {
                     lastError = $"Module '{module.Name}' did not return an uninstall manifest.";
@@ -297,6 +403,7 @@ namespace ASLM.Services.Internal
 
                 try
                 {
+                    // Execute the manifest, clear the persisted installation state and finish the notification.
                     var effectiveTitle = !string.IsNullOrWhiteSpace(manifest.Title) ? manifest.Title : selectedTitle;
                     log?.Report($"Removing {effectiveTitle} via {module.Name}...");
 
@@ -315,6 +422,7 @@ namespace ASLM.Services.Internal
                 }
                 catch (Exception ex)
                 {
+                    // Execution failed: report it and let the next source try.
                     _logger.LogError(ex, "Uninstall manifest execution failed for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
                     lastError = ex.Message;
                     log?.Report($"Remove failed via {module.Name}: {ex.Message}");
@@ -322,6 +430,7 @@ namespace ASLM.Services.Internal
                 }
             }
 
+            // No source succeeded.
             _notifications.FailDownload(operationKey, lastError);
             return new DownloadInstallResult(false, lastError);
         }
@@ -330,8 +439,14 @@ namespace ASLM.Services.Internal
         // Manifest execution
 
         /// <summary>
-        /// Executes one install manifest action-by-action.
+        /// Executes one install or uninstall manifest action-by-action.
+        /// All actions share one temporary workspace, which is deleted afterwards even when an action fails.
         /// </summary>
+        /// <param name="module">Module whose bridge declared the manifest; owns the named targets.</param>
+        /// <param name="manifest">Normalized manifest with the ordered actions.</param>
+        /// <param name="operationKey">Notification operation that receives progress.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token checked before every action.</param>
         internal async Task ExecuteManifestAsync(
             ModuleConfig module,
             ModuleDownloadInstallManifest manifest,
@@ -339,6 +454,7 @@ namespace ASLM.Services.Internal
             IProgress<string>? log,
             CancellationToken ct)
         {
+            // The temporary workspace holds artifacts downloaded by earlier actions for later ones.
             var context = new InstallExecutionContext(GetRootDirectory());
             Directory.CreateDirectory(context.TempDir);
 
@@ -354,6 +470,7 @@ namespace ASLM.Services.Internal
                         : action.Type;
                     log?.Report($"[{action.Type}] {title}");
 
+                    // Only whitelisted action types run; any other type aborts the manifest.
                     switch (action.Type.Trim().ToLowerInvariant())
                     {
                         case "download_file":
@@ -392,7 +509,15 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Downloads one remote file either into a managed target or into the temporary artifact store.
+        /// A file with an <c>artifactId</c> is registered in the workspace so later actions (such as extraction) can use it.
         /// </summary>
+        /// <param name="module">Module that owns the named targets.</param>
+        /// <param name="manifest">Manifest that supplies the default target reference.</param>
+        /// <param name="action">The <c>download_file</c> action with the URL, destination and optional checksum.</param>
+        /// <param name="context">Temporary workspace shared by the manifest actions.</param>
+        /// <param name="operationKey">Notification operation that receives progress.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token for the transfer.</param>
         private async Task ExecuteDownloadFileAsync(
             ModuleConfig module,
             ModuleDownloadInstallManifest manifest,
@@ -407,6 +532,8 @@ namespace ASLM.Services.Internal
                 throw new InvalidOperationException("download_file action is missing 'url'.");
             }
 
+            // Choose the destination: a path below a declared target (validated against traversal) or, for
+            // intermediate files, a sanitized name in the temporary workspace.
             string destinationPath;
             var targetRef = GetEffectiveTargetRef(manifest, action);
             if (!string.IsNullOrWhiteSpace(targetRef))
@@ -426,6 +553,7 @@ namespace ASLM.Services.Internal
                 throw new InvalidOperationException("download_file action must declare either targetRef or artifactId.");
             }
 
+            // Start the transfer and tell the user what is being downloaded.
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
             log?.Report($"Downloading {action.Url}");
             var downloadTitle = !string.IsNullOrWhiteSpace(action.Title)
@@ -436,6 +564,7 @@ namespace ASLM.Services.Internal
             using var response = await _httpClient.GetAsync(action.Url, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
+            // Stream the body straight to disk; the file is recreated, so an earlier partial file is discarded.
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
             await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
             await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.Read, 65536, true);
@@ -453,6 +582,7 @@ namespace ASLM.Services.Internal
                 await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
                 downloadedBytes += bytesRead;
 
+                // Throttle notification updates to one every 75 ms.
                 if (throttle.ElapsedMilliseconds < 75)
                 {
                     continue;
@@ -465,6 +595,7 @@ namespace ASLM.Services.Internal
                     new DownloadProgress(fraction, downloadedBytes, totalBytes, downloadTitle));
             }
 
+            // Report a final 100% so the progress does not stay at the last throttled value.
             _notifications.ReportDownloadProgress(
                 operationKey,
                 new DownloadProgress(
@@ -473,6 +604,7 @@ namespace ASLM.Services.Internal
                     totalBytes > 0 ? totalBytes : downloadedBytes,
                     downloadTitle));
 
+            // Verify the checksum before the file is registered or used by any later action.
             if (!string.IsNullOrWhiteSpace(action.Sha256))
             {
                 // Flush the write buffers so the concurrent reader below observes the full payload.
@@ -484,6 +616,7 @@ namespace ASLM.Services.Internal
                 }
             }
 
+            // Register the file under its artifact id so extract actions can find it.
             if (!string.IsNullOrWhiteSpace(action.ArtifactId))
             {
                 context.Artifacts[action.ArtifactId] = destinationPath;
@@ -494,7 +627,14 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Extracts one previously downloaded ZIP artifact into a managed target directory.
+        /// Entries that would land outside the destination are rejected.
         /// </summary>
+        /// <param name="module">Module that owns the named targets.</param>
+        /// <param name="manifest">Manifest that supplies the default target reference.</param>
+        /// <param name="action">The <c>extract_zip</c> action naming the source artifact, target and optional subfolder.</param>
+        /// <param name="context">Temporary workspace that holds the downloaded artifacts.</param>
+        /// <param name="operationKey">Notification operation that receives status updates.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
         private void ExecuteExtractZip(
             ModuleConfig module,
             ModuleDownloadInstallManifest manifest,
@@ -505,6 +645,7 @@ namespace ASLM.Services.Internal
         {
             _notifications.ReportDownloadStatus(operationKey, "Extracting archive…");
 
+            // The archive must be an artifact that an earlier download_file action stored in the workspace.
             if (string.IsNullOrWhiteSpace(action.SourceArtifactId))
             {
                 throw new InvalidOperationException("extract_zip action is missing 'sourceArtifactId'.");
@@ -516,6 +657,7 @@ namespace ASLM.Services.Internal
                 throw new InvalidOperationException($"Artifact '{action.SourceArtifactId}' was not found for extract_zip.");
             }
 
+            // Resolve the extraction directory below a declared target, rejecting traversal out of it.
             var targetRef = GetEffectiveTargetRef(manifest, action);
             if (string.IsNullOrWhiteSpace(targetRef))
             {
@@ -530,6 +672,8 @@ namespace ASLM.Services.Internal
             Directory.CreateDirectory(destination);
             log?.Report($"Extracting {sourcePath} to {destination}");
 
+            // Extract entry by entry instead of the whole archive, so each path can be checked against the
+            // destination first (zip-slip protection). Existing files are overwritten.
             var destinationPrefix = EnsureTrailingSeparator(Path.GetFullPath(destination));
             using var archive = ZipFile.OpenRead(sourcePath);
             foreach (var entry in archive.Entries)
@@ -540,6 +684,7 @@ namespace ASLM.Services.Internal
                     throw new InvalidOperationException($"ZIP entry '{entry.FullName}' escapes the destination directory.");
                 }
 
+                // Entries without a file name are directories.
                 if (string.IsNullOrEmpty(entry.Name))
                 {
                     Directory.CreateDirectory(targetPath);
@@ -553,7 +698,14 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Installs one set of Python packages through the declared engine package manager.
+        /// When the engine declares a module environment, the packages go into the module's own environment,
+        /// which is created on demand.
         /// </summary>
+        /// <param name="module">Module whose environment receives the packages.</param>
+        /// <param name="operationKey">Notification operation that receives status updates.</param>
+        /// <param name="action">The <c>python_package</c> action listing the packages and optionally the engine.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token for the environment setup and the package manager run.</param>
         private async Task ExecutePythonPackageAsync(
             ModuleConfig module,
             string operationKey,
@@ -565,6 +717,7 @@ namespace ASLM.Services.Internal
                 operationKey,
                 $"Installing Python packages ({action.Packages.Count})…");
 
+            // Default to the shared Python runtime engine when the action names no engine.
             var engineId = !string.IsNullOrWhiteSpace(action.EngineId)
                 ? action.EngineId
                 : "python-runtime";
@@ -574,6 +727,7 @@ namespace ASLM.Services.Internal
                 throw new InvalidOperationException("python_package action does not declare any packages.");
             }
 
+            // The engine must be installed and must know how to install packages.
             var engineConfig = _engineInstaller.GetEngineConfig(engineId);
             if (engineConfig == null)
             {
@@ -586,6 +740,7 @@ namespace ASLM.Services.Internal
                 throw new InvalidOperationException($"Engine '{engineId}' does not declare a package manager.");
             }
 
+            // Make sure the module environment exists (if the engine uses one), then run the package manager.
             var environment = await _environmentResolver.EnsureEnvironmentAsync(module, engineConfig, log, ct);
             var executablePath = _environmentResolver.ResolvePackageManagerExecutable(environment, engineConfig);
             var arguments = _environmentResolver.BuildPackageInstallArguments(environment, engineConfig, action.Packages);
@@ -606,6 +761,12 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Pulls one Ollama model into a managed models directory by running a temporary local Ollama service.
         /// </summary>
+        /// <param name="module">Module that owns the named targets.</param>
+        /// <param name="manifest">Manifest that supplies the default model name and target reference.</param>
+        /// <param name="action">The <c>ollama_pull</c> action naming the model and optionally the engine.</param>
+        /// <param name="operationKey">Notification operation that receives progress.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token for startup and the pull.</param>
         private async Task ExecuteOllamaPullAsync(
             ModuleConfig module,
             ModuleDownloadInstallManifest manifest,
@@ -614,6 +775,7 @@ namespace ASLM.Services.Internal
             IProgress<string>? log,
             CancellationToken ct)
         {
+            // Resolve the model name; the manifest resource key is the fallback.
             var modelName = !string.IsNullOrWhiteSpace(action.Model)
                 ? action.Model
                 : manifest.ResourceKey;
@@ -624,6 +786,7 @@ namespace ASLM.Services.Internal
 
             _notifications.ReportDownloadStatus(operationKey, $"Preparing Ollama: {modelName}");
 
+            // The models directory comes from a declared target, so the pull stays inside ASLM-managed storage.
             var targetRef = GetEffectiveTargetRef(manifest, action);
             if (string.IsNullOrWhiteSpace(targetRef))
             {
@@ -633,6 +796,7 @@ namespace ASLM.Services.Internal
             var modelsDirectory = ResolveTargetDirectory(module, targetRef);
             Directory.CreateDirectory(modelsDirectory);
 
+            // Locate the Ollama engine executable and pick a free loopback port for the temporary service.
             var engineId = !string.IsNullOrWhiteSpace(action.EngineId)
                 ? action.EngineId
                 : "ollama-service";
@@ -643,6 +807,7 @@ namespace ASLM.Services.Internal
             var engineWorkingDirectory = Path.GetDirectoryName(executablePath) ?? GetRootDirectory();
             var port = AllocateLocalPort();
 
+            // Configure `ollama serve` to listen on that port and store models in the managed directory.
             var psi = new ProcessStartInfo
             {
                 FileName = executablePath,
@@ -659,6 +824,7 @@ namespace ASLM.Services.Internal
             psi.Environment["OLLAMA_HOST"] = $"127.0.0.1:{port}";
             psi.Environment["OLLAMA_MODELS"] = modelsDirectory;
 
+            // Start the service and forward its console output to the log.
             using var process = new Process { StartInfo = psi };
             process.OutputDataReceived += (_, args) =>
             {
@@ -683,6 +849,7 @@ namespace ASLM.Services.Internal
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
+            // Pull through the HTTP API once the service answers; the process is always stopped afterwards.
             try
             {
                 await WaitForOllamaAsync(port, ct);
@@ -699,8 +866,15 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Removes one Ollama model from the managed models directory via the engine CLI.
+        /// Removes one Ollama model from the managed models directory by running a temporary local Ollama service
+        /// and calling its HTTP delete API.
         /// </summary>
+        /// <param name="module">Module that owns the named targets.</param>
+        /// <param name="manifest">Manifest that supplies the default model name and target reference.</param>
+        /// <param name="action">The <c>ollama_remove</c> action naming the model and optionally the engine.</param>
+        /// <param name="operationKey">Notification operation that receives status updates.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token for startup and the deletion.</param>
         private async Task ExecuteOllamaRemoveAsync(
             ModuleConfig module,
             ModuleDownloadInstallManifest manifest,
@@ -709,6 +883,7 @@ namespace ASLM.Services.Internal
             IProgress<string>? log,
             CancellationToken ct)
         {
+            // Resolve the model name; the manifest resource key is the fallback.
             var modelName = !string.IsNullOrWhiteSpace(action.Model)
                 ? action.Model
                 : manifest.ResourceKey;
@@ -719,6 +894,7 @@ namespace ASLM.Services.Internal
 
             _notifications.ReportDownloadStatus(operationKey, $"Removing Ollama model {modelName}…");
 
+            // The models directory comes from a declared target, so the removal stays inside ASLM-managed storage.
             var targetRef = GetEffectiveTargetRef(manifest, action);
             if (string.IsNullOrWhiteSpace(targetRef))
             {
@@ -728,6 +904,7 @@ namespace ASLM.Services.Internal
             var modelsDirectory = ResolveTargetDirectory(module, targetRef);
             Directory.CreateDirectory(modelsDirectory);
 
+            // Locate the Ollama engine executable and pick a free loopback port for the temporary service.
             var engineId = !string.IsNullOrWhiteSpace(action.EngineId)
                 ? action.EngineId
                 : "ollama-service";
@@ -738,6 +915,7 @@ namespace ASLM.Services.Internal
             var engineWorkingDirectory = Path.GetDirectoryName(executablePath) ?? GetRootDirectory();
             var port = AllocateLocalPort();
 
+            // Configure `ollama serve` to listen on that port and use the managed models directory.
             var psi = new ProcessStartInfo
             {
                 FileName = executablePath,
@@ -754,6 +932,7 @@ namespace ASLM.Services.Internal
             psi.Environment["OLLAMA_HOST"] = $"127.0.0.1:{port}";
             psi.Environment["OLLAMA_MODELS"] = modelsDirectory;
 
+            // Start the service and forward its console output to the log.
             using var process = new Process { StartInfo = psi };
             process.OutputDataReceived += (_, args) =>
             {
@@ -778,6 +957,7 @@ namespace ASLM.Services.Internal
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
+            // Delete through the HTTP API once the service answers; the process is always stopped afterwards.
             try
             {
                 await WaitForOllamaAsync(port, ct);
@@ -791,12 +971,16 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Waits until the temporary Ollama HTTP endpoint becomes available.
+        /// Polls the model list endpoint every 500 ms and gives up after 25 seconds.
         /// </summary>
+        /// <param name="port">Loopback port the temporary service listens on.</param>
+        /// <param name="ct">Cancellation token for the wait.</param>
         private async Task WaitForOllamaAsync(int port, CancellationToken ct)
         {
             var deadline = DateTime.UtcNow.AddSeconds(25);
             var url = $"http://127.0.0.1:{port}/api/tags";
 
+            // An HTTP 200 answer means the service accepts requests; connection errors are retried.
             while (DateTime.UtcNow < deadline)
             {
                 ct.ThrowIfCancellationRequested();
@@ -822,7 +1006,13 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Streams one Ollama pull operation over the HTTP API and forwards progress into the UI log.
+        /// The API answers with one JSON object per line; an <c>error</c> object fails the pull.
         /// </summary>
+        /// <param name="port">Loopback port the temporary service listens on.</param>
+        /// <param name="modelName">Model to pull.</param>
+        /// <param name="operationKey">Notification operation that receives progress.</param>
+        /// <param name="log">Optional receiver of human-readable log lines.</param>
+        /// <param name="ct">Cancellation token for the stream.</param>
         private async Task StreamOllamaPullAsync(
             int port,
             string modelName,
@@ -830,6 +1020,7 @@ namespace ASLM.Services.Internal
             IProgress<string>? log,
             CancellationToken ct)
         {
+            // Start a streaming pull request.
             var requestPayload = JsonSerializer.Serialize(new { model = modelName, stream = true }, _jsonOptions);
             using var request = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{port}/api/pull")
             {
@@ -842,6 +1033,7 @@ namespace ASLM.Services.Internal
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var reader = new StreamReader(stream, Encoding.UTF8);
 
+            // Notification updates are throttled: byte progress more often than status-only lines.
             var uiThrottle = Stopwatch.StartNew();
             const int progressIntervalMs = 100;
             const int statusOnlyIntervalMs = 400;
@@ -854,6 +1046,7 @@ namespace ASLM.Services.Internal
                     continue;
                 }
 
+                // Each line is a status object, or an error object that aborts the pull.
                 using var document = JsonDocument.Parse(line);
                 var root = document.RootElement;
 
@@ -873,6 +1066,7 @@ namespace ASLM.Services.Internal
                     ? totalValue
                     : 0;
 
+                // Layer downloads report completed/total bytes; other steps report only a status text.
                 if (total > 0 && completed >= 0)
                 {
                     var percent = Math.Clamp((double)completed / total * 100.0, 0, 100);
@@ -908,6 +1102,7 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Shortens long Ollama status strings for the notification status line.
+        /// Strings above the limit are cut and end with an ellipsis.
         /// </summary>
         private static string TruncateForNotificationStatus(string status)
         {
@@ -923,6 +1118,9 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Deletes one Ollama model via the local HTTP API.
         /// </summary>
+        /// <param name="port">Loopback port the temporary service listens on.</param>
+        /// <param name="modelName">Model to delete.</param>
+        /// <param name="ct">Cancellation token for the request.</param>
         private async Task DeleteOllamaModelAsync(int port, string modelName, CancellationToken ct)
         {
             var requestPayload = JsonSerializer.Serialize(new { model = modelName }, _jsonOptions);
@@ -940,7 +1138,14 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Runs one external process and forwards its output to the caller log.
+        /// Throws when the process cannot be started or exits with a non-zero code.
         /// </summary>
+        /// <param name="fileName">Executable to start.</param>
+        /// <param name="arguments">Command-line argument string.</param>
+        /// <param name="workingDirectory">Working directory of the process.</param>
+        /// <param name="log">Optional receiver of the process output lines.</param>
+        /// <param name="ct">Cancellation token for reading output and waiting for exit.</param>
+        /// <param name="environment">Extra environment variables; <c>{path}</c> in a value expands to the current <c>PATH</c>.</param>
         private static async Task RunProcessAsync(
             string fileName,
             string arguments,
@@ -949,6 +1154,7 @@ namespace ASLM.Services.Internal
             CancellationToken ct,
             IDictionary<string, string?>? environment = null)
         {
+            // Redirect all output so it can be forwarded to the log.
             var psi = new ProcessStartInfo
             {
                 FileName = fileName,
@@ -962,6 +1168,7 @@ namespace ASLM.Services.Internal
                 StandardErrorEncoding = Encoding.UTF8
             };
 
+            // Python gets unbuffered UTF-8 output; then the caller's variables are applied on top.
             ConfigurePythonProcess(psi, fileName);
 
             if (environment != null)
@@ -974,6 +1181,7 @@ namespace ASLM.Services.Internal
                 }
             }
 
+            // Start the process and read stdout and stderr concurrently so neither pipe blocks the child.
             using var process = new Process { StartInfo = psi };
             if (!process.Start())
             {
@@ -1002,6 +1210,7 @@ namespace ASLM.Services.Internal
                 }
             }, ct);
 
+            // Wait for both streams to end and the process to exit, then fail on a non-zero exit code.
             await Task.WhenAll(stdoutTask, stderrTask);
             await process.WaitForExitAsync(ct);
 
@@ -1013,6 +1222,7 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Returns one environment value from a process start info using Windows-friendly key matching.
+        /// Falls back to the current process environment when the start info does not define the key.
         /// </summary>
         private static string GetProcessEnvironmentValue(ProcessStartInfo psi, string key)
         {
@@ -1031,7 +1241,8 @@ namespace ASLM.Services.Internal
         // Target resolution
 
         /// <summary>
-        /// Resolves the effective target reference for one action.
+        /// Resolves the effective target reference for one action: the action's own reference wins over the
+        /// manifest default.
         /// </summary>
         private static string GetEffectiveTargetRef(ModuleDownloadInstallManifest manifest, ModuleDownloadInstallAction action)
         {
@@ -1043,8 +1254,11 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Resolves one named target reference into a safe absolute directory inside ASLM.
         /// </summary>
+        /// <param name="module">Module whose downloads bridge declares the target.</param>
+        /// <param name="targetRef">Name of a target declared by the module.</param>
         internal string ResolveTargetDirectory(ModuleConfig module, string targetRef)
         {
+            // A module can only use targets it declared itself.
             var bridge = module.DownloadsBridge
                 ?? throw new InvalidOperationException("Module does not declare a downloads bridge.");
 
@@ -1053,6 +1267,8 @@ namespace ASLM.Services.Internal
                 throw new InvalidOperationException($"Target '{targetRef}' is not declared by module '{module.Name}'.");
             }
 
+            // Map the target's root bucket to a fixed ASLM directory, then resolve the relative part below it
+            // (traversal out of the bucket is rejected).
             var rootDir = GetRootDirectory();
             var rootBucket = target.Root.Trim().ToLowerInvariant();
 
@@ -1073,8 +1289,11 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Resolves one relative child path and rejects directory traversal outside the requested root.
         /// </summary>
+        /// <param name="rootPath">Directory the result must stay inside.</param>
+        /// <param name="relativePath">Path below the root; absolute paths and <c>..</c> escapes are rejected.</param>
         internal static string ResolveChildPath(string rootPath, string relativePath)
         {
+            // Absolute paths would ignore the root, so they are never allowed.
             var normalizedRoot = EnsureTrailingSeparator(Path.GetFullPath(rootPath));
             var safeRelative = relativePath ?? string.Empty;
             if (Path.IsPathRooted(safeRelative))
@@ -1082,6 +1301,7 @@ namespace ASLM.Services.Internal
                 throw new InvalidOperationException("Absolute install paths are not allowed in download manifests.");
             }
 
+            // Compare full paths with a trailing separator so a sibling like "root2" cannot pass as inside "root".
             var combined = Path.GetFullPath(Path.Combine(normalizedRoot, safeRelative));
             var comparePath = EnsureTrailingSeparator(combined);
             if (!comparePath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
@@ -1166,6 +1386,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            // Only python and the py launcher are tuned; other executables are left unchanged.
             var isPython = executableName.StartsWith("python", StringComparison.OrdinalIgnoreCase) ||
                            executableName.StartsWith("py", StringComparison.OrdinalIgnoreCase);
             if (!isPython)
@@ -1173,6 +1394,7 @@ namespace ASLM.Services.Internal
                 return;
             }
 
+            // Add the unbuffered flag (-u) unless present, so output reaches the log line by line.
             if (!psi.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Any(argument => string.Equals(argument, "-u", StringComparison.OrdinalIgnoreCase)))
             {
@@ -1181,6 +1403,7 @@ namespace ASLM.Services.Internal
                     : $"-u {psi.Arguments}";
             }
 
+            // Force UTF-8 text I/O regardless of the Windows locale.
             psi.Environment["PYTHONUNBUFFERED"] = "1";
             psi.Environment["PYTHONIOENCODING"] = "utf-8";
             psi.Environment["PYTHONUTF8"] = "1";
@@ -1205,15 +1428,37 @@ namespace ASLM.Services.Internal
         /// </summary>
         private sealed class InstallExecutionContext
         {
+            // Initialization
+
+            /// <summary>
+            /// Creates a context with a fresh, uniquely named temporary directory path.
+            /// </summary>
+            /// <param name="rootDirectory">ASLM root directory.</param>
             public InstallExecutionContext(string rootDirectory)
             {
                 TempDir = Path.Combine(Path.GetTempPath(), "ASLM_Downloads", Guid.NewGuid().ToString("N"));
                 Artifacts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
+
+            // State
+
+            /// <summary>
+            /// Temporary workspace for the artifacts of one manifest run; deleted by <see cref="TryCleanup"/>.
+            /// </summary>
             public string TempDir { get; }
+
+            /// <summary>
+            /// Downloaded files that later actions can refer to, by artifact id.
+            /// </summary>
             public Dictionary<string, string> Artifacts { get; }
 
+
+            // Cleanup
+
+            /// <summary>
+            /// Deletes the temporary workspace; failures are ignored.
+            /// </summary>
             public void TryCleanup()
             {
                 try

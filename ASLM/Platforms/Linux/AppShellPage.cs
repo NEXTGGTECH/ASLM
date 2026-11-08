@@ -2,15 +2,19 @@
 
 using ASLM.Services.Controls;
 
-namespace ASLM.Pages;
-
-public partial class AppShellPage
+namespace ASLM.Pages
 {
     /// <summary>
-    /// Aligns the image/text row of GTK sidebar buttons to the same leading edge as Windows.
+    /// Linux part: adjusts the native GTK sidebar buttons.
     /// </summary>
-    partial void ApplyPlatformButtonAlignment(Button button)
+    public partial class AppShellPage
     {
-        if (button.Handler is LinuxButtonHandler handler) handler.AlignContentStart();
+        /// <summary>
+        /// Aligns the image/text row of GTK sidebar buttons to the same leading edge as Windows.
+        /// </summary>
+        partial void ApplyPlatformButtonAlignment(Button button)
+        {
+            if (button.Handler is LinuxButtonHandler handler) handler.AlignContentStart();
+        }
     }
 }

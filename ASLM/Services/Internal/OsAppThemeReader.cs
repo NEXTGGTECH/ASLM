@@ -13,12 +13,13 @@ namespace ASLM.Services.Internal
     public static class OsAppThemeReader
     {
         /// <summary>
-        /// Returns true when Windows "app theme" is set to dark, or when the registry value is unavailable.
+        /// Returns true when the Windows "app theme" is set to dark. When the registry value cannot be read
+        /// (or on other platforms), the result follows the MAUI requested theme and is dark unless it is light.
         /// </summary>
         public static bool IsWindowsAppDarkMode()
         {
 #if WINDOWS
-            // Registry read
+            // The app theme preference is stored as AppsUseLightTheme (0 = dark) under the current user.
             try
             {
                 using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");

@@ -2,159 +2,203 @@
 
 using System.Globalization;
 
-namespace ASLM.Services.Internal;
-
-/// <summary>
-/// Reads Linux CPU, memory and I/O counters without depending on Windows performance providers.
-/// </summary>
-internal static class LinuxSystemMetrics
+namespace ASLM.Services.Internal
 {
-    private static readonly object DiskGate = new();
-    private static (DateTimeOffset Time, ulong Read, ulong Write, ulong Busy)? _lastDisk;
-
     /// <summary>
-    /// Converts procfs CPU fields to the idle-inclusive kernel counters expected by the shared sampler.
+    /// Reads Linux CPU, memory and I/O counters without depending on Windows performance providers.
     /// </summary>
-    internal static bool TryGetSystemCpuTimes(out ulong idle, out ulong kernel, out ulong user)
+    internal static class LinuxSystemMetrics
     {
-        idle = kernel = user = 0;
-        try
+        // Fields
+
+        /// <summary>
+        /// Serializes disk sampling, because each sample is computed against the previous one.
+        /// </summary>
+        private static readonly object DiskGate = new();
+
+        /// <summary>
+        /// Counters of the previous disk sample (time, bytes read, bytes written, busy milliseconds),
+        /// or null when there is no usable baseline yet.
+        /// </summary>
+        private static (DateTimeOffset Time, ulong Read, ulong Write, ulong Busy)? _lastDisk;
+
+
+        // CPU and memory
+
+        /// <summary>
+        /// Converts procfs CPU fields to the idle-inclusive kernel counters expected by the shared sampler.
+        /// </summary>
+        internal static bool TryGetSystemCpuTimes(out ulong idle, out ulong kernel, out ulong user)
         {
-            var fields = File.ReadLines("/proc/stat").First().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (fields.Length < 9 || fields[0] != "cpu") return false;
-            idle = Parse(fields[4]) + Parse(fields[5]);
-            user = Parse(fields[1]) + Parse(fields[2]);
-            kernel = idle + Parse(fields[3]) + Parse(fields[6]) + Parse(fields[7]) + Parse(fields[8]);
-            return true;
-        }
-        catch (IOException) { return false; }
-        catch (UnauthorizedAccessException) { return false; }
-    }
-
-    /// <summary>
-    /// Uses MemAvailable so reclaimable file cache is not incorrectly reported as unavailable memory.
-    /// </summary>
-    internal static HomeMemoryStatus GetMemoryStatus()
-    {
-        var fields = ReadCounters("/proc/meminfo");
-        var total = fields.GetValueOrDefault("MemTotal") * 1024;
-        var available = fields.GetValueOrDefault("MemAvailable", fields.GetValueOrDefault("MemFree")) * 1024;
-        return new HomeMemoryStatus
-        {
-            TotalPhysicalBytes = (long)total,
-            UsedPhysicalBytes = (long)(total - Math.Min(total, available))
-        };
-    }
-
-    /// <summary>
-    /// Reads actual storage I/O rather than counting bytes satisfied from the process's page cache.
-    /// </summary>
-    internal static (ulong Read, ulong Write) GetProcessDiskIo(int processId)
-    {
-        var fields = ReadCounters($"/proc/{processId}/io");
-        return (fields.GetValueOrDefault("read_bytes"), fields.GetValueOrDefault("write_bytes"));
-    }
-
-    /// <summary>
-    /// Samples whole-device disk counters without counting partitions or loop-backed files a second time.
-    /// </summary>
-    internal static HomeDiskStats SampleDiskStats()
-    {
-        lock (DiskGate)
-        {
-            ulong read = 0, write = 0, busy = 0;
+            idle = kernel = user = 0;
             try
             {
-                foreach (var line in File.ReadLines("/proc/diskstats"))
-                {
-                    var fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    if (fields.Length < 14) continue;
-                    var device = fields[2];
-                    if (device.StartsWith("loop", StringComparison.Ordinal) || device.StartsWith("ram", StringComparison.Ordinal) ||
-                        device.StartsWith("dm-", StringComparison.Ordinal) || !Directory.Exists($"/sys/block/{device}")) continue;
-                    read += Parse(fields[5]) * 512;
-                    write += Parse(fields[9]) * 512;
-                    busy += Parse(fields[12]);
-                }
-            }
-            catch (IOException) { _lastDisk = null; return new HomeDiskStats(); }
-            catch (UnauthorizedAccessException) { _lastDisk = null; return new HomeDiskStats(); }
+                // The first line of /proc/stat is the aggregate "cpu" row:
+                // user nice system idle iowait irq softirq steal (fields 1 to 8).
+                var fields = File.ReadLines("/proc/stat").First().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (fields.Length < 9 || fields[0] != "cpu") return false;
 
-            var now = DateTimeOffset.UtcNow;
-            var previous = _lastDisk;
-            _lastDisk = (now, read, write, busy);
-            if (previous is not { } last || (now - last.Time).TotalSeconds is not > 0) return new HomeDiskStats();
-            var seconds = (now - last.Time).TotalSeconds;
-            return new HomeDiskStats
+                // Map to the Windows-style counters: idle includes iowait, user includes nice,
+                // and kernel includes idle plus system, irq, softirq and steal.
+                idle = Parse(fields[4]) + Parse(fields[5]);
+                user = Parse(fields[1]) + Parse(fields[2]);
+                kernel = idle + Parse(fields[3]) + Parse(fields[6]) + Parse(fields[7]) + Parse(fields[8]);
+                return true;
+            }
+            catch (IOException) { return false; }
+            catch (UnauthorizedAccessException) { return false; }
+        }
+
+        /// <summary>
+        /// Uses MemAvailable so reclaimable file cache is not incorrectly reported as unavailable memory.
+        /// </summary>
+        internal static HomeMemoryStatus GetMemoryStatus()
+        {
+            // /proc/meminfo reports kilobytes; very old kernels without MemAvailable fall back to MemFree.
+            var fields = ReadCounters("/proc/meminfo");
+            var total = fields.GetValueOrDefault("MemTotal") * 1024;
+            var available = fields.GetValueOrDefault("MemAvailable", fields.GetValueOrDefault("MemFree")) * 1024;
+            return new HomeMemoryStatus
             {
-                ReadBytesPerSecond = (read >= last.Read ? read - last.Read : 0) / seconds,
-                WriteBytesPerSecond = (write >= last.Write ? write - last.Write : 0) / seconds,
-                BusyPercent = Math.Clamp((busy >= last.Busy ? busy - last.Busy : 0) / (seconds * 10), 0, 100)
+                TotalPhysicalBytes = (long)total,
+                UsedPhysicalBytes = (long)(total - Math.Min(total, available))
             };
         }
-    }
 
-    /// <summary>
-    /// Counts visible TCP/UDP sockets by matching process descriptors against procfs network inodes.
-    /// </summary>
-    internal static Dictionary<int, int> CountProcessSockets(IEnumerable<int> processIds)
-    {
-        var sockets = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var protocol in new[] { "tcp", "tcp6", "udp", "udp6" })
+
+        // Disk I/O
+
+        /// <summary>
+        /// Reads actual storage I/O rather than counting bytes satisfied from the process's page cache.
+        /// </summary>
+        internal static (ulong Read, ulong Write) GetProcessDiskIo(int processId)
         {
+            var fields = ReadCounters($"/proc/{processId}/io");
+            return (fields.GetValueOrDefault("read_bytes"), fields.GetValueOrDefault("write_bytes"));
+        }
+
+        /// <summary>
+        /// Samples whole-device disk counters without counting partitions or loop-backed files a second time.
+        /// </summary>
+        internal static HomeDiskStats SampleDiskStats()
+        {
+            lock (DiskGate)
+            {
+                ulong read = 0, write = 0, busy = 0;
+
+                // Add up the cumulative counters of physical block devices. Loop, ram and device-mapper devices
+                // and partitions (no entry under /sys/block) are skipped so no I/O is counted twice. Sector
+                // counts are converted to bytes (512 per sector); field 12 is the time spent doing I/O in ms.
+                // If procfs cannot be read, the baseline is dropped and an empty sample is returned.
+                try
+                {
+                    foreach (var line in File.ReadLines("/proc/diskstats"))
+                    {
+                        var fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        if (fields.Length < 14) continue;
+                        var device = fields[2];
+                        if (device.StartsWith("loop", StringComparison.Ordinal) || device.StartsWith("ram", StringComparison.Ordinal) ||
+                            device.StartsWith("dm-", StringComparison.Ordinal) || !Directory.Exists($"/sys/block/{device}")) continue;
+                        read += Parse(fields[5]) * 512;
+                        write += Parse(fields[9]) * 512;
+                        busy += Parse(fields[12]);
+                    }
+                }
+                catch (IOException) { _lastDisk = null; return new HomeDiskStats(); }
+                catch (UnauthorizedAccessException) { _lastDisk = null; return new HomeDiskStats(); }
+
+                // Store the new baseline; the first sample (or a zero time span) has nothing to compare against.
+                var now = DateTimeOffset.UtcNow;
+                var previous = _lastDisk;
+                _lastDisk = (now, read, write, busy);
+                if (previous is not { } last || (now - last.Time).TotalSeconds is not > 0) return new HomeDiskStats();
+
+                // Rates are deltas per second; a counter that went backwards counts as zero, and the busy
+                // time in milliseconds is converted to a percentage of the elapsed time.
+                var seconds = (now - last.Time).TotalSeconds;
+                return new HomeDiskStats
+                {
+                    ReadBytesPerSecond = (read >= last.Read ? read - last.Read : 0) / seconds,
+                    WriteBytesPerSecond = (write >= last.Write ? write - last.Write : 0) / seconds,
+                    BusyPercent = Math.Clamp((busy >= last.Busy ? busy - last.Busy : 0) / (seconds * 10), 0, 100)
+                };
+            }
+        }
+
+
+        // Network sockets
+
+        /// <summary>
+        /// Counts visible TCP/UDP sockets by matching process descriptors against procfs network inodes.
+        /// </summary>
+        internal static Dictionary<int, int> CountProcessSockets(IEnumerable<int> processIds)
+        {
+            // Collect the "socket:[inode]" identifiers of all TCP and UDP sockets listed by the kernel
+            // (the first line of each table is a header; column 9 is the inode).
+            var sockets = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var protocol in new[] { "tcp", "tcp6", "udp", "udp6" })
+            {
+                try
+                {
+                    foreach (var line in File.ReadLines($"/proc/net/{protocol}").Skip(1))
+                    {
+                        var fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        if (fields.Length > 9) sockets.Add($"socket:[{fields[9]}]");
+                    }
+                }
+                catch (IOException) { /* A network namespace may not expose every protocol. */ }
+                catch (UnauthorizedAccessException) { /* Restricted procfs mounts may hide network tables. */ }
+            }
+
+            // A process owns a socket when one of its descriptors links to that inode.
+            var result = new Dictionary<int, int>();
+            foreach (var pid in processIds)
+            {
+                try
+                {
+                    var owned = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (var file in Directory.EnumerateFiles($"/proc/{pid}/fd"))
+                    {
+                        var target = new FileInfo(file).LinkTarget;
+                        if (target != null && sockets.Contains(target)) owned.Add(target);
+                    }
+
+                    result[pid] = owned.Count;
+                }
+                catch (IOException) { /* Processes and descriptors can exit while being sampled. */ }
+                catch (UnauthorizedAccessException) { /* Only visible descriptors are included. */ }
+            }
+
+            return result;
+        }
+
+
+        // Helpers
+
+        /// <summary>
+        /// Reads named unsigned counters from procfs, tolerating process exit during a sample.
+        /// </summary>
+        private static Dictionary<string, ulong> ReadCounters(string path)
+        {
+            var result = new Dictionary<string, ulong>(StringComparer.Ordinal);
             try
             {
-                foreach (var line in File.ReadLines($"/proc/net/{protocol}").Skip(1))
+                foreach (var line in File.ReadLines(path))
                 {
-                    var fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    if (fields.Length > 9) sockets.Add($"socket:[{fields[9]}]");
+                    var fields = line.Split([' ', ':', '\t'], StringSplitOptions.RemoveEmptyEntries);
+                    if (fields.Length > 1) result[fields[0]] = Parse(fields[1]);
                 }
             }
-            catch (IOException) { /* A network namespace may not expose every protocol. */ }
-            catch (UnauthorizedAccessException) { /* Restricted procfs mounts may hide network tables. */ }
+            catch (IOException) { /* Missing procfs entries are unavailable samples. */ }
+            catch (UnauthorizedAccessException) { /* Respect process and filesystem access restrictions. */ }
+
+            return result;
         }
 
-        var result = new Dictionary<int, int>();
-        foreach (var pid in processIds)
-        {
-            try
-            {
-                var owned = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var file in Directory.EnumerateFiles($"/proc/{pid}/fd"))
-                {
-                    var target = new FileInfo(file).LinkTarget;
-                    if (target != null && sockets.Contains(target)) owned.Add(target);
-                }
-                result[pid] = owned.Count;
-            }
-            catch (IOException) { /* Processes and descriptors can exit while being sampled. */ }
-            catch (UnauthorizedAccessException) { /* Only visible descriptors are included. */ }
-        }
-        return result;
+        /// <summary>
+        /// Parses kernel counters independently of the application's selected locale.
+        /// </summary>
+        private static ulong Parse(string value) => ulong.TryParse(value, NumberStyles.None,
+            CultureInfo.InvariantCulture, out var parsed) ? parsed : 0;
     }
-
-    /// <summary>
-    /// Reads named unsigned counters from procfs, tolerating process exit during a sample.
-    /// </summary>
-    private static Dictionary<string, ulong> ReadCounters(string path)
-    {
-        var result = new Dictionary<string, ulong>(StringComparer.Ordinal);
-        try
-        {
-            foreach (var line in File.ReadLines(path))
-            {
-                var fields = line.Split([' ', ':', '\t'], StringSplitOptions.RemoveEmptyEntries);
-                if (fields.Length > 1) result[fields[0]] = Parse(fields[1]);
-            }
-        }
-        catch (IOException) { /* Missing procfs entries are unavailable samples. */ }
-        catch (UnauthorizedAccessException) { /* Respect process and filesystem access restrictions. */ }
-        return result;
-    }
-
-    /// <summary>
-    /// Parses kernel counters independently of the application's selected locale.
-    /// </summary>
-    private static ulong Parse(string value) => ulong.TryParse(value, NumberStyles.None,
-        CultureInfo.InvariantCulture, out var parsed) ? parsed : 0;
 }

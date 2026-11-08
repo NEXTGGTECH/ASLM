@@ -14,9 +14,24 @@ namespace ASLM.Services.Engines
     /// </summary>
     public class EngineInstaller
     {
+        // Fields
+
+        /// <summary>
+        /// HTTP client used for engine archive downloads.
+        /// </summary>
         private readonly HttpClient _httpClient;
+
+        /// <summary>
+        /// Optional GitHub client that authorizes GitHub API downloads and records their rate-limit usage.
+        /// </summary>
         private readonly GitHubUpdateClient? _github;
 
+
+        // Initialization
+
+        /// <summary>
+        /// Creates the installer with its own HTTP client.
+        /// </summary>
         public EngineInstaller(GitHubUpdateClient? github = null) : this(github, new HttpClient())
         {
         }
@@ -30,16 +45,38 @@ namespace ASLM.Services.Engines
             _httpClient = httpClient;
         }
 
+
+        // Serialization and cache state
+
+        /// <summary>
+        /// JSON settings used to read and write engine manifests.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
+        /// <summary>
+        /// Engines found by the last discovery, or null when the cache was invalidated.
+        /// </summary>
         private List<EngineConfig>? _cachedEngines;
+
+        /// <summary>
+        /// Discovered engines by id, regardless of their installation state.
+        /// </summary>
         private Dictionary<string, EngineConfig>? _cachedEnginesById;
+
+        /// <summary>
+        /// Installed engines by id.
+        /// </summary>
         private Dictionary<string, EngineConfig>? _cachedInstalledEnginesById;
+
+        /// <summary>
+        /// Guards the discovery caches against concurrent discovery and invalidation.
+        /// </summary>
         private readonly object _cacheLock = new();
+
 
         // Discovery
 
@@ -269,6 +306,7 @@ namespace ASLM.Services.Engines
         /// </summary>
         private void ResetMissingRuntimeIfNeeded(EngineConfig config, bool persist)
         {
+            // Only engines marked as installed can have a stale state.
             if (!config.Status.Installed)
             {
                 return;
@@ -280,12 +318,14 @@ namespace ASLM.Services.Engines
                 return;
             }
 
+            // A non-empty runtime folder means the installation is still present.
             var runtimeDir = Path.Combine(engineDir, "runtime");
             if (Directory.Exists(runtimeDir) && Directory.EnumerateFileSystemEntries(runtimeDir).Any())
             {
                 return;
             }
 
+            // The runtime was removed outside ASLM: clear the installed state and optionally persist it.
             config.Status.Installed = false;
             config.Status.InstalledVersion = null;
             config.Status.InstalledReleaseTag = null;
@@ -331,8 +371,13 @@ namespace ASLM.Services.Engines
         /// </summary>
         public static bool EnsureManifestMetadata(EngineConfig config) => BackfillEngineManifestMetadata(config);
 
+        /// <summary>
+        /// Fills a missing update repository and asset name for the shipped Ollama engine manifest.
+        /// Returns true when the manifest changed and must be saved.
+        /// </summary>
         private static bool BackfillEngineManifestMetadata(EngineConfig config)
         {
+            // Only the shipped Ollama engine has known update metadata to restore.
             if (!string.Equals(config.Id, "ollama-service", StringComparison.OrdinalIgnoreCase))
             {
                 return false;
@@ -344,6 +389,7 @@ namespace ASLM.Services.Engines
                 return false;
             }
 
+            // Restore only missing values, so explicitly configured update sources are kept.
             var changed = false;
             config.Update ??= new EngineUpdateConfig();
             if (string.IsNullOrWhiteSpace(config.Update.Repo))
@@ -361,6 +407,7 @@ namespace ASLM.Services.Engines
             config.Update.Normalize();
             return changed;
         }
+
 
         // Engine lookup
 
@@ -413,6 +460,7 @@ namespace ASLM.Services.Engines
             }
         }
 
+
         // Installation
 
         /// <summary>
@@ -452,10 +500,12 @@ namespace ASLM.Services.Engines
                 log.Report($"Base directory: {baseDir}");
 
                 var engineDir = Path.GetDirectoryName(config.SourcePath) ?? baseDir;
+
                 // Module-provided engines store state below Engines/Modules, which may not exist yet.
                 Directory.CreateDirectory(engineDir);
                 var context = new StepContext(baseDir, tempDir, engineDir);
 
+                // Run the declared install steps in order; unknown actions are logged and skipped.
                 for (int i = 0; i < config.Install.Count; i++)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -560,6 +610,7 @@ namespace ASLM.Services.Engines
                 _cachedInstalledEnginesById = null;
             }
         }
+
 
         // Step execution
 
@@ -849,6 +900,7 @@ namespace ASLM.Services.Engines
                 Directory.Move(source, dest);
             }
 #endif
+
             log.Report("  ✓ Move complete.");
         }
 
@@ -862,6 +914,7 @@ namespace ASLM.Services.Engines
             {
                 File.Copy(file, Path.Combine(dest, Path.GetFileName(file)), overwrite: true);
             }
+
             foreach (var directory in Directory.EnumerateDirectories(source))
             {
                 CopyDirectoryContents(directory, Path.Combine(dest, Path.GetFileName(directory)));
@@ -935,6 +988,7 @@ namespace ASLM.Services.Engines
             log.Report($"  ✓ Deleted: {Path.GetFileName(target)}");
         }
 
+
         // Path helpers
 
         /// <summary>
@@ -1004,6 +1058,7 @@ namespace ASLM.Services.Engines
             await File.WriteAllTextAsync(config.SourcePath, json);
         }
 
+
         // Command parsing
 
         /// <summary>
@@ -1018,6 +1073,7 @@ namespace ASLM.Services.Engines
 
             foreach (var c in command)
             {
+                // Inside quotes everything up to the matching quote belongs to the current token.
                 if (inQuotes)
                 {
                     if (c == quoteChar)
@@ -1032,6 +1088,7 @@ namespace ASLM.Services.Engines
                 }
                 else
                 {
+                    // Outside quotes whitespace ends a token and a single or double quote opens a quoted part.
                     if (char.IsWhiteSpace(c))
                     {
                         if (currentArg.Length > 0)
@@ -1052,6 +1109,7 @@ namespace ASLM.Services.Engines
                 }
             }
 
+            // Flush the last token, which has no trailing whitespace after it.
             if (currentArg.Length > 0)
             {
                 args.Add(currentArg.ToString());
@@ -1068,16 +1126,17 @@ namespace ASLM.Services.Engines
             return string.Join(" ", args.Select(arg => arg.Contains(' ') ? $"\"{arg}\"" : arg));
         }
 
+
         // Install context
 
         /// <summary>
         /// Holds directory paths for a single installation run.
         /// Avoids storing mutable state as fields on the singleton service.
         /// </summary>
-        /// <param name="baseDir">The application base directory.</param>
-        /// <param name="tempDir">The temporary directory for this installation.</param>
         private sealed class StepContext
         {
+            // Directories
+
             /// <summary>
             /// Normalized absolute path to the application base directory.
             /// </summary>
@@ -1093,8 +1152,11 @@ namespace ASLM.Services.Engines
             /// </summary>
             public string EngineDir { get; }
 
+
+            // Initialization
+
             /// <summary>
-            /// Initializes a new instance of the <see cref="StepContext"/> class.
+            /// Creates an install context whose engine directory is the application base directory.
             /// </summary>
             /// <param name="baseDir">The application base directory.</param>
             /// <param name="tempDir">The temporary directory for this installation.</param>
@@ -1113,6 +1175,9 @@ namespace ASLM.Services.Engines
                 EngineDir = EnsureTrailingSeparator(Path.GetFullPath(engineDir));
             }
 
+
+            // Path resolution
+
             /// <summary>
             /// Ensures that a directory path ends with a directory separator.
             /// </summary>
@@ -1125,7 +1190,9 @@ namespace ASLM.Services.Engines
                 return path;
             }
 
-            /// <summary>Resolves temporary and engine directory placeholders used by install steps.</summary>
+            /// <summary>
+            /// Resolves temporary and engine directory placeholders used by install steps.
+            /// </summary>
             /// <param name="input">The string containing variables to resolve.</param>
             /// <returns>The string with variables replaced.</returns>
             public string ResolveVariables(string input) => input

@@ -12,8 +12,20 @@
 /// </remarks>
 internal static class AppPaths
 {
+    // Constants
+
+    /// <summary>
+    /// Product name used as the name of the per-user application directory.
+    /// </summary>
     private const string AppName = "ASLM";
+
+    /// <summary>
+    /// Name of the folder that holds the application executable, next to the launcher in the monolithic layout.
+    /// </summary>
     private const string AppFolderName = "App";
+
+
+    // Executable and directory lookup
 
     /// <summary>
     /// Gets the native executable name shared by the launcher and application in different directories.
@@ -32,7 +44,7 @@ internal static class AppPaths
     /// <summary>
     /// Returns the per-user application directory where App, Patcher and data folders are stored.
     /// On Windows: %LOCALAPPDATA%\ASLM
-    /// On Linux:   ~/.local/share/ASLM  (XDG_DATA_HOME)
+    /// On Linux:   ~/.local/share/ASLM  (XDG_DATA_HOME), or the absolute path in ASLM_ROOT when it is set
     /// On macOS:   ~/Library/Application Support/ASLM
     /// </summary>
     public static string GetUserAppDir()
@@ -44,6 +56,7 @@ internal static class AppPaths
             if (!string.IsNullOrWhiteSpace(overridePath) && Path.IsPathFullyQualified(overridePath))
                 return Path.TrimEndingDirectorySeparator(Path.GetFullPath(overridePath));
 
+            // Follow the XDG base directory rule: an absolute XDG_DATA_HOME wins over ~/.local/share.
             var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
             var dataRoot = !string.IsNullOrWhiteSpace(dataHome) && Path.IsPathFullyQualified(dataHome)
                 ? dataHome
@@ -51,8 +64,12 @@ internal static class AppPaths
             return Path.GetFullPath(Path.Combine(dataRoot, AppName));
         }
 
+        // Windows and macOS use the platform's per-user application data folder.
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
     }
+
+
+    // Payload and layout detection
 
     /// <summary>
     /// Returns the path of the payload archive used to bootstrap a new user's application directory.

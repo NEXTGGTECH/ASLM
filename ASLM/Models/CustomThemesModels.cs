@@ -11,7 +11,9 @@ namespace ASLM.Models
     /// </summary>
     public class CustomThemesRoot
     {
-        // Ordered list of user-defined themes.
+        /// <summary>
+        /// Ordered list of user-defined themes.
+        /// </summary>
         [JsonPropertyName("themes")]
         public List<CustomTheme> Themes { get; set; } = [];
 
@@ -36,21 +38,34 @@ namespace ASLM.Models
     /// </summary>
     public class CustomTheme
     {
-        // Unique identifier assigned when the theme is created.
+        // Persisted settings
+
+        /// <summary>
+        /// Unique identifier assigned when the theme is created.
+        /// </summary>
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
-        // Display name shown in the personalization picker.
+        /// <summary>
+        /// Display name shown in the personalization picker.
+        /// </summary>
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
-        // Base palette used for keys absent from Colors; one of: "dark", "light".
+        /// <summary>
+        /// Base palette used for keys absent from <see cref="Colors"/>; one of: "dark", "light".
+        /// </summary>
         [JsonPropertyName("baseAppearance")]
         public string BaseAppearance { get; set; } = "dark";
 
-        // Sparse map of palette key → hex color string (e.g. "#0A84FF" or "#FF0A84FF").
+        /// <summary>
+        /// Sparse map of palette key → hex color string (e.g. "#0A84FF" or "#FF0A84FF").
+        /// </summary>
         [JsonPropertyName("colors")]
         public Dictionary<string, string> Colors { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+
+        // Normalization and validation
 
         /// <summary>
         /// Restores safe defaults after JSON deserialization.
@@ -90,6 +105,7 @@ namespace ASLM.Models
                 return false;
             }
 
+            // Accept only "#RRGGBB" (7 characters) or "#AARRGGBB" (9 characters).
             var s = value.Trim();
             if (s.Length != 7 && s.Length != 9)
             {

@@ -12,39 +12,115 @@ using Microsoft.Maui.Controls;
 
 namespace ASLM.Pages
 {
+    // ASLM API page
+
     /// <summary>
-    /// Displays and controls the local ASLM API mirror server.
+    /// Displays the local ASLM API mirror server address and the module hosts it mirrors, and opens the server
+    /// in a browser. Host rows are kept in sync with the port map and with the installed modules while the page
+    /// is visible.
     /// </summary>
     public partial class AslmApiView : ContentView, INotifyPropertyChanged, ILocalizable
     {
+        // Fields and constants
+
+        /// <summary>
+        /// Local mirror server whose address, running state and host port map the page shows.
+        /// </summary>
         private readonly AslmMirrorServer _mirrorServer;
+
+        /// <summary>
+        /// Notification service handed to host rows for their copy confirmation toasts.
+        /// </summary>
         private readonly NotificationCenter _notifications;
+
+        /// <summary>
+        /// Installer used to discover installed modules for host names and enabled state.
+        /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Localization service used to re-apply texts when the language changes.
+        /// </summary>
         private readonly AppLocalizationService _localization;
+
+        /// <summary>
+        /// Host rows by key, so refreshes update existing rows instead of recreating them.
+        /// </summary>
         private readonly Dictionary<string, AslmApiHostViewModel> _hostRows = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Cached display state (name, enabled) of installed modules by module id.
+        /// </summary>
         private Dictionary<string, AslmApiModuleDisplayState> _moduleDisplayStates = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Task of the module display state load in flight, or the last finished one.
+        /// </summary>
         private Task? _moduleDisplayStatesLoadTask;
+
+        /// <summary>
+        /// Version of the module display state load; bumping it discards the result of older loads.
+        /// </summary>
         private int _moduleDisplayStateLoadVersion;
+
+        /// <summary>
+        /// Version of the host refresh; bumping it discards the result of older in-flight port-map reads.
+        /// </summary>
         private int _hostRefreshVersion;
+
+        /// <summary>
+        /// Whether <see cref="_moduleDisplayStates"/> holds a loaded snapshot.
+        /// </summary>
         private bool _moduleDisplayStatesLoaded;
+
+        /// <summary>
+        /// UTC time the cached module display states were loaded, used to expire the cache.
+        /// </summary>
         private DateTime _moduleDisplayStatesLoadedAt = DateTime.MinValue;
+
+        /// <summary>
+        /// Cancellation source of the periodic refresh loop, or null while the loop is stopped.
+        /// </summary>
         private CancellationTokenSource? _refreshLoopCts;
+
+        /// <summary>
+        /// Whether the page is loaded into the visual tree; module changes refresh hosts only then.
+        /// </summary>
         private bool _isVisible;
+
+        /// <summary>
+        /// Backing field of <see cref="ServerUrl"/>.
+        /// </summary>
         private string _serverUrl = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="CanOpenServer"/>.
+        /// </summary>
         private bool _canOpenServer;
 
+        /// <summary>
+        /// Maximum age of the cached module display states before a refresh reloads them.
+        /// </summary>
         private static readonly TimeSpan ModuleStateRefreshInterval = TimeSpan.FromSeconds(15);
+
+
+        // Bound collections
 
         /// <summary>
         /// Stores the host rows displayed by the page.
         /// </summary>
         public ObservableCollection<AslmApiHostViewModel> Hosts { get; } = new();
 
+
         // Initialization
 
         /// <summary>
         /// Creates the ASLM API page and hooks service state notifications.
         /// </summary>
+        /// <param name="mirrorServer">Mirror server to display.</param>
+        /// <param name="notifications">Notification service used for copy confirmation toasts.</param>
+        /// <param name="moduleInstaller">Installer that supplies module names and enabled state.</param>
+        /// <param name="localization">Localization service whose language changes re-apply the texts.</param>
         public AslmApiView(
             AslmMirrorServer mirrorServer,
             NotificationCenter notifications,
@@ -134,6 +210,8 @@ namespace ASLM.Pages
         private void OnLoaded(object? sender, EventArgs e)
         {
             _isVisible = true;
+
+            // Follow theme changes; the unsubscribe-first pattern keeps repeated loads from stacking handlers.
             ThemeService.PaletteApplied -= OnPaletteAppliedForCopyButtons;
             ThemeService.PaletteApplied += OnPaletteAppliedForCopyButtons;
             if (Application.Current is { } app)
@@ -142,13 +220,14 @@ namespace ASLM.Pages
                 app.RequestedThemeChanged += OnApplicationRequestedThemeChanged;
             }
 
+            // Tint existing rows for the current theme, load the hosts once and keep them fresh.
             RefreshHostCopyButtonChrome();
             _ = RefreshAsync();
             StartRefreshLoop();
         }
 
         /// <summary>
-        /// Stops periodic host refresh when the page leaves the visual tree.
+        /// Stops periodic host refresh and theme tracking when the page leaves the visual tree.
         /// </summary>
         private void OnUnloaded(object? sender, EventArgs e)
         {
@@ -166,7 +245,7 @@ namespace ASLM.Pages
         // Theme chrome
 
         /// <summary>
-        /// Refreshes host copy-button chrome after a custom palette is applied.
+        /// Re-tints the host copy buttons on the main thread after a custom palette is applied.
         /// </summary>
         private void OnPaletteAppliedForCopyButtons()
         {
@@ -174,7 +253,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Refreshes host copy-button chrome when the application theme changes.
+        /// Re-tints the host copy buttons on the main thread when the application theme changes.
         /// </summary>
         private void OnApplicationRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
         {
@@ -208,6 +287,7 @@ namespace ASLM.Pages
             await Launcher.Default.OpenAsync(_mirrorServer.BaseUrl);
         }
 
+
         // Refresh
 
         /// <summary>
@@ -215,11 +295,14 @@ namespace ASLM.Pages
         /// </summary>
         internal async Task RefreshAsync()
         {
+            // Stamp this refresh, publish the server state and make sure module names are loading or fresh.
             var refreshVersion = ++_hostRefreshVersion;
             ApplyServerState();
             EnsureModuleDisplayStatesLoading();
 
+            // Read the port map off the UI thread.
             var hosts = await Task.Run(_mirrorServer.GetHosts);
+
             // A newer module-state snapshot or refresh supersedes this in-flight port-map read.
             if (refreshVersion != _hostRefreshVersion) return;
             SynchronizeHostRows(hosts, _moduleDisplayStates);
@@ -227,13 +310,17 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Updates host rows in place so periodic refreshes do not recreate the list visual tree.
+        /// Only hosts of installed modules are shown, ordered by module name, port and host key.
         /// </summary>
+        /// <param name="hosts">Hosts read from the port map.</param>
+        /// <param name="moduleStates">Display states of installed modules; hosts of unknown modules are dropped.</param>
         private void SynchronizeHostRows(
             IReadOnlyList<AslmMirrorHostInfo> hosts,
             IReadOnlyDictionary<string, AslmApiModuleDisplayState> moduleStates)
         {
             var activeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            // Keep only hosts of installed modules and order them for display.
             var orderedHosts = hosts
                 .Where(host => moduleStates.ContainsKey(host.ModuleId))
                 .OrderBy(
@@ -243,6 +330,7 @@ namespace ASLM.Pages
                 .ThenBy(static host => host.HostKey, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            // Update or move rows that already exist and insert new ones at their sorted position.
             for (var desiredIndex = 0; desiredIndex < orderedHosts.Count; desiredIndex++)
             {
                 var host = orderedHosts[desiredIndex];
@@ -262,6 +350,7 @@ namespace ASLM.Pages
                 Hosts.Insert(Math.Min(desiredIndex, Hosts.Count), newRow);
             }
 
+            // Remove rows whose host disappeared from the port map; walk backwards so removal keeps indexes valid.
             for (var index = Hosts.Count - 1; index >= 0; index--)
             {
                 var row = Hosts[index];
@@ -276,7 +365,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Loads the current module display state keyed by stable module id.
+        /// Builds the display state (name and enabled flag) of the given modules keyed by module id.
+        /// Modules without an id are skipped and the first of several modules sharing an id wins.
         /// </summary>
         private static Dictionary<string, AslmApiModuleDisplayState> BuildModuleDisplayStates(IEnumerable<ModuleConfig> modules)
         {
@@ -293,7 +383,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Resolves the human-readable module state used by the host list.
+        /// Resolves the human-readable module state used by the host list. Modules without a known name fall back
+        /// to a name derived from the module id and are shown as disabled.
         /// </summary>
         internal static AslmApiModuleDisplayState ResolveModuleDisplayState(
             string moduleId,
@@ -311,6 +402,8 @@ namespace ASLM.Pages
         /// <summary>
         /// Keeps the displayed host list sorted by module name and port without recreating existing row views.
         /// </summary>
+        /// <param name="row">Existing row to place.</param>
+        /// <param name="desiredIndex">Sorted position the row should have in the list.</param>
         private void MoveHostRowIfNeeded(AslmApiHostViewModel row, int desiredIndex)
         {
             var currentIndex = Hosts.IndexOf(row);
@@ -342,10 +435,12 @@ namespace ASLM.Pages
         /// <summary>
         /// Loads module display state without blocking initial page rendering.
         /// </summary>
+        /// <param name="loadVersion">Version stamped when the load started; a newer version invalidates the result.</param>
         private async Task LoadModuleDisplayStatesAsync(int loadVersion)
         {
             Dictionary<string, AslmApiModuleDisplayState> moduleStates;
 
+            // Discover the installed modules off the UI thread.
             try
             {
                 var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
@@ -353,9 +448,11 @@ namespace ASLM.Pages
             }
             catch
             {
+                // Module names are cosmetic: keep the previous state and let the next refresh retry.
                 return;
             }
 
+            // Publish the snapshot on the main thread unless module changes invalidated this load meanwhile.
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 if (loadVersion != _moduleDisplayStateLoadVersion)
@@ -397,6 +494,7 @@ namespace ASLM.Pages
         /// <summary>
         /// Refreshes host rows at a modest interval while the view is visible.
         /// </summary>
+        /// <param name="ct">Cancelled by <see cref="StopRefreshLoop"/> to end the loop.</param>
         private async Task RunRefreshLoopAsync(CancellationToken ct)
         {
             while (!ct.IsCancellationRequested)
@@ -414,7 +512,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Reacts to server state changes raised outside the page.
+        /// Refreshes server state and hosts on the main thread when the mirror server reports a state change.
         /// </summary>
         private void OnServerStateChanged(object? sender, EventArgs e)
         {
@@ -422,12 +520,14 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Invalidates cached module status after module manifests are saved.
+        /// Invalidates cached module display states when module metadata or the installed set changes,
+        /// and reloads the hosts right away when the page is visible.
         /// </summary>
         private void OnModulesChanged(object? sender, EventArgs e)
         {
             MainThread.BeginInvokeOnMainThread(async () =>
             {
+                // Drop the cache and bump the version so a load already in flight cannot publish stale names.
                 _moduleDisplayStatesLoaded = false;
                 _moduleDisplayStatesLoadedAt = DateTime.MinValue;
                 _moduleDisplayStatesLoadTask = null;
@@ -441,7 +541,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Updates bound server fields from the service state.
+        /// Updates the bound server URL and the open-in-browser availability from the service state.
         /// </summary>
         private void ApplyServerState()
         {
@@ -468,30 +568,78 @@ namespace ASLM.Pages
             OnPropertyChanged(propertyName);
             return true;
         }
-
     }
+
+
+    // Host row models
 
     /// <summary>
     /// Stores the lightweight module metadata needed by ASLM API host rows.
     /// </summary>
+    /// <param name="Name">Human-readable module name shown in the host row title.</param>
+    /// <param name="IsEnabled">Whether the module is enabled; disabled modules get a badge in the host row.</param>
     public sealed record AslmApiModuleDisplayState(string Name, bool IsEnabled);
-
 
     /// <summary>
     /// Exposes one mirror host row to the ASLM API page.
     /// </summary>
     public class AslmApiHostViewModel : INotifyPropertyChanged
     {
+        // Fields
+
+        /// <summary>
+        /// Backing field of <see cref="ModuleId"/>.
+        /// </summary>
         private string _moduleId = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="ModuleName"/>.
+        /// </summary>
         private string _moduleName = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="HostKey"/>.
+        /// </summary>
         private string _hostKey = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="HostName"/>.
+        /// </summary>
         private string _hostName = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="Port"/>.
+        /// </summary>
         private int _port;
+
+        /// <summary>
+        /// Backing field of <see cref="MirrorUrl"/>.
+        /// </summary>
         private string _mirrorUrl = string.Empty;
+
+        /// <summary>
+        /// Backing field of <see cref="IsModuleDisabled"/>.
+        /// </summary>
         private bool _isModuleDisabled;
+
+        /// <summary>
+        /// Lazily created command behind <see cref="CopyCommand"/>.
+        /// </summary>
         private Command? _copyCommand;
+
+        /// <summary>
+        /// Notification service that shows the copy confirmation toast.
+        /// </summary>
         private readonly NotificationCenter _notifications;
+
+        /// <summary>
+        /// Backing field of <see cref="CopyButtonBackground"/>.
+        /// </summary>
         private Color _copyButtonBackground = Colors.Black;
+
+        /// <summary>
+        /// Backing field of <see cref="CopyIconSource"/>.
+        /// </summary>
         private ImageSource _copyIconSource = ImageSource.FromFile("icon_copy.png");
 
 
@@ -500,6 +648,9 @@ namespace ASLM.Pages
         /// <summary>
         /// Creates a host row from the current service host info.
         /// </summary>
+        /// <param name="host">Host entry read from the port map.</param>
+        /// <param name="moduleState">Display state of the module that owns the host.</param>
+        /// <param name="notifications">Notification service used for the copy confirmation toast.</param>
         public AslmApiHostViewModel(
             AslmMirrorHostInfo host,
             AslmApiModuleDisplayState moduleState,
@@ -649,7 +800,7 @@ namespace ASLM.Pages
         // Actions
 
         /// <summary>
-        /// Copies the host URL and publishes a shared toast confirmation.
+        /// Copies the host mirror URL to the clipboard and publishes a toast confirmation.
         /// </summary>
         private async Task CopyMirrorUrlAsync()
         {
@@ -667,6 +818,8 @@ namespace ASLM.Pages
         /// <summary>
         /// Updates the row from fresh service data without recreating the row object.
         /// </summary>
+        /// <param name="host">Host entry read from the port map.</param>
+        /// <param name="moduleState">Display state of the module that owns the host.</param>
         public void Update(AslmMirrorHostInfo host, AslmApiModuleDisplayState moduleState)
         {
             ModuleId = host.ModuleId;
@@ -680,8 +833,9 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Updates only the displayed module state after the background cache refreshes.
+        /// Updates only the displayed module name and disabled badge after the background cache refreshes.
         /// </summary>
+        /// <param name="moduleState">Fresh display state of the module that owns the host.</param>
         public void UpdateModuleState(AslmApiModuleDisplayState moduleState)
         {
             ModuleName = moduleState.Name;
@@ -712,7 +866,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Builds the stable key used by the ASLM API host list.
+        /// Builds the stable key used by the ASLM API host list from the module id and the port-map host key.
         /// </summary>
         public static string BuildKey(string moduleId, string hostKey)
         {
@@ -720,7 +874,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Normalizes a technical identifier into a compact display name.
+        /// Normalizes a technical identifier such as <c>my-module_api</c> into a compact display name
+        /// by splitting it into words and title-casing them (<c>My Module API</c>).
         /// </summary>
         public static string NormalizeDisplayName(string value)
         {
@@ -747,7 +902,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Removes the conventional trailing port marker from host keys.
+        /// Removes the conventional trailing port marker (<c>-port</c>, <c>_port</c> or <c> port</c>) from host keys.
         /// </summary>
         private static string TrimHostPortSuffix(string value)
         {
@@ -764,7 +919,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats one identifier word while preserving common technical acronyms.
+        /// Formats one identifier word as title case, keeping the acronyms API and UI in upper case.
         /// </summary>
         private static string FormatDisplayWord(string word)
         {

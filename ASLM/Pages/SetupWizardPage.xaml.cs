@@ -15,56 +15,232 @@ namespace ASLM.Pages
     /// </summary>
     public partial class SetupWizardPage : ContentPage, ILocalizable, INotifyPropertyChanged
     {
-        private const int TotalSteps = 3;
-        private readonly GitHubRateLimitNotice _gitHubLimitNotice;
-        private static int FirstSetupStep => SunriseService.IsEnabled ? 1 : 2;
-
-        private readonly AppDataStore _appData;
-        private readonly EngineInstaller _engineInstaller;
-        private readonly ModuleInstaller _moduleInstaller;
-        private readonly ModuleRunner _moduleRunner;
-        private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
-        private readonly UpdateManager _updateManager;
-        private readonly LegalAcceptanceService _legalAcceptance;
-        private readonly AppLocalizationService _localization;
-        private readonly SunriseService _sunriseService;
-        private readonly IServiceProvider _services;
-
-        private readonly CancellationTokenSource _modulePresentationCts = new();
-        private Task? _moduleListLoadTask;
-        private string _moduleListMessageKey = LocalizationKeys.Downloads_NoItems;
-        private ModuleInfo? _moduleInfo;
-        private ModuleCatalogCardViewModel? _selectedModuleCard;
-        public ObservableCollection<ModuleCatalogCardViewModel> ModuleCards { get; } = [];
-        private readonly StringBuilder _logBuffer = new();
-
-        private int _currentStep;
-        private bool _isStartingSetup;
-        private CancellationTokenSource? _cts;
-        private string _installLogSessionKey = string.Empty;
-        private InstallationState _installState;
-        private readonly object _logLock = new();
-        private int _logFlushQueued;
-        private int _logFlushRequested;
-        private int _installLogLayoutRefreshQueued;
-        private bool _suppressAccountSelectionEvents;
-        private bool _isAccountActionRunning;
-        private CancellationTokenSource? _accountActionCts;
-
-        private long _lastDownloadedBytes;
-        private DateTime _lastSpeedUpdate = DateTime.UtcNow;
-        private double _lastSpeed;
+        // Fields and constants
 
         /// <summary>
+        /// Index of the last wizard step (module selection and installation). Steps count from 0 (welcome),
+        /// followed by the account step (only with SUNRISE), the port step and the module step.
+        /// </summary>
+        private const int TotalSteps = 3;
+
+        /// <summary>
+        /// Shows the GitHub rate-limit notice over the wizard and offers to open the GitHub account settings.
+        /// </summary>
+        private readonly GitHubRateLimitNotice _gitHubLimitNotice;
+
+        /// <summary>
+        /// Gets the index of the first step of the step-by-step setup: the account step when SUNRISE is enabled,
+        /// otherwise the port step.
+        /// </summary>
+        private static int FirstSetupStep => SunriseService.IsEnabled ? 1 : 2;
+
+        /// <summary>
+        /// Saved application settings; the wizard stores the profile, ports and first-run flag here.
+        /// </summary>
+        private readonly AppDataStore _appData;
+
+        /// <summary>
+        /// Installer that discovers and installs the engines the selected modules depend on.
+        /// </summary>
+        private readonly EngineInstaller _engineInstaller;
+
+        /// <summary>
+        /// Installer that discovers module manifests and downloads module sources.
+        /// </summary>
+        private readonly ModuleInstaller _moduleInstaller;
+
+        /// <summary>
+        /// Runner that executes the first-run steps of a freshly installed module.
+        /// </summary>
+        private readonly ModuleRunner _moduleRunner;
+
+        /// <summary>
+        /// Coordinator that starts installed modules with their dependencies.
+        /// </summary>
+        private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
+
+        /// <summary>
+        /// Update service that resolves install sources and applies module installs through the update pipeline.
+        /// </summary>
+        private readonly UpdateManager _updateManager;
+
+        /// <summary>
+        /// Service that tracks which legal documents the user still has to accept.
+        /// </summary>
+        private readonly LegalAcceptanceService _legalAcceptance;
+
+        /// <summary>
+        /// Localization service used to switch and re-apply the language.
+        /// </summary>
+        private readonly AppLocalizationService _localization;
+
+        /// <summary>
+        /// SUNRISE service that owns the local and cloud account state shown on the account step.
+        /// </summary>
+        private readonly SunriseService _sunriseService;
+
+        /// <summary>
+        /// Service provider used to resolve overlays, dialogs and the main shell page.
+        /// </summary>
+        private readonly IServiceProvider _services;
+
+        /// <summary>
+        /// Cancels the pending card presentation lookups (icons, versions) when the wizard is unloaded.
+        /// </summary>
+        private readonly CancellationTokenSource _modulePresentationCts = new();
+
+        /// <summary>
+        /// Task of the first module list load; shared so repeated loads and the installation reuse one discovery.
+        /// </summary>
+        private Task? _moduleListLoadTask;
+
+        /// <summary>
+        /// Localization key of the message shown instead of the module list, kept to re-localize it.
+        /// </summary>
+        private string _moduleListMessageKey = LocalizationKeys.Downloads_NoItems;
+
+        /// <summary>
+        /// Module information view shown as an overlay; created on first use.
+        /// </summary>
+        private ModuleInfo? _moduleInfo;
+
+        /// <summary>
+        /// Card whose information overlay is open, or null when no overlay is open.
+        /// </summary>
+        private ModuleCatalogCardViewModel? _selectedModuleCard;
+
+        /// <summary>
+        /// Gets the module cards offered for selection on the last step.
+        /// </summary>
+        public ObservableCollection<ModuleCatalogCardViewModel> ModuleCards { get; } = [];
+
+        /// <summary>
+        /// Text of the installation log; changes are guarded by <see cref="_logLock"/>.
+        /// </summary>
+        private readonly StringBuilder _logBuffer = new();
+
+        /// <summary>
+        /// Index of the visible wizard step; 0 is the welcome page.
+        /// </summary>
+        private int _currentStep;
+
+        /// <summary>
+        /// Whether the welcome page is already working on leaving itself, which blocks a second start.
+        /// </summary>
+        private bool _isStartingSetup;
+
+        /// <summary>
+        /// Cancellation source of the current installation run, replaced on every run.
+        /// </summary>
+        private CancellationTokenSource? _cts;
+
+        /// <summary>
+        /// Key that identifies the current installation run to the console view, so it resets its scroll position.
+        /// </summary>
+        private string _installLogSessionKey = string.Empty;
+
+        /// <summary>
+        /// Phase of the installation, which decides the navigation buttons shown.
+        /// </summary>
+        private InstallationState _installState;
+
+        /// <summary>
+        /// Guards <see cref="_logBuffer"/> against concurrent writers and readers.
+        /// </summary>
+        private readonly object _logLock = new();
+
+        /// <summary>
+        /// Set to 1 while a log flush loop is running, so only one loop exists at a time.
+        /// </summary>
+        private int _logFlushQueued;
+
+        /// <summary>
+        /// Set to 1 when log lines arrived since the running flush loop started its last pass.
+        /// </summary>
+        private int _logFlushRequested;
+
+        /// <summary>
+        /// Set to 1 while the delayed layout refresh passes of the install log are scheduled.
+        /// </summary>
+        private int _installLogLayoutRefreshQueued;
+
+        /// <summary>
+        /// Whether the account radio buttons are being set from code, so their change events are ignored.
+        /// </summary>
+        private bool _suppressAccountSelectionEvents;
+
+        /// <summary>
+        /// Whether a local-account switch or a cloud authorization is running, which locks the account controls.
+        /// </summary>
+        private bool _isAccountActionRunning;
+
+        /// <summary>
+        /// Cancellation source of the running cloud authorization, or null when none is running.
+        /// </summary>
+        private CancellationTokenSource? _accountActionCts;
+
+        /// <summary>
+        /// Downloaded byte count at the last transfer speed update.
+        /// </summary>
+        private long _lastDownloadedBytes;
+
+        /// <summary>
+        /// Time of the last transfer speed update.
+        /// </summary>
+        private DateTime _lastSpeedUpdate = DateTime.UtcNow;
+
+        /// <summary>
+        /// Most recently measured transfer speed in bytes per second.
+        /// </summary>
+        private double _lastSpeed;
+
+
+        // Nested types
+
+        /// <summary>
+        /// Phase of the module installation shown on the last step.
         /// Preserves navigation actions when localization is reapplied during or after installation.
         /// </summary>
-        private enum InstallationState { NotStarted, Running, Failed, Completed }
+        private enum InstallationState
+        {
+            /// <summary>
+            /// The installation has not been started; the module selection is shown.
+            /// </summary>
+            NotStarted,
+
+            /// <summary>
+            /// Engines and modules are being installed.
+            /// </summary>
+            Running,
+
+            /// <summary>
+            /// The installation ended with a failure or was canceled; retry and skip are offered.
+            /// </summary>
+            Failed,
+
+            /// <summary>
+            /// Everything was installed and started; the finish action is offered.
+            /// </summary>
+            Completed
+        }
+
 
         // Initialization
 
         /// <summary>
-        /// Creates the setup wizard and preloads persisted defaults into the form.
+        /// Creates the setup wizard, binds it to itself and preloads persisted defaults (language, display name,
+        /// account mode, module port) into the form. The module list is loaded later, once the page is loaded.
         /// </summary>
+        /// <param name="appData">Saved application settings.</param>
+        /// <param name="engineInstaller">Installer for the engines the selected modules need.</param>
+        /// <param name="moduleInstaller">Installer that discovers and downloads modules.</param>
+        /// <param name="moduleRunner">Runner that executes first-run steps of installed modules.</param>
+        /// <param name="moduleLaunchCoordinator">Coordinator that starts installed modules.</param>
+        /// <param name="updateManager">Update service used to install modules through the update pipeline.</param>
+        /// <param name="legalAcceptance">Service that tracks pending legal documents.</param>
+        /// <param name="localization">Localization service used to switch the language.</param>
+        /// <param name="sunriseService">SUNRISE service that owns the account state.</param>
+        /// <param name="services">Service provider used to resolve overlays and the main shell.</param>
         public SetupWizardPage(
             AppDataStore appData,
             EngineInstaller engineInstaller,
@@ -77,6 +253,8 @@ namespace ASLM.Pages
             SunriseService sunriseService,
             IServiceProvider services)
         {
+            // Keep the services, then build the UI. The rate-limit notice stays hidden while a legal document
+            // still has to be accepted manually.
             _appData = appData;
             _engineInstaller = engineInstaller;
             _moduleInstaller = moduleInstaller;
@@ -95,10 +273,13 @@ namespace ASLM.Pages
             BindingContext = this;
             LocalizableAttach.Hook(this, _localization, this);
 
+            // Fill the language picker and select the active language; the change handler is attached last
+            // so filling the picker does not trigger a language switch.
             foreach (var language in AppLocalizationService.SupportedLanguages)
             {
                 LanguagePicker.Items.Add(AppLocalizationService.GetPickerDisplayName(language.Id));
             }
+
             LanguagePicker.SelectedItem = AppLocalizationService.GetPickerDisplayName(_localization.GetCurrentLanguage());
             LanguagePicker.SelectedIndexChanged += OnLanguagePickerChanged;
 
@@ -108,12 +289,14 @@ namespace ASLM.Pages
                 ? Environment.UserName
                 : existingName;
 
+            // Select the saved account mode without triggering the account selection handlers.
             _suppressAccountSelectionEvents = true;
             LocalAccountRadioButton.IsChecked = _appData.Data.User.AccountMode == AppAccountMode.Local;
             CloudAccountRadioButton.IsChecked = _appData.Data.User.AccountMode == AppAccountMode.Cloud;
             _suppressAccountSelectionEvents = false;
             UpdateAccountSelectionUI();
 
+            // Show the saved first module port, then wait for the page to be loaded.
             ModulePortEntry.Text = _appData.Data.Ports.ModulesStart.ToString();
 
             // Loaded is more reliable than OnAppearing for this WinUI startup flow.
@@ -123,10 +306,11 @@ namespace ASLM.Pages
         }
 
 
-        // Initial load
+        // Accounts overlay and initial load
 
         /// <summary>
-        /// Opens account settings above the wizard and any module information overlay.
+        /// Opens the accounts category of the settings above the wizard and any module information overlay.
+        /// Used by the rate-limit notice to let the user connect a GitHub account.
         /// </summary>
         private void OpenGitHubAccounts()
         {
@@ -137,9 +321,7 @@ namespace ASLM.Pages
             GitHubAccountsOverlay.Content = settings;
             GitHubAccountsOverlay.IsVisible = true;
 
-            /// <summary>
-            /// Restores the underlying wizard when account settings are closed.
-            /// </summary>
+            // Restores the underlying wizard when account settings are closed.
             void OnClose(object? sender, EventArgs e)
             {
                 settings.CloseRequested -= OnClose;
@@ -149,7 +331,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Populates the module selection list once after the page is ready.
+        /// Starts loading the module selection list when the page is loaded; later loads reuse the same task.
         /// </summary>
         private async void OnLoaded(object? sender, EventArgs e)
         {
@@ -161,34 +343,40 @@ namespace ASLM.Pages
         // Setup actions
 
         /// <summary>
-        /// Starts the step-by-step setup flow.
+        /// Starts the step-by-step setup flow when the Setup button is clicked.
         /// </summary>
         private async void OnSetupClicked(object? sender, EventArgs e) =>
             await StartSetupAsync(fastSetup: false);
 
         /// <summary>
-        /// Saves default values and jumps directly to module selection.
+        /// Saves default values and jumps directly to module selection when the Fast setup button is clicked.
         /// </summary>
         private async void OnFastSetupClicked(object? sender, EventArgs e) =>
             await StartSetupAsync(fastSetup: true);
 
         /// <summary>
         /// Leaves the welcome page only after any pending legal documents have been accepted.
+        /// A fast setup first stores the default profile and ports; a normal setup goes to the first step.
         /// </summary>
+        /// <param name="fastSetup">Whether to store the defaults and jump straight to the module selection.</param>
         private async Task StartSetupAsync(bool fastSetup)
         {
+            // Ignore repeated clicks and calls from any step other than the welcome page.
             if (_isStartingSetup || !Step0Panel.IsEnabled || _currentStep != 0)
             {
                 return;
             }
 
+            // Lock the welcome page while the legal acceptance overlay and the optional defaults are processed.
             _isStartingSetup = true;
             Step0Panel.IsEnabled = false;
             try
             {
+                // Legal acceptance comes first; the rate-limit notice may only be shown after it.
                 await LegalAcceptanceOverlay.PresentIfRequiredAsync(OverlayContainer, _legalAcceptance, _services);
                 _gitHubLimitNotice.Refresh();
 
+                // Fast setup: use the local account (with SUNRISE) and the default ports without asking.
                 if (fastSetup)
                 {
                     if (SunriseService.IsEnabled)
@@ -197,6 +385,7 @@ namespace ASLM.Pages
                         _appData.Data.User.Name = Environment.UserName;
                         _appData.Data.User.LocalName = Environment.UserName;
                     }
+
                     var defaultPorts = new AppPortConfig();
                     _appData.Data.Ports.ModulesStart = defaultPorts.ModulesStart;
                     await _appData.SaveAsync();
@@ -207,6 +396,7 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
+                // Stay on the welcome page and tell the user why setup could not start.
                 Debug.WriteLine($"[SetupWizard] Failed to start setup: {ex}");
                 await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.SetupWizard_Title),
@@ -215,13 +405,18 @@ namespace ASLM.Pages
             }
             finally
             {
+                // Unlock the welcome page on every outcome.
                 _isStartingSetup = false;
                 Step0Panel.IsEnabled = true;
             }
         }
 
+
+        // Account selection
+
         /// <summary>
-        /// Selects the local account card when any empty area inside it is clicked.
+        /// Selects the local account card when any empty area inside it is clicked, unless an account action
+        /// is running.
         /// </summary>
         private void OnLocalAccountCardTapped(object? sender, TappedEventArgs e)
         {
@@ -232,7 +427,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Selects the cloud account card and starts browser authorization.
+        /// Selects the cloud account card when any empty area inside it is clicked, unless an account action
+        /// is running. The selection change handler then starts browser authorization.
         /// </summary>
         private void OnCloudAccountCardTapped(object? sender, TappedEventArgs e)
         {
@@ -243,7 +439,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Switches back to the local profile and removes credentials retained for SUNRISE.
+        /// Switches back to the local profile and removes credentials retained for SUNRISE when the local account
+        /// option becomes selected. Ignores programmatic changes and unselecting.
         /// </summary>
         private async void OnLocalAccountCheckedChanged(object? sender, CheckedChangedEventArgs e)
         {
@@ -254,6 +451,7 @@ namespace ASLM.Pages
 
             try
             {
+                // Lock the account controls while the account is switched, then show the stored name again.
                 _isAccountActionRunning = true;
                 UpdateAccountSelectionUI();
                 await _sunriseService.SelectLocalAccountAsync();
@@ -263,6 +461,7 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
+                // Report the failure; the finally block unlocks the controls.
                 Debug.WriteLine($"[SetupWizard] Failed to select local account: {ex}");
                 await DialogService.For(this).AlertAsync(this,
                     L.Get(LocalizationKeys.Settings_AslmAccount_Title),
@@ -277,7 +476,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Starts browser authorization as soon as the cloud account option is selected.
+        /// Starts browser authorization as soon as the cloud account option becomes selected.
+        /// Ignores programmatic changes and unselecting.
         /// </summary>
         private async void OnCloudAccountCheckedChanged(object? sender, CheckedChangedEventArgs e)
         {
@@ -291,16 +491,19 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Retries browser authorization for the selected cloud account option.
+        /// Handles the cloud account action button: it cancels a running authorization, selects the cloud option
+        /// first when needed, and otherwise retries browser authorization.
         /// </summary>
         private async void OnCloudAccountActionClicked(object? sender, EventArgs e)
         {
+            // While authorization is running the button acts as Cancel.
             if (_isAccountActionRunning)
             {
                 _accountActionCts?.Cancel();
                 return;
             }
 
+            // Selecting the option starts the authorization through its change handler.
             if (!CloudAccountRadioButton.IsChecked)
             {
                 CloudAccountRadioButton.IsChecked = true;
@@ -311,8 +514,10 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Authorizes SUNRISE in the browser and refreshes the wizard account state.
+        /// Authorizes SUNRISE in the browser and refreshes the wizard account state. Shows an alert on failure.
+        /// Returns false immediately when SUNRISE is disabled or another account action is already running.
         /// </summary>
+        /// <returns>True when the cloud account is authorized; false when it failed or the user canceled.</returns>
         private async Task<bool> AuthenticateCloudAccountAsync()
         {
             if (!SunriseService.IsEnabled || _isAccountActionRunning)
@@ -320,6 +525,7 @@ namespace ASLM.Pages
                 return false;
             }
 
+            // Lock the account controls; the cancellation source lets the action button cancel the browser flow.
             var actionCts = new CancellationTokenSource();
             try
             {
@@ -327,6 +533,8 @@ namespace ASLM.Pages
                 _accountActionCts = actionCts;
                 UpdateAccountSelectionUI();
 
+                // The user may cancel while the authorization completes. In that case a cloud account that was
+                // just established is dropped again, so a canceled attempt leaves the local profile active.
                 var result = await _sunriseService.AuthenticateApplicationAsync(actionCts.Token);
                 if (actionCts.IsCancellationRequested)
                 {
@@ -338,6 +546,7 @@ namespace ASLM.Pages
                     return false;
                 }
 
+                // On success the display name entry shows the name of the cloud profile.
                 if (result.Success)
                 {
                     UsernameEntry.Text = _appData.Data.User.Name;
@@ -345,6 +554,7 @@ namespace ASLM.Pages
                     return true;
                 }
 
+                // On failure show the reason on the card and in an alert.
                 var error = string.IsNullOrWhiteSpace(result.Error)
                     ? L.Get(LocalizationKeys.SetupWizard_CloudAccountRequired)
                     : result.Error;
@@ -359,10 +569,12 @@ namespace ASLM.Pages
             }
             catch (OperationCanceledException) when (actionCts.IsCancellationRequested)
             {
+                // The user canceled the browser authorization; nothing to report.
                 return false;
             }
             catch (Exception ex)
             {
+                // An unexpected failure is reported the same way as a failed authorization result.
                 Debug.WriteLine($"[SetupWizard] SUNRISE authorization failed: {ex}");
                 CloudAccountStatusLabel.Text = L.Get(
                     LocalizationKeys.SetupWizard_CloudAccountAuthenticationFailed,
@@ -375,6 +587,8 @@ namespace ASLM.Pages
             }
             finally
             {
+                // Release the cancellation source and unlock the controls. A failure message stays visible
+                // on the card unless the user canceled.
                 var wasCancelled = actionCts.IsCancellationRequested;
                 if (ReferenceEquals(_accountActionCts, actionCts))
                 {
@@ -390,18 +604,25 @@ namespace ASLM.Pages
         /// <summary>
         /// Updates account-specific panels, selected-card chrome, and authorization status.
         /// </summary>
+        /// <param name="preserveFailureStatus">
+        /// Whether to keep the current status text instead of replacing it with "not connected" while no cloud
+        /// account is connected, so an authorization failure message stays visible.
+        /// </param>
         private void UpdateAccountSelectionUI(bool preserveFailureStatus = false)
         {
+            // Without SUNRISE there is no account step.
             if (!SunriseService.IsEnabled)
             {
                 Step1Panel.IsVisible = false;
                 return;
             }
 
+            // Show the panel of the selected account type.
             var useCloud = CloudAccountRadioButton.IsChecked;
             LocalAccountPanel.IsVisible = !useCloud;
             CloudAccountPanel.IsVisible = useCloud;
 
+            // Highlight the selected card, dim the other one and lock the controls during an account action.
             LocalAccountCard.SetDynamicResource(
                 Border.BackgroundColorProperty,
                 useCloud ? "BackgroundSecondary" : "SystemBlueOverlay");
@@ -422,6 +643,7 @@ namespace ASLM.Pages
             CloudAccountActionButton.IsVisible = useCloud &&
                 (_isAccountActionRunning || !_sunriseService.IsCloudAccount);
 
+            // While authorization runs, the status shows progress and the action button becomes Cancel.
             if (_isAccountActionRunning && useCloud)
             {
                 CloudAccountStatusLabel.Text = L.Get(LocalizationKeys.SetupWizard_CloudAccountConnecting);
@@ -429,6 +651,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Otherwise show whether a cloud account is connected, optionally keeping an earlier failure message.
             CloudAccountActionButton.Text = L.Get(LocalizationKeys.SetupWizard_CloudAccountAction);
             if (_sunriseService.IsCloudAccount)
             {
@@ -443,7 +666,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Resolves the best user-facing name exposed by a SUNRISE account.
+        /// Resolves the best user-facing name exposed by a SUNRISE account: the ASLM username, then the account
+        /// username, then the e-mail address.
         /// </summary>
         private static string GetCloudAccountDisplayName(SunriseUserAccount account)
         {
@@ -465,6 +689,7 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Builds the shared catalog cards and defaults the selection to discovered required modules.
+        /// Shows a message instead of the list when no module is found or discovery fails.
         /// </summary>
         private async Task PopulateModuleListAsync()
         {
@@ -475,6 +700,8 @@ namespace ASLM.Pages
                 // Catalog discovery stays independent of repository artwork and version requests.
                 var modules = await Task.Run(_moduleInstaller.DiscoverModulesAsync);
                 if (_modulePresentationCts.IsCancellationRequested) return;
+
+                // Create one selectable card per module, with the application's catalog defaults applied.
                 var trust = _services.GetRequiredService<ModuleTrustService>();
                 var registered = _moduleInstaller.Registry.ReadIds();
                 foreach (var module in modules)
@@ -483,6 +710,8 @@ namespace ASLM.Pages
                     ModuleCards.Add(new ModuleCatalogCardViewModel(module, trust.Resolve(module), _moduleInstaller,
                         showSelection: true));
                 }
+
+                // An empty catalog shows the "nothing found" message.
                 _moduleListMessageKey = LocalizationKeys.Downloads_NoItems;
                 ModuleListMessageLabel.Text = L.Get(_moduleListMessageKey);
                 ModuleListMessageLabel.IsVisible = ModuleCards.Count == 0;
@@ -493,6 +722,7 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
+                // Replace the list with a "failed to load" message instead of aborting the wizard.
                 Debug.WriteLine($"[SetupWizard] Failed to load module list: {ex}");
                 _moduleListMessageKey = LocalizationKeys.ModulesDownloads_LoadFailed;
                 ModuleListMessageLabel.Text = L.Get(_moduleListMessageKey);
@@ -501,7 +731,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Updates a card without blocking selection or allowing failed repository lookups to abort setup.
+        /// Refreshes the presentation of a card (icon, versions) without blocking selection or allowing failed
+        /// repository lookups to abort setup.
         /// </summary>
         private async Task RefreshModuleCardAsync(ModuleCatalogCardViewModel card)
         {
@@ -520,11 +751,14 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Opens the regular module information view with configuration enabled and installation actions hidden.
+        /// Opens the regular module information view with configuration enabled and installation actions hidden,
+        /// when a module card is selected for details. Ignored once the installation has started.
         /// </summary>
         private async void OnModuleSelected(object? sender, ModuleConfig module)
         {
             if (_installState != InstallationState.NotStarted) return;
+
+            // Create the info view once and reuse it for every module.
             if (_moduleInfo == null)
             {
                 _moduleInfo = _services.GetRequiredService<ModuleInfo>();
@@ -532,6 +766,7 @@ namespace ASLM.Pages
                 ModuleInfoOverlay.Content = _moduleInfo;
             }
 
+            // Remember the card so its configuration can be refreshed when the overlay closes.
             _selectedModuleCard = ModuleCards.FirstOrDefault(card => card.Module == module);
             ModuleInfoOverlay.IsVisible = true;
             await _moduleInfo.OpenAsync(module, ModuleInfo.Section.Info, checkForUpdates: false,
@@ -539,7 +774,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Restores the selection list and refreshes the changed target without resetting any checkboxes.
+        /// Hides the module information overlay when it closes, and refreshes the card of the inspected module
+        /// without resetting any checkboxes.
         /// </summary>
         private async void OnModuleInfoClosed(object? sender, EventArgs e)
         {
@@ -558,6 +794,7 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
+                // The card keeps its previous presentation; a refresh failure must not block the wizard.
                 Debug.WriteLine($"[SetupWizard] Failed to refresh module configuration: {ex}");
             }
         }
@@ -570,10 +807,11 @@ namespace ASLM.Pages
             _modulePresentationCts.Cancel();
         }
 
+
         // Navigation
 
         /// <summary>
-        /// Moves one step back in the wizard when possible.
+        /// Moves one step back in the wizard, but never before the first step of the step-by-step setup.
         /// </summary>
         private void OnBackClicked(object? sender, EventArgs e)
         {
@@ -587,7 +825,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Advances the wizard or starts installation on the last step.
+        /// Validates the current step and advances the wizard; on the last step it starts the installation.
+        /// Ignored while an account action is running.
         /// </summary>
         private async void OnNextClicked(object? sender, EventArgs e)
         {
@@ -598,6 +837,8 @@ namespace ASLM.Pages
 
             if (_currentStep < TotalSteps)
             {
+                // Account step: a cloud account must be connected (authorizing it if needed), a local account
+                // needs a valid display name, which is written back normalized.
                 if (_currentStep == 1)
                 {
                     if (CloudAccountRadioButton.IsChecked)
@@ -619,6 +860,7 @@ namespace ASLM.Pages
                     }
                 }
 
+                // Port step: the module port draft must be valid before moving on.
                 if (_currentStep == 2 && !ValidatePorts())
                 {
                     return;
@@ -629,16 +871,20 @@ namespace ASLM.Pages
                 return;
             }
 
+            // The last step installs the selected modules.
             await StartInstallAsync();
         }
+
 
         // Localization
 
         /// <summary>
         /// Applies and persists the welcome-page language override without completing first-run setup.
+        /// If saving fails, the previous language is restored and the error is shown.
         /// </summary>
         private async void OnLanguagePickerChanged(object? sender, EventArgs e)
         {
+            // Ignore an empty selection and a selection of the language that is already active.
             var selectedIndex = LanguagePicker.SelectedIndex;
             if (selectedIndex < 0 || selectedIndex >= AppLocalizationService.SupportedLanguages.Count)
             {
@@ -652,6 +898,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Apply the new culture first so the page switches at once, then persist it.
             Step0Panel.IsEnabled = false;
             try
             {
@@ -661,6 +908,7 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
+                // Roll back to the previous language, including the picker selection, and report the failure.
                 Debug.WriteLine($"[SetupWizard] Failed to save language: {ex}");
                 _appData.Data.Personalization.Language = previousLanguage;
                 LanguagePicker.SelectedItem = AppLocalizationService.GetPickerDisplayName(previousLanguage);
@@ -677,10 +925,12 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Applies localized strings to wizard labels and refreshes step UI.
+        /// Applies localized strings to wizard labels, module cards and messages, then refreshes the account
+        /// and step UI. The installation status text is only replaced before the installation has started.
         /// </summary>
         public void ApplyLocalization()
         {
+            // Static texts of the page and its steps.
             Title = L.Get(LocalizationKeys.SetupWizard_Title);
             HeaderTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_Title);
             WelcomeTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_WelcomeTitle);
@@ -698,12 +948,16 @@ namespace ASLM.Pages
             UsernameEntry.Placeholder = L.Get(LocalizationKeys.SetupWizard_DisplayNamePlaceholder);
             PortAllocationTitleLabel.Text = L.Get(LocalizationKeys.SetupWizard_PortAllocationTitle);
             ModulePortLabel.Text = L.Get(LocalizationKeys.SetupWizard_ModulesPortLabel);
+
+            // Install status and module list texts; a running or finished install keeps its own status text.
             if (_installState == InstallationState.NotStarted)
                 InstallStatusLabel.Text = L.Get(LocalizationKeys.SetupWizard_Preparing);
             OverallProgressLabel.Text = L.Get(LocalizationKeys.SetupWizard_OverallProgress);
             foreach (var card in ModuleCards) card.RefreshLocalization();
             if (ModuleListMessageLabel.IsVisible)
                 ModuleListMessageLabel.Text = L.Get(_moduleListMessageKey);
+
+            // Texts built from state (account status, step label, buttons).
             UpdateAccountSelectionUI();
             UpdateStepUI();
         }
@@ -712,10 +966,12 @@ namespace ASLM.Pages
         // Step UI
 
         /// <summary>
-        /// Switches visible panels and button states for the current wizard step.
+        /// Switches visible panels, navigation buttons and the step label for the current wizard step and
+        /// installation state.
         /// </summary>
         private void UpdateStepUI()
         {
+            // Show only the panel of the current step; the header and buttons appear after the welcome page.
             Step0Panel.IsVisible = _currentStep == 0;
             Step1Panel.IsVisible = SunriseService.IsEnabled && _currentStep == 1;
             Step2Panel.IsVisible = _currentStep == 2;
@@ -724,6 +980,8 @@ namespace ASLM.Pages
             HeaderRow.IsVisible = _currentStep > 0;
             ButtonPanel.IsVisible = _currentStep > 0 && _installState != InstallationState.Running;
             BackButton.IsVisible = _currentStep > FirstSetupStep;
+
+            // Default Back/Next buttons, then the finish or retry/skip variant when the installation has ended.
             NextButton.Text = _currentStep == TotalSteps
                 ? L.Get(LocalizationKeys.SetupWizard_Next_Install)
                 : L.Get(LocalizationKeys.Common_Next);
@@ -731,6 +989,7 @@ namespace ASLM.Pages
             if (_installState == InstallationState.Completed) ConfigureFinishButton();
             else if (_installState == InstallationState.Failed) ConfigureRetryAndSkipButtons();
 
+            // The step label counts only the steps that are shown: without SUNRISE the account step is skipped.
             var visibleStepCount = TotalSteps - FirstSetupStep + 1;
             var visibleStep = _currentStep - FirstSetupStep + 1;
             StepLabel.Text = _currentStep switch
@@ -740,6 +999,8 @@ namespace ASLM.Pages
                 3 => L.Get(LocalizationKeys.SetupWizard_StepFormat, visibleStep, visibleStepCount, L.Get(LocalizationKeys.SetupWizard_Step_ModuleSelection)),
                 _ => string.Empty
             };
+
+            // Once the installation has started the label shows its progress instead of the step name.
             if (_installState != InstallationState.NotStarted)
             {
                 StepLabel.Text = L.Get(_installState switch
@@ -755,8 +1016,9 @@ namespace ASLM.Pages
         // Port validation
 
         /// <summary>
-        /// Validates the module start port draft.
+        /// Validates the module start port draft and shows the error when it is invalid.
         /// </summary>
+        /// <returns>True when the entered port is valid.</returns>
         private bool ValidatePorts()
         {
             PortErrorLabel.IsVisible = false;
@@ -772,7 +1034,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Shows the current port validation error.
+        /// Shows the port validation error below the port entry.
         /// </summary>
         private void ShowPortError(string message)
         {
@@ -809,16 +1071,19 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Schedules layout refresh passes so the native console host measures like <see cref="ConsolesView"/>.
+        /// Refreshes at once, then again 16 ms and 48 ms later, unless those delayed passes are already scheduled.
         /// </summary>
         private void QueueInstallLogLayoutRefresh()
         {
             RefreshInstallLogLayout();
 
+            // Only one set of delayed passes may be pending at a time.
             if (Dispatcher == null || Interlocked.Exchange(ref _installLogLayoutRefreshQueued, 1) == 1)
             {
                 return;
             }
 
+            // Two delayed passes; the last one allows scheduling again.
             Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(16), RefreshInstallLogLayout);
             Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(48), () =>
             {
@@ -840,10 +1105,12 @@ namespace ASLM.Pages
         // Installation
 
         /// <summary>
-        /// Saves the wizard data and installs the selected module stack.
+        /// Saves the wizard data and installs the selected module stack. Does nothing while an installation is
+        /// already running, and turns an unexpected failure into a log entry with retry and skip actions.
         /// </summary>
         private async Task StartInstallAsync()
         {
+            // Mark the installation as running first, so a second start is rejected.
             if (_installState == InstallationState.Running) return;
             _installState = InstallationState.Running;
             ButtonPanel.IsVisible = false;
@@ -867,9 +1134,13 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Persists setup choices and installs their dependency graph using saved module download preferences.
+        /// Required engines are installed first, then every module in dependency order is installed and started.
+        /// The outcome is reflected in the log, the status texts and the navigation buttons: finish after complete
+        /// success, retry and skip after a failure or cancellation.
         /// </summary>
         private async Task InstallSelectedModulesAsync()
         {
+            // Make sure the cards exist, so the selection below reflects the user's choices.
             await (_moduleListLoadTask ??= PopulateModuleListAsync());
 
             // Persist the profile and port values before any installation begins.
@@ -889,6 +1160,7 @@ namespace ASLM.Pages
 
             await _appData.SaveAsync();
 
+            // Remember which supported modules the user ticked.
             var selectedIds = ModuleCards
                 .Where(card => card.IsSelected && card.Module.IsSupportedOnCurrentPlatform)
                 .Select(card => card.Module.Id)
@@ -900,6 +1172,7 @@ namespace ASLM.Pages
             InstallPanel.IsVisible = true;
             StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Installing);
 
+            // Start a fresh log; the new session key makes the console view reset its scroll position.
             lock (_logLock)
             {
                 _logBuffer.Clear();
@@ -910,15 +1183,18 @@ namespace ASLM.Pages
             OnPropertyChanged(nameof(InstallLogText));
             QueueInstallLogLayoutRefresh();
 
+            // Each run gets its own cancellation source, and installer output goes straight into the log.
             _cts?.Dispose();
             _cts = new CancellationTokenSource();
             var logProgress = new InlineProgress<string>(AddLog);
 
+            // Resolve the modules to install: the selection plus required modules, expanded with their dependencies.
             List<ModuleConfig> catalog;
             IReadOnlyList<ModuleConfig> installModules;
             try
             {
                 catalog = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync(), _cts.Token);
+
                 // Required choices do not depend on the checkbox's enabled state or list-loading timing.
                 // Entries without a discovered manifest are intentionally skipped.
                 var selectedModules = catalog.Where(module => ModuleRegistry.IsRequired(module.Id) ||
@@ -927,6 +1203,7 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
+                // Without a catalog nothing can be installed: offer retry and skip.
                 AddLog($"Failed to load module catalog: {ex.Message}");
                 ButtonPanel.IsVisible = true;
                 StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Failed);
@@ -934,16 +1211,20 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Count the work for the overall progress bar: one step per required engine plus the steps of
+            // every module. The counters are captured by the progress callback below.
             var totalSteps = 0;
             var completedSteps = 0;
             var hasFailures = false;
 
+            // Engines that the modules declare as dependencies, each counted once.
             var requiredEngineIds = installModules
                 .SelectMany(module => module.Dependencies.Engines)
                 .Select(engine => engine.Id)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            // Rediscover the engines from disk so installed state is current, then total up the steps.
             _engineInstaller.InvalidateCache();
             var allEngines = await Task.Run(() => _engineInstaller.DiscoverEngines(), _cts.Token);
             totalSteps += requiredEngineIds.Count;
@@ -952,6 +1233,8 @@ namespace ASLM.Pages
             // Reset rolling download metrics before the first transfer begins.
             ResetDownloadMetrics();
 
+            // Progress callback shared by all downloads: it updates the per-file bar, the overall bar and the
+            // "size / size - speed" detail text. A download counts for at most 90% of its step in the overall bar.
             var downloadProgress = new Progress<DownloadProgress>(progress =>
             {
                 if (progress.TotalBytes <= 0)
@@ -989,6 +1272,7 @@ namespace ASLM.Pages
 
             try
             {
+                // Refuse the whole installation before any download when a module cannot run on this platform.
                 var unsupportedModule = installModules.FirstOrDefault(module => !module.IsSupportedOnCurrentPlatform);
                 if (unsupportedModule != null)
                 {
@@ -999,6 +1283,7 @@ namespace ASLM.Pages
                 // Install each required engine before module downloads begin.
                 foreach (var engineId in requiredEngineIds)
                 {
+                    // A missing engine definition counts as a failure, but the remaining items are still processed.
                     var engine = allEngines.FirstOrDefault(candidate =>
                         string.Equals(candidate.Id, engineId, StringComparison.OrdinalIgnoreCase));
                     if (engine == null)
@@ -1010,6 +1295,7 @@ namespace ASLM.Pages
                         continue;
                     }
 
+                    // An engine that is already installed needs no work.
                     if (engine.Status.Installed)
                     {
                         AddLog($"[OK] Engine '{engine.Name}' already installed.");
@@ -1018,6 +1304,7 @@ namespace ASLM.Pages
                         continue;
                     }
 
+                    // Install the engine; an installer exception ends the whole run through the catch blocks below.
                     UpdateInstallStatus($"{engine.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
                     ResetFileProgress();
                     await Task.Run(
@@ -1028,9 +1315,11 @@ namespace ASLM.Pages
                     ResetFileProgress();
                 }
 
-                // Install each selected module (and declared module dependencies) either through the update-aware pipeline or the legacy download flow.
+                // Install each selected module (and declared module dependencies) either through the update-aware
+                // pipeline or the legacy download flow.
                 foreach (var module in installModules)
                 {
+                    // A module that was already set up is only started again.
                     if (module.Status.FirstRunCompleted)
                     {
                         AddLog($"[OK] {module.Name} already set up.");
@@ -1040,6 +1329,7 @@ namespace ASLM.Pages
                         continue;
                     }
 
+                    // Update-aware path: the updater installs the module in one step, then it is started.
                     if (ShouldUseConfiguredUpdateInstall(module))
                     {
                         UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
@@ -1065,6 +1355,7 @@ namespace ASLM.Pages
                         continue;
                     }
 
+                    // Legacy path, step 1 of 2: download the module source.
                     UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.Settings_Downloading)}");
                     ResetFileProgress();
                     ResetDownloadMetrics();
@@ -1080,6 +1371,7 @@ namespace ASLM.Pages
                     UpdateOverallProgress(completedSteps, totalSteps);
                     ResetFileProgress();
 
+                    // A failed download skips the setup step too, so the progress still reaches 100%.
                     if (!downloaded)
                     {
                         AddLog($"[Error] Source download failed for {module.Name}");
@@ -1089,6 +1381,7 @@ namespace ASLM.Pages
                         continue;
                     }
 
+                    // Reload the downloaded manifest, then reconcile the engines it declares and depends on.
                     var installedModule = await _moduleInstaller.LoadModuleConfig(module.SourcePath)
                         ?? throw new InvalidOperationException(
                             $"Installed manifest for '{module.Name}' could not be loaded.");
@@ -1104,6 +1397,7 @@ namespace ASLM.Pages
                         downloadProgress,
                         _cts.Token);
 
+                    // Legacy path, step 2 of 2: run the module's first-run setup and save its config on success.
                     UpdateInstallStatus($"{installedModule.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
                     var success = await Task.Run(
                         () => _moduleRunner.ExecuteFirstRunAsync(installedModule, logProgress, _cts.Token),
@@ -1112,9 +1406,11 @@ namespace ASLM.Pages
                     {
                         await _moduleInstaller.SaveConfigAsync(installedModule);
                     }
+
                     completedSteps++;
                     UpdateOverallProgress(completedSteps, totalSteps);
 
+                    // Log the result and start the module only if its setup succeeded.
                     AddLog(success
                         ? $"[OK] {module.Name} installed successfully"
                         : $"[Error] Setup failed for {module.Name}");
@@ -1123,6 +1419,7 @@ namespace ASLM.Pages
                         hasFailures |= !await LaunchInstalledModuleAsync(installedModule, logProgress, _cts.Token);
                 }
 
+                // Show the final status of the whole run.
                 var completionStatus = L.Get(hasFailures
                     ? LocalizationKeys.SetupWizard_Failed : LocalizationKeys.SetupWizard_SetupComplete);
                 UpdateInstallStatus(completionStatus);
@@ -1130,18 +1427,21 @@ namespace ASLM.Pages
             }
             catch (OperationCanceledException)
             {
+                // Cancellation counts as a failed run, so retry and skip are offered.
                 hasFailures = true;
                 UpdateInstallStatus(L.Get(LocalizationKeys.SetupWizard_Canceled));
                 StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Canceled);
             }
             catch (Exception ex)
             {
+                // An installer failure ends the run; the details go to the log.
                 hasFailures = true;
                 UpdateInstallStatus(L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
                 StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Failed);
                 AddLog($"Error: {ex.Message}");
             }
 
+            // Offer the buttons that match the outcome: finish after success, retry and skip otherwise.
             ButtonPanel.IsVisible = true;
 
             if (!hasFailures)
@@ -1158,7 +1458,8 @@ namespace ASLM.Pages
         // Install button state
 
         /// <summary>
-        /// Restores the default back and next button handlers.
+        /// Restores the default back and next button handlers, colors and Back caption, removing the retry,
+        /// skip and finish handlers.
         /// </summary>
         private void ResetNavigationButtons()
         {
@@ -1177,7 +1478,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Converts the main action button into the finish action.
+        /// Marks the installation as completed and converts the main action button into the finish action;
+        /// the back button is hidden.
         /// </summary>
         private void ConfigureFinishButton()
         {
@@ -1190,7 +1492,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Converts the buttons into retry and skip actions after a failed install.
+        /// Marks the installation as failed and converts the buttons into retry (next) and skip (back) actions.
         /// </summary>
         private void ConfigureRetryAndSkipButtons()
         {
@@ -1211,7 +1513,7 @@ namespace ASLM.Pages
         // Install completion actions
 
         /// <summary>
-        /// Restarts the installation phase after a failure.
+        /// Hides the buttons and runs the installation again after a failure.
         /// </summary>
         private async void OnRetryInstallClicked(object? sender, EventArgs e)
         {
@@ -1220,7 +1522,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Completes the wizard and opens the main application shell.
+        /// Completes the wizard and opens the main application shell when the finish button is clicked.
         /// </summary>
         private async void OnFinishClicked(object? sender, EventArgs e)
         {
@@ -1228,7 +1530,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Completes the wizard even when installation had failures.
+        /// Completes the wizard even when installation had failures, when the skip button is clicked.
         /// </summary>
         private async void OnSkipClicked(object? sender, EventArgs e)
         {
@@ -1239,7 +1541,7 @@ namespace ASLM.Pages
         // Progress UI
 
         /// <summary>
-        /// Updates the current installation status text.
+        /// Updates the current installation status text on the main thread.
         /// </summary>
         private void UpdateInstallStatus(string message)
         {
@@ -1248,7 +1550,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Updates the overall installation progress bar.
+        /// Updates the overall installation progress bar on the main thread; ignored when there are no steps.
         /// </summary>
         private void UpdateOverallProgress(int completed, int total)
         {
@@ -1262,7 +1564,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Clears the per-file progress UI before the next download.
+        /// Clears the per-file progress bar and detail text on the main thread before the next download.
         /// </summary>
         private void ResetFileProgress()
         {
@@ -1284,7 +1586,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Returns whether the module should be installed through the update-aware pipeline.
+        /// Returns whether the module should be installed through the update-aware pipeline, which holds when
+        /// its source is a valid GitHub repository.
         /// </summary>
         private static bool ShouldUseConfiguredUpdateInstall(ModuleConfig module)
         {
@@ -1292,7 +1595,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Returns how many overall progress steps one module consumes during setup.
+        /// Returns how many overall progress steps one module consumes during setup: one for the update-aware
+        /// install, two (download and first-run setup) for the legacy flow.
         /// </summary>
         private static int GetModuleInstallStepCount(ModuleConfig module)
         {
@@ -1302,6 +1606,10 @@ namespace ASLM.Pages
         /// <summary>
         /// Uses the same launch pipeline as catalog installation, including dependency startup and retry safety.
         /// </summary>
+        /// <param name="module">The installed module to start.</param>
+        /// <param name="log">Receives the launch log messages.</param>
+        /// <param name="ct">Cancels the launch; cancellation propagates as an exception.</param>
+        /// <returns>True when the module is running or has nothing to run; false when the launch failed.</returns>
         private async Task<bool> LaunchInstalledModuleAsync(
             ModuleConfig module,
             IProgress<string> log,
@@ -1311,6 +1619,7 @@ namespace ASLM.Pages
             UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.Modules_Starting)}");
             var launch = await Task.Run(() => _moduleLaunchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
                 module.SourcePath, log, ct), ct);
+
             // The coordinator returns Error for cancellation; preserve the wizard's canceled state.
             ct.ThrowIfCancellationRequested();
             if (launch.Status is ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning or ModuleLaunchStatus.NoRunCommands)
@@ -1324,6 +1633,13 @@ namespace ASLM.Pages
         /// <summary>
         /// Installs one module through the updater so setup respects the manifest update configuration.
         /// </summary>
+        /// <param name="module">The module to install.</param>
+        /// <param name="logProgress">Receives the installer log messages.</param>
+        /// <param name="downloadProgress">Receives download progress for the progress bars.</param>
+        /// <param name="ct">Cancels the installation.</param>
+        /// <returns>
+        /// True when the module was installed; false when no install source could be resolved or the install failed.
+        /// </returns>
         private async Task<bool> InstallModuleFromUpdateConfigAsync(
             ModuleConfig module,
             IProgress<string> logProgress,
@@ -1332,6 +1648,7 @@ namespace ASLM.Pages
         {
             // Apply application defaults before the common resolver falls back to available repository channels.
             _updateManager.ApplyCatalogDefaults(module, _moduleInstaller.Registry.ReadIds().Contains(module.Id));
+
             // Setup should resolve the same branch or release candidate the normal updater would use.
             var candidate = await Task.Run(
                 () => _updateManager.ResolveModuleInstallCandidateAsync(module, ct, isManualRequest: true),
@@ -1352,6 +1669,7 @@ namespace ASLM.Pages
                     ct: ct),
                 ct);
         }
+
 
         // Byte formatting
 
@@ -1378,16 +1696,21 @@ namespace ASLM.Pages
             return $"{bytes} B";
         }
 
+
         // Finish flow
 
         /// <summary>
-        /// Marks the first run as completed and opens the main shell.
+        /// Marks the first run as completed, saves it and replaces the wizard with the main shell page.
+        /// A failure is shown in an alert instead of being thrown.
         /// </summary>
         private async Task FinishSetupAsync()
         {
+            // Capture the window first: once its page is replaced this page has no window, but a late failure
+            // is still shown over whatever page the window then holds.
             var window = Window;
             try
             {
+                // Persist the completed first run, then swap the window content for the main shell.
                 _appData.Data.FirstRunCompleted = true;
                 await _appData.SaveAsync();
 
@@ -1400,6 +1723,7 @@ namespace ASLM.Pages
             }
             catch (Exception ex)
             {
+                // Show the error over the main shell if it is already in place, otherwise over the wizard.
                 Debug.WriteLine($"[SetupWizard] FinishSetupAsync error: {ex}");
                 var host = window?.Page ?? this;
                 await DialogService.For(host).AlertAsync(host,
@@ -1413,6 +1737,7 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Appends one log line; batched flushes push updates through install-log bindings.
+        /// May be called from any thread. Starts a flush loop unless one is already running.
         /// </summary>
         private void AddLog(string message)
         {
@@ -1421,6 +1746,7 @@ namespace ASLM.Pages
                 _logBuffer.AppendLine(message);
             }
 
+            // Tell a running flush loop that more lines arrived; only start a new loop when none is running.
             Interlocked.Exchange(ref _logFlushRequested, 1);
             if (Interlocked.Exchange(ref _logFlushQueued, 1) == 1)
             {
@@ -1432,11 +1758,14 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Flushes buffered log lines at a steady cadence while installers keep streaming output.
+        /// Raises the install-log change notification at most once per 75 ms pass and repeats while new
+        /// lines keep arriving.
         /// </summary>
         private async Task FlushLogAsync()
         {
             try
             {
+                // Each pass clears the request flag before waiting, so lines added meanwhile trigger another pass.
                 do
                 {
                     Interlocked.Exchange(ref _logFlushRequested, 0);
@@ -1452,6 +1781,8 @@ namespace ASLM.Pages
             }
             finally
             {
+                // Release the loop flag; a line that arrived in the gap after the last check restarts the loop,
+                // unless another caller already started one.
                 Interlocked.Exchange(ref _logFlushQueued, 0);
                 if (Interlocked.CompareExchange(ref _logFlushRequested, 0, 0) == 1 &&
                     Interlocked.Exchange(ref _logFlushQueued, 1) == 0)
@@ -1461,7 +1792,8 @@ namespace ASLM.Pages
             }
         }
 
-        // Helpers
+
+        // Helpers and nested types
 
         /// <summary>
         /// Raises a bindable install-log property change notification.
@@ -1470,7 +1802,7 @@ namespace ASLM.Pages
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
         /// <summary>
-        /// Finds a named color resource with a defensive fallback when the key is absent.
+        /// Finds a named color resource with a defensive fallback when the key is absent or is not a color.
         /// </summary>
         private static Color GetColorResource(string key, Color fallback) =>
             Application.Current?.Resources.TryGetValue(key, out var value) == true && value is Color c
@@ -1480,10 +1812,12 @@ namespace ASLM.Pages
         /// <summary>
         /// Reports progress synchronously on the producer thread so UI updates can be throttled explicitly.
         /// </summary>
+        /// <typeparam name="T">Type of the reported progress values.</typeparam>
+        /// <param name="handler">Called synchronously with every reported value.</param>
         private sealed class InlineProgress<T>(Action<T> handler) : IProgress<T>
         {
             /// <summary>
-            /// Forwards a producer update immediately to the wizard's buffered log.
+            /// Passes the reported value to the handler on the calling thread, without marshaling or queuing.
             /// </summary>
             public void Report(T value)
             {

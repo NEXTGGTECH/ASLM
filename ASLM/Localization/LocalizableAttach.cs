@@ -1,6 +1,5 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
-
 namespace ASLM.Localization
 {
     /// <summary>

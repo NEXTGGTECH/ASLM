@@ -5,6 +5,9 @@ using ASLM.Models;
 
 namespace ASLM.Pages
 {
+    /// <summary>
+    /// Personalization part of the settings view: appearance, language and custom theme editing.
+    /// </summary>
     public partial class SettingsView
     {
         // Personalization rendering
@@ -17,6 +20,7 @@ namespace ASLM.Pages
             PrepareCategorySurface(showEmptyState: false, showBuiltInSettings: true);
             BuiltInSettingsContainer.ShowCategory(SettingsCategoryKind.Personalization);
 
+            // Fill the pickers from the draft once per load; programmatic changes must not raise change handlers.
             if (!_personalizationControlsInitialized)
             {
                 ApplyBuiltInControlState(() =>
@@ -41,6 +45,7 @@ namespace ASLM.Pages
                     _appearancePicker.SelectedItem = GetAppearanceDisplayName(_personalizationDraft.Appearance);
                 });
 
+                // The custom theme list is shown only in Custom mode; reopen the theme editor for the selected theme.
                 _customThemeSection!.IsVisible = string.Equals(_personalizationDraft.Appearance, "Custom", StringComparison.Ordinal);
                 RebuildCustomThemeSection();
                 _themeEditorSection!.IsVisible = false;
@@ -57,6 +62,7 @@ namespace ASLM.Pages
                 _personalizationControlsInitialized = true;
             }
 
+            // Unsaved edits are previewed live, so reapply them when the page is shown again.
             if (HasUnsavedPersonalizationChanges())
             {
                 _themeService.ApplyPersonalization(_personalizationDraft, _editingThemeDraft);
@@ -66,7 +72,8 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Rebuilds the custom theme picker when the Custom appearance mode is active.
+        /// Refills the custom theme picker from the theme registry, selects the theme of the draft,
+        /// and enables the theme actions when at least one theme exists.
         /// </summary>
         private void RebuildCustomThemeSection()
         {
@@ -75,12 +82,14 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Theme actions and the picker need at least one theme.
             var themes = _customThemesStore.Root.Themes;
             BuiltInSettingsContainer.ExportThemeAction.IsEnabled = themes.Count > 0;
             BuiltInSettingsContainer.RenameThemeAction.IsEnabled = themes.Count > 0;
             BuiltInSettingsContainer.DeleteThemeAction.IsEnabled = themes.Count > 0;
             _customThemePicker.IsEnabled = themes.Count > 0;
 
+            // Refilling the picker must not trigger a theme selection.
             _suppressCustomThemePickerEvents = true;
             try
             {
@@ -104,6 +113,9 @@ namespace ASLM.Pages
                 _suppressCustomThemePickerEvents = false;
             }
         }
+
+
+        // Custom theme selection
 
         /// <summary>
         /// Loads the selected custom theme into the editor when the theme picker changes.
@@ -140,8 +152,10 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Edit a detached copy, so the stored theme changes only when the settings are saved.
             _editingThemeDraft = CloneCustomTheme(theme);
 
+            // Show the editor and preview the theme live.
             BuildThemeColorEditor();
             _themeEditorSection.IsVisible = true;
             _themeService.PreviewCustomTheme(_editingThemeDraft);
@@ -159,6 +173,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Ask for the new name; blank or unchanged input cancels the rename.
             var requestedName = await PromptAsync(
                 L.Get(LocalizationKeys.Settings_ThemeRename_PromptTitle),
                 L.Get(LocalizationKeys.Settings_ThemeRename_PromptMessage),
@@ -169,6 +184,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // The store makes the name unique; unlike color edits, the rename is persisted at once.
             var renamedTheme = _customThemesStore.RenameTheme(selectedTheme.Id, requestedName);
             if (renamedTheme == null)
             {
@@ -176,6 +192,8 @@ namespace ASLM.Pages
             }
 
             await _customThemesStore.SaveAsync();
+
+            // Keep the open editor copy in sync, so the rename does not count as an unsaved change.
             if (_editingThemeDraft != null &&
                 string.Equals(_editingThemeDraft.Id, renamedTheme.Id, StringComparison.OrdinalIgnoreCase))
             {
@@ -200,6 +218,9 @@ namespace ASLM.Pages
             await OnDeleteThemeClickedAsync(t.Id);
         }
 
+
+        // Theme color editor
+
         /// <summary>
         /// Builds bindable color-key rows for the stable XAML editor columns.
         /// </summary>
@@ -214,6 +235,7 @@ namespace ASLM.Pages
                 LocalizationKeys.Settings_ThemeEditor_TitleFormat,
                 _editingThemeDraft.Name));
 
+            // The base appearance picker offers the two built-in palettes a custom theme can build on.
             var basePicker = BuiltInSettingsContainer.BaseAppearanceInput;
             var baseDarkLabel = GetAppearanceDisplayName("Dark");
             var baseLightLabel = GetAppearanceDisplayName("Light");
@@ -227,6 +249,7 @@ namespace ASLM.Pages
                     : baseDarkLabel;
             });
 
+            // One row per palette key, showing the theme's own color or the inherited base color.
             var keys = ThemePaletteResolver.AllKeys.ToList();
             var items = keys.Select(CreateThemeColorItem).ToList();
             BuiltInSettingsContainer.SetThemeColors(items);
@@ -346,6 +369,9 @@ namespace ASLM.Pages
             return palette.TryGetValue(key, out var color) ? color : Colors.Gray;
         }
 
+
+        // Appearance and language
+
         /// <summary>
         /// Updates appearance draft state and live theme preview when the appearance picker changes.
         /// </summary>
@@ -356,11 +382,13 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Store the picked appearance in the draft, remembering the previous one for a declined Custom mode.
             var selectedDisplay = _appearancePicker.SelectedItem as string ?? GetAppearanceDisplayName("System");
             var selected = ResolveAppearanceFromDisplayName(selectedDisplay);
             var previousAppearance = _personalizationDraft.Appearance;
             _personalizationDraft.Appearance = AppPersonalizationConfig.NormalizeAppearance(selected);
 
+            // Custom mode shows the theme list and needs a theme to edit.
             var isCustom = string.Equals(selected, "Custom", StringComparison.OrdinalIgnoreCase);
             if (_customThemeSection != null)
             {
@@ -372,6 +400,7 @@ namespace ASLM.Pages
                 }
             }
 
+            // The appearance may have been reverted above, so decide from the draft whether the editor stays.
             var effectiveIsCustom = string.Equals(_personalizationDraft.Appearance, "Custom", StringComparison.Ordinal);
             if (_themeEditorSection != null && !effectiveIsCustom)
             {
@@ -385,6 +414,7 @@ namespace ASLM.Pages
                 _editingThemeDraft = null;
             }
 
+            // Preview the resulting appearance immediately.
             _themeService.ApplyPersonalization(_personalizationDraft, _editingThemeDraft);
             RefreshFooterChromeFromResources();
         }
@@ -402,6 +432,7 @@ namespace ASLM.Pages
                 return true;
             }
 
+            // No theme exists yet: close the editor and offer to create the first one.
             if (_themeEditorSection != null)
             {
                 _themeEditorSection.IsVisible = false;
@@ -470,6 +501,9 @@ namespace ASLM.Pages
             QueueActionButtonUpdate();
         }
 
+
+        // Theme management
+
         /// <summary>
         /// Collects the theme name and base appearance, committing only after successful persistence.
         /// </summary>
@@ -524,6 +558,7 @@ namespace ASLM.Pages
 
             try
             {
+                // Let the user pick a JSON file; the type filter lists the platform-specific identifiers.
                 var pick = await FilePicker.Default.PickAsync(new PickOptions
                 {
                     PickerTitle = L.Get(LocalizationKeys.Settings_Personalization_ImportPickerTitle),
@@ -545,6 +580,7 @@ namespace ASLM.Pages
                     return;
                 }
 
+                // Read the file and reject oversized or malformed themes before touching the registry.
                 await using var stream = await pick.OpenReadAsync();
                 using var reader = new StreamReader(stream);
                 var json = await reader.ReadToEndAsync();
@@ -561,6 +597,7 @@ namespace ASLM.Pages
                     return;
                 }
 
+                // Add the theme as a copy with a new id and a unique name, persist it and open it in the editor.
                 var added = _customThemesStore.ImportThemeCopy(imported);
                 await _customThemesStore.SaveAsync();
                 _personalizationDraft.CustomThemeId = added.Id;
@@ -585,6 +622,7 @@ namespace ASLM.Pages
                 return;
             }
 
+            // Serialize the stored theme, then write it through the platform's own file-saving flow.
             try
             {
                 var json = _customThemesStore.SerializeThemeForExport(t);
@@ -642,9 +680,11 @@ namespace ASLM.Pages
                 return;
             }
 
+            // The deletion is persisted at once; it cannot be undone by discarding the settings drafts.
             _customThemesStore.DeleteTheme(themeId);
             await _customThemesStore.SaveAsync();
 
+            // If the deleted theme was selected, fall back to the first remaining theme and close its editor.
             if (string.Equals(_personalizationDraft.CustomThemeId, themeId, StringComparison.Ordinal))
             {
                 _personalizationDraft.CustomThemeId = _customThemesStore.Root.Themes.FirstOrDefault()?.Id;
@@ -656,6 +696,8 @@ namespace ASLM.Pages
                 }
             }
 
+            // Refresh the picker, then reconcile the appearance: no themes left, another theme selected,
+            // or nothing to edit.
             RebuildCustomThemeSection();
 
             if (_customThemesStore.Root.Themes.Count == 0 &&
@@ -686,11 +728,15 @@ namespace ASLM.Pages
             QueueActionButtonUpdate();
         }
 
+
+        // Saving
+
         /// <summary>
         /// Persists the personalization draft to app data and optionally applies the new theme immediately.
         /// </summary>
         private async Task SavePersonalizationAsync(bool applyImmediately = true)
         {
+            // Compare with the baseline now; the baseline is replaced below and the culture is applied at the end.
             var languageChanged = !string.Equals(
                 _personalizationBaseline.Language,
                 _personalizationDraft.Language,
@@ -733,6 +779,9 @@ namespace ASLM.Pages
                 _localization.ApplyCulture();
             }
         }
+
+
+        // Helpers
 
         /// <summary>
         /// Shows a simple text-input prompt dialog and returns the user's entry.

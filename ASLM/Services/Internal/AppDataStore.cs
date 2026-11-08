@@ -12,17 +12,34 @@ namespace ASLM.Services.Internal
     /// </summary>
     public class AppDataStore
     {
+        // Fields
+
+        /// <summary>
+        /// Absolute path of the persisted data file.
+        /// </summary>
         private readonly string _filePath;
+
+        /// <summary>
+        /// Logger that reports load failures.
+        /// </summary>
         private readonly ILogger<AppDataStore> _logger;
+
+        /// <summary>
+        /// Serializes saves so the data file is never written by two callers at once.
+        /// </summary>
         private readonly SemaphoreSlim _saveLock = new(1, 1);
 
+        /// <summary>
+        /// JSON settings used to read and write the data file; null values are omitted from the output.
+        /// </summary>
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
-        // State
+
+        // Current data
 
         /// <summary>
         /// Gets the current application data instance.
@@ -40,6 +57,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates the store and resolves the persisted data file path.
         /// </summary>
+        /// <param name="logger">Logger used to report load failures.</param>
         public AppDataStore(ILogger<AppDataStore> logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -97,10 +115,11 @@ namespace ASLM.Services.Internal
         // Saving
 
         /// <summary>
-        /// Saves the current application data synchronously.
+        /// Saves the current application data synchronously, for callers that cannot await.
         /// </summary>
         public void Save()
         {
+            // Wait for any running save to finish so two writers never interleave on the same file.
             _saveLock.Wait();
             try
             {
@@ -120,6 +139,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public async Task SaveAsync()
         {
+            // Share the lock with the synchronous Save; ConfigureAwait(false) keeps the save off the UI context.
             await _saveLock.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -150,7 +170,7 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Returns the application root directory above the deployed app folder.
+        /// Returns the ASLM data root directory that contains the <c>Data</c> folder.
         /// </summary>
         private static string GetRootDirectory()
         {
