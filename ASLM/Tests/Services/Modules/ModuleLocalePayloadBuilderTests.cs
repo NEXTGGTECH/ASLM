@@ -3,33 +3,43 @@
 using ASLM.Tests.TestSupport;
 using System.Text.Json;
 
-namespace ASLM.Tests.Services.Modules;
-
-public sealed class ModuleLocalePayloadBuilderTests
+namespace ASLM.Tests.Services.Modules
 {
-    [Fact]
-    public void BuildJson_uses_resolved_system_default_before_user_selects_a_language()
+    /// <summary>
+    /// Verifies the JSON language snapshot that the host hands to modules.
+    /// </summary>
+    public sealed class ModuleLocalePayloadBuilderTests
     {
-        _ = new AslmFileSystemLayout();
-        var appData = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
-        var builder = new ModuleLocalePayloadBuilder(appData, TestLoggerFactory.Create<ModuleLocalePayloadBuilder>());
+        /// <summary>
+        /// Verifies that, with no stored language choice, the payload reports the system-derived default language.
+        /// </summary>
+        [Fact]
+        public void BuildJson_uses_resolved_system_default_before_user_selects_a_language()
+        {
+            _ = new AslmFileSystemLayout();
+            var appData = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+            var builder = new ModuleLocalePayloadBuilder(appData, TestLoggerFactory.Create<ModuleLocalePayloadBuilder>());
 
-        using var document = JsonDocument.Parse(builder.BuildJson());
+            using var document = JsonDocument.Parse(builder.BuildJson());
 
-        document.RootElement.GetProperty("language").GetString().Should().Be(AppLocalizationService.GetDefaultLanguage());
-    }
+            document.RootElement.GetProperty("language").GetString().Should().Be(AppLocalizationService.GetDefaultLanguage());
+        }
 
-    [Fact]
-    public void BuildJson_serializes_active_language()
-    {
-        _ = new AslmFileSystemLayout();
-        var appData = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
-        appData.Data.Personalization.Language = "de";
+        /// <summary>
+        /// Verifies that a stored language code is serialized together with a non-blank display name.
+        /// </summary>
+        [Fact]
+        public void BuildJson_serializes_active_language()
+        {
+            _ = new AslmFileSystemLayout();
+            var appData = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+            appData.Data.Personalization.Language = "de";
 
-        var builder = new ModuleLocalePayloadBuilder(appData, TestLoggerFactory.Create<ModuleLocalePayloadBuilder>());
-        using var document = JsonDocument.Parse(builder.BuildJson());
+            var builder = new ModuleLocalePayloadBuilder(appData, TestLoggerFactory.Create<ModuleLocalePayloadBuilder>());
+            using var document = JsonDocument.Parse(builder.BuildJson());
 
-        document.RootElement.GetProperty("language").GetString().Should().Be("de");
-        document.RootElement.GetProperty("displayName").GetString().Should().NotBeNullOrWhiteSpace();
+            document.RootElement.GetProperty("language").GetString().Should().Be("de");
+            document.RootElement.GetProperty("displayName").GetString().Should().NotBeNullOrWhiteSpace();
+        }
     }
 }
