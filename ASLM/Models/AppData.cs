@@ -65,7 +65,7 @@ namespace ASLM.Models
         public AppConsoleConfig Consoles { get; set; } = new();
 
         /// <summary>
-        /// Stores shell startup and last-page navigation preferences.
+        /// Stores shell startup, last-page navigation and sidebar preferences.
         /// </summary>
         [JsonPropertyName("navigation")]
         public AppNavigationConfig Navigation { get; set; } = new();
@@ -144,7 +144,7 @@ namespace ASLM.Models
     // Shell navigation settings
 
     /// <summary>
-    /// Stores the last stable shell page and whether ASLM should restore it on startup.
+    /// Stores the last stable shell page, whether ASLM should restore it on startup, and the sidebar state.
     /// </summary>
     public class AppNavigationConfig
     {
@@ -155,6 +155,12 @@ namespace ASLM.Models
         /// </summary>
         [JsonPropertyName("restoreLastPage")]
         public bool RestoreLastPage { get; set; } = true;
+
+        /// <summary>
+        /// Keeps the sidebar expanded, with labels next to the navigation icons, when the shell opens.
+        /// </summary>
+        [JsonPropertyName("sidebarExpanded")]
+        public bool SidebarExpanded { get; set; }
 
         /// <summary>
         /// Hides the unfinished home dashboard and uses Modules as the default page.

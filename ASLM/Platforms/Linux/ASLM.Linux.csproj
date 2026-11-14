@@ -21,8 +21,8 @@
     <!-- Keep platform versions explicit; the existing release stamping script updates both heads. -->
     <ApplicationTitle>ASLM</ApplicationTitle>
     <ApplicationId>com.nextggtech.aslm</ApplicationId>
-    <ApplicationDisplayVersion>0.11.1</ApplicationDisplayVersion>
-    <ApplicationVersion>22</ApplicationVersion>
+    <ApplicationDisplayVersion>0.11.2</ApplicationDisplayVersion>
+    <ApplicationVersion>3</ApplicationVersion>
     <Version>$(ApplicationDisplayVersion).$(ApplicationVersion)</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <FileVersion>$(Version)</FileVersion>

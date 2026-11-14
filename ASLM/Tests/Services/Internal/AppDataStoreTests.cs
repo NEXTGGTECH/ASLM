@@ -49,6 +49,7 @@ namespace ASLM.Tests.Services.Internal
             store.Data.Navigation.DisableHomePage = false;
             store.Data.Navigation.RestoreLastPage = false;
             store.Data.Navigation.LastPage = ShellNavigationRoute.ForModule("aslm-chat");
+            store.Data.Navigation.SidebarExpanded = true;
             await store.SaveAsync();
 
             var reloaded = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
@@ -59,6 +60,7 @@ namespace ASLM.Tests.Services.Internal
             reloaded.Data.User.Name.Should().Be("RoundTrip");
             reloaded.Data.Navigation.RestoreLastPage.Should().BeFalse();
             reloaded.Data.Navigation.LastPage.Should().Be("module::aslm-chat");
+            reloaded.Data.Navigation.SidebarExpanded.Should().BeTrue();
             File.Exists(layout.AppDataFilePath).Should().BeTrue();
         }
 

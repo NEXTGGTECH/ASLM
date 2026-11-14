@@ -53,6 +53,12 @@ namespace ASLM.Tests.Services.Internal
                 .Should().Equal("Data", "Modules");
             DateTimeOffset.TryParse(root.GetProperty("createdUtc").GetString(), out _).Should().BeTrue();
 
+            // The downloaded archive stays in the version's staging folder, next to the extracted payload, for the
+            // shared installation folder.
+            var archivePath = root.GetProperty("archivePath").GetString()!;
+            File.Exists(archivePath).Should().BeTrue();
+            Path.GetDirectoryName(archivePath).Should().Be(Path.GetDirectoryName(Path.GetDirectoryName(stagingPath)));
+
             // The staging folder holds the unpacked payload.
             Directory.Exists(stagingPath).Should().BeTrue();
             File.ReadAllText(Path.Combine(stagingPath, "ASLM.dll")).Should().Be("updated");

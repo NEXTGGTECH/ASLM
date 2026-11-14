@@ -10,9 +10,9 @@
 		<!-- Headless patcher helper shipped inside the macOS bundle (Contents/Helpers). -->
 		<AssemblyName>aslm-patcher</AssemblyName>
 		<InvariantGlobalization>true</InvariantGlobalization>
-		<Version>0.11.1.22</Version>
-		<FileVersion>0.11.1.22</FileVersion>
-		<InformationalVersion>0.11.1.22</InformationalVersion>
+		<Version>0.11.2.3</Version>
+		<FileVersion>0.11.2.3</FileVersion>
+		<InformationalVersion>0.11.2.3</InformationalVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(SelfContained)' == 'true'">
@@ -23,6 +23,7 @@
 
 	<ItemGroup>
 		<Compile Include="..\Patcher\Program.cs" Link="PatcherRunner.cs" />
+		<Compile Include="..\..\Installer\Shared\AppRegistration.cs" Link="Shared\AppRegistration.cs" />
 		<InternalsVisibleTo Include="ASLM.Patcher.Tests" />
 	</ItemGroup>
 

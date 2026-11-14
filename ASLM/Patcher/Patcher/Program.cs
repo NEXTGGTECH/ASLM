@@ -1,11 +1,18 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.Versioning;
+using System.Security;
+using System.Security.Principal;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using ASLM.Installer;
+using Microsoft.Win32;
 
 namespace ASLM.Patcher
 {
@@ -56,6 +63,47 @@ namespace ASLM.Patcher
         /// </summary>
         private const string LauncherArgument = "--launcher";
 
+        /// <summary>
+        /// Argument that marks the elevated copy this patcher starts for the shared installation folder; that copy
+        /// leaves restarting the launcher to the patcher that waits for it.
+        /// </summary>
+        private const string ElevatedArgument = "--elevated";
+
+        /// <summary>
+        /// Exit code of a run that must not restart the launcher, because waiting for the previous process or locking
+        /// the pending update failed.
+        /// </summary>
+        internal const int ExitCodeNoRelaunch = 2;
+
+        /// <summary>
+        /// Win32 error code that the shell reports when the user declines the UAC prompt (<c>ERROR_CANCELLED</c>).
+        /// </summary>
+        private const int ErrorCancelled = 1223;
+
+
+        // Shared installation layout
+
+        /// <summary>
+        /// File name of the install manifest in the shared installation folder of the dual-location layout.
+        /// </summary>
+        private const string SharedManifestFileName = "install-manifest.json";
+
+        /// <summary>
+        /// File name of the payload archive in the shared folder from which the launcher sets up new users.
+        /// </summary>
+        private const string SharedBaseArchiveFileName = "aslm-base.zip";
+
+        /// <summary>
+        /// Name under which a new payload archive is written before it replaces the old one, so a launcher that sets
+        /// up a user never reads a partial archive; the uninstaller removes a leftover under this name.
+        /// </summary>
+        private const string SharedBaseArchiveTempFileName = "aslm-base.zip.tmp";
+
+        /// <summary>
+        /// Root-level payload files that belong only in the shared folder: the launcher and the uninstaller.
+        /// </summary>
+        private static readonly string[] SharedPayloadFileNames = [LauncherExeName, AppRegistration.UninstallerExeName];
+
 
         // Runtime state and path comparison
 
@@ -84,7 +132,8 @@ namespace ASLM.Patcher
         /// <param name="args">Command-line arguments: <c>--root</c>, <c>--launcher</c>, <c>--wait-process</c>,
         /// <c>--wait-start</c>, and after <c>--</c> the arguments forwarded to the restarted launcher.</param>
         /// <param name="progress">Receiver of status messages, or null to run without a UI.</param>
-        /// <returns>0 when the update was applied or there was nothing to apply; 1 after a fatal error.</returns>
+        /// <returns>0 when the update was applied or there was nothing to apply; 1 after a fatal error;
+        /// <see cref="ExitCodeNoRelaunch"/> after a fatal error that must not restart the launcher.</returns>
         public static Task<int> RunAsync(string[] args, IProgress<PatcherProgress>? progress)
         {
             _progress = progress;
@@ -92,15 +141,19 @@ namespace ASLM.Patcher
         }
 
         /// <summary>
-        /// Loads the pending update, applies it, and restarts the launcher.
+        /// Loads the pending update, applies it, and restarts the launcher. On Windows the shared installation folder
+        /// of the dual-location layout is updated too, when the update carries a newer launcher and this process has
+        /// administrator rights.
         /// </summary>
         private static int RunCore(string[] args)
         {
             // Resolve the data root and the log. After an error the launcher is restarted only when waiting for
-            // the previous process succeeded (see mayRelaunch).
+            // the previous process succeeded (see mayRelaunch). An elevated copy leaves every restart to the patcher
+            // that started it, so ASLM never runs with administrator rights.
             var root = ResolveRoot(args);
             _logPath = Path.Combine(root, LogRelativePath.Replace('/', Path.DirectorySeparatorChar));
             var mayRelaunch = false;
+            var restartsLauncher = !IsElevatedCopy(args);
 
             try
             {
@@ -115,7 +168,11 @@ namespace ASLM.Patcher
                 if (!File.Exists(pendingPath))
                 {
                     Log("No pending update found.");
-                    StartLauncher(root, args);
+                    if (restartsLauncher)
+                    {
+                        StartLauncher(root, args);
+                    }
+
                     return 0;
                 }
 
@@ -131,12 +188,15 @@ namespace ASLM.Patcher
                 var pending = LoadPendingUpdate(pendingStream);
                 ValidatePendingUpdate(pending);
 
-                // Resolve target, staging, backup, and preserve paths.
+                // Resolve target, staging, backup, archive, and preserve paths.
                 var targetRoot = Path.GetFullPath(string.IsNullOrWhiteSpace(pending.TargetRoot) ? root : pending.TargetRoot);
                 var stagingPath = Path.GetFullPath(pending.StagingPath);
                 var backupPath = Path.GetFullPath(string.IsNullOrWhiteSpace(pending.BackupPath)
                     ? Path.Combine(root, ".aslm-update", "backup", DateTime.UtcNow.ToString("yyyyMMddHHmmss"))
                     : pending.BackupPath);
+                var archivePath = string.IsNullOrWhiteSpace(pending.ArchivePath)
+                    ? null
+                    : Path.GetFullPath(pending.ArchivePath);
                 if (!Directory.Exists(stagingPath))
                 {
                     throw new DirectoryNotFoundException($"Staging path does not exist: {stagingPath}");
@@ -144,7 +204,16 @@ namespace ASLM.Patcher
 
                 // Normalize the preserve rules and make sure the paths cannot damage anything outside the update.
                 var preservePatterns = NormalizePreservePatterns(pending.Preserve);
-                ValidateUpdatePaths(root, targetRoot, stagingPath, backupPath);
+                ValidateUpdatePaths(root, targetRoot, stagingPath, backupPath, archivePath);
+
+                // On Windows the launcher may live in a separate shared installation folder. Its files are updated
+                // in a step of their own below, and the per-user copy never receives them.
+                var sharedInstallDir = ResolveSharedInstallDir(root, targetRoot, args);
+
+                // Selects the staged entries that the per-user copy receives.
+                bool ShouldCopyPath(string relativePath) =>
+                    ShouldReplacePath(relativePath, preservePatterns) &&
+                    (sharedInstallDir is null || !IsSharedPayloadFile(relativePath));
 
                 // Replace application files with backup and rollback support.
                 // Order: back up the replaceable files, clear them, then copy the staged files in. Preserved
@@ -165,7 +234,14 @@ namespace ASLM.Patcher
                     Log("Replacing application files...");
                     replacementStarted = true;
                     ClearDirectory(targetRoot, relativePath => ShouldReplacePath(relativePath, preservePatterns));
-                    CopyDirectory(stagingPath, targetRoot, relativePath => ShouldReplacePath(relativePath, preservePatterns));
+                    CopyDirectory(stagingPath, targetRoot, ShouldCopyPath);
+
+                    // The shared folder follows while the staged files still exist; that step never undoes the
+                    // per-user update, because each user's copy works on its own.
+                    if (sharedInstallDir is not null && OperatingSystem.IsWindows())
+                    {
+                        UpdateSharedInstallationIfNeeded(sharedInstallDir, stagingPath, archivePath, backupPath, root);
+                    }
 
                     // Record the installed release and remove temporary update folders.
                     // The data root holds ASLM_Data.json on every platform (targetRoot is the
@@ -175,7 +251,11 @@ namespace ASLM.Patcher
                     TryDeleteDirectory(GetStagingDirectory(root, stagingPath));
                     TryDeleteDirectory(backupPath);
                     Log($"Update {pending.Version} applied successfully.");
-                    StartLauncher(root, args);
+                    if (restartsLauncher)
+                    {
+                        StartLauncher(root, args);
+                    }
+
                     return 0;
                 }
                 catch
@@ -198,11 +278,17 @@ namespace ASLM.Patcher
                 // Keep the launcher usable after a fatal patcher error.
                 Log("Fatal patcher error: " + ex);
 
-                // Never open another instance when waiting for the previous process failed.
-                // The failed descriptor is renamed so the restarted launcher does not retry the same update forever.
-                if (mayRelaunch)
+                // Never open another instance when waiting for the previous process failed; the exit code tells a
+                // waiting patcher the same. The failed descriptor is renamed so the restarted launcher does not retry
+                // the same update forever.
+                if (!mayRelaunch)
                 {
-                    MarkPendingUpdateFailed(root);
+                    return ExitCodeNoRelaunch;
+                }
+
+                MarkPendingUpdateFailed(root);
+                if (restartsLauncher)
+                {
                     StartLauncher(root, args);
                 }
 
@@ -538,13 +624,25 @@ namespace ASLM.Patcher
         /// <summary>
         /// Rejects overlapping work directories and limits updater cleanup to its own staging and backup trees.
         /// </summary>
-        private static void ValidateUpdatePaths(string root, string targetRoot, string stagingPath, string backupPath)
+        /// <param name="root">Data root that holds the updater folders.</param>
+        /// <param name="targetRoot">Directory whose files the update replaces.</param>
+        /// <param name="stagingPath">Directory that holds the new files.</param>
+        /// <param name="backupPath">Directory that receives the backup of the replaced files.</param>
+        /// <param name="archivePath">Downloaded update archive, or null when the update names none.</param>
+        private static void ValidateUpdatePaths(
+            string root,
+            string targetRoot,
+            string stagingPath,
+            string backupPath,
+            string? archivePath)
         {
-            // Staging and backup must live in the updater's own folders, and the target must not overlap
-            // them, the filesystem root or the updater folder; otherwise clearing the target could destroy them.
+            // Staging, the archive and the backup must live in the updater's own folders, and the target must not
+            // overlap them, the filesystem root or the updater folder; otherwise clearing the target could destroy
+            // them.
             var stagingRoot = Path.Combine(root, ".aslm-update", "staging");
             var backupRoot = Path.Combine(root, ".aslm-update", "backup");
             if (!IsDescendant(stagingRoot, stagingPath) || !IsDescendant(backupRoot, backupPath) ||
+                (archivePath is not null && !IsDescendant(stagingRoot, archivePath)) ||
                 string.Equals(Path.TrimEndingDirectorySeparator(targetRoot), Path.GetPathRoot(targetRoot), PathComparison) ||
                 IsDescendant(Path.Combine(root, ".aslm-update"), targetRoot) ||
                 IsDescendant(stagingPath, targetRoot) || IsDescendant(backupPath, targetRoot) ||
@@ -683,7 +781,537 @@ namespace ASLM.Patcher
         }
 
 
+        // Shared installation folder
+
+        /// <summary>
+        /// Returns the shared installation folder of the Windows dual-location layout: the folder of the launcher that
+        /// started the patcher, when it holds an install manifest for exactly that folder and differs from the folder
+        /// the update replaces.
+        /// </summary>
+        /// <returns>The shared folder, or null for portable, monolithic, macOS and Linux installations.</returns>
+        internal static string? ResolveSharedInstallDir(string root, string targetRoot, string[] args)
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                return null;
+            }
+
+            var launcherPath = ResolveLauncherPath(root, args);
+            var sharedDir = string.IsNullOrWhiteSpace(launcherPath)
+                ? null
+                : Path.GetDirectoryName(Path.GetFullPath(launcherPath));
+            if (sharedDir is null || IsSamePath(sharedDir, targetRoot) || IsSamePath(sharedDir, root))
+            {
+                return null;
+            }
+
+            // Only a manifest the installer wrote for this folder proves that the folder is an ASLM installation.
+            try
+            {
+                var manifestPath = Path.Combine(sharedDir, SharedManifestFileName);
+                if (!File.Exists(manifestPath))
+                {
+                    return null;
+                }
+
+                var manifest = JsonNode.Parse(File.ReadAllText(manifestPath)) as JsonObject;
+                return ReadString(manifest, "app") == "ASLM" &&
+                       IsSamePath(ReadString(manifest, "sharedInstallPath"), sharedDir)
+                    ? sharedDir
+                    : null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                Log("Failed to read the shared install manifest: " + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether the update carries a newer launcher than the shared folder holds. The installed version is
+        /// the four-part file version that the installer and this patcher record in the install manifest; older
+        /// installers wrote a placeholder there, which counts as unknown, so such a folder is updated.
+        /// </summary>
+        /// <param name="sharedInstallDir">Shared installation folder.</param>
+        /// <param name="stagingPath">Directory that holds the new files.</param>
+        /// <param name="version">Four-part file version of the launcher in the update; empty when it has none.</param>
+        internal static bool IsSharedUpdateNeeded(string sharedInstallDir, string stagingPath, out string version)
+        {
+            // Without a versioned launcher the update cannot be compared, so the shared folder stays as it is.
+            version = ReadFileVersion(Path.Combine(stagingPath, LauncherExeName));
+            if (!Version.TryParse(version, out var updateVersion))
+            {
+                return false;
+            }
+
+            var installedVersion = ReadSharedManifestVersion(sharedInstallDir);
+            return installedVersion is null || updateVersion > installedVersion;
+        }
+
+        /// <summary>
+        /// Updates the shared folder when the update carries a newer launcher and this process has administrator
+        /// rights; without them the folder stays as it is and a later update tries again.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        private static void UpdateSharedInstallationIfNeeded(
+            string sharedInstallDir,
+            string stagingPath,
+            string? archivePath,
+            string backupPath,
+            string userAppDir)
+        {
+            if (!IsSharedUpdateNeeded(sharedInstallDir, stagingPath, out var version))
+            {
+                Log("The shared installation folder is up to date.");
+                return;
+            }
+
+            if (!IsElevated())
+            {
+                Log("The shared installation folder needs administrator rights; a later update tries again.");
+                return;
+            }
+
+            // A fresh backup folder next to the per-user backup keeps both apart, so neither rollback mixes them.
+            var update = new SharedInstallationUpdate(
+                sharedInstallDir,
+                stagingPath,
+                archivePath,
+                $"{backupPath}-shared-{Guid.NewGuid():N}",
+                version,
+                userAppDir);
+            UpdateSharedInstallation(update, () => AppRegistration.OpenUninstallRoot(writable: true));
+        }
+
+        /// <summary>
+        /// Replaces the files of the shared installation folder with those of the update: the launcher, the
+        /// uninstaller, the payload archive for new users, and the version in the install manifest; then keeps the
+        /// entry in the installed applications current. A failure restores the previous files from the backup.
+        /// </summary>
+        /// <param name="update">Folders, archive and version of the update.</param>
+        /// <param name="openUninstallRoot">Opens the writable list of installed applications.</param>
+        /// <returns>True when the shared folder was updated.</returns>
+        [SupportedOSPlatform("windows")]
+        internal static bool UpdateSharedInstallation(SharedInstallationUpdate update, Func<RegistryKey?> openUninstallRoot)
+        {
+            var sharedDir = update.SharedInstallDir;
+            var backups = new List<SharedFileBackup>();
+            try
+            {
+                Log($"Updating the shared installation folder: {sharedDir}");
+                Directory.CreateDirectory(update.BackupPath);
+
+                // The launcher and, when the update carries it, the uninstaller.
+                foreach (var fileName in SharedPayloadFileNames)
+                {
+                    var source = Path.Combine(update.StagingPath, fileName);
+                    if (!File.Exists(source))
+                    {
+                        continue;
+                    }
+
+                    var target = Path.Combine(sharedDir, fileName);
+                    BackupSharedFile(target, update.BackupPath, backups);
+                    File.Copy(source, target, overwrite: true);
+                }
+
+                // The payload archive goes in under a temporary name first and then replaces the old one at once.
+                if (update.ArchivePath is { } archivePath && File.Exists(archivePath))
+                {
+                    var target = Path.Combine(sharedDir, SharedBaseArchiveFileName);
+                    var temporary = Path.Combine(sharedDir, SharedBaseArchiveTempFileName);
+                    File.Copy(archivePath, temporary, overwrite: true);
+                    BackupSharedFile(target, update.BackupPath, backups);
+                    File.Move(temporary, target, overwrite: true);
+                }
+
+                // The manifest records the version that the next update compares with.
+                var manifestPath = Path.Combine(sharedDir, SharedManifestFileName);
+                var manifest = JsonNode.Parse(File.ReadAllText(manifestPath)) as JsonObject
+                    ?? throw new InvalidDataException("The shared install manifest is not a JSON object.");
+                BackupSharedFile(manifestPath, update.BackupPath, backups);
+                manifest["version"] = update.Version;
+                File.WriteAllText(manifestPath, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception ex)
+            {
+                // Put the previous files back; the backup stays when that fails, because it holds their only copy.
+                Log("Failed to update the shared installation folder: " + ex);
+                TryDeleteFile(Path.Combine(sharedDir, SharedBaseArchiveTempFileName));
+                if (RestoreSharedFiles(backups))
+                {
+                    TryDeleteDirectory(update.BackupPath);
+                }
+                else
+                {
+                    Log($"The previous shared files are kept in {update.BackupPath}.");
+                }
+
+                return false;
+            }
+
+            TryDeleteDirectory(update.BackupPath);
+            UpdateRegistration(update, openUninstallRoot);
+            Log($"Shared installation folder updated to {update.Version}.");
+            return true;
+        }
+
+        /// <summary>
+        /// Keeps the entry in the installed applications current. An installation made before the installer wrote
+        /// such an entry gets one now, which makes its uninstaller reachable from the Windows settings. A failure only
+        /// leaves the shown version stale, so it is logged.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        private static void UpdateRegistration(SharedInstallationUpdate update, Func<RegistryKey?> openUninstallRoot)
+        {
+            try
+            {
+                using var uninstallRoot = openUninstallRoot();
+                if (uninstallRoot is null)
+                {
+                    return;
+                }
+
+                // An entry is written only when its uninstaller exists, because the entry starts it.
+                var installLocation = AppRegistration.ReadInstallLocation(uninstallRoot);
+                if (installLocation is null)
+                {
+                    if (File.Exists(Path.Combine(update.SharedInstallDir, AppRegistration.UninstallerExeName)))
+                    {
+                        AppRegistration.Register(
+                            uninstallRoot,
+                            update.SharedInstallDir,
+                            update.Version,
+                            AppRegistration.EstimateSizeKb(update.SharedInstallDir, update.UserAppDir));
+                    }
+
+                    return;
+                }
+
+                // An entry of another folder belongs to another installation and stays as it is.
+                if (IsSamePath(installLocation, update.SharedInstallDir))
+                {
+                    AppRegistration.SetVersion(uninstallRoot, update.Version);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+            {
+                Log("Failed to update the entry in the installed applications: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Copies a shared file into the backup folder before it is replaced, and records how to undo the change: a
+        /// file that did not exist is deleted again.
+        /// </summary>
+        private static void BackupSharedFile(string target, string backupPath, List<SharedFileBackup> backups)
+        {
+            if (!File.Exists(target))
+            {
+                backups.Add(new SharedFileBackup(target, null));
+                return;
+            }
+
+            var backup = Path.Combine(backupPath, Path.GetFileName(target));
+            File.Copy(target, backup, overwrite: true);
+            backups.Add(new SharedFileBackup(target, backup));
+        }
+
+        /// <summary>
+        /// Undoes the recorded changes of the shared folder in reverse order.
+        /// </summary>
+        /// <returns>True when every file was restored.</returns>
+        private static bool RestoreSharedFiles(List<SharedFileBackup> backups)
+        {
+            var restored = true;
+            foreach (var backup in backups.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    if (backup.BackupPath is null)
+                    {
+                        File.Delete(backup.TargetPath);
+                    }
+                    else
+                    {
+                        File.Copy(backup.BackupPath, backup.TargetPath, overwrite: true);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Log($"Failed to restore {backup.TargetPath}: {ex.Message}");
+                    restored = false;
+                }
+            }
+
+            return restored;
+        }
+
+        /// <summary>
+        /// Returns whether a relative path names a root-level file that belongs only in the shared folder.
+        /// </summary>
+        private static bool IsSharedPayloadFile(string relativePath)
+        {
+            var normalized = relativePath.Replace('\\', '/').Trim('/');
+            return SharedPayloadFileNames.Contains(normalized, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Reads the four-part version recorded in the shared install manifest.
+        /// </summary>
+        /// <returns>The version, or null when the manifest is unreadable or records no four-part version.</returns>
+        private static Version? ReadSharedManifestVersion(string sharedInstallDir)
+        {
+            try
+            {
+                var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(sharedInstallDir, SharedManifestFileName)))
+                    as JsonObject;
+                return Version.TryParse(ReadString(manifest, "version"), out var version) &&
+                       version.Build >= 0 && version.Revision >= 0
+                    ? version
+                    : null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                // An unreadable manifest gives no version; updating the folder then reports the actual problem.
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Returns the four-part file version of an executable.
+        /// </summary>
+        /// <returns>The version, or an empty string when the file is missing or has no version resource.</returns>
+        private static string ReadFileVersion(string executablePath)
+        {
+            if (!File.Exists(executablePath))
+            {
+                return string.Empty;
+            }
+
+            var info = FileVersionInfo.GetVersionInfo(executablePath);
+            return info.FileVersion is null
+                ? string.Empty
+                : $"{info.FileMajorPart}.{info.FileMinorPart}.{info.FileBuildPart}.{info.FilePrivatePart}";
+        }
+
+        /// <summary>
+        /// Returns a string property of a JSON object, or null when it is missing or not a string.
+        /// </summary>
+        private static string? ReadString(JsonObject? json, string propertyName)
+        {
+            return json?[propertyName] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+        }
+
+
+        // Elevation
+
+        /// <summary>
+        /// Hands the update to an elevated copy of this patcher when the shared installation folder needs a newer
+        /// launcher and this process lacks administrator rights. This process then waits for the copy and restarts
+        /// the launcher itself, so ASLM starts without administrator rights and as the user who started it.
+        /// </summary>
+        /// <param name="args">Command-line arguments of this patcher.</param>
+        /// <returns>The exit code of the elevated copy, or null when this process applies the update itself because
+        /// no elevation is needed or the user declined it; then only the per-user copy is updated.</returns>
+        [SupportedOSPlatform("windows")]
+        public static int? TryRunElevated(string[] args)
+        {
+            if (IsElevatedCopy(args) || IsElevated())
+            {
+                return null;
+            }
+
+            // Only a pending update that carries a newer launcher for an existing shared folder needs the rights.
+            var root = ResolveRoot(args);
+            _logPath = Path.Combine(root, LogRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (!RequiresSharedUpdate(root, args))
+            {
+                return null;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
+                Log("The shared installation folder needs administrator rights. Starting the elevated patcher...");
+                using var elevatedCopy = Process.Start(new ProcessStartInfo
+                {
+                    FileName = Environment.ProcessPath!,
+                    Arguments = BuildElevatedArguments(args),
+                    WorkingDirectory = AppContext.BaseDirectory,
+                    UseShellExecute = true,
+                    Verb = "runas"
+                });
+                if (elevatedCopy is null)
+                {
+                    return null;
+                }
+
+                // The elevated copy never restarts the launcher; it happens here, without administrator rights.
+                elevatedCopy.WaitForExit();
+                if (elevatedCopy.ExitCode != ExitCodeNoRelaunch)
+                {
+                    StartLauncher(root, args);
+                }
+
+                return elevatedCopy.ExitCode;
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled)
+            {
+                Log("Administrator rights were not granted. Only the per-user copy is updated.");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether the pending update carries a newer launcher for the shared installation folder. A pending
+        /// update that cannot be read counts as not needing it; the regular run then reports the problem.
+        /// </summary>
+        internal static bool RequiresSharedUpdate(string root, string[] args)
+        {
+            try
+            {
+                var pendingPath = Path.Combine(root, PendingRelativePath.Replace('/', Path.DirectorySeparatorChar));
+                if (!File.Exists(pendingPath))
+                {
+                    return false;
+                }
+
+                PendingAppUpdate pending;
+                using (var stream = File.OpenRead(pendingPath))
+                {
+                    pending = LoadPendingUpdate(stream);
+                }
+
+                if (!string.Equals(pending.Kind, "app", StringComparison.OrdinalIgnoreCase) ||
+                    !Path.IsPathFullyQualified(pending.StagingPath))
+                {
+                    return false;
+                }
+
+                var targetRoot = Path.GetFullPath(string.IsNullOrWhiteSpace(pending.TargetRoot) ? root : pending.TargetRoot);
+                var sharedInstallDir = ResolveSharedInstallDir(root, targetRoot, args);
+                return sharedInstallDir is not null &&
+                       IsSharedUpdateNeeded(sharedInstallDir, Path.GetFullPath(pending.StagingPath), out _);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether this process is the elevated copy that another patcher started; only control arguments
+        /// before <c>--</c> count.
+        /// </summary>
+        private static bool IsElevatedCopy(string[] args)
+        {
+            var separator = Array.IndexOf(args, "--");
+            var controlArgs = separator < 0 ? args : args[..separator];
+            return controlArgs.Contains(ElevatedArgument, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Builds the command line of the elevated copy: the same arguments with the elevated marker added to the
+        /// control arguments before <c>--</c>.
+        /// </summary>
+        internal static string BuildElevatedArguments(string[] args)
+        {
+            var separator = Array.IndexOf(args, "--");
+            var controlArgs = separator < 0 ? args : args[..separator];
+            var forwardedArgs = separator < 0 ? Array.Empty<string>() : args[separator..];
+            string[] arguments = [.. controlArgs, ElevatedArgument, .. forwardedArgs];
+            return string.Join(" ", arguments.Select(QuoteArgument));
+        }
+
+        /// <summary>
+        /// Quotes one argument with the Windows command-line rules, so the started process reads it back unchanged.
+        /// </summary>
+        internal static string QuoteArgument(string value)
+        {
+            // An empty argument still occupies a token; text without whitespace or quotes needs no quoting.
+            if (value.Length == 0)
+            {
+                return "\"\"";
+            }
+
+            if (!value.Any(character => char.IsWhiteSpace(character) || character == '"'))
+            {
+                return value;
+            }
+
+            // Backslashes are literal unless they precede a quote, so they are written once the next character is
+            // known: before a quote they are doubled and the quote is escaped.
+            var builder = new StringBuilder(value.Length + 8);
+            builder.Append('"');
+            var backslashCount = 0;
+            foreach (var character in value)
+            {
+                if (character == '\\')
+                {
+                    backslashCount++;
+                    continue;
+                }
+
+                if (character == '"')
+                {
+                    builder.Append('\\', backslashCount * 2 + 1);
+                    builder.Append('"');
+                    backslashCount = 0;
+                    continue;
+                }
+
+                builder.Append('\\', backslashCount);
+                backslashCount = 0;
+                builder.Append(character);
+            }
+
+            // Trailing backslashes would escape the closing quote, so they are doubled.
+            builder.Append('\\', backslashCount * 2);
+            builder.Append('"');
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Returns whether this process runs with administrator rights.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        private static bool IsElevated()
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        /// <summary>
+        /// Returns whether two paths name the same location, using the platform's case rules.
+        /// </summary>
+        private static bool IsSamePath(string? left, string? right)
+        {
+            return !string.IsNullOrWhiteSpace(left) &&
+                   !string.IsNullOrWhiteSpace(right) &&
+                   string.Equals(
+                       Path.TrimEndingDirectorySeparator(Path.GetFullPath(left)),
+                       Path.TrimEndingDirectorySeparator(Path.GetFullPath(right)),
+                       PathComparison);
+        }
+
+
         // Cleanup
+
+        /// <summary>
+        /// Deletes one file on a best-effort basis.
+        /// </summary>
+        private static void TryDeleteFile(string path)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A leftover temporary file does no harm; the next update overwrites it and the uninstaller removes it.
+            }
+        }
 
         /// <summary>
         /// Deletes one directory on a best-effort basis.
@@ -846,6 +1474,13 @@ namespace ASLM.Patcher
             public List<string> Preserve { get; set; } = [];
 
             /// <summary>
+            /// Downloaded update archive below the staging folder, which becomes the payload archive of the shared
+            /// installation folder on Windows; empty in descriptors of older versions.
+            /// </summary>
+            [JsonPropertyName("archivePath")]
+            public string ArchivePath { get; set; } = string.Empty;
+
+            /// <summary>
             /// Normalizes persisted string and collection values after deserialization.
             /// </summary>
             public void Normalize()
@@ -856,7 +1491,36 @@ namespace ASLM.Patcher
                 TargetRoot ??= string.Empty;
                 BackupPath ??= string.Empty;
                 Preserve ??= [];
+                ArchivePath ??= string.Empty;
             }
         }
+
+
+        // Shared installation records
+
+        /// <summary>
+        /// Describes one update of the shared installation folder.
+        /// </summary>
+        /// <param name="SharedInstallDir">Shared folder that holds the launcher, the uninstaller and the payload
+        /// archive.</param>
+        /// <param name="StagingPath">Directory that holds the new files of the update.</param>
+        /// <param name="ArchivePath">Downloaded update archive that becomes the payload archive, or null.</param>
+        /// <param name="BackupPath">Fresh directory that receives the previous shared files.</param>
+        /// <param name="Version">Four-part file version of the new launcher.</param>
+        /// <param name="UserAppDir">Per-user folder whose program folders count towards the registered size.</param>
+        internal sealed record SharedInstallationUpdate(
+            string SharedInstallDir,
+            string StagingPath,
+            string? ArchivePath,
+            string BackupPath,
+            string Version,
+            string UserAppDir);
+
+        /// <summary>
+        /// Records how to undo the replacement of one shared file.
+        /// </summary>
+        /// <param name="TargetPath">Replaced file in the shared folder.</param>
+        /// <param name="BackupPath">Copy of the previous file, or null when the file did not exist before.</param>
+        private sealed record SharedFileBackup(string TargetPath, string? BackupPath);
     }
 }

@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Globalization;
+using System.Text.Json;
 using Debug = System.Diagnostics.Debug;
 using ASLM.Models;
 
@@ -517,22 +518,24 @@ namespace ASLM.Services.Internal
             LinuxAppRelauncher.StartDetachedRelaunch();
             return;
 #else
-            // Windows relaunches through the ASLM.exe launcher that sits in the install root.
+            // Windows relaunches through the launcher that serves the install root: the shared Launcher in the
+            // dual-location layout, or ASLM.exe next to the application in the portable layout.
             var root = ResolveInstallRoot();
-            var launcherPath = Path.Combine(root, "ASLM.exe");
+            var launcherPath = ResolveWindowsLauncherPath(root);
             if (!File.Exists(launcherPath))
             {
                 throw new FileNotFoundException("ASLM launcher was not found.", launcherPath);
             }
 
             // The launcher waits for this process to exit before it starts ASLM again.
+            var launcherDirectory = Path.GetDirectoryName(launcherPath)!;
             var arguments = new[]
             {
                 "--wait-process",
                 Environment.ProcessId.ToString(CultureInfo.InvariantCulture)
             };
 
-            if (DetachedProcessStarter.TryStartBreakawayProcess(launcherPath, root, arguments))
+            if (DetachedProcessStarter.TryStartBreakawayProcess(launcherPath, launcherDirectory, arguments))
             {
                 return;
             }
@@ -541,7 +544,7 @@ namespace ASLM.Services.Internal
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = launcherPath,
-                WorkingDirectory = root,
+                WorkingDirectory = launcherDirectory,
                 UseShellExecute = false
             };
             foreach (var argument in arguments)
@@ -591,6 +594,39 @@ namespace ASLM.Services.Internal
             }
 
             return parentRoot ?? appDir;
+        }
+
+        /// <summary>
+        /// Returns the Windows launcher that restarts ASLM for an install root. In the dual-location layout the
+        /// shared Launcher records its path in <c>launcher-ref.json</c> on every start, because the per-user folder
+        /// holds no Launcher of its own; the portable layout keeps <c>ASLM.exe</c> in the install root.
+        /// </summary>
+        /// <param name="root">Install root returned by <see cref="ResolveInstallRoot"/>.</param>
+        /// <returns>The recorded Launcher when it exists, otherwise <c>ASLM.exe</c> in the install root.</returns>
+        internal static string ResolveWindowsLauncherPath(string root)
+        {
+            var referencePath = Path.Combine(root, "launcher-ref.json");
+            try
+            {
+                if (File.Exists(referencePath))
+                {
+                    using var reference = JsonDocument.Parse(File.ReadAllText(referencePath));
+                    if (reference.RootElement.ValueKind == JsonValueKind.Object &&
+                        reference.RootElement.TryGetProperty("launcherPath", out var element) &&
+                        element.ValueKind == JsonValueKind.String &&
+                        element.GetString() is { Length: > 0 } launcherPath &&
+                        File.Exists(launcherPath))
+                    {
+                        return launcherPath;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                // An unreadable reference falls back to the launcher next to the application.
+            }
+
+            return Path.Combine(root, "ASLM.exe");
         }
 
 

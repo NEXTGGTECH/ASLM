@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<Platforms>x64;ARM64</Platforms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AssemblyName>uninstall</AssemblyName>
+		<RootNamespace>ASLM.Installer.Uninstaller</RootNamespace>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<Version>0.11.2.3</Version>
+		<FileVersion>0.11.2.3</FileVersion>
+		<InformationalVersion>0.11.2.3</InformationalVersion>
+	</PropertyGroup>
+
+	<Import Project="..\..\..\ASLM.Build.props" />
+
+	<!-- uninstall.exe lies next to the Launcher in the build output, so the installer payload, the release
+	     archive and the self-update all carry it into the shared installation folder. -->
+	<PropertyGroup>
+		<OutputPath>$(ASLMBuildOutputRoot)</OutputPath>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(SelfContained)' == 'true'">
+		<OutputPath>$(MSBuildProjectDirectory)\obj\$(Configuration)\uninstaller-sc-build\</OutputPath>
+		<PublishSingleFile>true</PublishSingleFile>
+		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+		<!-- Symbols would land in the payload root and from there in every per-user folder. -->
+		<CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<PublishDir Condition="'$(PublishDir)' == ''">$(ASLMBuildOutputRoot)</PublishDir>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="..\Shared\AppRegistration.cs" Link="Shared\AppRegistration.cs" />
+	</ItemGroup>
+
+</Project>

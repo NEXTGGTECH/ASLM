@@ -17,6 +17,7 @@ MAUI_PROJECTS = [
 NONMAUI_PROJECTS = [
     "ASLM/Launcher/ASLM.Launcher.csproj",
     "ASLM/Installer/Installer-Bootstrapper/ASLM.Installer.Bootstrapper.csproj",
+    "ASLM/Installer/Uninstaller/ASLM.Uninstaller.csproj",
     "ASLM/Patcher/Patcher-CLI/ASLM.Patcher.CLI.csproj",
 ]
 

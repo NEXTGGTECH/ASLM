@@ -512,5 +512,44 @@ namespace ASLM.Tests.Services.Internal
                 .Should()
                 .Equal("ready-module");
         }
+
+
+        // Application restart
+
+        /// <summary>
+        /// Verifies that the restart uses the shared launcher that recorded itself in <c>launcher-ref.json</c>,
+        /// because a per-user folder holds no launcher of its own.
+        /// </summary>
+        [Fact]
+        public void ResolveWindowsLauncherPath_uses_the_recorded_shared_launcher()
+        {
+            using var root = new UniqueAslmRoot();
+            var sharedLauncher = Path.Combine(root.Root, "Shared", "ASLM.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(sharedLauncher)!);
+            File.WriteAllText(sharedLauncher, "launcher");
+            File.WriteAllText(
+                Path.Combine(root.Root, "launcher-ref.json"),
+                System.Text.Json.JsonSerializer.Serialize(new { launcherPath = sharedLauncher }));
+
+            SettingsService.ResolveWindowsLauncherPath(root.Root).Should().Be(sharedLauncher);
+        }
+
+        /// <summary>
+        /// Verifies that the restart falls back to <c>ASLM.exe</c> in the install root when no reference exists or
+        /// the recorded launcher is gone, as in the portable layout.
+        /// </summary>
+        [Fact]
+        public void ResolveWindowsLauncherPath_falls_back_to_the_launcher_in_the_install_root()
+        {
+            using var root = new UniqueAslmRoot();
+            var localLauncher = Path.Combine(root.Root, "ASLM.exe");
+
+            SettingsService.ResolveWindowsLauncherPath(root.Root).Should().Be(localLauncher);
+
+            File.WriteAllText(
+                Path.Combine(root.Root, "launcher-ref.json"),
+                System.Text.Json.JsonSerializer.Serialize(new { launcherPath = Path.Combine(root.Root, "gone", "ASLM.exe") }));
+            SettingsService.ResolveWindowsLauncherPath(root.Root).Should().Be(localLauncher);
+        }
     }
 }
