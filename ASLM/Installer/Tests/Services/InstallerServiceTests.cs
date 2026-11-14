@@ -1,15 +1,17 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using System.Diagnostics;
 using System.Text.Json;
 using ASLM.Installer;
 using ASLM.Installer.Tests.TestSupport;
+using Microsoft.Win32;
 
 namespace ASLM.Installer.Tests.Services
 {
     /// <summary>
     /// Verifies the dual-location installation logic without any UI involvement.
     /// </summary>
-    public sealed class InstallerServiceTests
+    public sealed class InstallerServiceTests : IDisposable
     {
         // Constants and test data helpers
 
@@ -20,52 +22,31 @@ namespace ASLM.Installer.Tests.Services
         private const string PayloadEnvironmentVariable = "ASLM_INSTALLER_PAYLOAD_PATH";
 
         /// <summary>
-        /// Builds a realistic payload archive: root launcher, App and Patcher program folders, and data folders.
+        /// Registry key that stands in for the list of installed applications, so no test writes to the machine.
         /// </summary>
-        /// <param name="directory">Directory in which <c>aslm-payload.zip</c> is created.</param>
-        /// <param name="extraEntries">Additional entry names that are added with placeholder content.</param>
-        /// <returns>The full path of the created archive.</returns>
-        private static string WritePayloadZip(string directory, params string[] extraEntries)
+        private readonly RegistryScope _registry = new();
+
+        /// <summary>
+        /// Deletes the stand-in list of installed applications.
+        /// </summary>
+        public void Dispose()
         {
-            var payloadPath = Path.Combine(directory, "aslm-payload.zip");
-            using var stream = File.Create(payloadPath);
-            using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Create);
-
-            // Adds one text entry to the archive.
-            void Add(string entryName, string content)
-            {
-                var entry = archive.CreateEntry(entryName);
-                using var writer = new StreamWriter(entry.Open());
-                writer.Write(content);
-            }
-
-            // Root launcher, program folders and data folders as the real payload lays them out.
-            Add("ASLM.exe", "launcher binary");
-            Add("App/ASLM.dll", "app assembly");
-            Add("App/ASLM.runtimeconfig.json", "{}");
-            Add("Patcher/ASLM Patcher.exe", "patcher binary");
-            Add("Patcher/ASLM Patcher.dll", "patcher assembly");
-            Add("Data/App/ASLM_Data.json", """{"user":{"name":"kept"}}""");
-            Add("Engines/ollama/engine.bin", "engine");
-            foreach (var extra in extraEntries)
-            {
-                Add(extra, "extra");
-            }
-
-            return payloadPath;
+            _registry.Dispose();
         }
 
         /// <summary>
-        /// Creates an installer whose user directory and shortcut sink are redirected into the test scope.
+        /// Creates an installer whose user directory, shortcut sink and list of installed applications are
+        /// redirected into the test scope.
         /// </summary>
-        private static InstallerService CreateInstaller(TempScope scope, string userDir,
-            Action<string, string, string>? shortcutSink = null,
+        private InstallerService CreateInstaller(string userDir,
+            Func<string, string, string, string?>? shortcutSink = null,
             Func<Task<Stream>>? packagedPayload = null)
         {
             return new InstallerService(
                 userAppDir: () => userDir,
                 packagedPayload: packagedPayload,
-                createShortcut: shortcutSink);
+                createShortcut: shortcutSink,
+                uninstallRoot: _registry.OpenRoot);
         }
 
         /// <summary>
@@ -73,9 +54,33 @@ namespace ASLM.Installer.Tests.Services
         /// </summary>
         private static InstallOptions Options(string basePath, string folderName,
             bool desktop = false, bool startMenu = false) =>
-            new(basePath, folderName, "v0.11.0",
+            new(basePath, folderName,
                 [new AcceptedLegalDocument("eula", "EULA", "eula.md", "abc123", DateTimeOffset.UtcNow)],
                 desktop, startMenu);
+
+        /// <summary>
+        /// Reads a native Windows executable with a version resource, used as the payload launcher.
+        /// </summary>
+        private static byte[] ReadVersionedExecutable() =>
+            File.ReadAllBytes(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
+
+        /// <summary>
+        /// Returns the four-part file version of the executable that <see cref="ReadVersionedExecutable"/> reads.
+        /// </summary>
+        private static string VersionedExecutableVersion()
+        {
+            var info = FileVersionInfo.GetVersionInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
+            return $"{info.FileMajorPart}.{info.FileMinorPart}.{info.FileBuildPart}.{info.FilePrivatePart}";
+        }
+
+        /// <summary>
+        /// Opens the ASLM entry of the stand-in list of installed applications, or returns null when it is missing.
+        /// </summary>
+        private RegistryKey? OpenRegistration()
+        {
+            using var root = _registry.OpenRoot()!;
+            return root.OpenSubKey("ASLM");
+        }
 
 
         // Path validation
@@ -160,39 +165,62 @@ namespace ASLM.Installer.Tests.Services
             validation.InstallPath.Should().EndWith("AslmFolder");
         }
 
+        /// <summary>
+        /// Verifies that an installation directory inside the personal application folder, or one that contains it,
+        /// is rejected, because removing ASLM for one user deletes that folder with everything inside it.
+        /// </summary>
+        [Fact]
+        public void ValidateInstallPath_rejects_directories_overlapping_the_personal_folder()
+        {
+            using var scope = new TempScope();
+            var userDir = Path.Combine(scope.Dir, "profile", "ASLM");
+            var installer = CreateInstaller(userDir);
+
+            var inside = installer.ValidateInstallPath(userDir, "Shared");
+            var containing = installer.ValidateInstallPath(scope.Dir, "profile");
+
+            inside.IsValid.Should().BeFalse();
+            inside.Message.Should().Contain("personal application folder");
+            containing.IsValid.Should().BeFalse();
+            containing.Message.Should().Contain("personal application folder");
+        }
+
 
         // Installation placement
 
         /// <summary>
-        /// Verifies that the launcher and the base payload archive are placed in the shared directory, that everything
-        /// else goes to the per-user directory without the launcher, and that the staging directory is cleaned up.
+        /// Verifies that the launcher, the uninstaller and the base payload archive are placed in the shared
+        /// directory, that everything else goes to the per-user directory without the shared files, and that the
+        /// staging directory is cleaned up.
         /// </summary>
         [Fact]
         public async Task InstallAsync_places_launcher_and_base_archive_shared_and_everything_else_per_user()
         {
             // Arrange: payload provided through the environment variable, user directory inside the test scope.
             using var scope = new TempScope();
-            var payloadPath = WritePayloadZip(scope.Dir);
+            var payloadPath = TestPayloadArchive.Write(scope.Dir);
             using var env = new EnvironmentScope(PayloadEnvironmentVariable, payloadPath);
             var userDir = Path.Combine(scope.Dir, "user-app");
-            var installer = CreateInstaller(scope, userDir);
+            var installer = CreateInstaller(userDir);
             var progress = new CollectProgress();
 
             // Act.
             var manifest = await installer.InstallAsync(Options(scope.Dir, "ASLM-Shared"), progress, CancellationToken.None);
 
-            // Assert: the shared directory holds the launcher and an exact copy of the payload archive.
+            // Assert: the shared directory holds the launcher, the uninstaller and an exact copy of the payload.
             var sharedDir = manifest.SharedInstallPath;
             sharedDir.Should().Be(Path.Combine(scope.Dir, "ASLM-Shared"));
             File.ReadAllText(Path.Combine(sharedDir, "ASLM.exe")).Should().Be("launcher binary");
+            File.ReadAllText(Path.Combine(sharedDir, "uninstall.exe")).Should().Be("uninstaller binary");
             File.ReadAllBytes(Path.Combine(sharedDir, "aslm-base.zip")).Should().Equal(File.ReadAllBytes(payloadPath));
 
-            // The per-user copy receives program and data folders but never the shared root launcher.
+            // The per-user copy receives program and data folders but never the shared root files.
             File.ReadAllText(Path.Combine(userDir, "App", "ASLM.dll")).Should().Be("app assembly");
             File.ReadAllText(Path.Combine(userDir, "Patcher", "ASLM Patcher.exe")).Should().Be("patcher binary");
             File.ReadAllText(Path.Combine(userDir, "Data", "App", "ASLM_Data.json")).Should().Contain("kept");
             File.ReadAllText(Path.Combine(userDir, "Engines", "ollama", "engine.bin")).Should().Be("engine");
             File.Exists(Path.Combine(userDir, "ASLM.exe")).Should().BeFalse();
+            File.Exists(Path.Combine(userDir, "uninstall.exe")).Should().BeFalse();
 
             // Only the emptied staging parent may survive a successful installation.
             AssertStagingCleaned(scope);
@@ -214,19 +242,19 @@ namespace ASLM.Installer.Tests.Services
 
         /// <summary>
         /// Verifies that the install manifest in the shared directory and the legal acceptance file in the per-user
-        /// data folder contain the installed paths, the version, and the accepted documents.
+        /// data folder contain the installed paths, the launcher's file version, and the accepted documents.
         /// </summary>
         [Fact]
         public async Task InstallAsync_writes_manifest_and_legal_acceptance()
         {
-            // Arrange: one accepted document with a known hash and a custom version.
+            // Arrange: one accepted document with a known hash and a launcher with a version resource.
             using var scope = new TempScope();
-            var payloadPath = WritePayloadZip(scope.Dir);
+            var payloadPath = TestPayloadArchive.Write(scope.Dir, ReadVersionedExecutable());
             using var env = new EnvironmentScope(PayloadEnvironmentVariable, payloadPath);
             var userDir = Path.Combine(scope.Dir, "user-app");
             var acceptedAt = new DateTimeOffset(2026, 10, 24, 12, 0, 0, TimeSpan.Zero);
-            var installer = CreateInstaller(scope, userDir);
-            var options = new InstallOptions(scope.Dir, "ASLM-Shared", "v9.9.9",
+            var installer = CreateInstaller(userDir);
+            var options = new InstallOptions(scope.Dir, "ASLM-Shared",
                 [new AcceptedLegalDocument("eula", "EULA", "eula.md", "deadbeef", acceptedAt)],
                 CreateDesktopShortcut: false, CreateStartMenuShortcut: false);
 
@@ -236,10 +264,11 @@ namespace ASLM.Installer.Tests.Services
             // Assert: the manifest file is camelCase JSON that mirrors the returned manifest.
             var manifestJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(manifest.SharedInstallPath, "install-manifest.json")));
             manifestJson.RootElement.GetProperty("app").GetString().Should().Be("ASLM");
-            manifestJson.RootElement.GetProperty("version").GetString().Should().Be("v9.9.9");
+            manifestJson.RootElement.GetProperty("version").GetString().Should().Be(VersionedExecutableVersion());
             manifestJson.RootElement.GetProperty("sharedInstallPath").GetString().Should().Be(manifest.SharedInstallPath);
             manifestJson.RootElement.GetProperty("userAppPath").GetString().Should().Be(userDir);
             manifestJson.RootElement.GetProperty("acceptedDocuments")[0].GetProperty("sha256").GetString().Should().Be("deadbeef");
+            manifestJson.RootElement.GetProperty("shortcuts").GetArrayLength().Should().Be(0);
 
             // The legal acceptance file lists the accepted documents in the per-user data folder.
             var legalJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(userDir, "Data", "App", "ASLM_LegalAcceptance.json")));
@@ -255,10 +284,10 @@ namespace ASLM.Installer.Tests.Services
         public async Task InstallAsync_reports_monotonic_progress_from_zero_to_hundred()
         {
             using var scope = new TempScope();
-            using var env = new EnvironmentScope(PayloadEnvironmentVariable, WritePayloadZip(scope.Dir));
+            using var env = new EnvironmentScope(PayloadEnvironmentVariable, TestPayloadArchive.Write(scope.Dir));
             var progress = new CollectProgress();
 
-            await CreateInstaller(scope, Path.Combine(scope.Dir, "user-app"))
+            await CreateInstaller(Path.Combine(scope.Dir, "user-app"))
                 .InstallAsync(Options(scope.Dir, "ASLM-Shared"), progress, CancellationToken.None);
 
             var percents = progress.Percentages;
@@ -292,7 +321,7 @@ namespace ASLM.Installer.Tests.Services
             using var env = new EnvironmentScope(PayloadEnvironmentVariable, payloadPath);
 
             // Act and assert: the installation fails with the staging error and leaves no staging directory behind.
-            var install = () => CreateInstaller(scope, Path.Combine(scope.Dir, "user-app"))
+            var install = () => CreateInstaller(Path.Combine(scope.Dir, "user-app"))
                 .InstallAsync(Options(scope.Dir, "ASLM-Shared"), new CollectProgress(), CancellationToken.None);
 
             (await install.Should().ThrowAsync<InvalidOperationException>())
@@ -317,7 +346,7 @@ namespace ASLM.Installer.Tests.Services
 
             using var env = new EnvironmentScope(PayloadEnvironmentVariable, payloadPath);
 
-            var install = () => CreateInstaller(scope, Path.Combine(scope.Dir, "user-app"))
+            var install = () => CreateInstaller(Path.Combine(scope.Dir, "user-app"))
                 .InstallAsync(Options(scope.Dir, "ASLM-Shared"), new CollectProgress(), CancellationToken.None);
 
             (await install.Should().ThrowAsync<InvalidOperationException>())
@@ -332,11 +361,11 @@ namespace ASLM.Installer.Tests.Services
         public async Task InstallAsync_cancellation_before_extraction_cleans_the_staging_directory()
         {
             using var scope = new TempScope();
-            using var env = new EnvironmentScope(PayloadEnvironmentVariable, WritePayloadZip(scope.Dir));
+            using var env = new EnvironmentScope(PayloadEnvironmentVariable, TestPayloadArchive.Write(scope.Dir));
             using var cancelled = new CancellationTokenSource();
             await cancelled.CancelAsync();
 
-            var install = () => CreateInstaller(scope, Path.Combine(scope.Dir, "user-app"))
+            var install = () => CreateInstaller(Path.Combine(scope.Dir, "user-app"))
                 .InstallAsync(Options(scope.Dir, "ASLM-Shared"), new CollectProgress(), cancelled.Token);
 
             await install.Should().ThrowAsync<OperationCanceledException>();
@@ -356,7 +385,7 @@ namespace ASLM.Installer.Tests.Services
             // Packaged-asset source that does not contain the payload either.
             Task<Stream> PackagedMissing() => Task.FromException<Stream>(new FileNotFoundException());
 
-            var install = () => CreateInstaller(scope, Path.Combine(scope.Dir, "user-app"), packagedPayload: PackagedMissing)
+            var install = () => CreateInstaller(Path.Combine(scope.Dir, "user-app"), packagedPayload: PackagedMissing)
                 .InstallAsync(Options(scope.Dir, "ASLM-Shared"), new CollectProgress(), CancellationToken.None);
 
             (await install.Should().ThrowAsync<FileNotFoundException>())
@@ -377,13 +406,13 @@ namespace ASLM.Installer.Tests.Services
 
             // The payload exists only through the packaged-asset source: no filesystem candidate exists,
             // so the base archive cannot be copied for additional users, but the install still succeeds.
-            var payloadZip = WritePayloadZip(scope.Dir);
+            var payloadZip = TestPayloadArchive.Write(scope.Dir);
 
             // Packaged-asset source that opens the payload file.
             Task<Stream> Packaged() => Task.FromResult<Stream>(File.OpenRead(payloadZip));
             var userDir = Path.Combine(scope.Dir, "user-app");
 
-            var manifest = await CreateInstaller(scope, userDir, packagedPayload: Packaged)
+            var manifest = await CreateInstaller(userDir, packagedPayload: Packaged)
                 .InstallAsync(Options(scope.Dir, "ASLM-Shared"), new CollectProgress(), CancellationToken.None);
 
             File.Exists(Path.Combine(manifest.SharedInstallPath, "aslm-base.zip")).Should().BeFalse();
@@ -398,24 +427,134 @@ namespace ASLM.Installer.Tests.Services
         [Fact]
         public async Task InstallAsync_requests_shortcuts_only_for_the_selected_kinds()
         {
+            // The payload carries no uninstaller, so neither installation registers and the second one is allowed.
             using var scope = new TempScope();
-            using var env = new EnvironmentScope(PayloadEnvironmentVariable, WritePayloadZip(scope.Dir));
+            using var env = new EnvironmentScope(
+                PayloadEnvironmentVariable,
+                TestPayloadArchive.Write(scope.Dir, includeUninstaller: false));
             var requests = new List<(string Folder, string FileName, string InstallDir)>();
 
             // Shortcut sink that records requests instead of creating files.
-            void Capture(string folder, string fileName, string installDir) => requests.Add((folder, fileName, installDir));
+            string? Capture(string folder, string fileName, string installDir)
+            {
+                requests.Add((folder, fileName, installDir));
+                return null;
+            }
 
-            var manifestNone = await CreateInstaller(scope, Path.Combine(scope.Dir, "user-a"), Capture)
+            var manifestNone = await CreateInstaller(Path.Combine(scope.Dir, "user-a"), Capture)
                 .InstallAsync(Options(scope.Dir, "share-none"), new CollectProgress(), CancellationToken.None);
             requests.Should().BeEmpty("both shortcut kinds are disabled");
 
-            var manifestBoth = await CreateInstaller(scope, Path.Combine(scope.Dir, "user-b"), Capture)
+            var manifestBoth = await CreateInstaller(Path.Combine(scope.Dir, "user-b"), Capture)
                 .InstallAsync(Options(scope.Dir, "share-both", desktop: true, startMenu: true), new CollectProgress(), CancellationToken.None);
             requests.Select(request => request.FileName).Should().Equal("ASLM.lnk", "ASLM.lnk");
             requests[0].Folder.Should().Be(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
             requests[1].Folder.Should().Be(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"));
             requests.Should().OnlyContain(request => request.InstallDir == manifestBoth.SharedInstallPath);
             manifestNone.SharedInstallPath.Should().NotBe(manifestBoth.SharedInstallPath);
+        }
+
+        /// <summary>
+        /// Verifies that the shortcuts the sink reports as created are recorded in the install manifest, so the
+        /// uninstaller finds them, and that shortcuts which were not created stay out of it.
+        /// </summary>
+        [Fact]
+        public async Task InstallAsync_records_the_created_shortcuts_in_the_manifest()
+        {
+            // Arrange: the desktop shortcut is created inside the scope, the Start menu shortcut fails.
+            using var scope = new TempScope();
+            using var env = new EnvironmentScope(PayloadEnvironmentVariable, TestPayloadArchive.Write(scope.Dir));
+            var desktopShortcut = Path.Combine(scope.Dir, "Desktop", "ASLM.lnk");
+            string? CreateInScope(string folder, string fileName, string installDir) =>
+                folder == Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory) ? desktopShortcut : null;
+
+            // Act.
+            var manifest = await CreateInstaller(Path.Combine(scope.Dir, "user-app"), CreateInScope)
+                .InstallAsync(Options(scope.Dir, "ASLM-Shared", desktop: true, startMenu: true), new CollectProgress(), CancellationToken.None);
+
+            // Assert.
+            manifest.Shortcuts.Should().Equal(desktopShortcut);
+            var manifestJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(manifest.SharedInstallPath, "install-manifest.json")));
+            manifestJson.RootElement.GetProperty("shortcuts")[0].GetString().Should().Be(desktopShortcut);
+        }
+
+
+        // Installed applications
+
+        /// <summary>
+        /// Verifies that the installation adds ASLM to the list of installed applications: the uninstaller as the
+        /// removal command, the launcher's version and icon, the shared directory, a program size, and no Modify
+        /// or Repair actions.
+        /// </summary>
+        [Fact]
+        public async Task InstallAsync_registers_aslm_in_the_installed_applications()
+        {
+            using var scope = new TempScope();
+            using var env = new EnvironmentScope(
+                PayloadEnvironmentVariable,
+                TestPayloadArchive.Write(scope.Dir, ReadVersionedExecutable()));
+
+            var manifest = await CreateInstaller(Path.Combine(scope.Dir, "user-app"))
+                .InstallAsync(Options(scope.Dir, "ASLM-Shared"), new CollectProgress(), CancellationToken.None);
+
+            using var entry = OpenRegistration();
+            entry.Should().NotBeNull();
+            var sharedDir = manifest.SharedInstallPath;
+            entry!.GetValue("DisplayName").Should().Be("ASLM");
+            entry.GetValue("DisplayVersion").Should().Be(VersionedExecutableVersion());
+            entry.GetValue("Publisher").Should().Be("NEXTGGTECH");
+            entry.GetValue("InstallLocation").Should().Be(sharedDir);
+            entry.GetValue("UninstallString").Should().Be($"\"{Path.Combine(sharedDir, "uninstall.exe")}\"");
+            entry.GetValue("DisplayIcon").Should().Be($"{Path.Combine(sharedDir, "ASLM.exe")},0");
+            entry.GetValue("NoModify").Should().Be(1);
+            entry.GetValue("NoRepair").Should().Be(1);
+            ((int)entry.GetValue("EstimatedSize")!).Should().BeGreaterThan(0, "the versioned launcher alone has a size");
+        }
+
+        /// <summary>
+        /// Verifies that a payload without the uninstaller registers nothing, because the entry would start a
+        /// missing program.
+        /// </summary>
+        [Fact]
+        public async Task InstallAsync_without_an_uninstaller_registers_nothing()
+        {
+            using var scope = new TempScope();
+            using var env = new EnvironmentScope(
+                PayloadEnvironmentVariable,
+                TestPayloadArchive.Write(scope.Dir, includeUninstaller: false));
+
+            await CreateInstaller(Path.Combine(scope.Dir, "user-app"))
+                .InstallAsync(Options(scope.Dir, "ASLM-Shared"), new CollectProgress(), CancellationToken.None);
+
+            using var entry = OpenRegistration();
+            entry.Should().BeNull();
+        }
+
+        /// <summary>
+        /// Verifies that a registered installation whose folder still holds its manifest blocks a second
+        /// installation, and that a stale entry of a deleted installation does not.
+        /// </summary>
+        [Fact]
+        public async Task InstallAsync_refuses_while_another_installation_is_registered()
+        {
+            // Arrange: a first installation registers itself.
+            using var scope = new TempScope();
+            using var env = new EnvironmentScope(PayloadEnvironmentVariable, TestPayloadArchive.Write(scope.Dir));
+            var first = await CreateInstaller(Path.Combine(scope.Dir, "user-a"))
+                .InstallAsync(Options(scope.Dir, "first"), new CollectProgress(), CancellationToken.None);
+
+            // Act and assert: the second installation is refused with the location of the first one.
+            var second = () => CreateInstaller(Path.Combine(scope.Dir, "user-b"))
+                .InstallAsync(Options(scope.Dir, "second"), new CollectProgress(), CancellationToken.None);
+            (await second.Should().ThrowAsync<InvalidOperationException>())
+                .Which.Message.Should().Contain(first.SharedInstallPath);
+
+            // Once the first installation is gone, its entry is stale and the next installation replaces it.
+            Directory.Delete(first.SharedInstallPath, recursive: true);
+            var third = await CreateInstaller(Path.Combine(scope.Dir, "user-c"))
+                .InstallAsync(Options(scope.Dir, "third"), new CollectProgress(), CancellationToken.None);
+            using var entry = OpenRegistration();
+            entry!.GetValue("InstallLocation").Should().Be(third.SharedInstallPath);
         }
 
 

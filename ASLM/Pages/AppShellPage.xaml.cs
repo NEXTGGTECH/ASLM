@@ -311,7 +311,7 @@ namespace ASLM.Pages
             Unloaded += OnPageUnloaded;
 
             // Restore the sidebar width before the first render so the shell opens in the saved state.
-            _panelExpanded = Preferences.Default.Get("SidebarExpanded", false);
+            _panelExpanded = _appData.Data.Navigation.SidebarExpanded;
             SidePanel.WidthRequest = _panelExpanded ? PanelExpandedWidth : PanelCollapsedWidth;
 
             // The buttons of the system views share styling, alignment and active-state handling.
@@ -685,9 +685,10 @@ namespace ASLM.Pages
         /// </summary>
         private void OnCollapseClicked(object? sender, EventArgs e)
         {
-            // Toggle and remember the state so the next start opens the same way.
+            // Toggle and remember the state so the next start opens the same way; like the last page, it is written
+            // to the application data when ASLM closes.
             _panelExpanded = !_panelExpanded;
-            Preferences.Default.Set("SidebarExpanded", _panelExpanded);
+            _appData.Data.Navigation.SidebarExpanded = _panelExpanded;
 
             // Animate the panel width, then re-lay out the buttons for the new mode.
             var targetWidth = _panelExpanded ? PanelExpandedWidth : PanelCollapsedWidth;

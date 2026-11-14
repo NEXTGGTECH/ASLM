@@ -406,6 +406,13 @@ namespace ASLM.Models
         public List<string> Preserve { get; set; } = [];
 
         /// <summary>
+        /// Absolute path of the downloaded update archive below the staging folder; on Windows the patcher makes it
+        /// the payload archive from which the shared Launcher sets up new users.
+        /// </summary>
+        [JsonPropertyName("archivePath")]
+        public string ArchivePath { get; set; } = string.Empty;
+
+        /// <summary>
         /// UTC time at which the pending update was created, in round-trip ("o") format.
         /// </summary>
         [JsonPropertyName("createdUtc")]
@@ -424,6 +431,7 @@ namespace ASLM.Models
             StagingPath ??= string.Empty;
             TargetRoot ??= string.Empty;
             BackupPath ??= string.Empty;
+            ArchivePath ??= string.Empty;
             CreatedUtc = string.IsNullOrWhiteSpace(CreatedUtc) ? DateTime.UtcNow.ToString("o") : CreatedUtc;
             Preserve ??= [];
         }

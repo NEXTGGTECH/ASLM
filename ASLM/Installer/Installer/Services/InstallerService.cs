@@ -3,7 +3,9 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Reflection;
+using System.Security;
 using System.Text.Json;
+using Microsoft.Win32;
 
 namespace ASLM.Installer
 {
@@ -11,7 +13,7 @@ namespace ASLM.Installer
 
     /// <summary>
     /// Installs the embedded ASLM payload using the dual-location strategy:
-    /// the Launcher and the payload archive go into the shared installation directory
+    /// the Launcher, the uninstaller and the payload archive go into the shared installation directory
     /// chosen by the user, while the application itself (App\, Patcher\, Data\, …)
     /// is installed into the current user's per-user application directory.
     /// </summary>
@@ -40,6 +42,12 @@ namespace ASLM.Installer
         private const string LauncherExeName = "ASLM.exe";
 
         /// <summary>
+        /// Root-level payload files that belong only in the shared installation directory: the Launcher and the
+        /// uninstaller. A per-user directory never receives them.
+        /// </summary>
+        private static readonly string[] SharedFileNames = [LauncherExeName, AppRegistration.UninstallerExeName];
+
+        /// <summary>
         /// File name of the install manifest written into the shared installation directory.
         /// </summary>
         private const string ManifestFileName = "install-manifest.json";
@@ -65,9 +73,16 @@ namespace ASLM.Installer
         private readonly Func<Task<Stream>> _openPackagedPayload;
 
         /// <summary>
-        /// Creates one shortcut from the folder, shortcut file name and shared install directory; replaced in tests.
+        /// Creates one shortcut from the folder, shortcut file name and shared install directory and returns its path,
+        /// or null when it was not created; replaced in tests.
         /// </summary>
-        private readonly Action<string, string, string> _createShortcut;
+        private readonly Func<string, string, string, string?> _createShortcut;
+
+        /// <summary>
+        /// Opens the writable Windows list of installed applications; replaced in tests so the machine-wide list is
+        /// never touched.
+        /// </summary>
+        private readonly Func<RegistryKey?> _openUninstallRoot;
 
 
         // Initialization
@@ -76,24 +91,28 @@ namespace ASLM.Installer
         /// Creates an installer that installs for the current user with packaged fallback assets.
         /// </summary>
         public InstallerService()
-            : this(userAppDir: null, packagedPayload: null, createShortcut: null)
+            : this(userAppDir: null, packagedPayload: null, createShortcut: null, uninstallRoot: null)
         {
         }
 
         /// <summary>
-        /// Creates an installer with test-injected destinations, packaged payload source, and shortcut sink.
+        /// Creates an installer with test-injected destinations, packaged payload source, shortcut sink, and list of
+        /// installed applications.
         /// </summary>
         /// <param name="userAppDir">Overrides the per-user application directory; null uses the local app data folder.</param>
         /// <param name="packagedPayload">Overrides the packaged payload source; null uses the MAUI app package.</param>
         /// <param name="createShortcut">Overrides shortcut creation; null creates real Windows shortcuts.</param>
+        /// <param name="uninstallRoot">Overrides the installed applications list; null uses the machine list.</param>
         internal InstallerService(
             Func<string>? userAppDir = null,
             Func<Task<Stream>>? packagedPayload = null,
-            Action<string, string, string>? createShortcut = null)
+            Func<string, string, string, string?>? createShortcut = null,
+            Func<RegistryKey?>? uninstallRoot = null)
         {
             _getUserAppDir = userAppDir ?? DefaultUserAppDir;
             _openPackagedPayload = packagedPayload ?? OpenPackagedPayloadAsync;
             _createShortcut = createShortcut ?? TryCreateShortcut;
+            _openUninstallRoot = uninstallRoot ?? (() => AppRegistration.OpenUninstallRoot(writable: true));
         }
 
 
@@ -178,6 +197,15 @@ namespace ASLM.Installer
                 return InstallPathValidation.Error("The folder name must stay inside the selected installation directory.");
             }
 
+            // The shared directory and the per-user directory must stay apart, because removing ASLM only for one
+            // user deletes the per-user directory with everything inside it.
+            var userAppDir = Path.GetFullPath(GetUserAppDir());
+            if (IsChildPath(userAppDir, installPath) || IsChildPath(installPath, userAppDir))
+            {
+                return InstallPathValidation.Error(
+                    $"The installation directory must be outside the personal application folder {userAppDir}.");
+            }
+
             // Block installs into an existing non-empty target folder.
             if (Directory.Exists(installPath) && Directory.EnumerateFileSystemEntries(installPath).Any())
             {
@@ -194,18 +222,20 @@ namespace ASLM.Installer
         /// Installs ASLM using the dual-location strategy and returns the install manifest.
         /// </summary>
         /// <remarks>
-        /// Three things happen:
-        /// 1. The Launcher executable is placed in the shared installation directory.
+        /// Four things happen:
+        /// 1. The Launcher and the uninstaller are placed in the shared installation directory.
         /// 2. The payload archive (aslm-base.zip) is placed next to the Launcher so that
         ///    additional users who run the Launcher can bootstrap their own application copy.
         /// 3. Everything else (App\, Patcher\, Data\, Engines\, Models\, Modules\) is placed
         ///    in the current user's per-user application directory (%LOCALAPPDATA%\ASLM).
+        /// 4. ASLM is added to the Windows list of installed applications, which starts the uninstaller.
         /// </remarks>
         /// <param name="options">Install location, accepted legal documents and shortcut choices.</param>
         /// <param name="progress">Receives monotonic progress updates from 0 to 100 percent.</param>
         /// <param name="cancellationToken">Cancels the installation; the staging directory is removed afterwards.</param>
         /// <exception cref="InvalidOperationException">
-        /// The install path is invalid, the payload archive is empty, or an entry escapes the staging directory.
+        /// The install path is invalid, ASLM is already installed, the payload archive is empty, or an entry escapes
+        /// the staging directory.
         /// </exception>
         /// <exception cref="FileNotFoundException">No payload archive was found in any of the checked locations.</exception>
         public async Task<InstallManifest> InstallAsync(
@@ -218,6 +248,12 @@ namespace ASLM.Installer
             if (!validation.IsValid)
             {
                 throw new InvalidOperationException(validation.Message);
+            }
+
+            // A second installation would share the per-user directory with the first one.
+            if (GetRegisteredInstallationMessage() is { } registeredMessage)
+            {
+                throw new InvalidOperationException(registeredMessage);
             }
 
             // Prepare the destinations: the shared directory, the per-user directory and a temporary staging area.
@@ -238,53 +274,63 @@ namespace ASLM.Installer
                 cancellationToken.ThrowIfCancellationRequested();
                 progress.Report(new InstallProgress("Installing launcher...", 88));
 
-                // Place the Launcher in the shared installation directory.
+                // Place the Launcher and the uninstaller in the shared installation directory.
                 Directory.CreateDirectory(sharedInstallDir);
-                var launcherSource = Path.Combine(stagingPath, LauncherExeName);
-                var launcherDest = Path.Combine(sharedInstallDir, LauncherExeName);
-                if (File.Exists(launcherSource))
+                foreach (var fileName in SharedFileNames)
                 {
-                    File.Copy(launcherSource, launcherDest, overwrite: true);
+                    var source = Path.Combine(stagingPath, fileName);
+                    if (File.Exists(source))
+                    {
+                        File.Copy(source, Path.Combine(sharedInstallDir, fileName), overwrite: true);
+                    }
                 }
 
                 // Copy the payload archive next to the Launcher for per-user bootstrapping.
                 progress.Report(new InstallProgress("Copying payload archive...", 90));
                 CopyPayloadArchive(sharedInstallDir);
 
-                // Install the application content (everything except the root Launcher) per-user.
+                // Install the application content (everything except the shared files) per-user.
                 progress.Report(new InstallProgress("Installing application files...", 92));
                 InstallUserAppDir(stagingPath, userAppDir);
 
-                // Write the install manifest into the shared directory.
-                var manifest = new InstallManifest(
-                    App: AppName,
-                    Version: options.Version,
-                    InstalledAtUtc: DateTimeOffset.UtcNow,
-                    SharedInstallPath: sharedInstallDir,
-                    UserAppPath: userAppDir,
-                    AcceptedDocuments: options.AcceptedDocuments);
-
-                await WriteManifestAsync(sharedInstallDir, manifest, cancellationToken);
-                await WriteLegalAcceptanceAsync(userAppDir, options.AcceptedDocuments, cancellationToken);
-
-                // Create the shortcuts the user selected; both point at the Launcher in the shared directory.
+                // Create the shortcuts the user selected; both point at the Launcher in the shared directory, and the
+                // manifest records them so the uninstaller finds them even on a redirected desktop.
+                var shortcuts = new List<string>();
                 if (options.CreateDesktopShortcut)
                 {
                     progress.Report(new InstallProgress("Creating desktop shortcut...", 94));
-                    _createShortcut(
+                    AddCreatedShortcut(shortcuts, _createShortcut(
                         Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
                         "ASLM.lnk",
-                        sharedInstallDir);
+                        sharedInstallDir));
                 }
 
                 if (options.CreateStartMenuShortcut)
                 {
-                    progress.Report(new InstallProgress("Creating Start menu shortcut...", 97));
-                    _createShortcut(
+                    progress.Report(new InstallProgress("Creating Start menu shortcut...", 96));
+                    AddCreatedShortcut(shortcuts, _createShortcut(
                         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs"),
                         "ASLM.lnk",
-                        sharedInstallDir);
+                        sharedInstallDir));
                 }
+
+                // Write the install manifest with the Launcher version, then the legal acceptance.
+                progress.Report(new InstallProgress("Registering ASLM...", 98));
+                var version = ReadFileVersion(Path.Combine(sharedInstallDir, LauncherExeName));
+                var manifest = new InstallManifest(
+                    App: AppName,
+                    Version: version,
+                    InstalledAtUtc: DateTimeOffset.UtcNow,
+                    SharedInstallPath: sharedInstallDir,
+                    UserAppPath: userAppDir,
+                    AcceptedDocuments: options.AcceptedDocuments,
+                    Shortcuts: shortcuts);
+
+                await WriteManifestAsync(sharedInstallDir, manifest, cancellationToken);
+                await WriteLegalAcceptanceAsync(userAppDir, options.AcceptedDocuments, cancellationToken);
+
+                // Add ASLM to the installed applications last, once everything it describes exists.
+                RegisterApplication(sharedInstallDir, userAppDir, version);
 
                 progress.Report(new InstallProgress("ASLM has been installed.", 100));
                 return manifest;
@@ -496,7 +542,7 @@ namespace ASLM.Installer
         }
 
         /// <summary>
-        /// Copies all staging content except the root-level Launcher executable into the
+        /// Copies all staging content except the root-level shared files (the Launcher and the uninstaller) into the
         /// per-user application directory.
         /// </summary>
         private static void InstallUserAppDir(string stagingPath, string userAppDir)
@@ -510,13 +556,13 @@ namespace ASLM.Installer
                 Directory.CreateDirectory(Path.Combine(userAppDir, relative));
             }
 
-            // Copy every file over any existing copy, except the Launcher.
+            // Copy every file over any existing copy, except the shared files.
             foreach (var filePath in Directory.EnumerateFiles(stagingPath, "*", SearchOption.AllDirectories))
             {
                 var relative = Path.GetRelativePath(stagingPath, filePath);
 
-                // Skip the root-level Launcher — it belongs in the shared install directory.
-                if (IsRootLauncherFile(relative))
+                // Skip the root-level shared files — they belong in the shared install directory.
+                if (IsRootSharedFile(relative))
                 {
                     continue;
                 }
@@ -528,12 +574,12 @@ namespace ASLM.Installer
         }
 
         /// <summary>
-        /// Returns true when the relative path represents the root-level Launcher executable.
+        /// Returns true when the relative path represents a root-level shared file: the Launcher or the uninstaller.
         /// </summary>
-        private static bool IsRootLauncherFile(string relativePath)
+        private static bool IsRootSharedFile(string relativePath)
         {
             var normalized = relativePath.Replace('\\', '/').Trim('/');
-            return string.Equals(normalized, LauncherExeName, StringComparison.OrdinalIgnoreCase);
+            return SharedFileNames.Contains(normalized, StringComparer.OrdinalIgnoreCase);
         }
 
 
@@ -585,20 +631,101 @@ namespace ASLM.Installer
         }
 
 
+        /// <summary>
+        /// Returns the file version of an executable in its four-part form, such as <c>0.11.1.22</c>.
+        /// </summary>
+        /// <returns>The version, or an empty string when the file is missing or has no version resource.</returns>
+        private static string ReadFileVersion(string executablePath)
+        {
+            if (!File.Exists(executablePath))
+            {
+                return string.Empty;
+            }
+
+            var info = FileVersionInfo.GetVersionInfo(executablePath);
+            return info.FileVersion is null
+                ? string.Empty
+                : $"{info.FileMajorPart}.{info.FileMinorPart}.{info.FileBuildPart}.{info.FilePrivatePart}";
+        }
+
+
+        // Installed applications
+
+        /// <summary>
+        /// Returns why ASLM cannot be installed because it is already installed, or null when nothing is
+        /// registered. An entry whose folder no longer holds an install manifest is stale and does not count.
+        /// </summary>
+        public string? GetRegisteredInstallationMessage()
+        {
+            string? installLocation;
+            try
+            {
+                using var uninstallRoot = _openUninstallRoot();
+                installLocation = uninstallRoot is null ? null : AppRegistration.ReadInstallLocation(uninstallRoot);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+            {
+                // Without access to the list the check cannot run; the registration at the end reports the problem.
+                return null;
+            }
+
+            return !string.IsNullOrWhiteSpace(installLocation) &&
+                   File.Exists(Path.Combine(installLocation, ManifestFileName))
+                ? $"ASLM is already installed in {installLocation}. Uninstall it before installing ASLM again."
+                : null;
+        }
+
+        /// <summary>
+        /// Adds ASLM to the Windows list of installed applications, so it can be removed from the Windows settings.
+        /// Nothing is registered without the uninstaller, because the entry would start a missing program.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The list of installed applications does not exist.</exception>
+        private void RegisterApplication(string sharedInstallDir, string userAppDir, string version)
+        {
+            if (!File.Exists(Path.Combine(sharedInstallDir, AppRegistration.UninstallerExeName)))
+            {
+                return;
+            }
+
+            using var uninstallRoot = _openUninstallRoot()
+                ?? throw new InvalidOperationException("The Windows list of installed applications was not found.");
+            AppRegistration.Register(
+                uninstallRoot,
+                sharedInstallDir,
+                version,
+                AppRegistration.EstimateSizeKb(sharedInstallDir, userAppDir));
+        }
+
+
         // Shortcut creation
 
         /// <summary>
         /// Creates a Windows shortcut without failing an otherwise successful installation.
         /// </summary>
-        private static void TryCreateShortcut(string folderPath, string shortcutFileName, string sharedInstallDir)
+        /// <returns>The path of the created shortcut, or null when it was not created.</returns>
+        private static string? TryCreateShortcut(string folderPath, string shortcutFileName, string sharedInstallDir)
         {
             try
             {
                 CreateShortcut(folderPath, shortcutFileName, sharedInstallDir);
+                var shortcutPath = Path.Combine(folderPath, shortcutFileName);
+                return File.Exists(shortcutPath) ? shortcutPath : null;
             }
             catch
             {
                 // Shortcut creation is optional after files are installed.
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Adds a created shortcut to the list that the install manifest records.
+        /// </summary>
+        private static void AddCreatedShortcut(List<string> shortcuts, string? shortcutPath)
+        {
+            if (shortcutPath is not null)
+            {
+                shortcuts.Add(shortcutPath);
             }
         }
 
@@ -692,14 +819,12 @@ namespace ASLM.Installer
     /// </summary>
     /// <param name="BasePath">Parent directory of the shared installation folder.</param>
     /// <param name="FolderName">Name of the shared installation folder inside <paramref name="BasePath"/>.</param>
-    /// <param name="Version">Version label that is recorded in the install manifest.</param>
     /// <param name="AcceptedDocuments">Legal documents the user accepted; stored in the per-user acceptance file.</param>
     /// <param name="CreateDesktopShortcut">Whether a desktop shortcut to the Launcher is created.</param>
     /// <param name="CreateStartMenuShortcut">Whether a Start menu shortcut to the Launcher is created.</param>
     public sealed record InstallOptions(
         string BasePath,
         string FolderName,
-        string Version,
         IReadOnlyList<AcceptedLegalDocument> AcceptedDocuments,
         bool CreateDesktopShortcut,
         bool CreateStartMenuShortcut);
@@ -726,22 +851,27 @@ namespace ASLM.Installer
     /// Describes the completed ASLM installation.
     /// </summary>
     /// <param name="App">Application name.</param>
-    /// <param name="Version">Version label that was passed in the installation options.</param>
+    /// <param name="Version">
+    /// Four-part file version of the Launcher in the shared directory, which the patcher compares and keeps current;
+    /// empty when the Launcher has no version resource.
+    /// </param>
     /// <param name="InstalledAtUtc">Moment at which the installation finished writing files.</param>
     /// <param name="SharedInstallPath">
-    /// Directory containing the Launcher executable and the payload archive (shared across OS users).
+    /// Directory containing the Launcher executable, the uninstaller and the payload archive (shared across OS users).
     /// </param>
     /// <param name="UserAppPath">
     /// Per-user directory containing the application, Patcher and data folders.
     /// </param>
     /// <param name="AcceptedDocuments">Legal documents the user accepted during the installation.</param>
+    /// <param name="Shortcuts">Shortcuts the installer created, which the uninstaller removes.</param>
     public sealed record InstallManifest(
         string App,
         string Version,
         DateTimeOffset InstalledAtUtc,
         string SharedInstallPath,
         string UserAppPath,
-        IReadOnlyList<AcceptedLegalDocument> AcceptedDocuments);
+        IReadOnlyList<AcceptedLegalDocument> AcceptedDocuments,
+        IReadOnlyList<string> Shortcuts);
 
     /// <summary>
     /// Reports installation progress to the wizard UI.

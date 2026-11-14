@@ -10,9 +10,9 @@ using System.Text.Json;
 /// <remarks>
 /// When a second (or any subsequent) user launches the shared Launcher, their per-user
 /// application directory does not exist yet. This class extracts the payload archive that
-/// was placed next to the Launcher during installation and sets up the user's own copy of
-/// the application. The Launcher executable itself is intentionally excluded because it
-/// already lives in the shared installation directory.
+/// was placed next to the Launcher during installation or by a later self-update and sets up
+/// the user's own copy of the application. The Launcher and the uninstaller are intentionally
+/// excluded because they already live in the shared installation directory.
 /// </remarks>
 internal static class UserBootstrapper
 {
@@ -22,6 +22,11 @@ internal static class UserBootstrapper
     /// File name of the launcher executable, which is never copied from the payload into a user directory.
     /// </summary>
     private static string LauncherExeName => AppPaths.ExecutableName;
+
+    /// <summary>
+    /// File name of the Windows uninstaller, which belongs in the shared installation directory like the launcher.
+    /// </summary>
+    private const string UninstallerExeName = "uninstall.exe";
 
     /// <summary>
     /// File name of the reference that tells the patcher where the shared launcher is.
@@ -184,12 +189,15 @@ internal static class UserBootstrapper
     }
 
     /// <summary>
-    /// Extracts archive entries into the target directory, skipping the root-level Launcher executable.
+    /// Extracts archive entries into the target directory, skipping the root-level shared files. The installer's
+    /// archive keeps its files at the root, while the release archive that self-updates place next to the Launcher
+    /// wraps them in a single folder, which is collapsed.
     /// </summary>
     private static void ExtractPayload(string archivePath, string targetDir, string logPath)
     {
         using var stream = File.OpenRead(archivePath);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+        var wrapperPrefix = GetWrapperPrefix(archive);
 
         foreach (var entry in archive.Entries)
         {
@@ -199,13 +207,16 @@ internal static class UserBootstrapper
                 continue;
             }
 
-            // Skip the root-level Launcher executable — it lives in the shared install dir.
-            if (IsRootLauncherEntry(entry.FullName))
+            // Paths are relative to the payload root, which lies below the wrapper folder when there is one.
+            var relativePath = entry.FullName.Replace('\\', '/').TrimStart('/')[wrapperPrefix.Length..];
+
+            // Skip the root-level shared files — they live in the shared install dir.
+            if (IsRootSharedEntry(relativePath))
             {
                 continue;
             }
 
-            var destinationPath = Path.GetFullPath(Path.Combine(targetDir, entry.FullName));
+            var destinationPath = Path.GetFullPath(Path.Combine(targetDir, relativePath));
             if (!IsChildPath(targetDir, destinationPath))
             {
                 Log($"Skipping unsafe archive entry: {entry.FullName}", logPath);
@@ -218,16 +229,47 @@ internal static class UserBootstrapper
     }
 
     /// <summary>
-    /// Returns true when the archive entry represents the root-level Launcher executable
-    /// (i.e. ASLM.exe at the top of the zip, not inside App\ or any other subdirectory).
+    /// Returns the wrapper folder prefix, such as <c>ASLM-windows-amd64/</c>, when every entry lies below one
+    /// top-level folder and no file sits at the root; otherwise returns an empty string.
     /// </summary>
-    private static bool IsRootLauncherEntry(string entryFullName)
+    private static string GetWrapperPrefix(ZipArchive archive)
     {
-        // Normalize separators so the check works regardless of how the zip was created.
-        var normalized = entryFullName.Replace('\\', '/').Trim('/');
+        string? wrapperFolder = null;
+        foreach (var entry in archive.Entries)
+        {
+            // A file at the root means the payload is not wrapped.
+            var normalized = entry.FullName.Replace('\\', '/').TrimStart('/');
+            var separator = normalized.IndexOf('/');
+            if (separator < 0)
+            {
+                return string.Empty;
+            }
 
-        // The entry must be exactly the launcher name with no directory component.
-        return string.Equals(normalized, LauncherExeName, StringComparison.OrdinalIgnoreCase);
+            // A second top-level folder means the payload is not wrapped either.
+            var topFolder = normalized[..separator];
+            if (wrapperFolder is null)
+            {
+                wrapperFolder = topFolder;
+            }
+            else if (!string.Equals(wrapperFolder, topFolder, StringComparison.Ordinal))
+            {
+                return string.Empty;
+            }
+        }
+
+        return wrapperFolder is null ? string.Empty : wrapperFolder + "/";
+    }
+
+    /// <summary>
+    /// Returns true when a payload-relative path represents a root-level shared file: the Launcher executable or the
+    /// uninstaller at the top of the payload, not inside App\ or any other subdirectory.
+    /// </summary>
+    private static bool IsRootSharedEntry(string relativePath)
+    {
+        // The entry must be exactly a shared file name with no directory component.
+        var normalized = relativePath.Trim('/');
+        return string.Equals(normalized, LauncherExeName, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, UninstallerExeName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

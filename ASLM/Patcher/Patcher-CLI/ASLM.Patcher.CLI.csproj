@@ -23,6 +23,7 @@
 
 	<ItemGroup>
 		<Compile Include="..\Patcher\Program.cs" Link="PatcherRunner.cs" />
+		<Compile Include="..\..\Installer\Shared\AppRegistration.cs" Link="Shared\AppRegistration.cs" />
 		<InternalsVisibleTo Include="ASLM.Patcher.Tests" />
 	</ItemGroup>
 

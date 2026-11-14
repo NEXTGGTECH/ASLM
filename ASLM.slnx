@@ -25,6 +25,10 @@
     <Build Solution="Debug|ARM64" Project="false" />
     <BuildDependency Project="ASLM/Installer/Installer/ASLM.Installer.csproj" />
   </Project>
+  <Project Path="ASLM/Installer/Uninstaller/ASLM.Uninstaller.csproj">
+    <Platform Solution="*|AMD64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+  </Project>
   <Project Path="ASLM/Installer/Tests/ASLM.Installer.Tests.csproj">
     <Platform Solution="*|AMD64" Project="AnyCPU" />
     <Platform Solution="*|ARM64" Project="AnyCPU" />

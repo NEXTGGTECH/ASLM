@@ -923,7 +923,8 @@ namespace ASLM.Services.Internal
                 preserve = LinuxAppRelauncher.GetUpdatePreservePaths(preserve);
 #endif
 
-                // Describe the staged payload for the external patcher: where it is, where it goes, what to keep.
+                // Describe the staged payload for the external patcher: where it is, where it goes, what to keep,
+                // and the downloaded archive that becomes the payload archive of a shared installation folder.
                 var pending = new PendingAppUpdate
                 {
                     Version = candidate.RemoteVersion,
@@ -931,6 +932,7 @@ namespace ASLM.Services.Internal
                     TargetRoot = targetRoot,
                     BackupPath = backupPath,
                     Preserve = preserve,
+                    ArchivePath = archivePath,
                     CreatedUtc = DateTime.UtcNow.ToString("o")
                 };
 

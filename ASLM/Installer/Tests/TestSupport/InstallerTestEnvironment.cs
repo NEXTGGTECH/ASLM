@@ -1,5 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using Microsoft.Win32;
+
 namespace ASLM.Installer.Tests.TestSupport
 {
     // Temp directory redirection
@@ -124,6 +126,61 @@ namespace ASLM.Installer.Tests.TestSupport
         public void Dispose()
         {
             Environment.SetEnvironmentVariable(_name, _original);
+        }
+    }
+
+
+    // Registry key override
+
+    /// <summary>
+    /// Creates a unique registry key below HKEY_CURRENT_USER that stands in for a machine-wide key, so tests never
+    /// need administrator rights or touch the real list of installed applications.
+    /// </summary>
+    internal sealed class RegistryScope : IDisposable
+    {
+        /// <summary>
+        /// Key below HKEY_CURRENT_USER that holds the keys of all test scopes.
+        /// </summary>
+        private const string TestsKeyPath = @"Software\ASLM-Installer-Tests";
+
+        /// <summary>
+        /// Path of this scope's key below HKEY_CURRENT_USER.
+        /// </summary>
+        public string KeyPath { get; } = $@"{TestsKeyPath}\{Guid.NewGuid():N}";
+
+        /// <summary>
+        /// Creates the scope's key.
+        /// </summary>
+        public RegistryScope()
+        {
+            Registry.CurrentUser.CreateSubKey(KeyPath).Dispose();
+        }
+
+        /// <summary>
+        /// Opens the scope's key for writing; the caller disposes it.
+        /// </summary>
+        public RegistryKey? OpenRoot()
+        {
+            return Registry.CurrentUser.OpenSubKey(KeyPath, writable: true);
+        }
+
+        /// <summary>
+        /// Deletes the scope's key and the shared tests key once no other scope uses it.
+        /// </summary>
+        public void Dispose()
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(KeyPath, throwOnMissingSubKey: false);
+
+            bool isUnused;
+            using (var testsKey = Registry.CurrentUser.OpenSubKey(TestsKeyPath))
+            {
+                isUnused = testsKey is { SubKeyCount: 0, ValueCount: 0 };
+            }
+
+            if (isUnused)
+            {
+                Registry.CurrentUser.DeleteSubKey(TestsKeyPath, throwOnMissingSubKey: false);
+            }
         }
     }
 }

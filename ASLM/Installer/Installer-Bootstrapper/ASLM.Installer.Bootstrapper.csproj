@@ -36,6 +36,7 @@
 		<ASLMBootstrapperPayloadResource>$(ASLMBootstrapperResourceDir)aslm-payload.zip</ASLMBootstrapperPayloadResource>
 		<ASLMInstallerMauiTargetFramework>net10.0-windows10.0.19041.0</ASLMInstallerMauiTargetFramework>
 		<ASLMInstallerLauncherTargetFramework>net10.0</ASLMInstallerLauncherTargetFramework>
+		<ASLMInstallerUninstallerTargetFramework>net10.0-windows</ASLMInstallerUninstallerTargetFramework>
 		<ASLMInstallerRuntimeIdentifier Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</ASLMInstallerRuntimeIdentifier>
 		<ASLMInstallerRuntimeIdentifier Condition="'$(ASLMInstallerRuntimeIdentifier)' == ''">win-x64</ASLMInstallerRuntimeIdentifier>
 		<ASLMInstallerMaxPayloadSizeGB Condition="'$(ASLMInstallerMaxPayloadSizeGB)' == ''">8</ASLMInstallerMaxPayloadSizeGB>
@@ -70,6 +71,16 @@
 		<MSBuild Projects="$(ASLMRepoRoot)ASLM\Launcher\ASLM.Launcher.csproj"
 		         Targets="Publish"
 		         Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);TargetFramework=$(ASLMInstallerLauncherTargetFramework);SelfContained=true" />
+
+		<MSBuild Projects="$(ASLMRepoRoot)ASLM\Installer\Uninstaller\ASLM.Uninstaller.csproj"
+		         Targets="Restore"
+		         Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);TargetFramework=$(ASLMInstallerUninstallerTargetFramework);SelfContained=true;MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
+		<MSBuild Projects="$(ASLMRepoRoot)ASLM\Installer\Uninstaller\ASLM.Uninstaller.csproj"
+		         Targets="Publish"
+		         Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifier=$(ASLMInstallerRuntimeIdentifier);RestoreRuntimeIdentifiers=$(ASLMInstallerRuntimeIdentifier);TargetFramework=$(ASLMInstallerUninstallerTargetFramework);SelfContained=true" />
+
+		<!-- The installed applications entry starts uninstall.exe, so a payload without it must not be packed. -->
+		<Error Condition="!Exists('$(ASLMPayloadSourceRoot)uninstall.exe')" Text="uninstall.exe was not published into $(ASLMPayloadSourceRoot). Build ASLM/Installer/Installer-Bootstrapper so MSBuild publishes the uninstaller before packing the payload." />
 
 		<ZipInstallerDirectory SourceDir="$(ASLMPayloadSourceRoot)"
 		                       OutputFile="$(ASLMPayloadFile)"

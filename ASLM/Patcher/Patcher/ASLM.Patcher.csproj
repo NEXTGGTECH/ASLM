@@ -27,12 +27,20 @@
 
 	<PropertyGroup>
 		<OutputPath>$(ASLMBuildOutputRoot)Patcher\</OutputPath>
+		<!-- Platforms/Windows/Program.cs replaces the generated entry point, so the elevation for the shared
+		     installation folder is decided before any window appears. -->
+		<DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<MauiIcon Include="..\..\Resources\AppIcon\appicon.svg" ForegroundFile="..\..\Resources\AppIcon\appiconfg.svg" Color="#17171a" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+	</ItemGroup>
+
+	<!-- The patcher keeps the entry in the installed applications current after self-updates. -->
+	<ItemGroup>
+		<Compile Include="..\..\Installer\Shared\AppRegistration.cs" Link="Shared\AppRegistration.cs" />
 	</ItemGroup>
 
 </Project>

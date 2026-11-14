@@ -113,7 +113,8 @@ namespace ASLM.Installer
 
         /// <summary>
         /// Advances the wizard, finishes it after a successful installation, or starts the installation from the
-        /// confirmation step. Leaving a legal step requires acceptance and leaving the path step requires a valid path.
+        /// confirmation step. Leaving the welcome step requires that ASLM is not installed yet, leaving a legal step
+        /// requires acceptance, and leaving the path step requires a valid path.
         /// </summary>
         private async void OnNextClicked(object? sender, EventArgs e)
         {
@@ -129,6 +130,13 @@ namespace ASLM.Installer
             if (_isInstalled)
             {
                 CloseOrLaunch();
+                return;
+            }
+
+            // A registered installation must be removed first, because both would share one per-user directory.
+            if (_step == 0 && _installerService.GetRegisteredInstallationMessage() is { } registeredMessage)
+            {
+                FooterLabel.Text = registeredMessage;
                 return;
             }
 
@@ -340,7 +348,6 @@ namespace ASLM.Installer
             return new InstallOptions(
                 BasePathEntry.Text ?? string.Empty,
                 FolderNameEntry.Text ?? "ASLM",
-                "1.0",
                 acceptedDocuments,
                 DesktopShortcutSwitch.IsToggled,
                 StartMenuShortcutSwitch.IsToggled);

@@ -53,6 +53,11 @@
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
 	</ItemGroup>
 
+	<!-- The installer creates the entry in the installed applications that the patcher and the uninstaller use too. -->
+	<ItemGroup>
+		<Compile Include="..\Shared\AppRegistration.cs" Link="Shared\AppRegistration.cs" />
+	</ItemGroup>
+
 	<Target Name="GenerateInstallerLegalDocuments" BeforeTargets="BeforeBuild">
 		<GenerateInstallerLegalDocuments SourceDir="$(ASLMLegalSourceDir)"
 		                                OutputFile="$(ASLMLegalOutputFile)" />

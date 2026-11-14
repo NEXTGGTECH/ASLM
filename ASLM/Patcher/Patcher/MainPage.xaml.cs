@@ -58,6 +58,9 @@ namespace ASLM.Patcher
             var progress = new Progress<PatcherProgress>(OnProgress);
             var exitCode = await PatcherRunner.RunAsync(args, progress);
 
+            // The process exits with the patch result, which a patcher waiting for this elevated copy reads.
+            Environment.ExitCode = exitCode;
+
             // Update the headline once the background patcher thread finishes.
             StatusLabel.Text = exitCode == 0
                 ? "Update finished. ASLM has been started."

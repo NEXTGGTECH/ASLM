@@ -114,13 +114,13 @@ namespace ASLM.Launcher.Tests
         }
 
         /// <summary>
-        /// Verifies that bootstrapping extracts the program folders but skips the root launcher executable and
-        /// archive entries that would escape the target directory.
+        /// Verifies that bootstrapping extracts the program folders but skips the root launcher executable, the
+        /// uninstaller, and archive entries that would escape the target directory.
         /// </summary>
         [Fact]
         public void Bootstrap_extracts_the_payload_but_never_a_second_launcher_or_unsafe_entries()
         {
-            // Arrange: a shared directory whose payload archive also holds a launcher and an escaping entry.
+            // Arrange: a shared directory whose payload archive also holds the shared files and an escaping entry.
             var shared = Path.Combine(_root, "shared");
             var user = Path.Combine(_root, "user");
             Directory.CreateDirectory(Path.Combine(shared, "App"));
@@ -131,8 +131,9 @@ namespace ASLM.Launcher.Tests
                 WriteEntry(archive, "App/ASLM.dll", "payload-app");
                 WriteEntry(archive, "Patcher/patcher.dll", "patcher");
 
-                // The root launcher must not be extracted a second time into the user dir.
+                // The root shared files must not be extracted a second time into the user dir.
                 WriteEntry(archive, AppPaths.ExecutableName, "shared-launcher");
+                WriteEntry(archive, "uninstall.exe", "shared-uninstaller");
 
                 // Escaping entries are skipped, not extracted.
                 WriteEntry(archive, "../outside.txt", "escaped");
@@ -145,7 +146,45 @@ namespace ASLM.Launcher.Tests
             File.ReadAllText(Path.Combine(user, "App", "ASLM.dll")).Should().Be("payload-app");
             File.ReadAllText(Path.Combine(user, "Patcher", "patcher.dll")).Should().Be("patcher");
             File.Exists(Path.Combine(user, AppPaths.ExecutableName)).Should().BeFalse();
+            File.Exists(Path.Combine(user, "uninstall.exe")).Should().BeFalse();
             File.Exists(Path.Combine(_root, "outside.txt")).Should().BeFalse();
+        }
+
+        /// <summary>
+        /// Verifies that a release archive, which a self-update places next to the launcher and which wraps the
+        /// payload in a single folder, is extracted without that folder and without its root shared files.
+        /// </summary>
+        [Fact]
+        public void Bootstrap_collapses_the_wrapper_folder_of_a_release_archive()
+        {
+            if (OperatingSystem.IsLinux())
+            {
+                // Linux bootstraps from its own tarball layout.
+                return;
+            }
+
+            // Arrange: the release layout, with every entry below ASLM-windows-amd64/.
+            var shared = Path.Combine(_root, "shared");
+            var user = Path.Combine(_root, "user");
+            Directory.CreateDirectory(shared);
+            using (var archive = ZipFile.Open(AppPaths.GetPayloadArchivePath(shared), ZipArchiveMode.Create))
+            {
+                archive.CreateEntry("ASLM-windows-amd64/");
+                WriteEntry(archive, "ASLM-windows-amd64/App/ASLM.dll", "payload-app");
+                WriteEntry(archive, "ASLM-windows-amd64/Data/App/ASLM_Data.json", "{}");
+                WriteEntry(archive, "ASLM-windows-amd64/" + AppPaths.ExecutableName, "shared-launcher");
+                WriteEntry(archive, "ASLM-windows-amd64/uninstall.exe", "shared-uninstaller");
+            }
+
+            // Act.
+            UserBootstrapper.TryBootstrap(shared, user, Path.Combine(_root, "Launcher.log")).Should().BeTrue();
+
+            // Assert.
+            File.ReadAllText(Path.Combine(user, "App", "ASLM.dll")).Should().Be("payload-app");
+            File.Exists(Path.Combine(user, "Data", "App", "ASLM_Data.json")).Should().BeTrue();
+            Directory.Exists(Path.Combine(user, "ASLM-windows-amd64")).Should().BeFalse();
+            File.Exists(Path.Combine(user, AppPaths.ExecutableName)).Should().BeFalse();
+            File.Exists(Path.Combine(user, "uninstall.exe")).Should().BeFalse();
         }
 
         /// <summary>

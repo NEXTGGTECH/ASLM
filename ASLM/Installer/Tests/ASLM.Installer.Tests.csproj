@@ -28,12 +28,17 @@
 		</PackageReference>
 	</ItemGroup>
 
-	<!-- Installer logic, the CLI bootstrapper, and the GUI patcher runner are compiled into this
-	     assembly so their internal members stay reachable without building MAUI-sized graphs. -->
+	<!-- Installer logic, the CLI bootstrapper, the uninstaller logic, and the GUI patcher runner are
+	     compiled into this assembly so their internal members stay reachable without building MAUI-sized graphs. -->
 	<ItemGroup>
 		<Compile Include="..\Installer\Services\InstallerService.cs" Link="Services\InstallerService.cs" />
 		<Compile Include="..\Installer\Services\LegalDocumentService.cs" Link="Services\LegalDocumentService.cs" />
 		<Compile Include="..\Installer-Bootstrapper\Program.cs" Link="Installer-Bootstrapper\Program.cs" />
+		<Compile Include="..\Shared\AppRegistration.cs" Link="Shared\AppRegistration.cs" />
+		<Compile Include="..\Uninstaller\UninstallerLaunch.cs" Link="Uninstaller\UninstallerLaunch.cs" />
+		<Compile Include="..\Uninstaller\Services\UninstallerService.cs" Link="Uninstaller\UninstallerService.cs" />
+		<Compile Include="..\Uninstaller\Services\UninstallerService.Processes.cs" Link="Uninstaller\UninstallerService.Processes.cs" />
+		<Compile Include="..\Uninstaller\Services\UninstallerService.Removal.cs" Link="Uninstaller\UninstallerService.Removal.cs" />
 		<Compile Include="..\..\Patcher\Patcher\Program.cs" Link="Patcher\Patcher.Program.cs" />
 	</ItemGroup>
 
