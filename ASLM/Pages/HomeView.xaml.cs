@@ -637,8 +637,11 @@ namespace ASLM.Pages
 
                 do
                 {
-                    // Rediscover installed modules only when forced or when none are known yet.
-                    if (shouldForceReload || _knownModules.Count == 0)
+                    // Rediscover installed modules only when forced or when none are known yet. Only a fresh
+                    // discovery is passed to the console store: the cached list goes stale while modules start and
+                    // stop, and would overwrite the enabled state that the runner keeps up to date.
+                    var discovered = shouldForceReload || _knownModules.Count == 0;
+                    if (discovered)
                     {
                         _knownModules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
                     }
@@ -647,7 +650,11 @@ namespace ASLM.Pages
                     var modules = _knownModules.ToList();
                     var refreshSnapshot = await Task.Run(() =>
                     {
-                        _consoleStore.EnsureModules(modules);
+                        if (discovered)
+                        {
+                            _consoleStore.EnsureModules(modules);
+                        }
+
                         var consoleSnapshots = _consoleStore.GetSnapshot();
                         var diagnostics = _diagnosticsCollector.Capture(modules, consoleSnapshots);
                         var state = BuildState(modules, consoleSnapshots, diagnostics);

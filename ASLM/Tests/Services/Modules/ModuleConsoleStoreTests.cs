@@ -8,8 +8,9 @@ using ASLM.Tests.TestSupport;
 namespace ASLM.Tests.Services.Modules
 {
     /// <summary>
-    /// Verifies the shared module console store: maintenance logs and activities, process sessions, the overview
-    /// buffer and the module status label derived from store state.
+    /// Verifies the shared module console store: maintenance logs and activities, process sessions with their
+    /// rewritten unfinished lines and display limit, the overview buffer, module snapshots and the module status label
+    /// derived from store state.
     /// </summary>
     public sealed class ModuleConsoleStoreTests
     {
@@ -179,6 +180,86 @@ namespace ASLM.Tests.Services.Modules
 
             session.IsRunning.Should().BeFalse();
             session.ExitCode.Should().Be(0);
+        }
+
+        /// <summary>
+        /// Verifies that the unfinished line of a stream is rewritten in place until it is completed, independently of
+        /// the lines of the other stream, and that blank lines are kept.
+        /// </summary>
+        [Fact]
+        public void Unfinished_process_line_is_rewritten_in_place_per_stream_and_blank_lines_are_kept()
+        {
+            var store = new ModuleConsoleStore();
+            var module = ModuleConfigBuilder.Create();
+            using var process = Process.GetCurrentProcess();
+            var handle = store.StartProcessSession(module, new ModuleCommand { Name = "Run" }, "Run", "run", process, true);
+
+            store.UpdateProcessLine(handle, ProcessOutputStream.StandardError, "10%");
+            store.CompleteProcessLine(handle, ProcessOutputStream.StandardOutput, "output line");
+            store.UpdateProcessLine(handle, ProcessOutputStream.StandardError, "50%");
+            store.CompleteProcessLine(handle, ProcessOutputStream.StandardError, "100%");
+            store.AppendProcessLine(handle, "  ");
+            store.CompleteProcessLine(handle, ProcessOutputStream.StandardError, "after progress");
+
+            store.GetSessionLines(module.SourcePath, handle.SessionId)
+                .Should().Equal("run", "100%", "output line", "  ", "after progress");
+        }
+
+        /// <summary>
+        /// Verifies that a session with more buffered lines than the display limit shows the newest lines up to that
+        /// limit, after a banner that says the output was trimmed.
+        /// </summary>
+        [Fact]
+        public void Session_text_shows_the_newest_lines_up_to_the_display_limit()
+        {
+            var store = new ModuleConsoleStore();
+            var module = ModuleConfigBuilder.Create();
+            using var process = Process.GetCurrentProcess();
+            var handle = store.StartProcessSession(module, new ModuleCommand { Name = "Run" }, "Run", "run", process, true);
+            for (var index = 1; index <= 1200; index++)
+            {
+                store.AppendProcessLine(handle, $"line {index}");
+            }
+
+            var lines = store.GetSessionLines(module.SourcePath, handle.SessionId);
+
+            lines.Should().HaveCount(ModuleConsoleStore.MaxDisplayedLines + 1);
+            lines[0].Should().StartWith("[Console output trimmed");
+            lines[1].Should().Be($"line {1201 - ModuleConsoleStore.MaxDisplayedLines}");
+            lines[^1].Should().Be("line 1200");
+        }
+
+
+        // Module snapshots
+
+        /// <summary>
+        /// Verifies that the snapshot reports running maintenance activities, and that the maintenance log counts as a
+        /// running session only while an installation or update writes to it.
+        /// </summary>
+        [Fact]
+        public void Snapshot_reports_activity_and_runs_the_maintenance_log_only_during_installation_or_update()
+        {
+            var store = new ModuleConsoleStore();
+            var module = ModuleConfigBuilder.Create();
+            store.CreateMaintenanceLog(module, null, reset: true).Report("Downloading");
+
+            // A stop is an activity, but does not write to the maintenance log.
+            using (store.BeginActivity(module.SourcePath, ModuleActivity.Stopping))
+            {
+                var snapshot = store.GetSnapshot().Single();
+                snapshot.HasActivity.Should().BeTrue();
+                snapshot.Sessions.Single(session => session.Id == "maintenance").IsRunning.Should().BeFalse();
+            }
+
+            using (store.BeginActivity(module.SourcePath, ModuleActivity.Updating))
+            {
+                store.GetSnapshot().Single().Sessions.Single(session => session.Id == "maintenance")
+                    .IsRunning.Should().BeTrue();
+            }
+
+            var finished = store.GetSnapshot().Single();
+            finished.HasActivity.Should().BeFalse();
+            finished.Sessions.Single(session => session.Id == "maintenance").IsRunning.Should().BeFalse();
         }
     }
 }
