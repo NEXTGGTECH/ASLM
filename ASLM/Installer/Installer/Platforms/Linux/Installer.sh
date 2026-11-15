@@ -158,10 +158,11 @@ install_dependencies()
     [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 26.04 ] ||
         fail 'Automatic installation currently requires Ubuntu 26.04 AMD64.'
 
+    # pkexec asks for the administrator password when an update of ASLM also updates the shared folder.
     missing=
     for package in ca-certificates curl libbrotli1 libc6 libgcc-s1 libgssapi-krb5-2 libicu78 \
         libssl3t64 libstdc++6 tzdata zlib1g libgtk-4-1 libwebkitgtk-6.0-4 \
-        libfontconfig1 libfreetype6 xdg-utils; do
+        libfontconfig1 libfreetype6 xdg-utils pkexec; do
         if [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]; then
             missing="$missing $package"
         fi
@@ -211,13 +212,15 @@ stage_payload()
     mkdir "$stage/extract" "$stage/new"
     tar -xzf "$stage/$archive_name" -C "$stage/extract" --no-same-owner
     payload="$stage/extract/$root_name"
-    # The launcher bootstraps per-user copies from the base archive with these exact executable modes.
-    chmod 755 "$payload/ASLM" "$payload/App/ASLM" "$payload/Patcher/aslm-patcher"
     mv -- "$payload/ASLM" "$stage/new/ASLM"
-    tar -C "$payload" -czf "$stage/new/aslm-base.tar.gz" App Patcher
+    # The launcher sets up each user's copy from the release archive itself, as after a self-update of this folder.
+    mv -- "$stage/$archive_name" "$stage/new/aslm-base.tar.gz"
     cp -- "$payload/App/hicolor/scalable/apps/appicon.svg" "$stage/new/appicon.svg"
+    # The patcher compares this version with later releases to decide whether they update this folder too.
+    printf '{\n  "app": "ASLM",\n  "version": "%s",\n  "sharedInstallPath": "%s"\n}\n' \
+        "$version" "$install_dir" > "$stage/new/install-manifest.json"
     chmod 755 "$stage/new" "$stage/new/ASLM"
-    chmod 644 "$stage/new/aslm-base.tar.gz" "$stage/new/appicon.svg"
+    chmod 644 "$stage/new/aslm-base.tar.gz" "$stage/new/appicon.svg" "$stage/new/install-manifest.json"
 }
 
 # Replaces only the shared launcher/base archive and registers the normal-user desktop entry.

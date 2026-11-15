@@ -2,6 +2,7 @@
 
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Versioning;
 using System.Security;
@@ -81,6 +82,52 @@ namespace ASLM.Patcher
         private const int ErrorCancelled = 1223;
 
 
+        // Linux shared folder helper
+
+        /// <summary>
+        /// Argument that starts the shared folder helper: the copy of this patcher that pkexec starts with root rights
+        /// on Linux. It only replaces the files of the shared installation folder and takes every path from the
+        /// arguments below.
+        /// </summary>
+        private const string UpdateSharedArgument = "--update-shared";
+
+        /// <summary>
+        /// Helper argument naming the shared installation folder to update.
+        /// </summary>
+        private const string SharedDirArgument = "--shared-dir";
+
+        /// <summary>
+        /// Helper argument naming the directory that holds the new files of the update.
+        /// </summary>
+        private const string StagingArgument = "--staging";
+
+        /// <summary>
+        /// Helper argument naming the downloaded release archive that becomes the base archive for new users.
+        /// </summary>
+        private const string ArchiveArgument = "--archive";
+
+        /// <summary>
+        /// Helper argument carrying the four-part version that the install manifest records.
+        /// </summary>
+        private const string VersionArgument = "--version";
+
+        /// <summary>
+        /// Path of pkexec, which asks for the administrator password through the polkit agent of the desktop session
+        /// and then starts a program with root rights.
+        /// </summary>
+        private const string PkexecPath = "/usr/bin/pkexec";
+
+        /// <summary>
+        /// Exit code of pkexec when the user dismissed the password dialog.
+        /// </summary>
+        private const int PkexecDismissedExitCode = 126;
+
+        /// <summary>
+        /// Exit code of pkexec when the user is not authorized, no polkit agent runs in the session, or pkexec failed.
+        /// </summary>
+        private const int PkexecNotAuthorizedExitCode = 127;
+
+
         // Shared installation layout
 
         /// <summary>
@@ -104,6 +151,46 @@ namespace ASLM.Patcher
         /// </summary>
         private static readonly string[] SharedPayloadFileNames = [LauncherExeName, AppRegistration.UninstallerExeName];
 
+        /// <summary>
+        /// File name of the launcher in the Linux shared folder and at the root of the Linux release payload.
+        /// </summary>
+        private const string LinuxLauncherFileName = "ASLM";
+
+        /// <summary>
+        /// File name of the base archive in the Linux shared folder, from which the launcher sets up new users.
+        /// </summary>
+        private const string LinuxBaseArchiveFileName = "aslm-base.tar.gz";
+
+        /// <summary>
+        /// File name of the application menu icon in the Linux shared folder, which the desktop entry names.
+        /// </summary>
+        private const string LinuxIconFileName = "appicon.svg";
+
+        /// <summary>
+        /// Location of the application menu icon in the Linux release payload; slash-separated, converted when used.
+        /// </summary>
+        private const string LinuxIconPayloadPath = "App/hicolor/scalable/apps/appicon.svg";
+
+        /// <summary>
+        /// Name of the work folder inside the Linux shared folder that holds the new files and the backups while the
+        /// helper replaces them. It lies on the same file system as the replaced files, so every replacement is a
+        /// rename.
+        /// </summary>
+        private const string LinuxSharedWorkFolderName = ".aslm-shared-update";
+
+        /// <summary>
+        /// Unix mode of the launcher in the Linux shared folder, as the installer sets it (<c>755</c>).
+        /// </summary>
+        private const UnixFileMode LinuxExecutableMode = UnixFileMode.UserRead | UnixFileMode.UserWrite |
+            UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead |
+            UnixFileMode.OtherExecute;
+
+        /// <summary>
+        /// Unix mode of the other files in the Linux shared folder, as the installer sets it (<c>644</c>).
+        /// </summary>
+        private const UnixFileMode LinuxRegularFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite |
+            UnixFileMode.GroupRead | UnixFileMode.OtherRead;
+
 
         // Runtime state and path comparison
 
@@ -118,6 +205,17 @@ namespace ASLM.Patcher
         private static IProgress<PatcherProgress>? _progress;
 
         /// <summary>
+        /// Writer that receives the log instead of the log file, or null. The shared folder helper writes nothing into
+        /// the user's profile; its standard output goes into the log of the patcher that started it.
+        /// </summary>
+        private static TextWriter? _logWriter;
+
+        /// <summary>
+        /// Serializes log writes, because the output of the shared folder helper arrives on two reader threads.
+        /// </summary>
+        private static readonly object LogLock = new();
+
+        /// <summary>
         /// Comparison for file system paths: case-insensitive on Windows, case-sensitive elsewhere.
         /// </summary>
         private static StringComparison PathComparison => OperatingSystem.IsWindows()
@@ -127,23 +225,29 @@ namespace ASLM.Patcher
         // Update flow
 
         /// <summary>
-        /// Runs the patch operation on a background thread.
+        /// Runs the patch operation, or the Linux shared folder helper when the arguments ask for it, on a background
+        /// thread.
         /// </summary>
         /// <param name="args">Command-line arguments: <c>--root</c>, <c>--launcher</c>, <c>--wait-process</c>,
-        /// <c>--wait-start</c>, and after <c>--</c> the arguments forwarded to the restarted launcher.</param>
+        /// <c>--wait-start</c>, and after <c>--</c> the arguments forwarded to the restarted launcher; or
+        /// <c>--update-shared</c> first, followed by the arguments of the shared folder helper.</param>
         /// <param name="progress">Receiver of status messages, or null to run without a UI.</param>
         /// <returns>0 when the update was applied or there was nothing to apply; 1 after a fatal error;
-        /// <see cref="ExitCodeNoRelaunch"/> after a fatal error that must not restart the launcher.</returns>
+        /// <see cref="ExitCodeNoRelaunch"/> after a fatal error that must not restart the launcher. The helper returns
+        /// 0 when it updated the shared folder and 1 otherwise.</returns>
         public static Task<int> RunAsync(string[] args, IProgress<PatcherProgress>? progress)
         {
             _progress = progress;
-            return Task.Run(() => RunCore(args));
+            var sharedHelper = args is [UpdateSharedArgument, ..];
+            _logWriter = sharedHelper ? Console.Out : null;
+            return Task.Run(() => sharedHelper ? RunSharedFolderHelper(args) : RunCore(args));
         }
 
         /// <summary>
-        /// Loads the pending update, applies it, and restarts the launcher. On Windows the shared installation folder
-        /// of the dual-location layout is updated too, when the update carries a newer launcher and this process has
-        /// administrator rights.
+        /// Loads the pending update, applies it, and restarts the launcher. On Windows and Linux the shared
+        /// installation folder of the dual-location layout is updated too, when the update is a stable release of a
+        /// newer global or sub version than the folder records: on Windows when this process has administrator
+        /// rights, on Linux through pkexec after the administrator password is entered.
         /// </summary>
         private static int RunCore(string[] args)
         {
@@ -206,8 +310,8 @@ namespace ASLM.Patcher
                 var preservePatterns = NormalizePreservePatterns(pending.Preserve);
                 ValidateUpdatePaths(root, targetRoot, stagingPath, backupPath, archivePath);
 
-                // On Windows the launcher may live in a separate shared installation folder. Its files are updated
-                // in a step of their own below, and the per-user copy never receives them.
+                // On Windows and Linux the launcher may live in a separate shared installation folder. Its files are
+                // updated in a step of their own below, and the per-user copy never receives them.
                 var sharedInstallDir = ResolveSharedInstallDir(root, targetRoot, args);
 
                 // Selects the staged entries that the per-user copy receives.
@@ -238,9 +342,10 @@ namespace ASLM.Patcher
 
                     // The shared folder follows while the staged files still exist; that step never undoes the
                     // per-user update, because each user's copy works on its own.
-                    if (sharedInstallDir is not null && OperatingSystem.IsWindows())
+                    if (sharedInstallDir is not null)
                     {
-                        UpdateSharedInstallationIfNeeded(sharedInstallDir, stagingPath, archivePath, backupPath, root);
+                        UpdateSharedInstallationIfNeeded(
+                            sharedInstallDir, pending.Version, stagingPath, archivePath, backupPath, root);
                     }
 
                     // Record the installed release and remove temporary update folders.
@@ -784,102 +889,191 @@ namespace ASLM.Patcher
         // Shared installation folder
 
         /// <summary>
-        /// Returns the shared installation folder of the Windows dual-location layout: the folder of the launcher that
-        /// started the patcher, when it holds an install manifest for exactly that folder and differs from the folder
-        /// the update replaces.
+        /// Returns the shared installation folder of the dual-location layout on Windows and Linux: the folder of the
+        /// launcher that started the patcher, when it differs from the folder the update replaces and is an ASLM
+        /// installation folder (see <see cref="IsSharedInstallDir"/>).
         /// </summary>
-        /// <returns>The shared folder, or null for portable, monolithic, macOS and Linux installations.</returns>
+        /// <returns>The shared folder, or null for portable, monolithic and macOS installations.</returns>
         internal static string? ResolveSharedInstallDir(string root, string targetRoot, string[] args)
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
             {
                 return null;
             }
 
+            return ResolveSharedInstallDir(root, targetRoot, args, linuxLayout: OperatingSystem.IsLinux());
+        }
+
+        /// <summary>
+        /// Returns the shared installation folder of the dual-location layout for the given platform layout.
+        /// </summary>
+        /// <param name="root">Data root of the patcher.</param>
+        /// <param name="targetRoot">Directory whose files the update replaces.</param>
+        /// <param name="args">Command-line arguments of the patcher, which name the launcher.</param>
+        /// <param name="linuxLayout">True for the Linux layout, which also accepts a folder without an install
+        /// manifest.</param>
+        /// <returns>The shared folder, or null when the launcher does not live in a separate ASLM installation
+        /// folder.</returns>
+        internal static string? ResolveSharedInstallDir(string root, string targetRoot, string[] args, bool linuxLayout)
+        {
             var launcherPath = ResolveLauncherPath(root, args);
             var sharedDir = string.IsNullOrWhiteSpace(launcherPath)
                 ? null
                 : Path.GetDirectoryName(Path.GetFullPath(launcherPath));
-            if (sharedDir is null || IsSamePath(sharedDir, targetRoot) || IsSamePath(sharedDir, root))
-            {
-                return null;
-            }
+            return sharedDir is null || IsSamePath(sharedDir, targetRoot) || IsSamePath(sharedDir, root) ||
+                   !IsSharedInstallDir(sharedDir, linuxLayout)
+                ? null
+                : sharedDir;
+        }
 
-            // Only a manifest the installer wrote for this folder proves that the folder is an ASLM installation.
+        /// <summary>
+        /// Returns whether a folder is an ASLM shared installation folder: it holds an install manifest that the
+        /// installer wrote for exactly this folder. The first Linux installers wrote no manifest, so in the Linux
+        /// layout a folder without one also counts when it holds the launcher and the base archive; its version is
+        /// unknown then.
+        /// </summary>
+        /// <param name="sharedDir">Folder to check.</param>
+        /// <param name="linuxLayout">True for the Linux layout.</param>
+        internal static bool IsSharedInstallDir(string sharedDir, bool linuxLayout)
+        {
             try
             {
                 var manifestPath = Path.Combine(sharedDir, SharedManifestFileName);
                 if (!File.Exists(manifestPath))
                 {
-                    return null;
+                    return linuxLayout &&
+                           File.Exists(Path.Combine(sharedDir, LinuxLauncherFileName)) &&
+                           File.Exists(Path.Combine(sharedDir, LinuxBaseArchiveFileName));
                 }
 
                 var manifest = JsonNode.Parse(File.ReadAllText(manifestPath)) as JsonObject;
                 return ReadString(manifest, "app") == "ASLM" &&
-                       IsSamePath(ReadString(manifest, "sharedInstallPath"), sharedDir)
-                    ? sharedDir
-                    : null;
+                       IsSamePath(ReadString(manifest, "sharedInstallPath"), sharedDir);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 Log("Failed to read the shared install manifest: " + ex.Message);
-                return null;
+                return false;
             }
         }
 
         /// <summary>
-        /// Returns whether the update carries a newer launcher than the shared folder holds. The installed version is
-        /// the four-part file version that the installer and this patcher record in the install manifest; older
-        /// installers wrote a placeholder there, which counts as unknown, so such a folder is updated.
+        /// Returns whether the shared folder takes the update. Only stable releases update it, and only when their
+        /// global or sub version (the first two parts) is newer than the version in the install manifest, or when that
+        /// version is unknown: the first installers recorded none or a placeholder. A folder whose update was declined
+        /// keeps its old version, so every later update asks again until the folder is updated. Updates within the
+        /// same global and sub version, prereleases and older releases leave the folder as it is.
         /// </summary>
         /// <param name="sharedInstallDir">Shared installation folder.</param>
-        /// <param name="stagingPath">Directory that holds the new files.</param>
-        /// <param name="version">Four-part file version of the launcher in the update; empty when it has none.</param>
-        internal static bool IsSharedUpdateNeeded(string sharedInstallDir, string stagingPath, out string version)
+        /// <param name="releaseTag">Release tag of the update, such as <c>v0.12.0.5</c>.</param>
+        /// <param name="version">Four-part version of the release, which the manifest records after the update; empty
+        /// when the tag names no stable release.</param>
+        internal static bool IsSharedUpdateNeeded(string sharedInstallDir, string releaseTag, out string version)
         {
-            // Without a versioned launcher the update cannot be compared, so the shared folder stays as it is.
-            version = ReadFileVersion(Path.Combine(stagingPath, LauncherExeName));
-            if (!Version.TryParse(version, out var updateVersion))
+            version = string.Empty;
+            if (!TryParseStableReleaseVersion(releaseTag, out var releaseVersion))
             {
                 return false;
             }
 
+            version = releaseVersion.ToString();
             var installedVersion = ReadSharedManifestVersion(sharedInstallDir);
-            return installedVersion is null || updateVersion > installedVersion;
+            return installedVersion is null ||
+                   releaseVersion.Major > installedVersion.Major ||
+                   (releaseVersion.Major == installedVersion.Major && releaseVersion.Minor > installedVersion.Minor);
         }
 
         /// <summary>
-        /// Updates the shared folder when the update carries a newer launcher and this process has administrator
-        /// rights; without them the folder stays as it is and a later update tries again.
+        /// Reads the four-part version of a stable release tag such as <c>v0.12.0.5</c>; older three-part tags get 0
+        /// as the last part. A tag with a suffix, such as <c>v0.12.0.5-rc1</c>, names a prerelease.
         /// </summary>
-        [SupportedOSPlatform("windows")]
+        /// <returns>True when the tag names a stable release.</returns>
+        internal static bool TryParseStableReleaseVersion(string releaseTag, [NotNullWhen(true)] out Version? version)
+        {
+            version = null;
+            var text = releaseTag.Trim();
+            if (text.StartsWith('v') || text.StartsWith('V'))
+            {
+                text = text[1..];
+            }
+
+            // Version.TryParse alone would also accept two parts, signs and surrounding whitespace.
+            var parts = text.Split('.');
+            if (parts.Length is not (3 or 4) ||
+                parts.Any(part => part.Length == 0 || !part.All(char.IsAsciiDigit)) ||
+                !Version.TryParse(text, out var parsed))
+            {
+                return false;
+            }
+
+            version = parsed.Revision < 0 ? new Version(parsed.Major, parsed.Minor, parsed.Build, 0) : parsed;
+            return true;
+        }
+
+        /// <summary>
+        /// Updates the shared folder when it takes the update (see <see cref="IsSharedUpdateNeeded"/>): on Windows
+        /// when this process has administrator rights, on Linux through the shared folder helper with root rights.
+        /// Without the rights the folder stays as it is and the next update asks again.
+        /// </summary>
+        /// <param name="sharedInstallDir">Shared installation folder.</param>
+        /// <param name="releaseTag">Release tag of the update.</param>
+        /// <param name="stagingPath">Directory that holds the new files.</param>
+        /// <param name="archivePath">Downloaded update archive, or null when the pending update names none.</param>
+        /// <param name="backupPath">Backup folder of the per-user update.</param>
+        /// <param name="userAppDir">Per-user application folder.</param>
         private static void UpdateSharedInstallationIfNeeded(
             string sharedInstallDir,
+            string releaseTag,
             string stagingPath,
             string? archivePath,
             string backupPath,
             string userAppDir)
         {
-            if (!IsSharedUpdateNeeded(sharedInstallDir, stagingPath, out var version))
+            if (!IsSharedUpdateNeeded(sharedInstallDir, releaseTag, out var version))
             {
-                Log("The shared installation folder is up to date.");
+                Log($"The shared installation folder keeps its files: {releaseTag} is not a stable release of a newer " +
+                    "global or sub version.");
                 return;
             }
 
+            if (OperatingSystem.IsWindows())
+            {
+                // A fresh backup folder next to the per-user backup keeps both apart, so neither rollback mixes them.
+                UpdateWindowsSharedInstallationIfElevated(new SharedInstallationUpdate(
+                    sharedInstallDir,
+                    stagingPath,
+                    archivePath,
+                    $"{backupPath}-shared-{Guid.NewGuid():N}",
+                    version,
+                    userAppDir));
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                // New users are set up from the release archive, so without it the folder cannot be updated.
+                if (archivePath is null)
+                {
+                    Log("The pending update names no release archive, so the shared installation folder keeps its files.");
+                    return;
+                }
+
+                UpdateLinuxSharedInstallationAsRoot(
+                    new LinuxSharedInstallationUpdate(sharedInstallDir, stagingPath, archivePath, version));
+            }
+        }
+
+        /// <summary>
+        /// Updates the Windows shared folder when this process has administrator rights; without them the folder stays
+        /// as it is and the next update tries again.
+        /// </summary>
+        [SupportedOSPlatform("windows")]
+        private static void UpdateWindowsSharedInstallationIfElevated(SharedInstallationUpdate update)
+        {
             if (!IsElevated())
             {
-                Log("The shared installation folder needs administrator rights; a later update tries again.");
+                Log("The shared installation folder needs administrator rights; the next update tries again.");
                 return;
             }
 
-            // A fresh backup folder next to the per-user backup keeps both apart, so neither rollback mixes them.
-            var update = new SharedInstallationUpdate(
-                sharedInstallDir,
-                stagingPath,
-                archivePath,
-                $"{backupPath}-shared-{Guid.NewGuid():N}",
-                version,
-                userAppDir);
             UpdateSharedInstallation(update, () => AppRegistration.OpenUninstallRoot(writable: true));
         }
 
@@ -1079,23 +1273,6 @@ namespace ASLM.Patcher
         }
 
         /// <summary>
-        /// Returns the four-part file version of an executable.
-        /// </summary>
-        /// <returns>The version, or an empty string when the file is missing or has no version resource.</returns>
-        private static string ReadFileVersion(string executablePath)
-        {
-            if (!File.Exists(executablePath))
-            {
-                return string.Empty;
-            }
-
-            var info = FileVersionInfo.GetVersionInfo(executablePath);
-            return info.FileVersion is null
-                ? string.Empty
-                : $"{info.FileMajorPart}.{info.FileMinorPart}.{info.FileBuildPart}.{info.FilePrivatePart}";
-        }
-
-        /// <summary>
         /// Returns a string property of a JSON object, or null when it is missing or not a string.
         /// </summary>
         private static string? ReadString(JsonObject? json, string propertyName)
@@ -1104,12 +1281,376 @@ namespace ASLM.Patcher
         }
 
 
+        // Linux shared installation
+
+        /// <summary>
+        /// Hands the update of the Linux shared folder to the shared folder helper: a copy of this patcher that pkexec
+        /// starts with root rights once the administrator password is entered in the dialog of the desktop session.
+        /// A patcher that already runs with root rights updates the folder itself. This process waits for the helper,
+        /// so the launcher restarts only afterwards. A dismissed dialog, missing rights or a failed helper leave the
+        /// folder as it is, and nothing here undoes the per-user update.
+        /// </summary>
+        [SupportedOSPlatform("linux")]
+        private static void UpdateLinuxSharedInstallationAsRoot(LinuxSharedInstallationUpdate update)
+        {
+            if (Environment.IsPrivilegedProcess)
+            {
+                UpdateLinuxSharedInstallation(update);
+                return;
+            }
+
+            // Without pkexec there is no way to enter the administrator password, so only the per-user copy changes.
+            var patcherPath = Environment.ProcessPath;
+            if (!File.Exists(PkexecPath) || string.IsNullOrEmpty(patcherPath))
+            {
+                Log("pkexec is not available, so the shared installation folder keeps its files; the next update " +
+                    "tries again.");
+                return;
+            }
+
+            try
+            {
+                Log("The shared installation folder needs administrator rights. Asking for the administrator password...");
+                var exitCode = RunSharedFolderHelperProcess(
+                    BuildSharedFolderHelperStartInfo(PkexecPath, patcherPath, update));
+                if (exitCode == PkexecDismissedExitCode)
+                {
+                    Log("The administrator password dialog was dismissed. The shared installation folder keeps its " +
+                        "files; the next update asks again.");
+                }
+                else if (exitCode == PkexecNotAuthorizedExitCode)
+                {
+                    Log("Administrator rights were not granted, or no polkit authentication agent runs in this " +
+                        "session. The shared installation folder keeps its files; the next update asks again.");
+                }
+                else if (exitCode != 0)
+                {
+                    Log($"The shared folder helper failed with exit code {exitCode}; the shared installation folder " +
+                        "keeps its previous files.");
+                }
+            }
+            catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException)
+            {
+                Log("Failed to start the shared folder helper: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Builds the command that starts the shared folder helper through pkexec: the patcher executable with the
+        /// helper arguments. pkexec gives the helper a clean environment, so every path travels as an argument.
+        /// </summary>
+        /// <param name="pkexecPath">Program that starts the helper with root rights.</param>
+        /// <param name="patcherPath">Executable of this patcher.</param>
+        /// <param name="update">Folders, archive and version of the update.</param>
+        internal static ProcessStartInfo BuildSharedFolderHelperStartInfo(
+            string pkexecPath,
+            string patcherPath,
+            LinuxSharedInstallationUpdate update)
+        {
+            var startInfo = new ProcessStartInfo { FileName = pkexecPath, UseShellExecute = false };
+            string[] arguments =
+            [
+                patcherPath,
+                UpdateSharedArgument,
+                SharedDirArgument, update.SharedInstallDir,
+                StagingArgument, update.StagingPath,
+                ArchiveArgument, update.ArchivePath,
+                VersionArgument, update.Version
+            ];
+            foreach (var argument in arguments)
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
+
+            return startInfo;
+        }
+
+        /// <summary>
+        /// Starts the shared folder helper, writes its output into this patcher's log, and waits for it to exit.
+        /// </summary>
+        /// <returns>The exit code of the started process.</returns>
+        internal static int RunSharedFolderHelperProcess(ProcessStartInfo startInfo)
+        {
+            // Both streams are read while the helper runs, so a full pipe never blocks it.
+            startInfo.UseShellExecute = false;
+            startInfo.RedirectStandardOutput = true;
+            startInfo.RedirectStandardError = true;
+            using var process = new Process { StartInfo = startInfo };
+            process.OutputDataReceived += (_, line) => LogHelperOutput(line.Data);
+            process.ErrorDataReceived += (_, line) => LogHelperOutput(line.Data);
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            // Waiting without a timeout also waits until both streams are read to their end.
+            process.WaitForExit();
+            return process.ExitCode;
+        }
+
+        /// <summary>
+        /// Writes one output line of the shared folder helper, indented, into this patcher's log.
+        /// </summary>
+        private static void LogHelperOutput(string? line)
+        {
+            if (!string.IsNullOrEmpty(line))
+            {
+                Log("  " + line);
+            }
+        }
+
+        /// <summary>
+        /// Runs the shared folder helper, the copy of this patcher that pkexec started with root rights: it replaces
+        /// the files of the Linux shared installation folder and logs to its standard output, which the patcher that
+        /// started it records. It never reads the pending update, which that patcher keeps locked, writes nothing into
+        /// the user's profile and starts nothing afterwards.
+        /// </summary>
+        /// <returns>0 when the shared folder was updated; 1 when the arguments are invalid or the update
+        /// failed.</returns>
+        private static int RunSharedFolderHelper(string[] args)
+        {
+            try
+            {
+                return UpdateLinuxSharedInstallation(ParseSharedFolderHelperArguments(args)) ? 0 : 1;
+            }
+            catch (ArgumentException ex)
+            {
+                Log("Invalid shared folder helper arguments: " + ex.Message);
+                return 1;
+            }
+        }
+
+        /// <summary>
+        /// Reads the arguments of the shared folder helper: an ASLM shared installation folder, the absolute paths of
+        /// the staged files and of the release archive, and a four-part version.
+        /// </summary>
+        /// <exception cref="ArgumentException">An argument is missing or invalid.</exception>
+        internal static LinuxSharedInstallationUpdate ParseSharedFolderHelperArguments(string[] args)
+        {
+            // Returns the value that follows a helper argument.
+            string ReadValue(string name)
+            {
+                var index = Array.IndexOf(args, name);
+                if (index < 0 || index + 1 >= args.Length || string.IsNullOrWhiteSpace(args[index + 1]))
+                {
+                    throw new ArgumentException($"The value of {name} is missing.");
+                }
+
+                return args[index + 1];
+            }
+
+            // Returns the full form of a path argument, which must be absolute.
+            string ReadPath(string name)
+            {
+                var value = ReadValue(name);
+                return Path.IsPathFullyQualified(value)
+                    ? Path.GetFullPath(value)
+                    : throw new ArgumentException($"The value of {name} must be an absolute path.");
+            }
+
+            var update = new LinuxSharedInstallationUpdate(
+                ReadPath(SharedDirArgument),
+                ReadPath(StagingArgument),
+                ReadPath(ArchiveArgument),
+                ReadValue(VersionArgument));
+            if (!Version.TryParse(update.Version, out var version) || version.Revision < 0)
+            {
+                throw new ArgumentException($"The version {update.Version} does not have four parts.");
+            }
+
+            if (!IsSharedInstallDir(update.SharedInstallDir, linuxLayout: true))
+            {
+                throw new ArgumentException($"{update.SharedInstallDir} is not an ASLM shared installation folder.");
+            }
+
+            return update;
+        }
+
+        /// <summary>
+        /// Replaces the files of the Linux shared installation folder with those of the update: the launcher, the
+        /// base archive from which the launcher sets up new users, the application menu icon, and the version in the
+        /// install manifest. The new files are written into a work folder inside the shared folder and then renamed
+        /// over the old ones, so a launcher that starts meanwhile always finds complete files. The launcher goes
+        /// first, because only the new launcher reads the release archive that becomes the base archive; the manifest
+        /// goes last, so an interrupted run leaves the old version recorded and the next update repeats it. A failure
+        /// restores the previous files.
+        /// </summary>
+        /// <param name="update">Folders, archive and version of the update.</param>
+        /// <returns>True when the shared folder was updated.</returns>
+        internal static bool UpdateLinuxSharedInstallation(LinuxSharedInstallationUpdate update)
+        {
+            var sharedDir = update.SharedInstallDir;
+            var workDir = Path.Combine(sharedDir, LinuxSharedWorkFolderName);
+            var backupDir = Path.Combine(workDir, "backup");
+            var replaced = new List<SharedFileBackup>();
+            try
+            {
+                // A work folder that an interrupted run left behind holds nothing the folder still needs: every file
+                // it replaced exists in the shared folder, and this run replaces all of them again.
+                Log($"Updating the shared installation folder: {sharedDir}");
+                if (Directory.Exists(workDir))
+                {
+                    Directory.Delete(workDir, recursive: true);
+                }
+
+                Directory.CreateDirectory(backupDir);
+
+                // Write the new files into the work folder, in the order in which they replace the old ones.
+                var fileNames = new List<string>();
+                StageLinuxSharedFile(
+                    Path.Combine(update.StagingPath, LinuxLauncherFileName),
+                    workDir,
+                    LinuxLauncherFileName,
+                    LinuxExecutableMode,
+                    fileNames);
+                StageLinuxSharedFile(update.ArchivePath, workDir, LinuxBaseArchiveFileName, LinuxRegularFileMode, fileNames);
+                var icon = Path.Combine(update.StagingPath, LinuxIconPayloadPath.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(icon))
+                {
+                    StageLinuxSharedFile(icon, workDir, LinuxIconFileName, LinuxRegularFileMode, fileNames);
+                }
+
+                WriteLinuxSharedManifest(update, workDir);
+                fileNames.Add(SharedManifestFileName);
+
+                // Rename each new file over the old one; the old one stays in the backup folder until the end.
+                foreach (var fileName in fileNames)
+                {
+                    ReplaceLinuxSharedFile(
+                        Path.Combine(workDir, fileName),
+                        Path.Combine(sharedDir, fileName),
+                        Path.Combine(backupDir, fileName),
+                        replaced);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Put the previous files back; the work folder stays when that fails, because it holds their only copy.
+                Log("Failed to update the shared installation folder: " + ex);
+                if (RestoreLinuxSharedFiles(replaced))
+                {
+                    TryDeleteDirectory(workDir);
+                }
+                else
+                {
+                    Log($"The previous shared files are kept in {backupDir}.");
+                }
+
+                return false;
+            }
+
+            TryDeleteDirectory(workDir);
+            Log($"Shared installation folder updated to {update.Version}.");
+            return true;
+        }
+
+        /// <summary>
+        /// Copies one new file into the work folder with the given Unix mode and adds it to the files to replace.
+        /// </summary>
+        private static void StageLinuxSharedFile(
+            string source,
+            string workDir,
+            string fileName,
+            UnixFileMode mode,
+            List<string> fileNames)
+        {
+            var staged = Path.Combine(workDir, fileName);
+            File.Copy(source, staged);
+            SetLinuxSharedFileMode(staged, mode);
+            fileNames.Add(fileName);
+        }
+
+        /// <summary>
+        /// Writes the new install manifest into the work folder: the current manifest, or a new one for a folder that
+        /// an installer without a manifest set up, with the version of the update.
+        /// </summary>
+        private static void WriteLinuxSharedManifest(LinuxSharedInstallationUpdate update, string workDir)
+        {
+            var currentPath = Path.Combine(update.SharedInstallDir, SharedManifestFileName);
+            var manifest = File.Exists(currentPath)
+                ? JsonNode.Parse(File.ReadAllText(currentPath)) as JsonObject
+                    ?? throw new InvalidDataException("The shared install manifest is not a JSON object.")
+                : new JsonObject { ["app"] = "ASLM", ["sharedInstallPath"] = update.SharedInstallDir };
+            manifest["version"] = update.Version;
+
+            var staged = Path.Combine(workDir, SharedManifestFileName);
+            File.WriteAllText(staged, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            SetLinuxSharedFileMode(staged, LinuxRegularFileMode);
+        }
+
+        /// <summary>
+        /// Sets the Unix mode of a file for the shared folder; on Windows, which has no Unix modes, the file keeps its
+        /// default access.
+        /// </summary>
+        private static void SetLinuxSharedFileMode(string path, UnixFileMode mode)
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(path, mode);
+            }
+        }
+
+        /// <summary>
+        /// Renames a new file over a file of the shared folder and records how to undo that. File.Replace keeps the
+        /// previous file under the backup name (on Linux as a hard link, so nothing is copied) and renames the new
+        /// file over it at once; a file that did not exist is simply moved in.
+        /// </summary>
+        private static void ReplaceLinuxSharedFile(
+            string source,
+            string target,
+            string backup,
+            List<SharedFileBackup> replaced)
+        {
+            if (File.Exists(target))
+            {
+                File.Replace(source, target, backup, ignoreMetadataErrors: true);
+                replaced.Add(new SharedFileBackup(target, backup));
+            }
+            else
+            {
+                File.Move(source, target);
+                replaced.Add(new SharedFileBackup(target, null));
+            }
+        }
+
+        /// <summary>
+        /// Undoes the recorded replacements in reverse order: each backup is renamed back over the new file, and a file
+        /// that did not exist before is deleted.
+        /// </summary>
+        /// <returns>True when every file was restored.</returns>
+        private static bool RestoreLinuxSharedFiles(List<SharedFileBackup> replaced)
+        {
+            var restored = true;
+            foreach (var backup in replaced.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    if (backup.BackupPath is null)
+                    {
+                        File.Delete(backup.TargetPath);
+                    }
+                    else
+                    {
+                        File.Move(backup.BackupPath, backup.TargetPath, overwrite: true);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Log($"Failed to restore {backup.TargetPath}: {ex.Message}");
+                    restored = false;
+                }
+            }
+
+            return restored;
+        }
+
+
         // Elevation
 
         /// <summary>
-        /// Hands the update to an elevated copy of this patcher when the shared installation folder needs a newer
-        /// launcher and this process lacks administrator rights. This process then waits for the copy and restarts
-        /// the launcher itself, so ASLM starts without administrator rights and as the user who started it.
+        /// Hands the update to an elevated copy of this patcher when the shared installation folder takes the pending
+        /// update (see <see cref="IsSharedUpdateNeeded"/>) and this process lacks administrator rights. This process
+        /// then waits for the copy and restarts the launcher itself, so ASLM starts without administrator rights and
+        /// as the user who started it.
         /// </summary>
         /// <param name="args">Command-line arguments of this patcher.</param>
         /// <returns>The exit code of the elevated copy, or null when this process applies the update itself because
@@ -1122,7 +1663,7 @@ namespace ASLM.Patcher
                 return null;
             }
 
-            // Only a pending update that carries a newer launcher for an existing shared folder needs the rights.
+            // Only a pending update that an existing shared folder takes needs the rights.
             var root = ResolveRoot(args);
             _logPath = Path.Combine(root, LogRelativePath.Replace('/', Path.DirectorySeparatorChar));
             if (!RequiresSharedUpdate(root, args))
@@ -1158,14 +1699,16 @@ namespace ASLM.Patcher
             }
             catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled)
             {
-                Log("Administrator rights were not granted. Only the per-user copy is updated.");
+                Log("Administrator rights were not granted. Only the per-user copy is updated; the next update asks " +
+                    "again.");
                 return null;
             }
         }
 
         /// <summary>
-        /// Returns whether the pending update carries a newer launcher for the shared installation folder. A pending
-        /// update that cannot be read counts as not needing it; the regular run then reports the problem.
+        /// Returns whether an existing shared installation folder takes the pending update (see
+        /// <see cref="IsSharedUpdateNeeded"/>). A pending update that cannot be read counts as not needing it; the
+        /// regular run then reports the problem.
         /// </summary>
         internal static bool RequiresSharedUpdate(string root, string[] args)
         {
@@ -1191,8 +1734,7 @@ namespace ASLM.Patcher
 
                 var targetRoot = Path.GetFullPath(string.IsNullOrWhiteSpace(pending.TargetRoot) ? root : pending.TargetRoot);
                 var sharedInstallDir = ResolveSharedInstallDir(root, targetRoot, args);
-                return sharedInstallDir is not null &&
-                       IsSharedUpdateNeeded(sharedInstallDir, Path.GetFullPath(pending.StagingPath), out _);
+                return sharedInstallDir is not null && IsSharedUpdateNeeded(sharedInstallDir, pending.Version, out _);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
@@ -1411,20 +1953,32 @@ namespace ASLM.Patcher
         // Logging
 
         /// <summary>
-        /// Appends one timestamped message to the patcher log.
+        /// Appends one timestamped message to the patcher log, or writes it without a timestamp to the log writer of
+        /// the shared folder helper, whose starting patcher adds its own.
         /// </summary>
         private static void Log(string message)
         {
-            // Show the message in the UI first, then append it to the log file.
+            // Show the message in the UI first, then write it to the log.
             _progress?.Report(new PatcherProgress(message));
 
-            try
+            lock (LogLock)
             {
-                File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
-            }
-            catch
-            {
-                // Ignore logging errors to avoid masking the primary failure.
+                try
+                {
+                    if (_logWriter is not null)
+                    {
+                        _logWriter.WriteLine(message);
+                        _logWriter.Flush();
+                    }
+                    else
+                    {
+                        File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+                    }
+                }
+                catch
+                {
+                    // Ignore logging errors to avoid masking the primary failure.
+                }
             }
         }
 
@@ -1475,7 +2029,7 @@ namespace ASLM.Patcher
 
             /// <summary>
             /// Downloaded update archive below the staging folder, which becomes the payload archive of the shared
-            /// installation folder on Windows; empty in descriptors of older versions.
+            /// installation folder on Windows and Linux; empty in descriptors of older versions.
             /// </summary>
             [JsonPropertyName("archivePath")]
             public string ArchivePath { get; set; } = string.Empty;
@@ -1506,7 +2060,8 @@ namespace ASLM.Patcher
         /// <param name="StagingPath">Directory that holds the new files of the update.</param>
         /// <param name="ArchivePath">Downloaded update archive that becomes the payload archive, or null.</param>
         /// <param name="BackupPath">Fresh directory that receives the previous shared files.</param>
-        /// <param name="Version">Four-part file version of the new launcher.</param>
+        /// <param name="Version">Four-part version of the release, which the manifest and the entry in the installed
+        /// applications record.</param>
         /// <param name="UserAppDir">Per-user folder whose program folders count towards the registered size.</param>
         internal sealed record SharedInstallationUpdate(
             string SharedInstallDir,
@@ -1515,6 +2070,20 @@ namespace ASLM.Patcher
             string BackupPath,
             string Version,
             string UserAppDir);
+
+        /// <summary>
+        /// Describes one update of the Linux shared installation folder, which the shared folder helper applies.
+        /// </summary>
+        /// <param name="SharedInstallDir">Shared folder that holds the launcher, the base archive, the icon and the
+        /// install manifest.</param>
+        /// <param name="StagingPath">Directory that holds the new files of the update.</param>
+        /// <param name="ArchivePath">Downloaded release archive, which becomes the base archive.</param>
+        /// <param name="Version">Four-part version of the release, which the install manifest records.</param>
+        internal sealed record LinuxSharedInstallationUpdate(
+            string SharedInstallDir,
+            string StagingPath,
+            string ArchivePath,
+            string Version);
 
         /// <summary>
         /// Records how to undo the replacement of one shared file.
