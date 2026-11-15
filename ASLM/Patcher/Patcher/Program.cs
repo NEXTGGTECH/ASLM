@@ -402,7 +402,7 @@ namespace ASLM.Patcher
             finally
             {
                 // The temporary copy this helper runs from is no longer needed, whatever the outcome.
-                TryDeleteShadowDirectory();
+                TryDeleteShadowDirectory(root);
             }
         }
 
@@ -613,7 +613,8 @@ namespace ASLM.Patcher
                 var destination = ResolveChildPath(destRoot, relative);
                 if (entry.LinkTarget is { } linkTarget)
                 {
-                    // Recreate links, including dangling links, without traversing their targets during backup or apply.
+                    // Recreate links, including dangling links, without traversing their targets during backup or
+                    // apply.
                     if (entry is DirectoryInfo) Directory.CreateSymbolicLink(destination, linkTarget);
                     else File.CreateSymbolicLink(destination, linkTarget);
                     continue;
@@ -636,7 +637,8 @@ namespace ASLM.Patcher
         // Delete helpers
 
         /// <summary>
-        /// Deletes every file inside one directory and removes empty subdirectories, optionally filtering by relative path.
+        /// Deletes every file inside one directory and removes empty subdirectories, optionally filtering by relative
+        /// path.
         /// </summary>
         private static void ClearDirectory(string directory, Func<string, bool>? deleteRelative = null)
         {
@@ -1876,7 +1878,7 @@ namespace ASLM.Patcher
         /// <summary>
         /// Removes the Unix helper's temporary shadow copy without ever deleting an installed helper directory.
         /// </summary>
-        private static void TryDeleteShadowDirectory()
+        private static void TryDeleteShadowDirectory(string root)
         {
             // Only Unix systems allow removing the directory of a running helper; on Windows nothing is deleted here.
             if (OperatingSystem.IsWindows()) return;
@@ -1885,6 +1887,11 @@ namespace ASLM.Patcher
             // ("ASLM-Patcher-").
             var directory = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
             var name = Path.GetFileName(directory);
+            if (IsLinuxHelperDirectory(directory, root))
+            {
+                TryDeleteDirectory(directory);
+                return;
+            }
             var prefix = name.StartsWith("Patcher_", StringComparison.Ordinal) ? "Patcher_" : "ASLM-Patcher-";
 
             // Unix allows unlinking the running helper. Its parent and generated name must match our launch protocol.
@@ -1895,7 +1902,17 @@ namespace ASLM.Patcher
         }
 
         /// <summary>
-        /// Renames the pending update file after a fatal error so the launcher does not re-enter the same failing patch loop.
+        /// Recognizes only a generated Linux helper directly below this profile's protected update directory.
+        /// </summary>
+        internal static bool IsLinuxHelperDirectory(string directory, string root) =>
+            Guid.TryParseExact(Path.GetFileName(Path.TrimEndingDirectorySeparator(directory)), "N", out _) &&
+            string.Equals(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(directory)),
+                Path.Combine(Path.GetFullPath(root), ".aslm-update", "helpers"), PathComparison) &&
+            new DirectoryInfo(directory).LinkTarget == null;
+
+        /// <summary>
+        /// Renames the pending update file after a fatal error so the launcher does not re-enter the same failing patch
+        /// loop.
         /// </summary>
         private static void MarkPendingUpdateFailed(string root)
         {

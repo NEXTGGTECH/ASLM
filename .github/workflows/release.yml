@@ -158,10 +158,10 @@ jobs:
       endpoint: ${{ steps.ver.outputs.endpoint }}
       pr_number: ${{ steps.pr.outputs.pr_number }}
     steps:
-      - name: Check out main
+      - name: Check out release commit
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -328,10 +328,10 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: Check out main
+      - name: Check out release commit
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up .NET
@@ -385,10 +385,10 @@ jobs:
             runs-on: ubuntu-26.04
             rid: linux-x64
     steps:
-      - name: Check out main
+      - name: Check out release commit
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up .NET
@@ -512,6 +512,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libfontconfig1 libfreetype6
 
+      - name: Verify Linux installer policy
+        if: runner.os == 'Linux'
+        run: sh .github/scripts/test-linux-installer.sh ASLM/Installer/Installer/Platforms/Linux/Installer.sh
+
       - name: Build release (Linux; self-contained application, launcher and CLI patcher)
         if: runner.os == 'Linux'
         run: |
@@ -555,21 +559,85 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.name }}
+          name: release-${{ matrix.name }}
           path: dist/
           if-no-files-found: error
           retention-days: 1
 
-  release:
+  linux-compatibility:
     needs: [prepare, build]
+    if: needs.prepare.outputs.build == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-24.04
+            image: ubuntu:24.04
+          - name: debian-13
+            image: debian:13
+          - name: fedora-43
+            image: fedora:43
+          - name: almalinux-10
+            image: almalinux:10
+          - name: opensuse-leap-16.0
+            image: opensuse/leap:16.0
+          - name: opensuse-tumbleweed
+            image: opensuse/tumbleweed:latest
+          - name: archlinux
+            image: archlinux:latest
+    steps:
+      - name: Check out release sources
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Download the packaged Linux release
+        uses: actions/download-artifact@v8
+        with:
+          name: release-linux-amd64
+          path: dist
+
+      - name: Verify installation, GTK, WebKit and updating on noexec /tmp
+        env:
+          DISTRIBUTION_IMAGE: ${{ matrix.image }}
+          DISTRIBUTION_NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          RESULTS="${RUNNER_TEMP}/linux-compatibility"
+          CONTAINER="aslm-compatibility-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${DISTRIBUTION_NAME}"
+          mkdir -p "$RESULTS"
+          trap 'docker rm -f "$CONTAINER" >/dev/null 2>&1 || true' EXIT
+          docker pull "$DISTRIBUTION_IMAGE"
+          docker image inspect "$DISTRIBUTION_IMAGE" --format '{{json .RepoDigests}}' | tee "$RESULTS/image.json"
+          # Allow WebKit's own sandbox to create nested namespaces inside the disposable outer container.
+          docker run --name "$CONTAINER" --rm --shm-size=256m \
+            --security-opt seccomp=unconfined --security-opt apparmor=unconfined --cap-add SYS_ADMIN \
+            --tmpfs /tmp:rw,noexec,nosuid,size=1g \
+            -v "$PWD:/work/source:ro" -v "$PWD/dist:/work/dist:ro" -v "$RESULTS:/work/results" \
+            "$DISTRIBUTION_IMAGE" /bin/sh /work/source/.github/scripts/verify-linux-distribution.sh \
+            /work/source /work/dist /work/results 2>&1 | tee "$RESULTS/verification.log"
+
+      - name: Upload Linux compatibility diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-compatibility-${{ matrix.name }}
+          path: ${{ runner.temp }}/linux-compatibility/
+          if-no-files-found: warn
+          retention-days: 7
+
+  release:
+    needs: [prepare, build, linux-compatibility]
     if: needs.prepare.outputs.build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Check out main
+      - name: Check out release commit
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -577,6 +645,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: dist
+          pattern: release-*
           merge-multiple: true
 
       - name: Create release and attach artifacts

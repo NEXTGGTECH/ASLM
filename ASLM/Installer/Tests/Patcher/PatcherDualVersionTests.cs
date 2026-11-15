@@ -34,7 +34,8 @@ namespace ASLM.Installer.Tests.Patcher
             /// <summary>
             /// Builds the installation root, the staged update and the <c>pending.json</c> that describes it.
             /// </summary>
-            /// <param name="kind">Update kind written into <c>pending.json</c>; only <c>app</c> is supported by the patchers.</param>
+            /// <param name="kind">Update kind written into <c>pending.json</c>; only <c>app</c> is supported by the
+            /// patchers.</param>
             public UpdateFixture(string kind = "app")
             {
                 // Unique temp directory that holds both the installation root and the launcher marker.
@@ -308,10 +309,13 @@ namespace ASLM.Installer.Tests.Patcher
         }
 
         /// <summary>
-        /// Locates the built CLI patcher by walking up from the test output to the solution root.
+        /// Locates an adjacent CLI patcher in an isolated test output, or the normal build below the solution root.
         /// </summary>
         private static string FindCliPatcherExecutable()
         {
+            var adjacent = Path.Combine(AppContext.BaseDirectory, "aslm-patcher.exe");
+            if (File.Exists(adjacent)) return adjacent;
+
             for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
             {
                 if (!File.Exists(Path.Combine(directory.FullName, "ASLM.slnx")))

@@ -63,6 +63,26 @@ namespace ASLM.Installer.Tests.Patcher
         private string WorkDir => Path.Combine(SharedDir, ".aslm-shared-update");
 
 
+        // Shadow copy cleanup
+
+        /// <summary>
+        /// Verifies that cleanup accepts only generated helpers directly below the requested profile's update folder.
+        /// </summary>
+        [Fact]
+        public void Shadow_cleanup_only_accepts_the_requested_profiles_generated_helper()
+        {
+            var name = Guid.NewGuid().ToString("N");
+            var helper = Path.Combine(UserDir, ".aslm-update", "helpers", name);
+            Directory.CreateDirectory(helper);
+            PatcherRunner.IsLinuxHelperDirectory(helper, UserDir).Should().BeTrue();
+            PatcherRunner.IsLinuxHelperDirectory(helper, SharedDir).Should().BeFalse();
+            PatcherRunner.IsLinuxHelperDirectory(Path.Combine(UserDir, "Patcher"), UserDir).Should().BeFalse();
+            PatcherRunner.IsLinuxHelperDirectory(Path.Combine(UserDir, ".aslm-update", "helpers", "installed"), UserDir)
+                .Should().BeFalse();
+            PatcherRunner.IsLinuxHelperDirectory(Path.Combine(helper, name), UserDir).Should().BeFalse();
+        }
+
+
         // Test data helpers
 
         /// <summary>

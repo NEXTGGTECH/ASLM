@@ -340,11 +340,11 @@ namespace ASLM.Launcher.Tests
             var act = () => Program.WaitForRequestedProcessExit(["--wait-process", "not-a-pid"], logPath);
             act.Should().Throw<ArgumentException>();
 
-            // Start a long-running child process whose identity (id and start time) the launcher is told to wait for.
+            // Start a child whose id and start time identify the process the launcher must wait for.
             using var process = Process.Start(new ProcessStartInfo
             {
-                FileName = "powershell.exe",
-                Arguments = "-NoProfile -NonInteractive -Command Start-Sleep -Seconds 30",
+                FileName = OperatingSystem.IsWindows() ? "powershell.exe" : "/bin/sleep",
+                Arguments = OperatingSystem.IsWindows() ? "-NoProfile -NonInteractive -Command Start-Sleep -Seconds 30" : "30",
                 UseShellExecute = false
             });
             process.Should().NotBeNull();
@@ -374,6 +374,29 @@ namespace ASLM.Launcher.Tests
 
 
         // Pending update hand-off
+
+        /// <summary>
+        /// Verifies that Linux shadow helpers stay in the protected profile directory when /tmp is not executable.
+        /// </summary>
+        [Fact]
+        public void Linux_patcher_shadow_path_stays_on_the_profile_filesystem()
+        {
+            var path = Program.CreatePatcherShadowPath(_root, linuxLayout: true);
+            Path.GetDirectoryName(path).Should().Be(Path.Combine(_root, ".aslm-update", "helpers"));
+            Guid.TryParseExact(Path.GetFileName(path), "N", out _).Should().BeTrue();
+            Program.CreatePatcherShadowPath(_root, linuxLayout: true).Should().NotBe(path);
+        }
+
+        /// <summary>
+        /// Verifies that other platforms retain the launcher's existing temporary shadow-copy protocol.
+        /// </summary>
+        [Fact]
+        public void Other_platforms_keep_the_temporary_patcher_shadow_path()
+        {
+            var path = Program.CreatePatcherShadowPath(_root, linuxLayout: false);
+            Path.GetDirectoryName(path).Should().Be(Path.TrimEndingDirectorySeparator(Path.GetTempPath()));
+            Path.GetFileName(path).Should().StartWith("Patcher_");
+        }
 
         /// <summary>
         /// Verifies that a pending update is not handed off, and the missing patcher is logged, while no known

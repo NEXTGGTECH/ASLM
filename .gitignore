@@ -54,7 +54,7 @@ TestResult.xml
 nunit-*.xml
 
 # IDEs
-.vs/*
+.vs
 .vscode
 .vsconfig
 .claude
@@ -65,7 +65,7 @@ nunit-*.xml
 # ASLM
 ASLM.slnLaunch.user
 
-Build/*
+Build
 Data/App/*
 Engines/Python/*
 Models/ASR/*

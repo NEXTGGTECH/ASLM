@@ -220,7 +220,7 @@ internal static class Program
         try
         {
             // Run the patcher from a temporary copy so it can overwrite the Patcher folder it was started from.
-            shadowDir = Path.Combine(Path.GetTempPath(), "Patcher_" + Guid.NewGuid().ToString("N"));
+            shadowDir = CreatePatcherShadowPath(dataRoot, OperatingSystem.IsLinux());
             Directory.CreateDirectory(shadowDir);
 
             CopyDirectory(patcherDir, shadowDir);
@@ -275,6 +275,16 @@ internal static class Program
             return false;
         }
     }
+
+
+    // Shadow copy layout
+
+    /// <summary>
+    /// Keeps Linux update helpers in the profile, so noexec on the temporary mount does not block updates.
+    /// </summary>
+    internal static string CreatePatcherShadowPath(string dataRoot, bool linuxLayout) => linuxLayout
+        ? Path.Combine(Path.GetFullPath(dataRoot), ".aslm-update", "helpers", Guid.NewGuid().ToString("N"))
+        : Path.Combine(Path.GetTempPath(), "Patcher_" + Guid.NewGuid().ToString("N"));
 
 
     // Process wait
