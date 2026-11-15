@@ -143,7 +143,8 @@ namespace ASLM.Services.Internal
         /// </summary>
         internal static void EnsureUpdateTargetWritable()
         {
-            // Probe the program directory in either layout; never elevate the application or patcher for an update.
+            // Probe the program directory in either layout. The update of this directory never needs root rights; only
+            // the patcher asks for them, for the shared installation folder alone.
             using var probe = new FileStream(Path.Combine(InstallDirectory, ".aslm-update-" + Guid.NewGuid().ToString("N")),
                 FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose);
         }

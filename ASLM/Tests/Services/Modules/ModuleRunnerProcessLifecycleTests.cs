@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using ASLM.Models;
 using ASLM.Tests.TestSupport;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -12,8 +13,8 @@ namespace ASLM.Tests.Services.Modules
 {
     /// <summary>
     /// Verifies how the module runner starts, stops and cleans up real PowerShell child processes: reaping children
-    /// of exited launchers, overlapping stop and restart, canceling a pending startup and rolling back a failed
-    /// launch.
+    /// of exited launchers, overlapping stop and restart, canceling a pending startup, rolling back a failed launch,
+    /// and bringing their output into the consoles.
     /// </summary>
     [Collection("ModuleManifestDiscovery")]
     public sealed class ModuleRunnerProcessLifecycleTests
@@ -219,6 +220,54 @@ namespace ASLM.Tests.Services.Modules
                 runner.GetRunningModuleSourcePaths().Should().BeEmpty();
             }
             finally { await runner.StopAllModulesAsync(); }
+        }
+
+
+        // Console output
+
+        /// <summary>
+        /// Verifies that the output of a setup command reaches its console session as a terminal shows it (UTF-8 text
+        /// decoded, the blank line kept, a progress line redrawn with carriage returns kept only in its final state)
+        /// and that the merged console of the module receives the lines in the order the process wrote them.
+        /// </summary>
+        [Fact]
+        public async Task Setup_output_reaches_the_consoles_in_order_and_as_a_terminal_shows_it()
+        {
+            // Arrange: a setup command that writes raw UTF-8 bytes, so the console code page of PowerShell does not
+            // change them.
+            using var layout = new AslmFileSystemLayout();
+            var module = CreateModule(layout);
+            module.Commands.FirstRun.Add(new ModuleCommand
+            {
+                Name = "Setup",
+                Exec = PowerShell(module, """
+                    $out = [Console]::OpenStandardOutput()
+                    function Send([string]$text) { $bytes = [Text.Encoding]::UTF8.GetBytes($text); $out.Write($bytes, 0, $bytes.Length) }
+                    for ($i = 1; $i -le 300; $i++) { Send "line $i`n" }
+                    Send "`n"
+                    Send "Привет`r`n"
+                    Send "progress 10%`rprogress 50%`rprogress 100%`n"
+                    """)
+            });
+            var console = new ModuleConsoleStore();
+            using var runner = CreateRunner(console);
+
+            // Act
+            (await runner.ExecuteFirstRunAsync(module, new SilentProgress(), CancellationToken.None)).Should().BeTrue();
+
+            // Assert: the session holds every line once, with the redrawn line in its final state only.
+            var session = console.GetSnapshot().Single().Sessions.Single(s => s.Stage == "Setup");
+            var lines = console.GetSessionLines(module.SourcePath, session.Id);
+            lines.Should().ContainInOrder("  line 1", "  line 300", "  ", "  Привет", "  progress 100%");
+            lines.Should().NotContain(line => line.Contains("progress 10%") || line.Contains("progress 50%"));
+
+            // The merged console lists the numbered lines in the order the process wrote them.
+            var merged = console.GetUnifiedModuleLines(module.SourcePath);
+            merged.Select(line => Regex.Match(line, @" line (\d+)$"))
+                .Where(match => match.Success)
+                .Select(match => int.Parse(match.Groups[1].Value))
+                .Should().Equal(Enumerable.Range(1, 300));
+            merged.Should().NotContain(line => line.Contains("progress 10%"));
         }
 
 

@@ -26,6 +26,26 @@ namespace ASLM
         /// </summary>
         public static void Main(string[] args)
         {
+            // Inspect native libraries before any generated GTK binding initializes a display.
+            var checkOnly = args is ["--check-runtime"];
+            var runtimeError = LinuxRuntimeCheck.Check();
+            if (runtimeError != null)
+            {
+                Environment.ExitCode = 1;
+                if (checkOnly) Console.Error.WriteLine(runtimeError);
+                else ReportRuntimeError(runtimeError);
+                return;
+            }
+            if (checkOnly)
+            {
+                Console.WriteLine("ASLM_RUNTIME_OK");
+                return;
+            }
+
+            // The release workflow exercises the real window and WebKit handler with an isolated profile.
+            LinuxCompatibilityPage.Enabled = args is ["--verify-linux"];
+            if (LinuxCompatibilityPage.Enabled) args = [];
+
             // Do not open a second UI while the old instance still owns its modules or API port.
             if (!LinuxAppRelauncher.WaitForPreviousInstance(ref args))
             {
@@ -52,10 +72,32 @@ namespace ASLM
         }
 
 
+        // Startup errors
+
+        /// <summary>
+        /// Records dependency failures inside ASLM's profile and presents a native message when GTK is usable.
+        /// </summary>
+        private static void ReportRuntimeError(string message)
+        {
+            try
+            {
+                var log = Path.Combine(AppRoot.Directory, ".aslm-update", "logs", "Startup.log");
+                Directory.CreateDirectory(Path.GetDirectoryName(log)!);
+                File.AppendAllText(log, $"[{DateTimeOffset.Now:O}] {message}{Environment.NewLine}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A read-only profile must not hide the dependency error from stderr or the native dialog.
+            }
+            LinuxRuntimeCheck.ShowError(message);
+        }
+
+
         // Display compatibility
 
         /// <summary>
-        /// Avoids WSLg's unresponsive Wayland popup surfaces without changing a normal Linux desktop or explicit overrides.
+        /// Avoids WSLg's unresponsive Wayland popup surfaces without changing a normal Linux desktop or explicit
+        /// overrides.
         /// </summary>
         internal static void ConfigureDisplayBackend()
         {
@@ -65,7 +107,8 @@ namespace ASLM
             if (!ShouldPreferWslgX11(isWslg, Environment.GetEnvironmentVariable("GDK_BACKEND"),
                 Environment.GetEnvironmentVariable("DISPLAY"))) return;
 
-            // This setting belongs only to ASLM's process; no shell profiles, WSL settings or desktop configuration are edited.
+            // This setting belongs only to ASLM's process; no shell profiles, WSL settings or desktop configuration are
+            // edited.
             Environment.SetEnvironmentVariable("GDK_BACKEND", "x11");
 
             // .NET's managed environment cache does not update libc getenv. Initialize the bindings and choose

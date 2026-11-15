@@ -85,6 +85,9 @@ archive_name=ASLM-linux-amd64.tar.gz
 download_url='@ASLM_DOWNLOAD_URL@'
 archive_digest='@ASLM_ARCHIVE_SHA256@'
 version='@ASLM_VERSION@'
+archive_source=
+package_manager=
+family=
 stage=
 payload=
 replaced=0
@@ -132,15 +135,17 @@ cleanup()
 # Prints what the installer will do and requires an explicit yes before any system change.
 confirm_installation()
 {
+    printf '%s\n' "ASLM ${version} will be installed:" ''
+    if [ -n "$archive_source" ]; then
+        printf '%s\n' "  - read the local release archive: ${archive_source}"
+    else
+        printf '%s\n' "  - download ${archive_name} from" "    ${download_url}"
+    fi
     printf '%s\n' \
-        "ASLM ${version} will be installed:" \
-        '' \
-        "  - download ${archive_name} from" \
-        "    ${download_url}" \
         "  - install the application to ${install_dir} (system-wide)" \
         "  - create the 'aslm' command (${command_path})" \
         '  - add an application-menu entry' \
-        '  - install missing system packages with apt' \
+        "  - install missing system packages with ${package_manager}" \
         '' \
         'Administrator privileges are required.'
     printf 'Proceed with the installation? [yes/no] '
@@ -151,34 +156,156 @@ confirm_installation()
     esac
 }
 
-# Installs only missing native runtime packages for the supported Ubuntu release; .NET is bundled.
+# Compare dotted package versions without requiring a distribution-specific version tool.
+version_at_least()
+{
+    actual=$(printf '%s' "$1" | sed 's/^[0-9]*://; s/[-+~].*$//')
+    [ "$(printf '%s\n%s\n' "$2" "$actual" | sort -V | head -n 1)" = "$2" ]
+}
+
+# Detect the package family without enabling repositories or modifying the system.
+detect_distribution()
+{
+    ID= ID_LIKE= VERSION_ID=
+    [ -r "${1:-/etc/os-release}" ] || fail 'Cannot identify this Linux distribution: /etc/os-release is missing.'
+    . "${1:-/etc/os-release}"
+    case " $ID $ID_LIKE " in
+        *' ubuntu '*|*' debian '*) family=debian; package_manager=apt ;;
+        *' rhel '*|*' centos '*|*' almalinux '*|*' rocky '*) family=el; package_manager=dnf ;;
+        *' fedora '*) family=fedora; package_manager=dnf ;;
+        *' opensuse '*|*' opensuse-leap '*|*' opensuse-tumbleweed '*|*' suse '*)
+            family=suse; package_manager=zypper ;;
+        *' arch '*|*' archlinux '*) family=arch; package_manager=pacman ;;
+        *) fail "Unsupported Linux distribution: ${ID:-unknown}. Supported package families: apt, dnf, zypper, pacman." ;;
+    esac
+    command -v "$package_manager" >/dev/null 2>&1 || fail "The ${package_manager} package manager is unavailable."
+
+    # Known distributions have explicit support floors; derivatives are checked against their actual libraries.
+    minimum=
+    case "$ID" in
+        ubuntu) minimum=24.04 ;;
+        debian) minimum=13 ;;
+        fedora) minimum=43 ;;
+        almalinux|rocky|rhel|centos) minimum=10 ;;
+        opensuse-leap) minimum=16.0 ;;
+    esac
+    if [ -n "$minimum" ]; then
+        [ -n "$VERSION_ID" ] && version_at_least "$VERSION_ID" "$minimum" ||
+            fail "${ID} ${minimum} or later is required; this system reports ${VERSION_ID:-an unknown version}."
+    fi
+}
+
+# Reject an unavailable or obsolete GTK candidate before installing packages or replacing ASLM.
+require_gtk_version()
+{
+    [ -n "$1" ] && version_at_least "$1" 4.12.0 ||
+        fail "GTK 4.12 or later is required; available version: ${1:-none}. Update the distribution or its repositories."
+}
+
+# Return an installable Debian package version, including an already installed package.
+debian_candidate()
+{
+    apt-cache policy "$1" | awk '/Candidate:/ && $2 != "(none)" { print $2; exit }'
+}
+
+# Select an installable package from the named alternatives without pinning one distro's ICU or OpenSSL ABI.
+select_debian_package()
+{
+    for candidate in "$@"; do
+        if [ -n "$(debian_candidate "$candidate")" ]; then printf '%s\n' "$candidate"; return; fi
+    done
+    fail "No supported package is available for: $*."
+}
+
+# Install Debian-family runtime libraries using the enabled repositories.
+install_debian_dependencies()
+{
+    apt-get update
+    require_gtk_version "$(debian_candidate libgtk-4-1)"
+    [ -n "$(debian_candidate libwebkitgtk-6.0-4)" ] ||
+        fail 'WebKitGTK API 6.0 is unavailable. Enable the official repository providing libwebkitgtk-6.0-4.'
+    icu_packages=$(apt-cache pkgnames | grep -E '^libicu[0-9]+$' | sort -Vr) || true
+    [ -n "$icu_packages" ] || fail 'No ICU runtime package is available in the enabled repositories.'
+    # ICU names originate in the package index and are restricted to the exact pattern above.
+    icu_package=$(select_debian_package $icu_packages)
+    ssl_package=$(select_debian_package libssl3t64 libssl3)
+    apt-get install --no-install-recommends -y ca-certificates curl libc6 libgcc-s1 \
+        libgssapi-krb5-2 "$icu_package" "$ssl_package" libstdc++6 tzdata zlib1g \
+        libgtk-4-1 libwebkitgtk-6.0-4 libfontconfig1 libfreetype6 xdg-utils pkexec
+}
+
+# Read the newest installed or available RPM version from DNF's package listing.
+dnf_candidate()
+{
+    dnf -q list --showduplicates "$1" 2>/dev/null |
+        awk -v package="$1" 'index($1, package ".") == 1 { print $2 }' | sort -V | tail -n 1
+}
+
+# Install Fedora or enterprise-Linux libraries without automatically adding EPEL or CRB repositories.
+install_dnf_dependencies()
+{
+    require_gtk_version "$(dnf_candidate gtk4)"
+    if [ -z "$(dnf_candidate webkitgtk6.0)" ]; then
+        if [ "$family" = el ]; then
+            fail 'WebKitGTK API 6.0 is unavailable. Enable the matching EPEL and CRB repositories manually, then rerun this installer.'
+        fi
+        fail 'WebKitGTK API 6.0 is unavailable in the enabled repositories (package webkitgtk6.0).'
+    fi
+    dnf install -y ca-certificates curl glibc libgcc krb5-libs libicu openssl-libs \
+        libstdc++ tzdata zlib gtk4 webkitgtk6.0 fontconfig freetype xdg-utils polkit
+}
+
+# Read a package edition from Zypper's machine-readable search results.
+zypper_candidate()
+{
+    zypper --xmlout --non-interactive --no-refresh search --match-exact --details "$1" |
+        sed -n 's/.*edition="\([^"]*\)".*/\1/p' | sort -V | tail -n 1
+}
+
+# Install openSUSE runtime libraries from the already configured repositories.
+install_suse_dependencies()
+{
+    zypper --non-interactive refresh
+    require_gtk_version "$(zypper_candidate libgtk-4-1)"
+    [ -n "$(zypper_candidate libwebkitgtk-6_0-4)" ] ||
+        fail 'WebKitGTK API 6.0 is unavailable in the enabled repositories (package libwebkitgtk-6_0-4).'
+    zypper --non-interactive --no-refresh install --no-recommends ca-certificates curl \
+        glibc libgcc_s1 krb5 libicu libopenssl3 libstdc++6 timezone libz1 \
+        libgtk-4-1 libwebkitgtk-6_0-4 fontconfig libfreetype6 xdg-utils pkexec
+}
+
+# Install Arch packages against its synchronized database without performing an unsupported partial upgrade.
+install_arch_dependencies()
+{
+    gtk_version=$(pacman -Si gtk4 2>/dev/null | awk '/^Version[[:space:]]*:/ { print $3; exit }')
+    [ -n "$gtk_version" ] || fail 'The pacman package database is unavailable. Run a full system upgrade with pacman -Syu, then retry.'
+    require_gtk_version "$gtk_version"
+    pacman -S --needed --noconfirm ca-certificates curl glibc gcc-libs krb5 icu openssl \
+        tzdata zlib gtk4 webkitgtk-6.0 fontconfig freetype2 xdg-utils polkit ||
+        fail 'Package installation failed. Run a full system upgrade with pacman -Syu, then retry.'
+}
+
+# Install the selected family's native runtime dependencies; .NET itself is bundled with ASLM.
 install_dependencies()
 {
-    . /etc/os-release
-    [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 26.04 ] ||
-        fail 'Automatic installation currently requires Ubuntu 26.04 AMD64.'
-
-    missing=
-    for package in ca-certificates curl libbrotli1 libc6 libgcc-s1 libgssapi-krb5-2 libicu78 \
-        libssl3t64 libstdc++6 tzdata zlib1g libgtk-4-1 libwebkitgtk-6.0-4 \
-        libfontconfig1 libfreetype6 xdg-utils; do
-        if [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]; then
-            missing="$missing $package"
-        fi
-    done
-    if [ -n "$missing" ]; then
-        apt-get update
-        # Package names come only from the fixed list above, not from installer arguments or user data.
-        apt-get install --no-install-recommends -y $missing
-    fi
+    case "$family" in
+        debian) install_debian_dependencies ;;
+        fedora|el) install_dnf_dependencies ;;
+        suse) install_suse_dependencies ;;
+        arch) install_arch_dependencies ;;
+    esac
 }
 
 # Downloads the release archive; the digest, when stamped by the release workflow, pins the exact asset.
 download_payload()
 {
-    curl --fail --location --show-error --retry 3 \
-        --output "$stage/$archive_name" "$download_url" ||
-        fail "Could not download ${archive_name}; check the network connection."
+    if [ -n "$archive_source" ]; then
+        cp -- "$archive_source" "$stage/$archive_name" || fail 'Could not read the local release archive.'
+    else
+        curl --fail --location --show-error --retry 3 \
+            --output "$stage/$archive_name" "$download_url" ||
+            fail "Could not download ${archive_name}; check the network connection."
+    fi
     if [ -n "$archive_digest" ]; then
         printf '%s  %s\n' "$archive_digest" "$stage/$archive_name" | sha256sum --check --status ||
             fail 'The downloaded ASLM archive is damaged or was modified.'
@@ -211,13 +338,15 @@ stage_payload()
     mkdir "$stage/extract" "$stage/new"
     tar -xzf "$stage/$archive_name" -C "$stage/extract" --no-same-owner
     payload="$stage/extract/$root_name"
-    # The launcher bootstraps per-user copies from the base archive with these exact executable modes.
-    chmod 755 "$payload/ASLM" "$payload/App/ASLM" "$payload/Patcher/aslm-patcher"
     mv -- "$payload/ASLM" "$stage/new/ASLM"
-    tar -C "$payload" -czf "$stage/new/aslm-base.tar.gz" App Patcher
+    # The launcher sets up each user's copy from the release archive itself, as after a self-update of this folder.
+    mv -- "$stage/$archive_name" "$stage/new/aslm-base.tar.gz"
     cp -- "$payload/App/hicolor/scalable/apps/appicon.svg" "$stage/new/appicon.svg"
+    # The patcher compares this version with later releases to decide whether they update this folder too.
+    printf '{\n  "app": "ASLM",\n  "version": "%s",\n  "sharedInstallPath": "%s"\n}\n' \
+        "$version" "$install_dir" > "$stage/new/install-manifest.json"
     chmod 755 "$stage/new" "$stage/new/ASLM"
-    chmod 644 "$stage/new/aslm-base.tar.gz" "$stage/new/appicon.svg"
+    chmod 644 "$stage/new/aslm-base.tar.gz" "$stage/new/appicon.svg" "$stage/new/install-manifest.json"
 }
 
 # Replaces only the shared launcher/base archive and registers the normal-user desktop entry.
@@ -267,31 +396,55 @@ DESKTOP
     completed=1
 }
 
-# Confirm as the invoking user first; only an explicit yes leads to the administrator prompt.
+# Parse a local release archive without changing the normal installation destination or consent requirement.
+parse_arguments()
+{
+    confirmed=0
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --archive)
+                [ "$#" -ge 2 ] && [ -z "$archive_source" ] || fail 'Usage: ASLM-linux-amd64.sh [--archive FILE].'
+                archive_source=$(readlink -f -- "$2") || fail 'The local release archive cannot be resolved.'
+                [ -f "$archive_source" ] || fail 'The local release archive does not exist.'
+                shift 2 ;;
+            --confirmed)
+                [ "$(id -u)" -eq 0 ] && [ "$confirmed" -eq 0 ] || fail 'Invalid internal confirmation argument.'
+                confirmed=1
+                shift ;;
+            *) fail 'Usage: ASLM-linux-amd64.sh [--archive FILE].' ;;
+        esac
+    done
+}
+
+# Confirm as the invoking user first; only explicit consent leads to the administrator prompt.
+export LC_ALL=C
 [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] || fail 'This installer requires Linux AMD64.'
 case "$download_url" in @*) fail 'Run the packaged installer, not its source template.' ;; esac
+parse_arguments "$@"
+detect_distribution
 installer=$(readlink -f -- "$0")
 if [ "$(id -u)" -ne 0 ]; then
-    [ "$#" -eq 0 ] || fail 'This installer takes no arguments; the system directory is /opt/ASLM.'
     confirm_installation
-    command -v sudo >/dev/null 2>&1 || fail 'Run this installer with administrator privileges.'
+    command -v sudo >/dev/null 2>&1 ||
+        fail 'sudo is unavailable. Ask an administrator to run this installer as root.'
+    if [ -n "$archive_source" ]; then
+        exec sudo /bin/sh "$installer" --confirmed --archive "$archive_source"
+    fi
     exec sudo /bin/sh "$installer" --confirmed
 fi
-if [ "${1:-}" = '--confirmed' ]; then
-    [ "$#" -eq 1 ] || fail 'This installer takes no arguments; the system directory is /opt/ASLM.'
-else
-    # A direct sudo invocation still needs explicit consent before anything is touched.
-    [ "$#" -eq 0 ] || fail 'This installer takes no arguments; the system directory is /opt/ASLM.'
-    confirm_installation
-fi
+[ "$confirmed" -eq 1 ] || confirm_installation
+install_dependencies
 umask 022
 mkdir -p /opt
 stage=$(mktemp -d /opt/.ASLM-install.XXXXXXXX)
 trap cleanup 0
 trap 'exit 1' HUP INT TERM
-install_dependencies
 download_payload
 stage_payload
+
+# Check the staged runtime without creating a user profile or opening a root-owned application window.
+"$payload/App/ASLM" --check-runtime ||
+    fail 'The downloaded application cannot load its native runtime libraries. The existing ASLM installation was kept.'
 install_application
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database /usr/local/share/applications || true

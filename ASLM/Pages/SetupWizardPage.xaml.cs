@@ -1793,7 +1793,7 @@ namespace ASLM.Pages
         }
 
 
-        // Helpers and nested types
+        // Helpers
 
         /// <summary>
         /// Raises a bindable install-log property change notification.
@@ -1808,21 +1808,5 @@ namespace ASLM.Pages
             Application.Current?.Resources.TryGetValue(key, out var value) == true && value is Color c
                 ? c
                 : fallback;
-
-        /// <summary>
-        /// Reports progress synchronously on the producer thread so UI updates can be throttled explicitly.
-        /// </summary>
-        /// <typeparam name="T">Type of the reported progress values.</typeparam>
-        /// <param name="handler">Called synchronously with every reported value.</param>
-        private sealed class InlineProgress<T>(Action<T> handler) : IProgress<T>
-        {
-            /// <summary>
-            /// Passes the reported value to the handler on the calling thread, without marshaling or queuing.
-            /// </summary>
-            public void Report(T value)
-            {
-                handler(value);
-            }
-        }
     }
 }

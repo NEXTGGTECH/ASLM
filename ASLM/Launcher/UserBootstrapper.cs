@@ -121,25 +121,30 @@ internal static class UserBootstrapper
 
     /// <summary>
     /// Restores only program directories from the system tarball without overwriting the user's data directories.
+    /// The installer's base archive keeps App/ and Patcher/ at its root, while the release archive that a self-update
+    /// places in the shared folder wraps them in one folder next to the launcher; root-level files belong to the shared
+    /// folder and are skipped.
     /// </summary>
-    private static void ExtractUnixPayload(string archivePath, string userAppDir)
+    internal static void ExtractUnixPayload(string archivePath, string userAppDir)
     {
         // Stage on the destination filesystem so the final directory renames cannot fail across mount points.
         var staging = Path.Combine(userAppDir, ".aslm-update", "bootstrap", Guid.NewGuid().ToString("N"));
-        var payload = Path.Combine(staging, "payload");
+        var extracted = Path.Combine(staging, "payload");
         var replaced = new List<string>();
         var retainBackup = false;
-        Directory.CreateDirectory(payload);
+        Directory.CreateDirectory(extracted);
         try
         {
             // Unpack the tarball into the staging area only; the live directories are untouched so far.
             using (var archive = File.OpenRead(archivePath))
             using (var gzip = new GZipStream(archive, CompressionMode.Decompress))
-                TarFile.ExtractToDirectory(gzip, payload, overwriteFiles: false);
+                TarFile.ExtractToDirectory(gzip, extracted, overwriteFiles: false);
 
-            // The base archive carries application files and templates, not profile data or a second launcher.
+            // The base archive carries application files and templates, not profile data. Root-level files, such as
+            // the launcher of a release archive, stay behind in the staging area.
+            var payload = ResolveUnixPayloadRoot(extracted);
             var folders = new[] { "App", "Patcher" };
-            if (Directory.EnumerateFileSystemEntries(payload).Any(entry => !folders.Contains(Path.GetFileName(entry))) ||
+            if (Directory.EnumerateDirectories(payload).Any(entry => !folders.Contains(Path.GetFileName(entry))) ||
                 !IsUserAppDirReady(payload) ||
                 folders.Any(folder => new DirectoryInfo(Path.Combine(payload, folder)).LinkTarget != null))
                 throw new InvalidOperationException("The ASLM base archive is incomplete or has an unexpected layout.");
@@ -186,6 +191,20 @@ internal static class UserBootstrapper
             // Drop the staging area unless it still holds the only copy of the previous installation.
             if (!retainBackup) TryDeleteDirectory(staging);
         }
+    }
+
+    /// <summary>
+    /// Returns the folder of an extracted tarball that holds App/ and Patcher/: the single wrapper folder of a release
+    /// archive, such as <c>ASLM-linux-amd64</c>, or the extraction folder itself for the installer's base archive.
+    /// </summary>
+    private static string ResolveUnixPayloadRoot(string extracted)
+    {
+        var entries = Directory.GetFileSystemEntries(extracted);
+        return entries.Length == 1 &&
+               Path.GetFileName(entries[0]) is not ("App" or "Patcher") &&
+               new DirectoryInfo(entries[0]) is { Exists: true, LinkTarget: null }
+            ? entries[0]
+            : extracted;
     }
 
     /// <summary>

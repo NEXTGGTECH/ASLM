@@ -961,7 +961,7 @@ namespace ASLM.Services.Modules
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
-                ConfigureProcessForStreaming(psi, exePath, engineDep.Id);
+                ConfigureProcessForStreaming(psi);
                 _environmentResolver.ApplyEnvironmentVariables(module, engineConfig, psi);
 
                 using var process = new Process { StartInfo = psi };
@@ -989,33 +989,14 @@ namespace ASLM.Services.Modules
                     process,
                     isTrackedProcess: false);
 
-                // Forward both output streams, line by line, to the log and to the process session.
-                process.OutputDataReceived += (s, e) =>
-                {
-                    if (e.Data != null)
-                    {
-                        var line = $"  {e.Data}";
-                        log.Report(line);
-                        _consoleStore.AppendProcessLine(sessionHandle, line);
-                    }
-                };
-                process.ErrorDataReceived += (s, e) =>
-                {
-                    if (e.Data != null)
-                    {
-                        var line = $"  {e.Data}";
-                        log.Report(line);
-                        _consoleStore.AppendProcessLine(sessionHandle, line);
-                    }
-                };
-
                 // Assign to the job object so dependency installs stay grouped under ASLM.
                 _processTracker.AddProcess(process);
 
-                // Start reading output and wait for the installer to finish; a non-zero exit code aborts the setup.
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
+                // Read the output into the session and the log, and wait until the installer has exited and its
+                // output has ended; a non-zero exit code aborts the setup.
+                var output = ReadProcessOutputAsync(process, sessionHandle, log);
                 await process.WaitForExitAsync(ct);
+                await output.WaitAsync(ct);
                 _consoleStore.CompleteProcessSession(sessionHandle, process.ExitCode);
 
                 if (process.ExitCode != 0)
@@ -1127,7 +1108,7 @@ namespace ASLM.Services.Modules
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
-                ConfigureProcessForStreaming(psi, fileName, cmd.Engine);
+                ConfigureProcessForStreaming(psi);
                 if (commandEngineConfig != null)
                 {
                     _environmentResolver.ApplyEnvironmentVariables(module, commandEngineConfig, psi);
@@ -1190,26 +1171,6 @@ namespace ASLM.Services.Modules
                     isTrackedProcess: trackProcess);
                 session = sessionHandle;
 
-                // Forward both output streams, line by line, to the log and to the process session.
-                process.OutputDataReceived += (s, e) =>
-                {
-                    if (e.Data != null)
-                    {
-                        var line = $"  {e.Data}";
-                        log.Report(line);
-                        _consoleStore.AppendProcessLine(sessionHandle, line);
-                    }
-                };
-                process.ErrorDataReceived += (s, e) =>
-                {
-                    if (e.Data != null)
-                    {
-                        var line = $"  {e.Data}";
-                        log.Report(line);
-                        _consoleStore.AppendProcessLine(sessionHandle, line);
-                    }
-                };
-
                 // Assign to the job object so launched processes stay grouped under ASLM.
                 _processTracker?.AddProcess(process);
 
@@ -1220,8 +1181,7 @@ namespace ASLM.Services.Modules
                 }
 
                 // Start reading output, then tell the launcher that the root process exists.
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
+                var output = ReadProcessOutputAsync(process, sessionHandle, log);
                 processStarted?.TrySetResult(true);
 
                 // A launch token controls setup and process creation only. Once a
@@ -1230,7 +1190,11 @@ namespace ASLM.Services.Modules
                 using var cancellationRegistration = lifetimeToken.Register(
                     static state => TerminateCanceledProcess((Process)state!),
                     process);
+
+                // The command ends when its process has exited and its output has ended; children that inherited
+                // the output keep it open, so their output still reaches the session.
                 await process.WaitForExitAsync(lifetimeToken).ConfigureAwait(false);
+                await output.WaitAsync(lifetimeToken).ConfigureAwait(false);
                 exitCode = process.ExitCode;
 
                 // A launcher may exit while its children keep running: capture them before the root is forgotten.
@@ -1330,10 +1294,11 @@ namespace ASLM.Services.Modules
                     Exec = execStr
                 };
 
-                // Collect the command output as the result; the "Exec:" echo line is not part of it.
+                // Collect the command output as the result; the "Exec:" echo line is not part of it. The output is
+                // collected synchronously, so all of it is present once the command has finished.
                 var outputBuilder = new StringBuilder();
                 var lockObject = new object();
-                var log = new Progress<string>(msg =>
+                var log = new InlineProgress<string>(msg =>
                 {
                     if (string.IsNullOrEmpty(msg)) return;
 
@@ -1448,11 +1413,12 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Mirrors module log messages into the shared consoles store.
-        /// Every message goes to the caller's reporter and to the overview console of the module.
+        /// Every message goes to the caller's reporter and to the overview console of the module. The messages are
+        /// forwarded synchronously on the reporting thread, so the overview keeps the order in which they arrived.
         /// </summary>
         private IProgress<string> CreateModuleLog(ModuleConfig module, IProgress<string> log)
         {
-            return new Progress<string>(message =>
+            return new InlineProgress<string>(message =>
             {
                 log.Report(message);
                 _consoleStore.AppendOverviewLine(module, message);
@@ -1463,61 +1429,37 @@ namespace ASLM.Services.Modules
         // Output streaming
 
         /// <summary>
-        /// Tunes process startup so redirected console output is as complete and timely as possible.
-        /// Python runtimes buffer redirected output by default, so they are started unbuffered with UTF-8 output.
+        /// Asks runtimes to write redirected output unbuffered and as UTF-8 where an environment variable controls it.
+        /// Python buffers redirected output and writes it in the ANSI code page, so the Python variables are set for
+        /// every command: a command can be a launcher script or a program that starts Python, and other programs
+        /// ignore them. Node.js and Go write UTF-8 without holding output back, and output in the OEM code page of
+        /// console programs (cmd.exe, PowerShell, .NET) is recognized by <see cref="ProcessOutputReader"/>.
         /// </summary>
-        private static void ConfigureProcessForStreaming(ProcessStartInfo psi, string fileName, string? engineId)
+        private static void ConfigureProcessForStreaming(ProcessStartInfo psi)
         {
-            if (!IsPythonProcess(fileName, engineId))
-            {
-                return;
-            }
-
-            // Add -u unless the command line already has it, and mirror it with environment variables for child scripts.
-            if (!HasPythonUnbufferedFlag(psi.Arguments))
-            {
-                psi.Arguments = string.IsNullOrWhiteSpace(psi.Arguments)
-                    ? "-u"
-                    : $"-u {psi.Arguments}";
-            }
-
             psi.Environment["PYTHONUNBUFFERED"] = "1";
             psi.Environment["PYTHONIOENCODING"] = "utf-8";
         }
 
         /// <summary>
-        /// Returns whether the command is executed by a Python runtime.
+        /// Starts reading the output of a started process into its console session. Finished lines also go to the
+        /// log; the unfinished last line is only shown in the session, where it is rewritten until it ends.
         /// </summary>
-        private static bool IsPythonProcess(string fileName, string? engineId)
+        /// <param name="process">Started process whose output and error streams are redirected.</param>
+        /// <param name="session">Console session of the process.</param>
+        /// <param name="log">Reporter that receives every finished line.</param>
+        /// <returns>A task that completes once both output streams have ended.</returns>
+        private Task ReadProcessOutputAsync(Process process, ModuleConsoleSessionHandle session, IProgress<string> log)
         {
-            if (!string.IsNullOrWhiteSpace(engineId) &&
-                engineId.Contains("python", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var executableName = Path.GetFileName(fileName);
-            if (string.IsNullOrWhiteSpace(executableName))
-            {
-                return false;
-            }
-
-            return executableName.StartsWith("python", StringComparison.OrdinalIgnoreCase) ||
-                   executableName.StartsWith("py", StringComparison.OrdinalIgnoreCase);
-        }
-
-        /// <summary>
-        /// Returns whether the Python command line already enables unbuffered output.
-        /// </summary>
-        private static bool HasPythonUnbufferedFlag(string arguments)
-        {
-            if (string.IsNullOrWhiteSpace(arguments))
-            {
-                return false;
-            }
-
-            var parts = SplitCommand(arguments);
-            return parts.Any(part => string.Equals(part, "-u", StringComparison.OrdinalIgnoreCase));
+            return ProcessOutputReader.ReadAsync(
+                process,
+                (stream, text) =>
+                {
+                    var line = $"  {text}";
+                    log.Report(line);
+                    _consoleStore.CompleteProcessLine(session, stream, line);
+                },
+                (stream, text) => _consoleStore.UpdateProcessLine(session, stream, $"  {text}"));
         }
 
 

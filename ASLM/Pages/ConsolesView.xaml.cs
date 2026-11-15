@@ -715,16 +715,24 @@ namespace ASLM.Pages
 
                 LoadPreferences();
 
-                // Rediscover modules when asked to, or when none are known yet.
+                // Rediscover modules when asked to, or when none are known yet. Only a fresh discovery is passed to
+                // the console store: the cached list goes stale while modules start and stop, and would overwrite the
+                // enabled state that the runner keeps up to date.
+                IReadOnlyList<ModuleConfig>? discoveredModules = null;
                 if (forceModuleReload || _knownModules.Count == 0)
                 {
                     _knownModules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
+                    discoveredModules = _knownModules;
                 }
 
                 // Build the state off the UI thread, then render it on the main thread.
                 var state = await Task.Run(() =>
                 {
-                    _consoleStore.EnsureModules(_knownModules);
+                    if (discoveredModules != null)
+                    {
+                        _consoleStore.EnsureModules(discoveredModules);
+                    }
+
                     var snapshots = _consoleStore.GetSnapshot();
                     return BuildState(snapshots);
                 });
@@ -781,11 +789,13 @@ namespace ASLM.Pages
         /// Corrects the stored selection when it no longer exists, so the result always points at something valid.
         /// </summary>
         /// <param name="snapshots">Console store snapshot of every known module.</param>
-        private ConsolesDashboardState BuildState(IReadOnlyList<ModuleConsoleModuleSnapshot> snapshots)
+        internal ConsolesDashboardState BuildState(IReadOnlyList<ModuleConsoleModuleSnapshot> snapshots)
         {
-            // Retain the explicitly selected module's history even when it is currently stopped.
+            // List active and busy modules, every module that already has console output, so stopped and failed
+            // modules keep their history, and the explicitly selected module.
             var visibleModules = snapshots
-                .Where(module => module.IsEnabled || module.ActiveProcessCount > 0 ||
+                .Where(module => module.IsEnabled || module.ActiveProcessCount > 0 || module.HasActivity ||
+                    module.Sessions.Any(session => session.LineCount > 0) ||
                     string.Equals(module.SourcePath, _selectedModuleSourcePath, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             var activeModules = snapshots
@@ -872,12 +882,15 @@ namespace ASLM.Pages
             }
             else
             {
-                // One module: list its process sessions, hiding the overview, observed processes and, depending on
-                // the preference, finished ones.
+                // One module: list its sessions except the overview, which the merged console shows, and observed
+                // processes, whose output cannot be captured. The preference hides finished processes; the
+                // maintenance log has no process and is listed once it has output.
                 var visibleSessions = selectedModule.Sessions
                     .Where(session => !string.Equals(session.Id, "overview", StringComparison.OrdinalIgnoreCase))
                     .Where(session => !session.IsObservedProcess)
-                    .Where(session => _showCompletedProcesses || session.IsRunning)
+                    .Where(session => session.ProcessId.HasValue
+                        ? _showCompletedProcesses || session.IsRunning
+                        : session.LineCount > 0)
                     .ToList();
 
                 // The module's merged console is always first; individual consoles follow when the preference allows.

@@ -71,6 +71,9 @@ namespace ASLM
         /// </summary>
         public Page CreateStartupPage()
         {
+#if LINUX
+            if (LinuxCompatibilityPage.Enabled) return new LinuxCompatibilityPage();
+#endif
             return _services.GetRequiredService<LoadingPage>();
         }
 
@@ -91,6 +94,10 @@ namespace ASLM
         private Task ShutdownAsync(Window? window)
         {
             if (_shutdownTask != null) return _shutdownTask;
+#if LINUX
+            // The compatibility page never starts services; resolving them during shutdown would start them instead.
+            if (LinuxCompatibilityPage.Enabled) return _shutdownTask = Task.CompletedTask;
+#endif
 
             try
             {

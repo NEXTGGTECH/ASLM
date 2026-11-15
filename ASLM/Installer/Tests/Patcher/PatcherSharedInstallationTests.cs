@@ -1,6 +1,5 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
-using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ASLM.Installer.Tests.TestSupport;
@@ -10,8 +9,8 @@ using Microsoft.Win32;
 namespace ASLM.Installer.Tests.Patcher
 {
     /// <summary>
-    /// Verifies how the patcher updates the shared installation folder of the Windows dual-location layout: when an
-    /// update is needed, the replacement with rollback, the entry in the installed applications, the elevation
+    /// Verifies how the patcher updates the shared installation folder of the Windows dual-location layout: which
+    /// releases update it, the replacement with rollback, the entry in the installed applications, the elevation
     /// hand-off arguments, and the per-user copy that never receives the shared files.
     /// </summary>
     public sealed class PatcherSharedInstallationTests : IDisposable
@@ -58,16 +57,13 @@ namespace ASLM.Installer.Tests.Patcher
         private string ArchivePath => Path.Combine(UserDir, ".aslm-update", "staging", "v9", "ASLM-windows-amd64.zip");
 
 
-        // Test data helpers
-
         /// <summary>
-        /// Returns the four-part file version of the native executable that stands in for the new launcher.
+        /// Four-part version of the release that the staged update carries.
         /// </summary>
-        private static string StandInLauncherVersion()
-        {
-            var info = FileVersionInfo.GetVersionInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
-            return $"{info.FileMajorPart}.{info.FileMinorPart}.{info.FileBuildPart}.{info.FilePrivatePart}";
-        }
+        private const string UpdateVersion = "0.12.0.5";
+
+
+        // Test data helpers
 
         /// <summary>
         /// Lays out the shared folder as the installer leaves it, with the given manifest version.
@@ -91,16 +87,33 @@ namespace ASLM.Installer.Tests.Patcher
         }
 
         /// <summary>
-        /// Stages an update whose launcher is a real executable with a version resource, plus an uninstaller and the
-        /// downloaded archive.
+        /// Stages an update with a launcher, an uninstaller, the application and the downloaded archive.
         /// </summary>
         private void SeedStagedUpdate()
         {
             Directory.CreateDirectory(Path.Combine(StagingPath, "App"));
-            File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), Path.Combine(StagingPath, "ASLM.exe"));
+            File.WriteAllText(Path.Combine(StagingPath, "ASLM.exe"), "new launcher");
             File.WriteAllText(Path.Combine(StagingPath, "uninstall.exe"), "new uninstaller");
             File.WriteAllText(Path.Combine(StagingPath, "App", "ASLM.dll"), "new app");
             File.WriteAllText(ArchivePath, "new archive");
+        }
+
+        /// <summary>
+        /// Writes the pending update descriptor of the staged update with the given release tag.
+        /// </summary>
+        private void WritePendingUpdate(string releaseTag)
+        {
+            var pending = new
+            {
+                kind = "app",
+                version = releaseTag,
+                stagingPath = StagingPath,
+                targetRoot = UserDir,
+                backupPath = Path.Combine(UserDir, ".aslm-update", "backup", "20260101000000"),
+                archivePath = ArchivePath,
+                preserve = new[] { "Data" }
+            };
+            File.WriteAllText(Path.Combine(UserDir, ".aslm-update", "pending.json"), JsonSerializer.Serialize(pending));
         }
 
         /// <summary>
@@ -111,7 +124,7 @@ namespace ASLM.Installer.Tests.Patcher
             StagingPath,
             ArchivePath,
             Path.Combine(UserDir, ".aslm-update", "backup", "now-shared"),
-            StandInLauncherVersion(),
+            UpdateVersion,
             UserDir);
 
         /// <summary>
@@ -138,35 +151,49 @@ namespace ASLM.Installer.Tests.Patcher
         // Update decision
 
         /// <summary>
-        /// Verifies that the shared folder is updated when its manifest holds the placeholder of older installers or
-        /// an older version, and not when it holds the same or a newer version or the update has no versioned
-        /// launcher.
+        /// Verifies that a stable release updates the shared folder when its global or sub version is newer than the
+        /// recorded version or the manifest holds the placeholder of older installers, and that a release of the same
+        /// global and sub version, an older release and a prerelease leave the folder as it is.
         /// </summary>
         [Theory]
-        [InlineData("1.0", true)]
-        [InlineData("0.11.1.22", true)]
-        [InlineData("same", false)]
-        [InlineData("99999.0.0.0", false)]
-        public void IsSharedUpdateNeeded_compares_the_recorded_four_part_version(string manifestVersion, bool expected)
+        [InlineData("1.0", "v0.12.0.5", true)]
+        [InlineData("0.11.2.3", "v0.12.0.5", true)]
+        [InlineData("0.12.4.9", "v1.0.0.2", true)]
+        [InlineData("0.12.0.1", "v0.12.3.40", false)]
+        [InlineData("0.13.0.2", "v0.12.4.9", false)]
+        [InlineData("1.2.0.7", "v0.13.0.1", false)]
+        [InlineData("0.11.2.3", "v0.12.0.5-rc1", false)]
+        [InlineData("1.0", "v0.12.0.5-rc1", false)]
+        public void IsSharedUpdateNeeded_takes_stable_releases_of_a_newer_global_or_sub_version(
+            string manifestVersion,
+            string releaseTag,
+            bool expected)
         {
-            SeedSharedFolder(manifestVersion == "same" ? StandInLauncherVersion() : manifestVersion);
-            SeedStagedUpdate();
+            SeedSharedFolder(manifestVersion);
 
-            PatcherRunner.IsSharedUpdateNeeded(SharedDir, StagingPath, out var version).Should().Be(expected);
-            version.Should().Be(StandInLauncherVersion());
+            PatcherRunner.IsSharedUpdateNeeded(SharedDir, releaseTag, out _).Should().Be(expected);
         }
 
         /// <summary>
-        /// Verifies that an update whose launcher has no version resource never replaces the shared folder.
+        /// Verifies that a stable release tag gives its four-part version, an older three-part tag gets 0 as the last
+        /// part, and a prerelease or any other text gives none.
         /// </summary>
-        [Fact]
-        public void IsSharedUpdateNeeded_ignores_an_update_without_a_versioned_launcher()
+        [Theory]
+        [InlineData("v0.12.0.5", "0.12.0.5")]
+        [InlineData(" 0.12.0.5 ", "0.12.0.5")]
+        [InlineData("v0.9.1", "0.9.1.0")]
+        [InlineData("v0.12.0.5-rc1", null)]
+        [InlineData("v0.12", null)]
+        [InlineData("v0.12.0.5.1", null)]
+        [InlineData("v0.+12.0.5", null)]
+        [InlineData("v0..0.5", null)]
+        [InlineData("main@abc1234", null)]
+        public void TryParseStableReleaseVersion_reads_only_stable_release_tags(string releaseTag, string? expected)
         {
-            SeedSharedFolder("1.0");
-            Directory.CreateDirectory(StagingPath);
-            File.WriteAllText(Path.Combine(StagingPath, "ASLM.exe"), "no version resource");
+            var parsed = PatcherRunner.TryParseStableReleaseVersion(releaseTag, out var version);
 
-            PatcherRunner.IsSharedUpdateNeeded(SharedDir, StagingPath, out _).Should().BeFalse();
+            parsed.Should().Be(expected is not null);
+            (version?.ToString()).Should().Be(expected);
         }
 
         /// <summary>
@@ -207,14 +234,14 @@ namespace ASLM.Installer.Tests.Patcher
 
             PatcherRunner.UpdateSharedInstallation(update, _registry.OpenRoot).Should().BeTrue();
 
-            File.ReadAllBytes(Path.Combine(SharedDir, "ASLM.exe")).Should().Equal(File.ReadAllBytes(Path.Combine(StagingPath, "ASLM.exe")));
+            File.ReadAllText(Path.Combine(SharedDir, "ASLM.exe")).Should().Be("new launcher");
             File.ReadAllText(Path.Combine(SharedDir, "uninstall.exe")).Should().Be("new uninstaller");
             File.ReadAllText(Path.Combine(SharedDir, "aslm-base.zip")).Should().Be("new archive");
             File.Exists(Path.Combine(SharedDir, "aslm-base.zip.tmp")).Should().BeFalse();
             Directory.Exists(update.BackupPath).Should().BeFalse();
 
             var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(SharedDir, "install-manifest.json")))!;
-            manifest["version"]!.GetValue<string>().Should().Be(StandInLauncherVersion());
+            manifest["version"]!.GetValue<string>().Should().Be(UpdateVersion);
             manifest["userAppPath"]!.GetValue<string>().Should().Be(UserDir, "the other manifest fields stay");
         }
 
@@ -261,7 +288,7 @@ namespace ASLM.Installer.Tests.Patcher
             using var entry = OpenRegistration();
             entry.Should().NotBeNull();
             entry!.GetValue("InstallLocation").Should().Be(SharedDir);
-            entry.GetValue("DisplayVersion").Should().Be(StandInLauncherVersion());
+            entry.GetValue("DisplayVersion").Should().Be(UpdateVersion);
             entry.GetValue("UninstallString").Should().Be($"\"{Path.Combine(SharedDir, "uninstall.exe")}\"");
         }
 
@@ -283,7 +310,7 @@ namespace ASLM.Installer.Tests.Patcher
 
             using var entry = OpenRegistration();
             entry!.GetValue("InstallLocation").Should().Be(location);
-            entry.GetValue("DisplayVersion").Should().Be(ownEntry ? StandInLauncherVersion() : "0.0.0.1");
+            entry.GetValue("DisplayVersion").Should().Be(ownEntry ? UpdateVersion : "0.0.0.1");
         }
 
 
@@ -291,31 +318,21 @@ namespace ASLM.Installer.Tests.Patcher
 
         /// <summary>
         /// Verifies that an update of the per-user folder in the dual-location layout never copies the shared files
-        /// into it and removes copies an older patcher left there, while a shared folder that already has the new
-        /// launcher stays as it is.
+        /// into it and removes copies an older patcher left there, while a shared folder that already records the same
+        /// global and sub version stays as it is.
         /// </summary>
         [Fact]
         public async Task Per_user_update_keeps_the_shared_files_out_of_the_user_folder()
         {
             // Arrange: a per-user folder with a stale launcher copy and a pending update for it. The shared folder
-            // already records the new version, so the run never touches it or the machine-wide registry, even when
-            // the tests run with administrator rights.
-            SeedSharedFolder(StandInLauncherVersion());
+            // already records the global and sub version of the update, so the run never touches it or the
+            // machine-wide registry, even when the tests run with administrator rights.
+            SeedSharedFolder("0.12.0.1");
             SeedStagedUpdate();
             Directory.CreateDirectory(Path.Combine(UserDir, "App"));
             File.WriteAllText(Path.Combine(UserDir, "App", "ASLM.dll"), "old app");
             File.WriteAllText(Path.Combine(UserDir, "ASLM.exe"), "stale launcher copy");
-            var pending = new
-            {
-                kind = "app",
-                version = "v9",
-                stagingPath = StagingPath,
-                targetRoot = UserDir,
-                backupPath = Path.Combine(UserDir, ".aslm-update", "backup", "20260101000000"),
-                archivePath = ArchivePath,
-                preserve = new[] { "Data" }
-            };
-            File.WriteAllText(Path.Combine(UserDir, ".aslm-update", "pending.json"), JsonSerializer.Serialize(pending));
+            WritePendingUpdate("v0.12.3.7");
 
             // Act: the elevated marker keeps the patcher from starting the fake launcher afterwards.
             var exitCode = await PatcherRunner.RunAsync(
@@ -331,11 +348,11 @@ namespace ASLM.Installer.Tests.Patcher
         }
 
         /// <summary>
-        /// Verifies that the pending update asks for the elevated copy only when it carries a newer launcher for an
-        /// existing shared folder.
+        /// Verifies that the pending update asks for the elevated copy only when an existing shared folder takes it:
+        /// a stable release of a newer global or sub version than the folder records.
         /// </summary>
         [Fact]
-        public void RequiresSharedUpdate_needs_a_pending_update_with_a_newer_launcher()
+        public void RequiresSharedUpdate_needs_a_pending_update_that_the_shared_folder_takes()
         {
             string[] args = ["--root", UserDir, "--launcher", Path.Combine(SharedDir, "ASLM.exe")];
             SeedSharedFolder("1.0");
@@ -343,13 +360,16 @@ namespace ASLM.Installer.Tests.Patcher
 
             PatcherRunner.RequiresSharedUpdate(UserDir, args).Should().BeFalse("no update is pending");
 
-            File.WriteAllText(
-                Path.Combine(UserDir, ".aslm-update", "pending.json"),
-                JsonSerializer.Serialize(new { kind = "app", version = "v9", stagingPath = StagingPath, targetRoot = UserDir }));
+            WritePendingUpdate("v0.12.0.5");
             PatcherRunner.RequiresSharedUpdate(UserDir, args).Should().BeTrue();
 
-            WriteManifest(StandInLauncherVersion());
-            PatcherRunner.RequiresSharedUpdate(UserDir, args).Should().BeFalse("the shared folder already has this launcher");
+            WritePendingUpdate("v0.12.0.5-rc1");
+            PatcherRunner.RequiresSharedUpdate(UserDir, args).Should().BeFalse("prereleases never update the shared folder");
+
+            WritePendingUpdate("v0.12.0.5");
+            WriteManifest("0.12.0.1");
+            PatcherRunner.RequiresSharedUpdate(UserDir, args).Should().BeFalse(
+                "the shared folder already records this global and sub version");
         }
 
         /// <summary>

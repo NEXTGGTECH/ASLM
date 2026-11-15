@@ -1,7 +1,9 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Diagnostics;
+using System.Formats.Tar;
 using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 
@@ -223,6 +225,81 @@ namespace ASLM.Launcher.Tests
         }
 
 
+        // Linux tarball bootstrapping
+
+        /// <summary>
+        /// Verifies that the Linux bootstrap takes App/ and Patcher/ from the installer's base archive, replaces the
+        /// previous program folders, and keeps the user's data.
+        /// </summary>
+        [Fact]
+        public void Unix_bootstrap_restores_the_program_folders_of_the_installer_base_archive()
+        {
+            var user = Path.Combine(_root, "user");
+            Directory.CreateDirectory(Path.Combine(user, "App"));
+            Directory.CreateDirectory(Path.Combine(user, "Data"));
+            File.WriteAllText(Path.Combine(user, "App", "stale.txt"), "stale");
+            File.WriteAllText(Path.Combine(user, "Data", "settings.json"), "kept");
+            var archivePath = Path.Combine(_root, "aslm-base.tar.gz");
+            WriteTarball(archivePath, ProgramPayloadEntries(string.Empty));
+
+            UserBootstrapper.ExtractUnixPayload(archivePath, user);
+
+            UserBootstrapper.IsUserAppDirReady(user).Should().BeTrue();
+            File.Exists(Path.Combine(user, "App", "stale.txt")).Should().BeFalse();
+            File.ReadAllText(Path.Combine(user, "Data", "settings.json")).Should().Be("kept");
+        }
+
+        /// <summary>
+        /// Verifies that the Linux bootstrap also takes the release archive that a self-update places in the shared
+        /// folder: App/ and Patcher/ come from below its wrapper folder, while the launcher and the other root-level
+        /// files stay out of the user directory.
+        /// </summary>
+        [Fact]
+        public void Unix_bootstrap_takes_the_release_archive_without_its_wrapper_folder_and_root_files()
+        {
+            var user = Path.Combine(_root, "user");
+            var archivePath = Path.Combine(_root, "aslm-base.tar.gz");
+            WriteTarball(archivePath,
+            [
+                .. ProgramPayloadEntries("ASLM-linux-amd64/"),
+                ("ASLM-linux-amd64/ASLM", "shared-launcher"),
+                ("ASLM-linux-amd64/ASLM.pdb", "launcher-symbols")
+            ]);
+
+            UserBootstrapper.ExtractUnixPayload(archivePath, user);
+
+            File.ReadAllText(Path.Combine(user, "App", AppPaths.ExecutableName)).Should().Be("app");
+            File.ReadAllText(Path.Combine(user, "Patcher", "aslm-patcher")).Should().Be("patcher");
+            File.Exists(Path.Combine(user, "ASLM")).Should().BeFalse();
+            File.Exists(Path.Combine(user, "ASLM.pdb")).Should().BeFalse();
+            Directory.Exists(Path.Combine(user, "ASLM-linux-amd64")).Should().BeFalse();
+        }
+
+        /// <summary>
+        /// Verifies that the Linux bootstrap refuses an archive with a folder other than App/ and Patcher/ and keeps
+        /// the current program folders.
+        /// </summary>
+        [Fact]
+        public void Unix_bootstrap_refuses_an_unexpected_folder_and_keeps_the_program_folders()
+        {
+            var user = Path.Combine(_root, "user");
+            Directory.CreateDirectory(Path.Combine(user, "App"));
+            File.WriteAllText(Path.Combine(user, "App", "current.txt"), "current");
+            var archivePath = Path.Combine(_root, "aslm-base.tar.gz");
+            WriteTarball(archivePath,
+            [
+                .. ProgramPayloadEntries("ASLM-linux-amd64/"),
+                ("ASLM-linux-amd64/Data/App/ASLM_Data.json", "{}")
+            ]);
+
+            var act = () => UserBootstrapper.ExtractUnixPayload(archivePath, user);
+
+            act.Should().Throw<InvalidOperationException>();
+            File.ReadAllText(Path.Combine(user, "App", "current.txt")).Should().Be("current");
+            Directory.Exists(Path.Combine(user, "Data")).Should().BeFalse();
+        }
+
+
         // Argument forwarding and process wait
 
         /// <summary>
@@ -263,11 +340,11 @@ namespace ASLM.Launcher.Tests
             var act = () => Program.WaitForRequestedProcessExit(["--wait-process", "not-a-pid"], logPath);
             act.Should().Throw<ArgumentException>();
 
-            // Start a long-running child process whose identity (id and start time) the launcher is told to wait for.
+            // Start a child whose id and start time identify the process the launcher must wait for.
             using var process = Process.Start(new ProcessStartInfo
             {
-                FileName = "powershell.exe",
-                Arguments = "-NoProfile -NonInteractive -Command Start-Sleep -Seconds 30",
+                FileName = OperatingSystem.IsWindows() ? "powershell.exe" : "/bin/sleep",
+                Arguments = OperatingSystem.IsWindows() ? "-NoProfile -NonInteractive -Command Start-Sleep -Seconds 30" : "30",
                 UseShellExecute = false
             });
             process.Should().NotBeNull();
@@ -297,6 +374,29 @@ namespace ASLM.Launcher.Tests
 
 
         // Pending update hand-off
+
+        /// <summary>
+        /// Verifies that Linux shadow helpers stay in the protected profile directory when /tmp is not executable.
+        /// </summary>
+        [Fact]
+        public void Linux_patcher_shadow_path_stays_on_the_profile_filesystem()
+        {
+            var path = Program.CreatePatcherShadowPath(_root, linuxLayout: true);
+            Path.GetDirectoryName(path).Should().Be(Path.Combine(_root, ".aslm-update", "helpers"));
+            Guid.TryParseExact(Path.GetFileName(path), "N", out _).Should().BeTrue();
+            Program.CreatePatcherShadowPath(_root, linuxLayout: true).Should().NotBe(path);
+        }
+
+        /// <summary>
+        /// Verifies that other platforms retain the launcher's existing temporary shadow-copy protocol.
+        /// </summary>
+        [Fact]
+        public void Other_platforms_keep_the_temporary_patcher_shadow_path()
+        {
+            var path = Program.CreatePatcherShadowPath(_root, linuxLayout: false);
+            Path.GetDirectoryName(path).Should().Be(Path.TrimEndingDirectorySeparator(Path.GetTempPath()));
+            Path.GetFileName(path).Should().StartWith("Patcher_");
+        }
 
         /// <summary>
         /// Verifies that a pending update is not handed off, and the missing patcher is logged, while no known
@@ -331,6 +431,37 @@ namespace ASLM.Launcher.Tests
             var entry = archive.CreateEntry(path);
             using var writer = new StreamWriter(entry.Open());
             writer.Write(content);
+        }
+
+        /// <summary>
+        /// Returns the program files that make a Linux user directory ready, below the given archive path prefix: the
+        /// application with its runtime libraries and the patcher. The application executable has the name of the
+        /// current platform, so the readiness check passes on every platform.
+        /// </summary>
+        private static (string Path, string Content)[] ProgramPayloadEntries(string prefix) =>
+        [
+            (prefix + "App/" + AppPaths.ExecutableName, "app"),
+            (prefix + "App/libcoreclr.so", "runtime"),
+            (prefix + "App/libhostfxr.so", "runtime"),
+            (prefix + "App/libhostpolicy.so", "runtime"),
+            (prefix + "Patcher/aslm-patcher", "patcher")
+        ];
+
+        /// <summary>
+        /// Writes a gzip-compressed tarball with one text file per entry.
+        /// </summary>
+        private static void WriteTarball(string archivePath, IEnumerable<(string Path, string Content)> entries)
+        {
+            using var file = File.Create(archivePath);
+            using var gzip = new GZipStream(file, CompressionLevel.Fastest);
+            using var writer = new TarWriter(gzip, TarEntryFormat.Pax);
+            foreach (var (path, content) in entries)
+            {
+                writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, path)
+                {
+                    DataStream = new MemoryStream(Encoding.UTF8.GetBytes(content))
+                });
+            }
         }
     }
 }

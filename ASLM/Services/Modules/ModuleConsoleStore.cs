@@ -35,12 +35,13 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Maximum number of lines returned for display.
         /// </summary>
-        private const int MaxDisplayedLines = 250;
+        internal const int MaxDisplayedLines = 1000;
 
         /// <summary>
-        /// Character budget of the text returned for display; the oldest visible lines are dropped beyond it.
+        /// Character budget of the text returned for display, 200 characters per displayed line on average; the oldest
+        /// visible lines are dropped beyond it.
         /// </summary>
-        private const int MaxDisplayedCharacters = 60000;
+        private const int MaxDisplayedCharacters = 200000;
 
         /// <summary>
         /// Maximum length of one buffered line; longer lines are cut when they are stored.
@@ -417,22 +418,67 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Appends one line to a process console session.
+        /// Appends one line to a process console session. Empty and whitespace-only lines are kept, so the output
+        /// keeps its blank lines.
         /// </summary>
         public void AppendProcessLine(ModuleConsoleSessionHandle handle, string message)
         {
-            if (string.IsNullOrWhiteSpace(message))
-            {
-                return;
-            }
+            WriteProcessLine(handle, stream: null, message, isComplete: true);
+        }
 
+        /// <summary>
+        /// Shows the unfinished last line of one output stream of a process session. Every update rewrites the same
+        /// console line, so a line that is still being written, such as a progress bar that redraws itself, stays one
+        /// line.
+        /// </summary>
+        internal void UpdateProcessLine(ModuleConsoleSessionHandle handle, ProcessOutputStream stream, string text)
+        {
+            WriteProcessLine(handle, stream, text, isComplete: false);
+        }
+
+        /// <summary>
+        /// Appends a finished line of one output stream of a process session; it replaces the unfinished line of that
+        /// stream when one is shown.
+        /// </summary>
+        internal void CompleteProcessLine(ModuleConsoleSessionHandle handle, ProcessOutputStream stream, string text)
+        {
+            WriteProcessLine(handle, stream, text, isComplete: true);
+        }
+
+        /// <summary>
+        /// Writes one line to a process console session. Unknown handles are ignored.
+        /// </summary>
+        /// <param name="handle">Session that receives the line.</param>
+        /// <param name="stream">Output stream of the line, or null for a line outside the process streams.</param>
+        /// <param name="text">Text of the line.</param>
+        /// <param name="isComplete">True when the line is finished and is not rewritten any more.</param>
+        private void WriteProcessLine(ModuleConsoleSessionHandle handle, ProcessOutputStream? stream, string text, bool isComplete)
+        {
             var changed = false;
 
             lock (_sync)
             {
                 if (TryGetSessionCore(handle, out var moduleState, out var sessionState))
                 {
-                    AppendLineCore(sessionState, message);
+                    if (stream.HasValue && sessionState.OpenLines.TryGetValue(stream.Value, out var openLine))
+                    {
+                        // The stream already shows an unfinished line: rewrite it, and close it once it is finished.
+                        SetLineTextCore(sessionState, openLine, text);
+                        if (isComplete)
+                        {
+                            sessionState.OpenLines.Remove(stream.Value);
+                        }
+                    }
+                    else
+                    {
+                        // Otherwise append a new line; an unfinished one stays open for the next rewrite of its stream.
+                        var line = AppendLineCore(sessionState, text);
+                        if (stream.HasValue && !isComplete)
+                        {
+                            sessionState.OpenLines[stream.Value] = line;
+                        }
+                    }
+
                     moduleState.LastActivityUtc = DateTimeOffset.UtcNow;
                     changed = true;
                 }
@@ -584,7 +630,11 @@ namespace ASLM.Services.Modules
             {
                 return _modules.Values
                     .OrderBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
-                    .Select(CreateModuleSnapshotCore)
+                    .Select(module => CreateModuleSnapshotCore(
+                        module,
+                        _activities.TryGetValue(module.SourcePath, out var active)
+                            ? active.Values
+                            : Array.Empty<ModuleActivity>()))
                     .ToList();
             }
         }
@@ -783,31 +833,51 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Appends one buffered line to a session and enforces per-session retention limits.
+        /// Appends one buffered line to a session, enforces the per-session retention limit and returns the new line.
         /// The caller must hold the store lock.
         /// </summary>
-        private void AppendLineCore(ModuleConsoleSessionState sessionState, string message)
+        private ModuleConsoleLineState AppendLineCore(ModuleConsoleSessionState sessionState, string message)
         {
-            // Cut over-long lines before they are stored.
-            if (message.Length > MaxStoredLineLength)
-            {
-                message = message[..MaxStoredLineLength] + " ... [truncated]";
-            }
-
             // Stamp the line with a store-wide sequence number so lines of different sessions can be merged in order.
-            sessionState.Lines.Add(new ModuleConsoleLineState
+            var line = new ModuleConsoleLineState
             {
                 Sequence = ++_lineSequence,
-                TimestampUtc = DateTimeOffset.UtcNow,
-                Text = message
-            });
-            sessionState.LastPreview = message.Trim();
+                TimestampUtc = DateTimeOffset.UtcNow
+            };
+            sessionState.Lines.Add(line);
+            SetLineTextCore(sessionState, line, message);
 
-            // Keep only the newest lines of the session.
+            // Keep only the newest lines of the session. An open line that was dropped can no longer be rewritten,
+            // so its stream continues on a new line.
             if (sessionState.Lines.Count > MaxLinesPerSession)
             {
                 sessionState.Lines.RemoveRange(0, sessionState.Lines.Count - MaxLinesPerSession);
+                if (sessionState.OpenLines.Count > 0)
+                {
+                    var oldestSequence = sessionState.Lines[0].Sequence;
+                    foreach (var stream in sessionState.OpenLines
+                                 .Where(pair => pair.Value.Sequence < oldestSequence)
+                                 .Select(pair => pair.Key)
+                                 .ToList())
+                    {
+                        sessionState.OpenLines.Remove(stream);
+                    }
+                }
             }
+
+            return line;
+        }
+
+        /// <summary>
+        /// Sets the text of a buffered line, cutting it to the stored line length, and shows it as the session preview.
+        /// The caller must hold the store lock.
+        /// </summary>
+        private static void SetLineTextCore(ModuleConsoleSessionState sessionState, ModuleConsoleLineState line, string message)
+        {
+            line.Text = message.Length > MaxStoredLineLength
+                ? message[..MaxStoredLineLength] + " ... [truncated]"
+                : message;
+            sessionState.LastPreview = line.Text.Trim();
         }
 
 
@@ -943,11 +1013,24 @@ namespace ASLM.Services.Modules
         /// Projects one module's mutable state into an immutable UI snapshot.
         /// Console text is not copied; sessions carry only counts and a preview.
         /// </summary>
-        private static ModuleConsoleModuleSnapshot CreateModuleSnapshotCore(ModuleConsoleModuleState moduleState)
+        /// <param name="moduleState">Module state to project.</param>
+        /// <param name="activities">Maintenance activities that are running for the module.</param>
+        private static ModuleConsoleModuleSnapshot CreateModuleSnapshotCore(
+            ModuleConsoleModuleState moduleState,
+            IReadOnlyCollection<ModuleActivity> activities)
         {
+            // The maintenance log has no process of its own; it counts as running while an installation or update
+            // writes to it.
+            var isMaintaining = activities.Any(activity => activity is ModuleActivity.Installing or ModuleActivity.Updating);
+
+            // Returns whether a session is running, including the maintenance log during maintenance.
+            bool IsRunning(ModuleConsoleSessionState session) =>
+                session.IsRunning ||
+                (isMaintaining && string.Equals(session.Id, MaintenanceSessionId, StringComparison.Ordinal));
+
             // Order sessions: running first, then the overview session, then newest first.
             var sessions = moduleState.Sessions.Values
-                .OrderByDescending(session => session.IsRunning)
+                .OrderByDescending(IsRunning)
                 .ThenBy(session => session.Id == OverviewSessionId ? 0 : 1)
                 .ThenByDescending(session => session.StartedUtc)
                 .Select(session => new ModuleConsoleSessionSnapshot
@@ -958,7 +1041,7 @@ namespace ASLM.Services.Modules
                     Stage = session.Stage,
                     CommandLine = session.CommandLine,
                     ProcessId = session.ProcessId,
-                    IsRunning = session.IsRunning,
+                    IsRunning = IsRunning(session),
                     IsTrackedProcess = session.IsTrackedProcess,
                     IsObservedProcess = session.IsObservedProcess,
                     ExitCode = session.ExitCode,
@@ -976,6 +1059,7 @@ namespace ASLM.Services.Modules
                 SourcePath = moduleState.SourcePath,
                 Name = moduleState.Name,
                 IsEnabled = moduleState.IsEnabled,
+                HasActivity = activities.Count > 0,
                 LastActivityUtc = moduleState.LastActivityUtc,
                 ActiveProcessCount = sessions.Count(session => session.IsTrackedProcess && !session.IsObservedProcess && session.IsRunning),
                 Sessions = sessions
@@ -1025,6 +1109,12 @@ namespace ASLM.Services.Modules
         /// Gets or sets whether the module is enabled.
         /// </summary>
         public bool IsEnabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether a maintenance activity, such as an installation, update, restart or stop, is running
+        /// for the module.
+        /// </summary>
+        public bool HasActivity { get; set; }
 
         /// <summary>
         /// Gets or sets the number of currently active tracked processes.
@@ -1299,6 +1389,11 @@ namespace ASLM.Services.Modules
         /// Buffered output lines in the order they were added.
         /// </summary>
         public List<ModuleConsoleLineState> Lines { get; } = [];
+
+        /// <summary>
+        /// Unfinished last lines of the process output streams; each one is rewritten until its line ends.
+        /// </summary>
+        public Dictionary<ProcessOutputStream, ModuleConsoleLineState> OpenLines { get; } = [];
     }
 
     /// <summary>
@@ -1317,7 +1412,7 @@ namespace ASLM.Services.Modules
         public DateTimeOffset TimestampUtc { get; set; }
 
         /// <summary>
-        /// Line text, possibly truncated to the storage limit.
+        /// Line text, possibly truncated to the storage limit; the text of an open line is rewritten until it ends.
         /// </summary>
         public string Text { get; set; } = string.Empty;
     }
