@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Đã cập nhật</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub đã từ chối quyền truy cập: hãy kiểm tra quyền của mã truy cập đối với kho lưu trữ, quyền truy cập tổ chức và giới hạn API</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub đã từ chối mã truy cập: hãy kết nối lại tài khoản GitHub trong Cài đặt</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>Danh mục</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Đóng thông tin mô-đun</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>Mô-đun “{0}” đã tồn tại với nguồn khác hoặc thư mục đích đã được sử dụng</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>Tệp kê khai mô-đun không hợp lệ: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>ID mô-đun không đáp ứng quy tắc đặt tên thư mục trên các nền tảng được hỗ trợ</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>Nhập owner/repository hoặc liên kết HTTPS đến kho lưu trữ GitHub</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>Không thể tải danh mục mô-đun</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>Không tìm thấy ASLM_Module.json trong thư mục gốc của kho lưu trữ hoặc mã truy cập hiện tại không có quyền truy cập tệp này</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>Đã đạt giới hạn yêu cầu API GitHub: hãy chờ giới hạn được đặt lại rồi thử lại</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>Nhập kho lưu trữ và nhấn “Tìm kiếm”; kho lưu trữ riêng tư sử dụng mã truy cập GitHub được cấu hình trong Cài đặt</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository hoặc https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>Không tìm thấy kho lưu trữ hoặc mã truy cập GitHub hiện tại không có quyền truy cập kho này</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Tìm mô-đun có sẵn</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>Không thể tìm kiếm trên GitHub: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>Tìm kiếm</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>Đang tìm kiếm</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>Nguồn trong tệp kê khai mô-đun không khớp với kho lưu trữ GitHub đã chỉ định</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Beta</value>

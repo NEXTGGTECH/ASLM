@@ -61,7 +61,7 @@ namespace ASLM.Services.Internal
         /// <param name="repo">Repository in <c>owner/name</c> form.</param>
         /// <param name="ct">Cancellation token for the request.</param>
         internal Task<IReadOnlyList<ModuleRepositoryDocument>> GetModuleDocumentsAsync(string repo, CancellationToken ct = default) =>
-            GetOrFetchCachedValueAsync(_documentLists, repo.Trim(), DocumentCacheLifetime, async token =>
+            GetOrFetchCachedValueAsync(_documentLists, GetRepositoryCacheKey(repo), DocumentCacheLifetime, async token =>
             {
                 // A single directory listing handles casing/extensions without probing guessed filenames.
                 var bytes = await ReadDocumentResponseAsync(repo, "contents/", "application/vnd.github+json", token).ConfigureAwait(false);
@@ -83,7 +83,7 @@ namespace ASLM.Services.Internal
                 throw new ArgumentException("Unsupported module document name.", nameof(document));
 
             // Case is significant for Git paths; SHA separates cached revisions of the same document.
-            return GetOrFetchCachedValueAsync(_documentContents, $"{repo.Trim()}/{document.Name}/{document.Sha}",
+            return GetOrFetchCachedValueAsync(_documentContents, $"{GetRepositoryCacheKey(repo)}/{document.Name}/{document.Sha}",
                 DocumentCacheLifetime, async token => Encoding.UTF8.GetString(await ReadDocumentResponseAsync(repo,
                     "contents/" + Uri.EscapeDataString(document.Name), "application/vnd.github.html+json", token).ConfigureAwait(false)), ct);
         }
@@ -148,7 +148,8 @@ namespace ASLM.Services.Internal
         /// <param name="path">Path below the repository's <c>contents</c> API resource.</param>
         /// <param name="mediaType">GitHub media type to request: directory metadata or rendered HTML.</param>
         /// <param name="ct">Cancellation token for the request.</param>
-        private async Task<byte[]> ReadDocumentResponseAsync(string repo, string path, string mediaType, CancellationToken ct)
+        private async Task<byte[]> ReadDocumentResponseAsync(string repo, string path, string mediaType,
+            CancellationToken ct, int? maxBytes = null)
         {
             using var request = CreateAuthorizedGetRequest(BuildApiUrl(repo, path));
             request.Headers.Accept.Clear();
@@ -159,7 +160,7 @@ namespace ASLM.Services.Internal
 
             // Enforce the same limit for chunked responses, not just Content-Length. This also bounds WebView memory.
             // Leave headroom for the themed wrapper and UTF-16 conversion below WebView2's 2 MB HTML limit.
-            var limit = mediaType == "application/vnd.github.html+json" ? MaxRenderedBytes : MaxDocumentBytes;
+            var limit = maxBytes ?? (mediaType == "application/vnd.github.html+json" ? MaxRenderedBytes : MaxDocumentBytes);
             if (response.Content.Headers.ContentLength > limit)
                 throw new InvalidDataException("Repository document is too large.");
             await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);

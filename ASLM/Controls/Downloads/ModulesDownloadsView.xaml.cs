@@ -1,13 +1,14 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Collections.ObjectModel;
+using System.Net;
 using ASLM.Localization;
 using ASLM.Models;
 
 namespace ASLM.Controls.Downloads
 {
     /// <summary>
-    /// Hosts the built-in ASLM module downloads page.
+    /// Hosts catalog and explicit GitHub repository downloads of ASLM modules.
     /// </summary>
     public partial class ModulesDownloadsView : ContentView, ILocalizable
     {
@@ -45,6 +46,41 @@ namespace ASLM.Controls.Downloads
         /// </summary>
         private CancellationTokenSource? _refreshCts;
 
+        /// <summary>
+        /// Handles explicit repository searches independently of local catalog filtering.
+        /// </summary>
+        private ModuleRepositorySearch? _repositorySearch;
+
+        /// <summary>
+        /// Identifies the search result represented by the current repository card.
+        /// </summary>
+        private ModuleConfig? _repositoryResult;
+
+        /// <summary>
+        /// Keeps the found card and its artwork while switching between download sources.
+        /// </summary>
+        private ModuleCatalogCardViewModel? _repositoryCard;
+
+        /// <summary>
+        /// Cancels artwork work when the searched repository or visible section changes.
+        /// </summary>
+        private CancellationTokenSource? _repositoryArtworkCts;
+
+        /// <summary>
+        /// Stores whether the explicit GitHub repository source is selected.
+        /// </summary>
+        private bool _isGitHubSelected;
+
+        /// <summary>
+        /// Preserves the catalog filter independently of repository input.
+        /// </summary>
+        private string _catalogQuery = string.Empty;
+
+        /// <summary>
+        /// Prevents restored input from being treated as a user edit during source switching.
+        /// </summary>
+        private bool _changingSection;
+
 
         // Properties and events
 
@@ -52,6 +88,21 @@ namespace ASLM.Controls.Downloads
         /// Cards shown in the list, which is the catalog narrowed by the current search text.
         /// </summary>
         public ObservableCollection<ModuleCatalogCardViewModel> Modules { get; } = [];
+
+        /// <summary>
+        /// Gets whether the built-in module catalog is selected.
+        /// </summary>
+        public bool IsCatalogSelected => !_isGitHubSelected;
+
+        /// <summary>
+        /// Gets whether an exact GitHub repository can be searched.
+        /// </summary>
+        public bool IsGitHubSelected => _isGitHubSelected;
+
+        /// <summary>
+        /// Gets whether the explicit search button may submit the current repository text.
+        /// </summary>
+        public bool CanSearchRepository => _repositorySearch?.CanSearch == true;
 
         /// <summary>
         /// Raised when the user selects a module card to open its details.
@@ -82,6 +133,7 @@ namespace ASLM.Controls.Downloads
             {
                 if (_installer != null) _installer.ModulesChanged -= OnModulesChanged;
                 _refreshCts?.Cancel();
+                CancelRepositorySearch();
             };
         }
 
@@ -98,6 +150,8 @@ namespace ASLM.Controls.Downloads
             _installer = installer;
             _trust = trust;
             _updates = updates;
+            _repositorySearch = new ModuleRepositorySearch(updates.FindRepositoryModuleAsync);
+            _repositorySearch.Changed += OnRepositorySearchChanged;
             LocalizableAttach.Hook(this, localization, this);
         }
 
@@ -110,7 +164,11 @@ namespace ASLM.Controls.Downloads
         public void ApplyLocalization()
         {
             TitleLabel.Text = L.Get(LocalizationKeys.Modules_Title);
-            SearchEntry.Placeholder = L.Get(LocalizationKeys.ModulesDownloads_Search);
+            CatalogTabButton.Text = L.Get(LocalizationKeys.ModulesDownloads_Catalog);
+            GitHubTabButton.Text = L.Get(LocalizationKeys.ModulesDownloads_GitHub);
+            RepositorySearchButton.Text = L.Get(LocalizationKeys.ModulesDownloads_SearchRepository);
+            SearchEntry.Placeholder = L.Get(IsGitHubSelected
+                ? LocalizationKeys.ModulesDownloads_RepositoryPlaceholder : LocalizationKeys.ModulesDownloads_Search);
             EmptyLabel.Text = L.Get(LocalizationKeys.Downloads_NoItems);
             ApplySearch();
         }
@@ -124,6 +182,21 @@ namespace ASLM.Controls.Downloads
         internal async Task RefreshAsync()
         {
             if (_installer == null) return;
+
+            // Installation changes refresh a found module locally; they never repeat a repository search.
+            if (IsGitHubSelected)
+            {
+                if (_repositorySearch?.Result is { } result)
+                {
+                    var local = await _installer.DiscoverModulesAsync();
+                    var current = local.FirstOrDefault(module => string.Equals(module.Id, result.Id,
+                        StringComparison.OrdinalIgnoreCase) && GitHubRepository.Equals(module.Source.Repo, result.Source.Repo));
+                    if (current != null)
+                        _repositoryCard = new(current, _trust!.Resolve(current), _installer);
+                }
+                ApplySearch();
+                return;
+            }
 
             // A newer refresh supersedes the running one: cancel it and let its results be discarded.
             var version = ++_refreshVersion;
@@ -176,7 +249,88 @@ namespace ASLM.Controls.Downloads
         /// <summary>
         /// Applies the search text without repeating repository lookups.
         /// </summary>
-        private void OnSearchTextChanged(object? sender, TextChangedEventArgs e) => ApplySearch();
+        private void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
+        {
+            if (_changingSection) return;
+            if (IsGitHubSelected && _repositorySearch != null)
+            {
+                _repositoryArtworkCts?.Cancel();
+                _repositorySearch.Query = e.NewTextValue ?? string.Empty;
+            }
+            else _catalogQuery = e.NewTextValue ?? string.Empty;
+            ApplySearch();
+        }
+
+        /// <summary>
+        /// Shows the catalog filter without submitting the repository text.
+        /// </summary>
+        private void OnCatalogTabClicked(object? sender, EventArgs e) => SelectSource(gitHub: false);
+
+        /// <summary>
+        /// Shows the last repository query and result without starting a lookup.
+        /// </summary>
+        private void OnGitHubTabClicked(object? sender, EventArgs e) => SelectSource(gitHub: true);
+
+        /// <summary>
+        /// Restores each source's independent input and stops work belonging to the previous section.
+        /// </summary>
+        private void SelectSource(bool gitHub)
+        {
+            if (_isGitHubSelected == gitHub) return;
+            CancelRepositorySearch();
+            _refreshCts?.Cancel();
+            _isGitHubSelected = gitHub;
+            _changingSection = true;
+            try { SearchEntry.Text = gitHub ? _repositorySearch?.Query : _catalogQuery; }
+            finally { _changingSection = false; }
+            OnPropertyChanged(nameof(IsCatalogSelected));
+            OnPropertyChanged(nameof(IsGitHubSelected));
+            ApplyLocalization();
+            if (!gitHub) _ = RefreshAsync();
+        }
+
+        /// <summary>
+        /// Publishes search progress and results without triggering another request.
+        /// </summary>
+        private void OnRepositorySearchChanged(object? sender, EventArgs e)
+        {
+            OnPropertyChanged(nameof(CanSearchRepository));
+            if (IsGitHubSelected) ApplySearch();
+        }
+
+        /// <summary>
+        /// Starts the only repository lookup entry point and loads artwork after publishing the result.
+        /// </summary>
+        private async void OnRepositorySearchClicked(object? sender, EventArgs e)
+        {
+            if (!IsGitHubSelected || _repositorySearch == null) return;
+            var result = await _repositorySearch.SearchAsync();
+            if (!IsGitHubSelected || _repositoryCard == null || result == null ||
+                !ReferenceEquals(result, _repositorySearch.Result)) return;
+
+            // Artwork reuses the manifest from discovery and does not request release or branch catalogs.
+            _repositoryArtworkCts?.Cancel();
+            using var cts = new CancellationTokenSource();
+            _repositoryArtworkCts = cts;
+            try { await _repositoryCard.RefreshArtworkAsync(_updates!, cts.Token); }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                // The query or selected source changed while the optional artwork was loading.
+            }
+            finally
+            {
+                if (ReferenceEquals(_repositoryArtworkCts, cts)) _repositoryArtworkCts = null;
+            }
+        }
+
+        /// <summary>
+        /// Stops searches when the downloads surface closes or switches to another category.
+        /// </summary>
+        internal void CancelRepositorySearch()
+        {
+            _repositorySearch?.Cancel();
+            _repositoryArtworkCts?.Cancel();
+        }
 
         /// <summary>
         /// Filters existing cards by module identity, title or description.
@@ -186,6 +340,27 @@ namespace ASLM.Controls.Downloads
             // Rebuild the visible list from the cached catalog; an empty query matches every card.
             var query = SearchEntry.Text?.Trim() ?? string.Empty;
             Modules.Clear();
+            if (IsGitHubSelected)
+            {
+                if (_repositorySearch?.Result is { } result)
+                {
+                    if (!ReferenceEquals(_repositoryResult, result))
+                    {
+                        _repositoryResult = result;
+                        _repositoryCard = new(result, _trust!.Resolve(result), _installer!);
+                    }
+                    _repositoryCard!.RefreshLocalization();
+                    Modules.Add(_repositoryCard);
+                }
+                EmptyLabel.Text = _repositorySearch?.IsSearching == true
+                    ? L.Get(LocalizationKeys.ModulesDownloads_Searching)
+                    : _repositorySearch?.Error is { } error ? FormatRepositoryError(error)
+                    : L.Get(LocalizationKeys.ModulesDownloads_RepositoryHint);
+                EmptyLabel.IsVisible = Modules.Count == 0;
+                return;
+            }
+
+            EmptyLabel.Text = L.Get(LocalizationKeys.Downloads_NoItems);
             foreach (var card in _catalog.Where(card =>
                          card.Module.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                          card.Module.Id.Contains(query, StringComparison.OrdinalIgnoreCase) ||
@@ -197,6 +372,21 @@ namespace ASLM.Controls.Downloads
 
             EmptyLabel.IsVisible = Modules.Count == 0;
         }
+
+        /// <summary>
+        /// Explains account, quota and transport failures without confusing them with invalid manifests.
+        /// </summary>
+        private static string FormatRepositoryError(Exception error) => error switch
+        {
+            HttpRequestException { StatusCode: HttpStatusCode.Unauthorized } =>
+                L.Get(LocalizationKeys.ModulesDownloads_AuthenticationFailed),
+            HttpRequestException { StatusCode: HttpStatusCode.Forbidden } =>
+                L.Get(LocalizationKeys.ModulesDownloads_AccessDenied),
+            HttpRequestException { StatusCode: HttpStatusCode.TooManyRequests } =>
+                L.Get(LocalizationKeys.ModulesDownloads_RateLimited),
+            ArgumentException or InvalidDataException or InvalidOperationException => error.Message,
+            _ => L.Get(LocalizationKeys.ModulesDownloads_SearchFailed, error.Message)
+        };
 
         /// <summary>
         /// Forwards the shared card's navigation action to the catalog host.

@@ -65,7 +65,8 @@ namespace ASLM.Services.Internal
                     .Select(item => item.Name).ToArray();
                 if (module.Update.Mode != "branch" && !branches.Contains(branch, StringComparer.OrdinalIgnoreCase))
                 {
-                    branch = branches.FirstOrDefault(item => item == "main")
+                    branch = branches.FirstOrDefault(item => item == module.RepositoryPreview?.DefaultBranch)
+                        ?? branches.FirstOrDefault(item => item == "main")
                         ?? branches.FirstOrDefault(item => item == "master") ?? branches.FirstOrDefault() ?? branch;
                 }
             }

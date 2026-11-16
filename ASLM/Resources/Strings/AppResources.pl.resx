@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Zaktualizowano</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub odmówił dostępu: sprawdź uprawnienia tokenu do repozytorium, dostęp do organizacji oraz limity API</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub odrzucił token: ponownie połącz konto GitHub w Ustawieniach</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>Katalog</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Zamknij informacje o module</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>Moduł „{0}” już istnieje z innym źródłem lub jego folder docelowy jest zajęty</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>Nieprawidłowy manifest modułu: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>Identyfikator modułu nie spełnia zasad nazewnictwa folderów na obsługiwanych platformach</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>Wpisz owner/repository lub łącze HTTPS do repozytorium GitHub</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>Nie udało się wczytać katalogu modułów</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>Nie znaleziono pliku ASLM_Module.json w katalogu głównym repozytorium lub bieżący token nie umożliwia dostępu do tego pliku</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>Osiągnięto limit żądań API GitHub: poczekaj na jego zresetowanie i spróbuj ponownie</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>Wpisz repozytorium i kliknij „Szukaj”; repozytoria prywatne są obsługiwane za pomocą tokenu GitHub zapisanego w Ustawieniach</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository lub https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>Nie znaleziono repozytorium lub bieżący token GitHub nie umożliwia do niego dostępu</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Szukaj dostępnych modułów</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>Wyszukiwanie w GitHub nie powiodło się: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>Szukaj</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>Wyszukiwanie</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>Źródło wskazane w manifeście modułu nie jest zgodne z podanym repozytorium GitHub</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Beta</value>

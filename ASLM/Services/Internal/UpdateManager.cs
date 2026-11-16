@@ -687,6 +687,9 @@ namespace ASLM.Services.Internal
             module.Update.Normalize();
             module.Update.UseDefaultChannel = false;
 
+            // Repository previews own an in-memory draft until installation writes the first local manifest.
+            if (module.RepositoryPreview != null) return;
+
             // Persist without ModulesChanged: the shell rebuilds module cards on that event and would drop
             // in-memory update-check results (HasUpdate / candidate) tied to the current ModuleViewModel instances.
             _moduleInstaller.SaveModuleUpdatePreferences(module);
@@ -1000,6 +1003,7 @@ namespace ASLM.Services.Internal
             {
                 // Presentation must not race the editable selectors or persist a fallback on its own.
                 var draft = JsonSerializer.Deserialize<ModuleConfig>(JsonSerializer.Serialize(module))!;
+                draft.RepositoryPreview = module.RepositoryPreview;
                 var options = await GetModuleDownloadOptionsAsync(draft, ct, isManualRequest: true);
                 options.ApplyTo(draft);
                 ct.ThrowIfCancellationRequested();
@@ -1022,7 +1026,8 @@ namespace ASLM.Services.Internal
             if (!CanDownloadModule(module)) return null;
             try
             {
-                return await _github.GetModuleArtworkAsync(module.Source.Repo, module.Id, ct);
+                return await _github.GetModuleArtworkAsync(module.Source.Repo, module.Id, ct,
+                    module.RepositoryPreview?.ManifestJson);
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
@@ -1079,8 +1084,11 @@ namespace ASLM.Services.Internal
                     {
                         // Resolve the entry and its dependency order from the current catalog.
                         var catalog = await _moduleInstaller.DiscoverModulesAsync().ConfigureAwait(false);
-                        var module = catalog.SingleOrDefault(item => string.Equals(item.Id, selected.Id, StringComparison.OrdinalIgnoreCase))
-                            ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, selected.Name));
+                        var module = selected.RepositoryPreview != null
+                            ? ResolveRepositorySelection(selected, catalog, snapshot: true)
+                            : catalog.SingleOrDefault(item => string.Equals(item.Id, selected.Id, StringComparison.OrdinalIgnoreCase))
+                                ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, selected.Name));
+                        if (module.RepositoryPreview != null) catalog.Add(module);
                         var order = ModuleDependencyResolver.ExpandInstallOrder([module], catalog);
                         var registered = _moduleInstaller.Registry.ReadIds();
 
@@ -1375,6 +1383,9 @@ namespace ASLM.Services.Internal
                     throw new PlatformNotSupportedException(
                         $"Module '{newConfig.Name}' does not support {PlatformInfo.PlatformKey}.");
                 }
+
+                if (module.RepositoryPreview != null)
+                    ValidateRepositorySource(newConfig, module.RepositoryPreview.Repository);
 
                 // Stop the module and any orphaned processes holding locks under the install directory.
                 if (wasEnabled)
@@ -2054,9 +2065,10 @@ namespace ASLM.Services.Internal
         {
             if (!string.IsNullOrWhiteSpace(module.Update.AssetName))
             {
-                return release.Assets.FirstOrDefault(asset =>
-                    string.Equals(asset.Name, module.Update.AssetName, StringComparison.OrdinalIgnoreCase))
-                    ?.BrowserDownloadUrl ?? string.Empty;
+                var asset = release.Assets.FirstOrDefault(item =>
+                    string.Equals(item.Name, module.Update.AssetName, StringComparison.OrdinalIgnoreCase));
+                return asset == null ? string.Empty
+                    : !string.IsNullOrWhiteSpace(asset.ApiUrl) ? asset.ApiUrl : asset.BrowserDownloadUrl;
             }
 
             return release.ZipballUrl;
@@ -2256,6 +2268,11 @@ namespace ASLM.Services.Internal
         /// <param name="candidate">Applied candidate, which determines the new installed fingerprint.</param>
         internal static void MergeModuleState(ModuleConfig oldConfig, ModuleConfig newConfig, UpdateCandidate candidate)
         {
+            // Repository discovery may supply a source omitted by the author; keep it on future updates as well.
+            if (CanDownloadModule(oldConfig) && (oldConfig.RepositoryPreview != null ||
+                string.IsNullOrWhiteSpace(newConfig.Source.Repo)))
+                newConfig.Source = new() { Type = oldConfig.Source.Type, Repo = oldConfig.Source.Repo };
+
             // Carry forward user-edited setting values keyed by setting name.
             var oldSettingValues = oldConfig.Settings
                 .Where(setting => !string.IsNullOrWhiteSpace(setting.Key))

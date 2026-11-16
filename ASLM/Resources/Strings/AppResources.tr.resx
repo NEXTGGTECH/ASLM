@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Güncellendi</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub erişimi reddetti: belirtecin depo izinlerini, kuruluşa erişimi ve API sınırlarını denetleyin</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub belirteci reddetti: Ayarlar bölümünden GitHub hesabınızı yeniden bağlayın</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>Katalog</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Modül bilgilerini kapat</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>“{0}” modülü farklı bir kaynakla zaten mevcut veya hedef klasörü kullanımda</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>Geçersiz modül bildirim dosyası: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>Modül kimliği desteklenen platformların klasör adlandırma kurallarına uymuyor</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>owner/repository veya bir GitHub deposunun HTTPS bağlantısını girin</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>Modül kataloğu yüklenemedi</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>ASLM_Module.json deponun kök dizininde bulunamadı veya geçerli belirteçle dosyaya erişilemiyor</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>GitHub API istek sınırına ulaşıldı: sınırın sıfırlanmasını bekleyip yeniden deneyin</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>Bir depo girip “Ara” düğmesine tıklayın; özel depolar için Ayarlar bölümünde tanımlanan GitHub belirteci kullanılır</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository veya https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>Depo bulunamadı veya geçerli GitHub belirteciyle depoya erişilemiyor</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Kullanılabilir modülleri ara</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>GitHub'da arama yapılamadı: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>Ara</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>Aranıyor</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>Modül bildirim dosyasındaki kaynak belirtilen GitHub deposuyla eşleşmiyor</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Beta</value>

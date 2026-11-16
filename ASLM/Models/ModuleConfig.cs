@@ -192,6 +192,12 @@ namespace ASLM.Models
         public bool HasDeclaredUpdateConfig { get; set; }
 
         /// <summary>
+        /// Gets or sets session-only metadata while a repository module has no local manifest yet.
+        /// </summary>
+        [JsonIgnore]
+        internal ModuleRepositoryPreview? RepositoryPreview { get; set; }
+
+        /// <summary>
         /// Whether the manifest supports the currently resolved host platform.
         /// </summary>
         [JsonIgnore]

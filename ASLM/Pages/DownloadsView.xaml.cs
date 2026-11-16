@@ -412,6 +412,7 @@ namespace ASLM.Pages
             {
                 if (_isInternalModulesSelected == value) return;
                 _isInternalModulesSelected = value;
+                if (!value) ModulesContent.CancelRepositorySearch();
                 UpdateInfoBlockPreviewSource();
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsModuleCategorySelected));
@@ -1905,6 +1906,7 @@ namespace ASLM.Pages
             // Closing the dialog: keep the selection for the next opening, reject late results and stop all work.
             SaveCategorySelection();
             _isDownloadsOpen = false;
+            ModulesContent.CancelRepositorySearch();
 #if WINDOWS
             _infoBlockPreview?.Pause();
 #endif

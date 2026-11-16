@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>已更新</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub 拒绝访问：请检查令牌的仓库权限、组织访问权限和 API 请求限制</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub 拒绝了此令牌：请在设置中重新连接 GitHub 账户</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>模块目录</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>关闭模块信息</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>模块“{0}”已存在且来源不同，或目标文件夹已被占用</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>模块清单无效：{0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>模块 ID 不符合受支持平台的文件夹命名规则</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>请输入 owner/repository 或 GitHub 仓库的 HTTPS 链接</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>无法加载模块目录</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>在仓库根目录中未找到 ASLM_Module.json，或当前令牌无权访问该文件</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>已达到 GitHub API 请求上限：请等待限额重置后重试</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>输入仓库并点击“搜索”；访问私有仓库时会使用设置中配置的 GitHub 令牌</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository 或 https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>未找到仓库，或当前 GitHub 令牌无权访问该仓库</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>搜索可用模块</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>无法在 GitHub 上搜索：{0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>搜索</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>正在搜索</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>模块清单中声明的来源与指定的 GitHub 仓库不一致</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Beta 版</value>

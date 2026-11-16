@@ -10,8 +10,19 @@
              x:Class="ASLM.Controls.Downloads.ModulesDownloadsView"
              x:Name="RootView"
              BackgroundColor="{DynamicResource BackgroundPrimary}">
+    <ContentView.Resources>
+        <Style x:Key="ModuleDownloadTabStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource SidebarButton}">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="HeightRequest" Value="24" />
+            <Setter Property="MinimumHeightRequest" Value="24" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="CornerRadius" Value="0" />
+        </Style>
+    </ContentView.Resources>
     <Grid BindingContext="{x:Reference RootView}"
-          RowDefinitions="Auto,Auto,*"
+          RowDefinitions="Auto,Auto,Auto,*"
           RowSpacing="8"
           Padding="12">
         <Label x:Name="TitleLabel"
@@ -19,25 +30,52 @@
                FontAttributes="Bold"
                TextColor="{DynamicResource LabelPrimary}"
                Margin="0,0,36,0" />
-        <Border Grid.Row="1"
-                Background="{DynamicResource BackgroundSecondary}"
-                StrokeThickness="0"
-                StrokeShape="RoundRectangle 6"
-                Padding="8,0"
-                Margin="0,4,0,0">
-            <Entry x:Name="SearchEntry"
-                   Style="{StaticResource SettingsTextEntryStyle}"
-                   settings:SettingsControlChrome.FlatEntry="True"
-                   ClearButtonVisibility="WhileEditing"
-                   HeightRequest="34"
-                   MinimumHeightRequest="34"
-                   FontSize="13"
-                   TextChanged="OnSearchTextChanged"
-                   BackgroundColor="Transparent"
-                   TextColor="{DynamicResource LabelPrimary}"
-                   PlaceholderColor="{DynamicResource LabelSecondary}" />
-        </Border>
-        <Grid Grid.Row="2"
+        <HorizontalStackLayout Grid.Row="1" Spacing="0">
+            <Button x:Name="CatalogTabButton"
+                    Style="{StaticResource ModuleDownloadTabStyle}"
+                    Clicked="OnCatalogTabClicked">
+                <Button.Triggers>
+                    <DataTrigger TargetType="Button" Binding="{Binding IsCatalogSelected}" Value="True">
+                        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
+                    </DataTrigger>
+                </Button.Triggers>
+            </Button>
+            <BoxView WidthRequest="1" HeightRequest="24"
+                     Color="{DynamicResource Separator}" VerticalOptions="Fill" />
+            <Button x:Name="GitHubTabButton"
+                    Style="{StaticResource ModuleDownloadTabStyle}"
+                    Clicked="OnGitHubTabClicked">
+                <Button.Triggers>
+                    <DataTrigger TargetType="Button" Binding="{Binding IsGitHubSelected}" Value="True">
+                        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
+                    </DataTrigger>
+                </Button.Triggers>
+            </Button>
+        </HorizontalStackLayout>
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Border Background="{DynamicResource BackgroundSecondary}"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 6"
+                    Padding="8,0">
+                <Entry x:Name="SearchEntry"
+                       Style="{StaticResource SettingsTextEntryStyle}"
+                       settings:SettingsControlChrome.FlatEntry="True"
+                       ClearButtonVisibility="WhileEditing"
+                       HeightRequest="34"
+                       MinimumHeightRequest="34"
+                       FontSize="13"
+                       TextChanged="OnSearchTextChanged"
+                       BackgroundColor="Transparent"
+                       TextColor="{DynamicResource LabelPrimary}"
+                       PlaceholderColor="{DynamicResource LabelSecondary}" />
+            </Border>
+            <Button x:Name="RepositorySearchButton" Grid.Column="1"
+                    Style="{StaticResource SettingsInlineActionButtonStyle}"
+                    IsVisible="{Binding IsGitHubSelected}"
+                    IsEnabled="{Binding CanSearchRepository}"
+                    Clicked="OnRepositorySearchClicked" />
+        </Grid>
+        <Grid Grid.Row="3"
               ColumnDefinitions="*,Auto">
             <ScrollView x:Name="ModulesScroll"
                         VerticalScrollBarVisibility="Never"
@@ -55,6 +93,7 @@
                                    Target="{x:Reference ModulesScroll}" />
             <Label x:Name="EmptyLabel"
                    FontSize="14"
+                   HorizontalTextAlignment="Center"
                    TextColor="{DynamicResource LabelSecondary}"
                    HorizontalOptions="Center"
                    VerticalOptions="Center" />

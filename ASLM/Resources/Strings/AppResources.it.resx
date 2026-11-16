@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Aggiornato</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub ha negato l’accesso: controlla le autorizzazioni del token per il repository, l’accesso all’organizzazione e i limiti dell’API</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub ha rifiutato il token: ricollega il tuo account GitHub nelle Impostazioni</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>Catalogo</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Chiudi le informazioni sul modulo</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>Il modulo «{0}» esiste già con un’altra fonte oppure la cartella di destinazione è già occupata</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>Manifesto del modulo non valido: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>L’ID del modulo non rispetta le regole per i nomi delle cartelle sulle piattaforme supportate</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>Inserisci owner/repository o un collegamento HTTPS a un repository GitHub</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>Impossibile caricare il catalogo dei moduli</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>ASLM_Module.json non è stato trovato nella cartella principale del repository oppure non è accessibile con il token attuale</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>Limite di richieste all’API di GitHub raggiunto: attendi che venga reimpostato e riprova</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>Inserisci un repository e fai clic su «Cerca»; per i repository privati viene usato il token GitHub configurato nelle Impostazioni</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository o https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>Il repository non è stato trovato oppure non è accessibile con il token GitHub attuale</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Cerca moduli disponibili</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>Impossibile effettuare la ricerca su GitHub: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>Cerca</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>Ricerca in corso</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>La fonte indicata nel manifesto del modulo non corrisponde al repository GitHub specificato</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Beta</value>
