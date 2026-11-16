@@ -3,6 +3,7 @@
 
 set -eu
 source_path=$1
+test_script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/aslm-installer-tests.XXXXXXXX")
 trap 'rm -rf -- "$test_root"' 0
 
@@ -71,4 +72,45 @@ dnf_candidate()
 family=el
 if (install_dnf_dependencies) > "$test_root/epel.log" 2>&1; then exit 1; fi
 grep -q 'Enable the matching EPEL and CRB repositories manually' "$test_root/epel.log"
-printf 'Linux installer policy checks passed.\n'
+
+# Execute the SUSE dependency path against Zypper XML and verify that archive inspection has an awk provider.
+zypper()
+{
+    case " $* " in
+        *' search '*) printf '<solvable edition="4.18.6-1"/>\n' ;;
+        *' install '*) printf '%s\n' "$*" >> "$test_root/suse-packages" ;;
+    esac
+}
+
+install_suse_dependencies
+grep -Eq '(^| )gawk($| )' "$test_root/suse-packages"
+
+# Exercise desktop preparation with package-manager doubles, without installing packages or touching /opt.
+sed -n '/^prepare_desktop()/,/^}/p' "$test_script_dir/verify-linux-distribution.sh" > "$test_root/desktop-functions.sh"
+. "$test_root/desktop-functions.sh"
+results_root="$test_root/desktop-results"
+install_dir="$test_root/installation"
+installer="$test_root/without-epel.sh"
+archive="$test_root/release.tar.gz"
+mkdir "$results_root"
+printf '#!/bin/sh\nprintf "Enable EPEL manually.\\n" >&2\nexit 1\n' > "$installer"
+
+# Record requests made by the desktop setup instead of changing the test host's repositories or packages.
+dnf()
+{
+    printf '%s\n' "$*" >> "$test_root/desktop-packages"
+}
+
+printf 'ID=almalinux\n' > "$test_root/desktop-os-release"
+display_backend=x11
+prepare_desktop "$test_root/desktop-os-release"
+[ "$display_backend" = wayland ]
+grep -Eq '(^| )weston($| )' "$test_root/desktop-packages"
+if grep -q Xvfb "$test_root/desktop-packages"; then exit 1; fi
+: > "$test_root/desktop-packages"
+printf 'ID=fedora\n' > "$test_root/desktop-os-release"
+display_backend=x11
+prepare_desktop "$test_root/desktop-os-release"
+[ "$display_backend" = x11 ]
+grep -q xorg-x11-server-Xvfb "$test_root/desktop-packages"
+printf 'Linux installer and desktop policy checks passed.\n'

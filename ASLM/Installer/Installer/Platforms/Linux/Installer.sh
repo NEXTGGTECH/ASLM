@@ -231,7 +231,7 @@ install_debian_dependencies()
     ssl_package=$(select_debian_package libssl3t64 libssl3)
     apt-get install --no-install-recommends -y ca-certificates curl libc6 libgcc-s1 \
         libgssapi-krb5-2 "$icu_package" "$ssl_package" libstdc++6 tzdata zlib1g \
-        libgtk-4-1 libwebkitgtk-6.0-4 libfontconfig1 libfreetype6 xdg-utils pkexec
+        libgtk-4-1 libwebkitgtk-6.0-4 libfontconfig1 libfreetype6 xdg-utils pkexec tar gzip
 }
 
 # Read the newest installed or available RPM version from DNF's package listing.
@@ -252,7 +252,7 @@ install_dnf_dependencies()
         fail 'WebKitGTK API 6.0 is unavailable in the enabled repositories (package webkitgtk6.0).'
     fi
     dnf install -y ca-certificates curl glibc libgcc krb5-libs libicu openssl-libs \
-        libstdc++ tzdata zlib gtk4 webkitgtk6.0 fontconfig freetype xdg-utils polkit
+        libstdc++ tzdata zlib gtk4 webkitgtk6.0 fontconfig freetype xdg-utils polkit tar gzip
 }
 
 # Read a package edition from Zypper's machine-readable search results.
@@ -271,7 +271,7 @@ install_suse_dependencies()
         fail 'WebKitGTK API 6.0 is unavailable in the enabled repositories (package libwebkitgtk-6_0-4).'
     zypper --non-interactive --no-refresh install --no-recommends ca-certificates curl \
         glibc libgcc_s1 krb5 libicu libopenssl3 libstdc++6 timezone libz1 \
-        libgtk-4-1 libwebkitgtk-6_0-4 fontconfig libfreetype6 xdg-utils pkexec
+        libgtk-4-1 libwebkitgtk-6_0-4 fontconfig libfreetype6 xdg-utils pkexec gawk tar gzip
 }
 
 # Install Arch packages against its synchronized database without performing an unsupported partial upgrade.
@@ -281,7 +281,7 @@ install_arch_dependencies()
     [ -n "$gtk_version" ] || fail 'The pacman package database is unavailable. Run a full system upgrade with pacman -Syu, then retry.'
     require_gtk_version "$gtk_version"
     pacman -S --needed --noconfirm ca-certificates curl glibc gcc-libs krb5 icu openssl \
-        tzdata zlib gtk4 webkitgtk-6.0 fontconfig freetype2 xdg-utils polkit ||
+        tzdata zlib gtk4 webkitgtk-6.0 fontconfig freetype2 xdg-utils polkit tar gzip ||
         fail 'Package installation failed. Run a full system upgrade with pacman -Syu, then retry.'
 }
 
@@ -434,6 +434,11 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 [ "$confirmed" -eq 1 ] || confirm_installation
 install_dependencies
+
+# Report missing archive-inspection tools separately from a corrupt archive.
+for utility in awk tar gzip sha256sum; do
+    command -v "$utility" >/dev/null 2>&1 || fail "The required installer tool '${utility}' is unavailable."
+done
 umask 022
 mkdir -p /opt
 stage=$(mktemp -d /opt/.ASLM-install.XXXXXXXX)
