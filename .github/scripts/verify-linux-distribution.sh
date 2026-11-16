@@ -65,7 +65,7 @@ prepare_desktop()
             if [ "$ID" = opensuse-tumbleweed ]; then
                 zypper --non-interactive dist-upgrade --no-recommends
             fi
-            zypper --non-interactive install --no-recommends shadow util-linux dbus-1 \
+            zypper --non-interactive install --no-recommends shadow util-linux dbus-1 dbus-1-daemon \
                 xorg-x11-server-Xvfb python3 dejavu-fonts ;;
         arch)
             # Fully upgrade a rolling test image before installing desktop tools or ASLM dependencies.
@@ -76,11 +76,18 @@ prepare_desktop()
 }
 
 prepare_desktop
+command -v dbus-run-session >/dev/null 2>&1 || {
+    echo 'Desktop preparation did not provide dbus-run-session.' >&2
+    exit 1
+}
 printf 'yes\n' | sh "$installer" --archive "$archive"
 test -x "$install_dir/ASLM"
 test -L /usr/local/bin/aslm
 test -f /usr/local/share/applications/com.nextggtech.aslm.desktop
 useradd --create-home --shell /bin/sh aslm-check
+
+# Require the nested namespaces and procfs mount used by WebKit before starting its GUI processes.
+runuser -u aslm-check -- bwrap --unshare-all --ro-bind / / --proc /proc --dev /dev /bin/true
 
 # Use Wayland on EL 10, which removed the Xorg server; all other targets retain the X11 coverage.
 runtime_dir="$home_dir/.run"

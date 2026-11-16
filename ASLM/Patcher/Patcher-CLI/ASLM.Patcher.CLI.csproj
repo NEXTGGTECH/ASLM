@@ -10,9 +10,9 @@
 		<!-- Headless patcher helper shipped inside the macOS bundle (Contents/Helpers). -->
 		<AssemblyName>aslm-patcher</AssemblyName>
 		<InvariantGlobalization>true</InvariantGlobalization>
-		<Version>0.11.3.7</Version>
-		<FileVersion>0.11.3.7</FileVersion>
-		<InformationalVersion>0.11.3.7</InformationalVersion>
+		<Version>0.11.3.9</Version>
+		<FileVersion>0.11.3.9</FileVersion>
+		<InformationalVersion>0.11.3.9</InformationalVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(SelfContained)' == 'true'">

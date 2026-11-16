@@ -611,9 +611,10 @@ jobs:
           trap 'docker rm -f "$CONTAINER" >/dev/null 2>&1 || true' EXIT
           docker pull "$DISTRIBUTION_IMAGE"
           docker image inspect "$DISTRIBUTION_IMAGE" --format '{{json .RepoDigests}}' | tee "$RESULTS/image.json"
-          # Allow WebKit's own sandbox to create nested namespaces inside the disposable outer container.
+          # Let WebKit's sandbox create nested namespaces and mount its own /proc inside the disposable container.
           docker run --name "$CONTAINER" --rm --shm-size=256m \
             --security-opt seccomp=unconfined --security-opt apparmor=unconfined --cap-add SYS_ADMIN \
+            --security-opt systempaths=unconfined \
             --tmpfs /tmp:rw,noexec,nosuid,size=1g \
             -v "$PWD:/work/source:ro" -v "$PWD/dist:/work/dist:ro" -v "$RESULTS:/work/results" \
             "$DISTRIBUTION_IMAGE" /bin/sh /work/source/.github/scripts/verify-linux-distribution.sh \
