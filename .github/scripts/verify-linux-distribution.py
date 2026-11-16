@@ -38,8 +38,7 @@ def main():
     launcher = Path("/opt/ASLM/ASLM")
     manifest = Path("/opt/ASLM/install-manifest.json")
     shared_version = manifest.read_bytes()
-    options = subprocess.check_output(["findmnt", "-n", "-o", "OPTIONS", "-T", "/tmp"], text=True)
-    if "noexec" not in options.strip().split(","):
+    if not os.statvfs("/tmp").f_flag & os.ST_NOEXEC:
         raise RuntimeError("This compatibility check requires /tmp to be mounted with noexec.")
 
     # The installed launcher must create App, Patcher, seeds and its reference before the GUI check succeeds.
