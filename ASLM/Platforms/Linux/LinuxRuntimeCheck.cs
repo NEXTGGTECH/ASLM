@@ -36,15 +36,11 @@ namespace ASLM
             foreach (var library in new[] { "libgtk-4.so.1", "libwebkitgtk-6.0.so.4", "libfontconfig.so.1",
                          "libfreetype.so.6", "libgssapi_krb5.so.2", "libssl.so.3", "libSkiaSharp.so" })
             {
-                if (!NativeLibrary.TryLoad(library, typeof(LinuxRuntimeCheck).Assembly,
-                        DllImportSearchPath.AssemblyDirectory, out var handle))
-                {
-                    errors.Add($"Cannot load {library} or one of its dependencies.");
-                    continue;
-                }
-
+                IntPtr handle = IntPtr.Zero;
                 try
                 {
+                    // The OS must resolve system libraries; AssemblyDirectory alone excludes that search in .NET 10.
+                    handle = NativeLibrary.Load(library, typeof(LinuxRuntimeCheck).Assembly, searchPath: null);
                     if (library == "libgtk-4.so.1")
                     {
                         var version = ReadGtkVersion(handle);
@@ -52,8 +48,14 @@ namespace ASLM
                             errors.Add($"GTK {version} is installed; GTK 4.12.0 or later is required.");
                     }
                 }
-                catch (EntryPointNotFoundException ex) { errors.Add(ex.Message); }
-                finally { NativeLibrary.Free(handle); }
+                catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
+                {
+                    errors.Add($"Cannot load {library}: {ex.Message}");
+                }
+                finally
+                {
+                    if (handle != IntPtr.Zero) NativeLibrary.Free(handle);
+                }
             }
 
             // ICU is a .NET runtime dependency even when GTK's own dependencies did not pull it in.
