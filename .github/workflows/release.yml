@@ -337,13 +337,17 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
+          dotnet-quality: ga
           cache: true
           cache-dependency-path: |
             ASLM/Tests/ASLM.Tests.csproj
             ASLM/Patcher/Tests/ASLM.Patcher.Tests.csproj
             ASLM/Launcher/Tests/ASLM.Launcher.Tests.csproj
             ASLM/Installer/Tests/ASLM.Installer.Tests.csproj
+
+      - name: Show .NET SDK
+        run: dotnet --info
 
       - name: Install MAUI workload
         run: dotnet workload install maui
@@ -394,7 +398,11 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
+          dotnet-quality: ga
+
+      - name: Show .NET SDK
+        run: dotnet --info
 
       - name: Stamp app versions (match the release tag exactly)
         env:
