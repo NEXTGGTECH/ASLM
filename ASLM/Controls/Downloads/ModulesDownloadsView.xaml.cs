@@ -42,6 +42,21 @@ namespace ASLM.Controls.Downloads
         private int _refreshVersion;
 
         /// <summary>
+        /// Coalesces startup, navigation and installation refresh requests.
+        /// </summary>
+        private Task? _refreshTask;
+
+        /// <summary>
+        /// Tracks installation membership changes independently from opening the view.
+        /// </summary>
+        private long _catalogRevision;
+
+        /// <summary>
+        /// Identifies the membership revision represented by the published catalog.
+        /// </summary>
+        private long _loadedCatalogRevision = -1;
+
+        /// <summary>
         /// Cancellation source of the refresh that is currently running, or null when idle.
         /// </summary>
         private CancellationTokenSource? _refreshCts;
@@ -179,7 +194,31 @@ namespace ASLM.Controls.Downloads
         /// <summary>
         /// Rebuilds the available catalog and publishes each card's presentation independently.
         /// </summary>
-        internal async Task RefreshAsync()
+        internal Task RefreshAsync()
+        {
+            if (_refreshTask is { IsCompleted: false }) return _refreshTask;
+            if (_loadedCatalogRevision == _catalogRevision) return Task.CompletedTask;
+            return _refreshTask = RefreshCatalogLoopAsync();
+        }
+
+        /// <summary>
+        /// Completes the current snapshot and repeats once when membership changes during its preparation.
+        /// </summary>
+        private async Task RefreshCatalogLoopAsync()
+        {
+            await Task.Yield();
+            do
+            {
+                var revision = _catalogRevision;
+                await RefreshCatalogCoreAsync();
+                _loadedCatalogRevision = revision;
+            } while (_loadedCatalogRevision != _catalogRevision);
+        }
+
+        /// <summary>
+        /// Prepares the replacement catalog on a worker and keeps the previous list usable until publication.
+        /// </summary>
+        private async Task RefreshCatalogCoreAsync()
         {
             if (_installer == null) return;
 
@@ -208,8 +247,14 @@ namespace ASLM.Controls.Downloads
                 // Discover off the UI thread, then build one card per available module.
                 var modules = await Task.Run(_installer.DiscoverAvailableModulesAsync);
                 if (version != _refreshVersion || cts.IsCancellationRequested) return;
-                foreach (var module in modules) _updates!.ApplyCatalogDefaults(module, installed: false);
-                _catalog = modules.Select(module => new ModuleCatalogCardViewModel(module, _trust!.Resolve(module), _installer)).ToList();
+                var replacement = await Task.Run(() =>
+                {
+                    foreach (var module in modules) _updates!.ApplyCatalogDefaults(module, installed: false);
+                    return modules.Select(module => new ModuleCatalogCardViewModel(module, _trust!.Resolve(module), _installer))
+                        .ToList();
+                });
+                if (version != _refreshVersion || cts.IsCancellationRequested) return;
+                _catalog = replacement;
                 EmptyLabel.Text = L.Get(LocalizationKeys.Downloads_NoItems);
                 ApplySearch();
 
@@ -222,13 +267,10 @@ namespace ASLM.Controls.Downloads
             }
             catch (Exception)
             {
-                // A superseded refresh must not clobber the list; otherwise show an empty catalog with the
-                // failure text.
+                // Keep the last usable catalog after a transport failure; the error text belongs to an empty list.
                 if (version != _refreshVersion) return;
-                _catalog = [];
-                Modules.Clear();
                 EmptyLabel.Text = L.Get(LocalizationKeys.ModulesDownloads_LoadFailed);
-                EmptyLabel.IsVisible = true;
+                EmptyLabel.IsVisible = Modules.Count == 0;
             }
             finally
             {
@@ -241,7 +283,11 @@ namespace ASLM.Controls.Downloads
         /// Refreshes catalog membership after installation or removal state changes.
         /// </summary>
         private void OnModulesChanged(object? sender, EventArgs e) =>
-            MainThread.BeginInvokeOnMainThread(async () => await RefreshAsync());
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                _catalogRevision++;
+                await RefreshAsync();
+            });
 
 
         // Search and selection
@@ -278,7 +324,6 @@ namespace ASLM.Controls.Downloads
         {
             if (_isGitHubSelected == gitHub) return;
             CancelRepositorySearch();
-            _refreshCts?.Cancel();
             _isGitHubSelected = gitHub;
             _changingSection = true;
             try { SearchEntry.Text = gitHub ? _repositorySearch?.Query : _catalogQuery; }
@@ -286,7 +331,11 @@ namespace ASLM.Controls.Downloads
             OnPropertyChanged(nameof(IsCatalogSelected));
             OnPropertyChanged(nameof(IsGitHubSelected));
             ApplyLocalization();
-            if (!gitHub) _ = RefreshAsync();
+            if (!gitHub)
+            {
+                _loadedCatalogRevision = -1;
+                _ = RefreshAsync();
+            }
         }
 
         /// <summary>
@@ -339,7 +388,7 @@ namespace ASLM.Controls.Downloads
         {
             // Rebuild the visible list from the cached catalog; an empty query matches every card.
             var query = SearchEntry.Text?.Trim() ?? string.Empty;
-            Modules.Clear();
+            var visible = new List<ModuleCatalogCardViewModel>();
             if (IsGitHubSelected)
             {
                 if (_repositorySearch?.Result is { } result)
@@ -350,12 +399,13 @@ namespace ASLM.Controls.Downloads
                         _repositoryCard = new(result, _trust!.Resolve(result), _installer!);
                     }
                     _repositoryCard!.RefreshLocalization();
-                    Modules.Add(_repositoryCard);
+                    visible.Add(_repositoryCard);
                 }
                 EmptyLabel.Text = _repositorySearch?.IsSearching == true
                     ? L.Get(LocalizationKeys.ModulesDownloads_Searching)
                     : _repositorySearch?.Error is { } error ? FormatRepositoryError(error)
                     : L.Get(LocalizationKeys.ModulesDownloads_RepositoryHint);
+                ApplyVisibleCards(visible);
                 EmptyLabel.IsVisible = Modules.Count == 0;
                 return;
             }
@@ -367,10 +417,38 @@ namespace ASLM.Controls.Downloads
                          card.Module.Description.Contains(query, StringComparison.OrdinalIgnoreCase)))
             {
                 card.RefreshLocalization();
-                Modules.Add(card);
+                visible.Add(card);
             }
 
+            ApplyVisibleCards(visible);
             EmptyLabel.IsVisible = Modules.Count == 0;
+        }
+
+        /// <summary>
+        /// Reconciles catalog cards by module identity without clearing the viewport on every publication.
+        /// </summary>
+        private void ApplyVisibleCards(IReadOnlyList<ModuleCatalogCardViewModel> visible)
+        {
+            var retained = visible.Select(card => card.Module.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            for (var index = Modules.Count - 1; index >= 0; index--)
+                if (!retained.Contains(Modules[index].Module.Id)) Modules.RemoveAt(index);
+            for (var index = 0; index < visible.Count; index++)
+            {
+                if (index < Modules.Count && string.Equals(Modules[index].Module.Id, visible[index].Module.Id,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!ReferenceEquals(Modules[index], visible[index])) Modules[index] = visible[index];
+                    continue;
+                }
+                var previous = Modules.ToList().FindIndex(card => string.Equals(card.Module.Id, visible[index].Module.Id,
+                    StringComparison.OrdinalIgnoreCase));
+                if (previous >= 0)
+                {
+                    Modules.Move(previous, index);
+                    if (!ReferenceEquals(Modules[index], visible[index])) Modules[index] = visible[index];
+                }
+                else Modules.Insert(index, visible[index]);
+            }
         }
 
         /// <summary>

@@ -108,6 +108,14 @@
                      Navigating="Browser_Navigating" />
         </Grid>
         
+        <!-- Prepared settings stay mounted so opening them reuses native editor controls. -->
+        <ContentView x:Name="SettingsHost"
+                     Grid.ColumnSpan="2"
+                     Opacity="0"
+                     IsEnabled="False"
+                     InputTransparent="True"
+                     AutomationProperties.ExcludedWithChildren="True" />
+
         <!-- Overlay Container -->
         <ContentView x:Name="OverlayContainer"
                      Grid.ColumnSpan="2"

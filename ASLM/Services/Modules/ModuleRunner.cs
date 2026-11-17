@@ -175,6 +175,7 @@ namespace ASLM.Services.Modules
         /// <param name="interopHostState">Tracks the module interop listener URL for opted-in modules.</param>
         /// <param name="serviceProvider">Resolves optional services such as <see cref="ModuleDependencyService"/>.</param>
         /// <param name="logger">Logger instance.</param>
+        /// <param name="preparation">Optional coordinator that pauses reads during lifecycle changes.</param>
         public ModuleRunner(
             EngineInstaller engineInstaller,
             ModuleEnvironmentResolver environmentResolver,
@@ -189,7 +190,8 @@ namespace ASLM.Services.Modules
             SunriseService sunriseService,
             ModuleInteropHostState interopHostState,
             IServiceProvider serviceProvider,
-            ILogger<ModuleRunner> logger)
+            ILogger<ModuleRunner> logger,
+            DataPreparationQueue? preparation = null)
         {
             _engineInstaller = engineInstaller;
             _environmentResolver = environmentResolver;
@@ -205,8 +207,15 @@ namespace ASLM.Services.Modules
             _interopHostState = interopHostState;
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _preparation = preparation;
             _ports.PortsRedistributed += OnPortsRedistributed;
         }
+
+
+        /// <summary>
+        /// Coordinates background reads with module setup and lifecycle changes.
+        /// </summary>
+        private readonly DataPreparationQueue? _preparation;
 
 
         // Setup execution
@@ -226,6 +235,9 @@ namespace ASLM.Services.Modules
             CancellationToken ct,
             bool skipModuleDependencies = false)
         {
+            using var preparation = _preparation == null ? null :
+                await _preparation.SuspendAsync(module.SourcePath).ConfigureAwait(false);
+
             // Hold a content lease while setup runs, register the module in the consoles and mirror all log
             // messages into its overview console.
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
@@ -295,6 +307,12 @@ namespace ASLM.Services.Modules
         /// <returns>True if commands were started successfully.</returns>
         public async Task<bool> ExecuteRunAsync(ModuleConfig module, IProgress<string> log, CancellationToken ct)
         {
+            if (!_disposed && GetRunningModuleSourcePaths().Contains(module.SourcePath, StringComparer.OrdinalIgnoreCase))
+                return true;
+
+            using var preparation = _preparation == null ? null :
+                await _preparation.SuspendAsync(module.SourcePath, valuesOnly: true).ConfigureAwait(false);
+
             // Content leases must precede lifecycle gates: uninstall holds an exclusive
             // content lease while it calls StopModuleAsync.
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
@@ -495,6 +513,8 @@ namespace ASLM.Services.Modules
         /// <param name="moduleSourcePath">The module's SourcePath (unique per instance).</param>
         public async Task StopModuleAsync(string moduleSourcePath)
         {
+            using var preparation = _preparation == null ? null :
+                await _preparation.SuspendAsync(moduleSourcePath, valuesOnly: true).ConfigureAwait(false);
             using var activity = _consoleStore.BeginActivity(moduleSourcePath, ModuleActivity.Stopping);
             _consoleStore.AppendOverviewLine(moduleSourcePath, "Stopping module processes...");
 

@@ -38,6 +38,12 @@ namespace ASLM.Services.Internal
         private readonly ILogger<DownloadCatalog> _logger;
 
 
+        /// <summary>
+        /// Gets the session preparation coordinator used by installed module providers.
+        /// </summary>
+        internal DataPreparationQueue? Preparation => _moduleInstaller.Preparation;
+
+
         // Initialization
 
         /// <summary>
@@ -68,7 +74,7 @@ namespace ASLM.Services.Internal
         /// <param name="preferCached">Allows the bridges to answer from their local cache.</param>
         /// <param name="forceRefresh">Asks the bridges to refresh their upstream cache first.</param>
         /// <param name="categoryLoaded">Called with the merged category each time new items were merged into it.</param>
-        /// <param name="ct">Cancellation token for the whole load.</param>
+        /// <param name="ct">Cancels standalone loads; session-owned loads continue after page detachment.</param>
         public async Task<DownloadCatalogSnapshot> LoadCatalogAsync(
             IReadOnlyDictionary<string, DownloadCatalogQuery>? categoryQueries = null,
             string? categoryGroupKey = null,
@@ -77,6 +83,9 @@ namespace ASLM.Services.Internal
             Func<DownloadCatalogCategory, Task>? categoryLoaded = null,
             CancellationToken ct = default)
         {
+            // Page cancellation detaches its callbacks; preparation of the remaining providers continues.
+            if (_moduleInstaller.Preparation != null) ct = _moduleInstaller.Preparation.Lifetime;
+
             // Discover only modules that actually expose the downloads bridge contract.
             var modules = await _moduleInstaller.DiscoverInstalledModulesAsync();
             var bridgeModules = modules
@@ -322,6 +331,23 @@ namespace ASLM.Services.Internal
                     SortOrder = category.SortOrder
                 })
                 .ToList() ?? [];
+        }
+
+
+        /// <summary>
+        /// Prepares one provider without reloading unrelated module contributions.
+        /// </summary>
+        internal async Task<DownloadCatalogSnapshot> LoadModuleSnapshotAsync(ModuleConfig module, CancellationToken ct)
+        {
+            var builders = new Dictionary<string, CategoryBuilder>(StringComparer.OrdinalIgnoreCase);
+            var warnings = new List<string>();
+            using var publish = new SemaphoreSlim(1);
+            await LoadModuleCatalogAsync(module, null, null, true, false, warnings, builders, new object(),
+                publish, null, ct).ConfigureAwait(false);
+            return new DownloadCatalogSnapshot
+            {
+                Categories = builders.Values.Select(builder => builder.ToCategory(_stateStore)).ToList()
+            };
         }
 
 

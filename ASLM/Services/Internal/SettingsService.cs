@@ -1,9 +1,11 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
 using Debug = System.Diagnostics.Debug;
 using ASLM.Models;
+using ASLM.Localization;
 
 namespace ASLM.Services.Internal
 {
@@ -14,7 +16,8 @@ namespace ASLM.Services.Internal
     /// </summary>
     /// <param name="Setting">Setting definition the value belongs to.</param>
     /// <param name="Value">Value loaded from the running module or a fallback, or null when there is none.</param>
-    public sealed record LoadedSetting(ModuleSetting Setting, object? Value);
+    /// <param name="IsFallback">Whether a failed runtime read supplied a retryable fallback.</param>
+    public sealed record LoadedSetting(ModuleSetting Setting, object? Value, bool IsFallback = false);
 
     /// <summary>
     /// Captures the initial effective value used to detect real user changes across UI rebuilds.
@@ -136,6 +139,61 @@ namespace ASLM.Services.Internal
         private long _moduleCatalogRevision;
 
 
+        /// <summary>
+        /// Owns setting reads independently of settings overlays.
+        /// </summary>
+        internal DataPreparationQueue? Preparation { get; }
+
+
+        /// <summary>
+        /// Shares one queued value pass per generation even after the settings overlay closes.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, Lazy<Task>> _valuePasses = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Retains successful values while fresh getter requests are invalidated or still pending.
+        /// </summary>
+        private readonly ConcurrentDictionary<(string Owner, string Key), PreparedSettingValue> _preparedValues = new();
+
+        /// <summary>
+        /// Orders generation replacement and last-known publication without holding a lock across asynchronous reads.
+        /// </summary>
+        private readonly object _preparedSync = new();
+
+        /// <summary>
+        /// Marks completed passes whose failed getters should be retried when a consumer requests the section again.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, bool> _incompleteValuePasses = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Announces completed values to the shared incremental renderer, including while it is hidden.
+        /// </summary>
+        internal event EventHandler<PreparedSettingChangedEventArgs>? SettingValuePrepared;
+
+        /// <summary>
+        /// Returns the last compatible value without waiting for a fresh request or invoking a module command.
+        /// </summary>
+        internal PreparedSettingValue? GetPreparedValue(ModuleConfig module, ModuleSetting setting) =>
+            _preparedValues.TryGetValue((DataPreparationQueue.NormalizeOwner(module.SourcePath), setting.Key.ToUpperInvariant()), out var value) &&
+            value.Definition.NormalizedType == setting.NormalizedType ? value : null;
+
+
+        /// <summary>
+        /// Releases values of an uninstalled module while keeping other modules' cached data untouched.
+        /// </summary>
+        internal void ForgetPreparedModule(string sourcePath)
+        {
+            var owner = DataPreparationQueue.NormalizeOwner(sourcePath);
+            lock (_preparedSync)
+            {
+                _valuePasses.TryRemove(owner, out _);
+                _incompleteValuePasses.TryRemove(owner, out _);
+                foreach (var key in _preparedValues.Keys.Where(key => key.Owner == owner))
+                    _preparedValues.TryRemove(key, out _);
+            }
+        }
+
+
         // Initialization
 
         /// <summary>
@@ -149,16 +207,19 @@ namespace ASLM.Services.Internal
         public SettingsService(
             EngineInstaller engineInstaller,
             ModuleInstaller moduleInstaller,
-            ModuleRunner moduleRunner)
+            ModuleRunner moduleRunner,
+            DataPreparationQueue? preparation = null)
         {
             _engineInstaller = engineInstaller;
             _moduleInstaller = moduleInstaller!;
             _moduleRunner = moduleRunner;
+            Preparation = preparation;
 
             // Any installer-level module change invalidates manifest snapshots through the catalog revision.
             if (moduleInstaller != null)
             {
                 moduleInstaller.ModulesChanged += OnModulesChanged;
+                if (Preparation != null) Preparation.Changed += OnPreparedDataChanged;
             }
         }
 
@@ -190,13 +251,55 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Discovers installed modules and returns their configuration snapshots for the settings page.
         /// </summary>
-        public Task<List<ModuleConfig>> DiscoverModulesAsync() => _moduleInstaller.DiscoverInstalledModulesAsync();
+        public Task<List<ModuleConfig>> DiscoverModulesAsync() => DiscoverModulesAsync(CancellationToken.None);
+
+        /// <summary>
+        /// Shares detached schemas while allowing a background producer to detach promptly during shutdown.
+        /// </summary>
+        internal async Task<List<ModuleConfig>> DiscoverModulesAsync(CancellationToken ct)
+        {
+            if (Preparation == null) return await _moduleInstaller.DiscoverInstalledModulesAsync().ConfigureAwait(false);
+            var json = await Preparation.GetAsync("settings-catalog", "definitions:" + ModuleCatalogRevision, async token =>
+            {
+                var modules = await _moduleInstaller.DiscoverInstalledModulesAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                return JsonSerializer.Serialize(modules.Select(module => new { module.SourcePath, Module = module }));
+            }, ct).ConfigureAwait(false);
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.EnumerateArray().Select(element =>
+            {
+                var module = element.GetProperty("Module").Deserialize<ModuleConfig>()!;
+                module.SourcePath = element.GetProperty("SourcePath").GetString()!;
+                module.Normalize();
+                return module;
+            }).ToList();
+        }
 
         /// <summary>
         /// Invalidates settings manifest snapshots after an installer-level module change.
         /// </summary>
         private void OnModulesChanged(object? sender, EventArgs e) =>
             Interlocked.Increment(ref _moduleCatalogRevision);
+
+
+        /// <summary>
+        /// Publishes module changes to active views and invalidates schema discovery after content changes.
+        /// </summary>
+        public event EventHandler<DataPreparationChangedEventArgs>? ModuleDataChanged;
+
+        /// <summary>
+        /// Advances schema discovery only when content changed; a restart keeps setting definitions intact.
+        /// </summary>
+        private void OnPreparedDataChanged(object? sender, DataPreparationChangedEventArgs e)
+        {
+            lock (_preparedSync)
+            {
+                _valuePasses.TryRemove(e.SourcePath, out _);
+                _incompleteValuePasses.TryRemove(e.SourcePath, out _);
+            }
+            if (e.Full) Interlocked.Increment(ref _moduleCatalogRevision);
+            ModuleDataChanged?.Invoke(this, e);
+        }
 
 
         // Port validation
@@ -817,6 +920,84 @@ namespace ASLM.Services.Internal
             moduleDraft.HasChanges;
 
 
+        /// <summary>
+        /// Shares one generation of individually queued reads between startup preparation and settings navigation.
+        /// Closing a page does not cancel this producer or discard its successful values.
+        /// </summary>
+        internal Task CompleteModuleValuesAsync(ModuleConfig module)
+        {
+            if (Preparation == null) return Task.CompletedTask;
+            lock (_preparedSync)
+            {
+                var generation = Preparation.GetModuleLifetime(module.SourcePath, valuesOnly: true);
+                var owner = DataPreparationQueue.NormalizeOwner(module.SourcePath);
+                if (_valuePasses.TryGetValue(owner, out var previous) && previous.IsValueCreated && previous.Value.IsCompleted &&
+                    _incompleteValuePasses.TryRemove(owner, out _)) _valuePasses.TryRemove(owner, out _);
+                return _valuePasses.GetOrAdd(owner, _ =>
+                    new Lazy<Task>(() => Task.Run(() => PrepareModuleValuesAsync(module, generation)))).Value;
+            }
+        }
+
+        /// <summary>
+        /// Queues individual reads once and publishes each completed value without waiting for the remaining settings.
+        /// </summary>
+        private async Task PrepareModuleValuesAsync(ModuleConfig module, CancellationToken generation)
+        {
+            try
+            {
+                await Preparation!.PrepareAsync(async () =>
+                {
+                    // Queue leaf requests in manifest order so a priority change can move the whole remaining section.
+                    var reads = module.Settings.Where(ShouldDisplaySetting)
+                        .Select(setting => PrepareSettingAsync(module, setting, generation)).ToArray();
+                    await Task.WhenAll(reads).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Maintenance replaces this generation; the last successful values remain available for display.
+            }
+            catch (Exception ex) { Debug.WriteLine($"Failed to complete module settings: {ex}"); }
+        }
+
+        /// <summary>
+        /// Resolves host data on a worker and retains one successful value before notifying the renderer.
+        /// </summary>
+        private async Task PrepareSettingAsync(ModuleConfig module, ModuleSetting setting, CancellationToken generation)
+        {
+            try
+            {
+                var loaded = await LoadSettingValueAsync(module, setting, generation).ConfigureAwait(false);
+                generation.ThrowIfCancellationRequested();
+                if (loaded.IsFallback)
+                {
+                    lock (_preparedSync)
+                        if (!generation.IsCancellationRequested)
+                            _incompleteValuePasses[DataPreparationQueue.NormalizeOwner(module.SourcePath)] = true;
+                    return;
+                }
+                var automatic = setting.IsAutomaticallyManaged ? _moduleRunner.GetResolvedSettingValue(module, setting) : null;
+                var prepared = new PreparedSettingValue(setting, loaded.Value, automatic, IsAutoDetectedAslmEngine(setting));
+                generation.ThrowIfCancellationRequested();
+                lock (_preparedSync)
+                {
+                    generation.ThrowIfCancellationRequested();
+                    _preparedValues[(DataPreparationQueue.NormalizeOwner(module.SourcePath), setting.Key.ToUpperInvariant())] = prepared;
+                }
+                SettingValuePrepared?.Invoke(this, new(module.SourcePath, setting.Key, generation));
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                // A failed setting keeps its last known value and never prevents other rows from becoming ready.
+                lock (_preparedSync)
+                    if (!generation.IsCancellationRequested)
+                        _incompleteValuePasses[DataPreparationQueue.NormalizeOwner(module.SourcePath)] = true;
+                Debug.WriteLine($"Failed to prepare setting '{module.Id}:{setting.Key}': {ex}");
+            }
+        }
+
+
         // Module load and save
 
         /// <summary>
@@ -890,6 +1071,30 @@ namespace ASLM.Services.Internal
         /// </summary>
         public async Task<ModuleSaveResult> SaveActiveModuleAsync(ModuleSettingsDraft moduleDraft)
         {
+            var originalDraft = moduleDraft;
+            var schemaChanged = false;
+            if (Preparation != null && moduleDraft.HasChanges)
+            {
+                // A background update can finish before its UI notification; save against the committed schema.
+                var current = await _moduleInstaller.LoadModuleConfig(moduleDraft.Module.SourcePath).ConfigureAwait(false);
+                if (current == null || !_moduleInstaller.Registry.ReadIds().Contains(current.Id))
+                    throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, moduleDraft.Module.Name));
+                schemaChanged = current.Version != moduleDraft.Module.Version ||
+                    !current.Settings.Select(setting => (setting.Key, setting.Type, setting.GetExec, setting.SetExec))
+                        .SequenceEqual(moduleDraft.Settings.Select(draft =>
+                            (draft.Setting.Key, draft.Setting.Type, draft.Setting.GetExec, draft.Setting.SetExec)));
+                var rebased = new ModuleSettingsDraft(current);
+                foreach (var draft in moduleDraft.Settings.Where(draft => draft.HasChanges))
+                {
+                    var target = rebased.Settings.FirstOrDefault(candidate =>
+                        string.Equals(candidate.Setting.Key, draft.Setting.Key, StringComparison.OrdinalIgnoreCase) &&
+                        candidate.Setting.NormalizedType == draft.Setting.NormalizedType);
+                    if (target != null && TryValidateSettingValue(target.Setting, draft.Value, out _))
+                        target.PreserveEdit(draft);
+                }
+                moduleDraft = rebased;
+            }
+
             // Collect only editable drafts that really changed; with none, there is nothing to commit or persist.
             var touchedModules = new HashSet<ModuleConfig>();
             var deferredSettings = new List<string>();
@@ -904,6 +1109,9 @@ namespace ASLM.Services.Internal
             {
                 return new ModuleSaveResult(touchedModules, deferredSettings);
             }
+
+            using var preparation = Preparation == null ? null :
+                await Preparation.SuspendAsync(moduleDraft.Module.SourcePath, valuesOnly: !schemaChanged).ConfigureAwait(false);
 
             // Commit every draft before command execution so injected settings form one consistent snapshot.
             moduleDraft.ApplyToModule();
@@ -950,6 +1158,8 @@ namespace ASLM.Services.Internal
             // Persist the manifest, then make the saved values the new baseline.
             await Task.Run(() => _moduleInstaller.SaveConfigAsync(moduleDraft.Module));
             moduleDraft.AcceptChanges();
+            originalDraft.ApplyToModule();
+            originalDraft.AcceptChanges();
             return new ModuleSaveResult(touchedModules, deferredSettings);
         }
 
@@ -961,6 +1171,47 @@ namespace ASLM.Services.Internal
             ModuleConfig module,
             ModuleSetting setting,
             CancellationToken cancellationToken = default)
+        {
+            if (Preparation == null || IsAutoDetectedAslmEngine(setting) ||
+                setting.IsAutomaticallyManaged && !setting.UseCustomValue)
+                return await LoadSettingValueCoreAsync(module, setting, cancellationToken).ConfigureAwait(false);
+
+            try
+            {
+                var value = await Preparation.GetAsync(module.SourcePath, "setting:" + setting.Key, async token =>
+                {
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    timeout.CancelAfter(TimeSpan.FromSeconds(30));
+                    try
+                    {
+                        var loaded = await LoadSettingValueCoreAsync(module, setting, timeout.Token).ConfigureAwait(false);
+                        if (loaded.IsFallback) throw new IOException("The module setting command did not return a value.");
+                        return JsonSerializer.SerializeToElement(loaded.Value);
+                    }
+                    catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                    {
+                        // A timed-out getter must release the queue and remain retryable on the next request.
+                        throw new TimeoutException($"Setting '{setting.Key}' took longer than 30 seconds to load.");
+                    }
+                }, cancellationToken).ConfigureAwait(false);
+                return new LoadedSetting(setting, value.ValueKind == JsonValueKind.Null ? null :
+                    setting.ParseSerializedValue(value.ValueKind == JsonValueKind.String
+                        ? value.GetString() ?? string.Empty : value.GetRawText()));
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                // Failed and timed-out reads remain retryable, while the page can still show its persisted value.
+                Debug.WriteLine($"Failed to prepare setting '{setting.Key}': {ex}");
+                return new LoadedSetting(setting, GetFallbackValue(module, setting), IsFallback: true);
+            }
+        }
+
+        /// <summary>
+        /// Reads a runtime value or resolves the manifest fallback without caching mutable setting definitions.
+        /// </summary>
+        private async Task<LoadedSetting> LoadSettingValueCoreAsync(
+            ModuleConfig module, ModuleSetting setting, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -992,7 +1243,7 @@ namespace ASLM.Services.Internal
                     null,
                     cancellationToken).ConfigureAwait(false);
                 return rawValue == null
-                    ? new LoadedSetting(setting, fallbackValue)
+                    ? new LoadedSetting(setting, fallbackValue, IsFallback: true)
                     : new LoadedSetting(setting, setting.ParseSerializedValue(rawValue));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1002,7 +1253,7 @@ namespace ASLM.Services.Internal
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to read setting '{setting.Key}' for module '{module.Name}': {ex.Message}");
-                return new LoadedSetting(setting, fallbackValue);
+                return new LoadedSetting(setting, fallbackValue, IsFallback: true);
             }
         }
 

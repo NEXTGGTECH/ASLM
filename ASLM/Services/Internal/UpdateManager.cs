@@ -998,13 +998,33 @@ namespace ASLM.Services.Internal
         internal async Task<string> GetModuleCatalogVersionAsync(
             ModuleConfig module, bool installed, CancellationToken ct = default)
         {
+            if (_moduleInstaller?.Preparation == null)
+                return await GetModuleCatalogVersionCoreAsync(module, installed, ct).ConfigureAwait(false);
+            var key = "version:" + _github.GetRepositoryCacheKey(module.Source.Repo) + JsonSerializer.Serialize(new
+            {
+                module.Update.Mode, module.Update.Channel, module.Update.Branch, module.Update.SelectedReleaseTag,
+                module.Update.UseDefaultChannel
+            });
+            var isManualRequest = !_moduleInstaller.Preparation.IsBackground;
+            return await _moduleInstaller.Preparation.GetAsync(module.SourcePath, key,
+                token => GetModuleCatalogVersionCoreAsync(module, installed, token, isManualRequest),
+                ct, TimeSpan.FromMinutes(5))
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolves repository metadata without attaching its request to a particular card.
+        /// </summary>
+        private async Task<string> GetModuleCatalogVersionCoreAsync(
+            ModuleConfig module, bool installed, CancellationToken ct, bool isManualRequest = true)
+        {
             if (!CanDownloadModule(module) || installed) return module.Version;
             try
             {
                 // Presentation must not race the editable selectors or persist a fallback on its own.
                 var draft = JsonSerializer.Deserialize<ModuleConfig>(JsonSerializer.Serialize(module))!;
                 draft.RepositoryPreview = module.RepositoryPreview;
-                var options = await GetModuleDownloadOptionsAsync(draft, ct, isManualRequest: true);
+                var options = await GetModuleDownloadOptionsAsync(draft, ct, isManualRequest);
                 options.ApplyTo(draft);
                 ct.ThrowIfCancellationRequested();
                 return SelectModuleReleaseInstallTarget(draft, options.Releases)?.RemoteVersion ?? module.Version;
@@ -1022,6 +1042,19 @@ namespace ASLM.Services.Internal
         /// </summary>
         internal async Task<GitHubUpdateClient.ModuleArtwork?> GetModuleCatalogArtworkAsync(
             ModuleConfig module, CancellationToken ct = default)
+        {
+            if (_moduleInstaller?.Preparation == null)
+                return await GetModuleCatalogArtworkCoreAsync(module, ct).ConfigureAwait(false);
+            return await _moduleInstaller.Preparation.GetAsync(
+                module.SourcePath, "artwork:" + _github.GetRepositoryCacheKey(module.Source.Repo),
+                token => GetModuleCatalogArtworkCoreAsync(module, token), ct, TimeSpan.FromMinutes(5)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Retrieves repository artwork through the existing authenticated icon cache.
+        /// </summary>
+        private async Task<GitHubUpdateClient.ModuleArtwork?> GetModuleCatalogArtworkCoreAsync(
+            ModuleConfig module, CancellationToken ct)
         {
             if (!CanDownloadModule(module)) return null;
             try
@@ -1315,6 +1348,9 @@ namespace ASLM.Services.Internal
                 log?.Report("The selected version is already installed.");
                 return false;
             }
+
+            using var preparation = _moduleInstaller.Preparation == null ? null :
+                await _moduleInstaller.Preparation.SuspendAsync(module.SourcePath).ConfigureAwait(false);
 
             // Show the transfer in the notification center and resolve the installed module directory.
             var operationKey = NotificationCenter.BuildOperationKey("module-update", module.Id);

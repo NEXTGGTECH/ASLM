@@ -374,6 +374,35 @@ namespace ASLM.Tests.Services.Internal
         }
 
 
+        // Prepared replacement publication
+
+        /// <summary>
+        /// Verifies edits made after preparation began are merged only when the completed draft is published.
+        /// </summary>
+        [Fact]
+        public void Publication_keeps_old_draft_until_ready_and_preserves_latest_edits()
+        {
+            var module = CreateModuleWithSetting(new ModuleSetting
+            {
+                Key = "caption", Name = "Caption", Type = "string", Default = "original", Value = "original"
+            });
+            var session = new SettingsEditSession();
+            session.ReplaceModules([module]);
+            var previous = session.GetModule(module);
+            var replacement = new ModuleSettingsDraft(module);
+            replacement.GetSetting("caption").LoadRuntimeValue("new runtime", null, false);
+
+            previous.GetSetting("caption").Value = "typed while reindexing";
+            session.GetModule(module).Should().BeSameAs(previous);
+            session.PublishModule(replacement);
+
+            session.GetModule(module).Should().BeSameAs(replacement);
+            replacement.GetSetting("caption").Value.Should().Be("typed while reindexing");
+            replacement.GetSetting("caption").HasChanges.Should().BeTrue();
+            module.Settings[0].Value.Should().Be("original");
+        }
+
+
         // Helpers
 
         /// <summary>

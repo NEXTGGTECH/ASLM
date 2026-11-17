@@ -222,6 +222,9 @@ namespace ASLM.Services.Modules
         private async Task<string?> UninstallCoreAsync(ModuleConfig selected, IReadOnlyList<ModuleConfig> consumers,
             bool waitForOperations, CancellationToken ct, bool checkPendingInstallations = true, bool reinstall = false)
         {
+            using var preparation = Preparation == null ? null :
+                await Preparation.SuspendAsync(selected.SourcePath).ConfigureAwait(false);
+
             // Ordinary uninstall must leave required modules untouched; reinstall is a separate guarded flow.
             if (!reinstall && ModuleRegistry.IsRequired(selected.Id)) return null;
 

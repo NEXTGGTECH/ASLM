@@ -268,6 +268,9 @@ namespace ASLM.Services.Modules
                 return new ModuleLaunchResult(ModuleLaunchStatus.AlreadyRunning, null, fresh);
             }
 
+            using var preparation = _installer.Preparation == null ? null :
+                await _installer.Preparation.SuspendAsync(fresh.SourcePath, valuesOnly: true).ConfigureAwait(false);
+
             // Required runtimes must be ready before setup resolves libraries, settings, or command engines.
             await _installer.ReconcileRequiredEnginesAsync(
                 fresh,

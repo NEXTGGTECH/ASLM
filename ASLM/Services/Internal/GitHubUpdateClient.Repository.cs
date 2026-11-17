@@ -78,7 +78,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Separates authenticated responses when the configured token changes, including disconnects.
         /// </summary>
-        private string GetRepositoryCacheKey(string repo)
+        internal string GetRepositoryCacheKey(string repo)
         {
             var credential = _githubAccountStore.GetPersonalAccessToken() ?? string.Empty;
             var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(credential)));

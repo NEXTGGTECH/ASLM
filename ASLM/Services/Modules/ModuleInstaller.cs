@@ -117,6 +117,12 @@ namespace ASLM.Services.Modules
         };
 
 
+        /// <summary>
+        /// Coordinates session data reads with content mutations.
+        /// </summary>
+        internal DataPreparationQueue? Preparation { get; }
+
+
         // Events
 
         /// <summary>
@@ -137,7 +143,8 @@ namespace ASLM.Services.Modules
             ModuleEngineReconciler moduleEngineReconciler,
             EngineInstaller? engineInstaller = null,
             GitHubUpdateClient? github = null,
-            PortRegistry? ports = null)
+            PortRegistry? ports = null,
+            DataPreparationQueue? preparation = null)
         {
             _moduleRunner = moduleRunner;
             _github = github;
@@ -145,6 +152,7 @@ namespace ASLM.Services.Modules
             _moduleEngineReconciler = moduleEngineReconciler;
             _engineInstaller = engineInstaller ?? new EngineInstaller();
             _ports = ports;
+            Preparation = preparation;
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ASLM-ModuleInstaller");
         }
 
@@ -551,6 +559,9 @@ namespace ASLM.Services.Modules
             IProgress<DownloadProgress>? downloadProgress = null,
             CancellationToken ct = default)
         {
+            using var preparation = Preparation == null ? null :
+                await Preparation.SuspendAsync(module.SourcePath).ConfigureAwait(false);
+
             // Register the module as in use, so a removal cannot run while its folder is being rewritten.
             using var operation = await BeginContentOperationAsync(ct, module).ConfigureAwait(false);
 
@@ -740,6 +751,9 @@ namespace ASLM.Services.Modules
 
                     var moduleSourceDir = Path.GetDirectoryName(jsonFile)!;
                     var finalDir = Path.Combine(modulesRoot, config.Id);
+
+                    using var preparation = Preparation == null ? null :
+                        await Preparation.SuspendAsync(Path.Combine(finalDir, "ASLM_Module.json")).ConfigureAwait(false);
 
                     // Replace any previous installation of this module with the extracted folder.
                     log.Report($"Installing to: {finalDir}");

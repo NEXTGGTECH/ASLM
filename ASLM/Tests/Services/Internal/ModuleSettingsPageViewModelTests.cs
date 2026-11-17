@@ -399,6 +399,137 @@ namespace ASLM.Tests.Services.Internal
         }
 
 
+        // Resumable rendering
+
+        /// <summary>
+        /// Verifies prioritizing another section leaves the first section's cursor and completed editors intact.
+        /// </summary>
+        [Fact]
+        public void Partial_render_resumes_without_clearing_completed_rows()
+        {
+            var firstDraft = new ModuleSettingsDraft(CreateModule(Enumerable.Range(0, 12)
+                .Select(index => CreateSetting("key-" + index, "string", "saved")).ToArray()));
+            var first = new ModuleSettingsPageViewModel(static () => { });
+            first.BeginReconcile(firstDraft, SettingsPresentationBuilder.BuildModuleSections(firstDraft, true), "Yes", "No");
+            for (var index = 0; index < 5; index++) first.RenderNext();
+            var completed = first.Sections.Single().Settings.ToArray();
+            completed.Should().HaveCount(4);
+
+            var secondDraft = new ModuleSettingsDraft(CreateModule(CreateSetting("other", "bool", true)));
+            var second = new ModuleSettingsPageViewModel(static () => { });
+            second.BeginReconcile(secondDraft, SettingsPresentationBuilder.BuildModuleSections(secondDraft, true), "Yes", "No");
+            FinishRender(second);
+            first.Sections.Single().Settings.Should().Equal(completed);
+            FinishRender(first);
+
+            first.Sections.Single().Settings.Should().HaveCount(12);
+            first.Sections.Single().Settings.Take(4).Should().Equal(completed);
+            first.Sections.Single().Settings.Select(item => item.Draft.Setting.Key).Should().OnlyHaveUniqueItems();
+        }
+
+        /// <summary>
+        /// Verifies cached background rows are revealed individually without waiting for fresh runtime values.
+        /// </summary>
+        [Fact]
+        public void Hidden_prepared_rows_reveal_one_at_a_time_and_keep_cached_values()
+        {
+            var draft = new ModuleSettingsDraft(CreateModule(CreateSetting("first", "string", "cached"),
+                CreateSetting("second", "string", "cached second")));
+            var page = new ModuleSettingsPageViewModel(static () => { });
+            page.BeginReconcile(draft, SettingsPresentationBuilder.BuildModuleSections(draft, true), "Yes", "No");
+            while (page.HasRenderSteps) page.RenderNext(reveal: false);
+            var items = page.Sections.Single().Settings;
+            items.Should().OnlyContain(item => !item.IsVisible);
+            page.IsFullyLoaded.Should().BeTrue();
+
+            page.RenderNext();
+
+            items.Count(item => item.IsVisible).Should().Be(1);
+            items[0].TextValue.Should().Be("cached");
+            page.RenderNext();
+            items.Should().OnlyContain(item => item.IsVisible);
+        }
+
+        /// <summary>
+        /// Verifies schema reconciliation retains compatible rows while applying additions and removals incrementally.
+        /// </summary>
+        [Fact]
+        public void Schema_diff_keeps_compatible_editors_and_latest_edits()
+        {
+            var oldModule = CreateModule(CreateSetting("keep", "string", "saved"),
+                CreateSetting("removed", "bool", false));
+            var session = new SettingsEditSession();
+            session.ReplaceModules([oldModule]);
+            var page = CreatePage(session.GetModule(oldModule));
+            var original = page.Sections.Single().Settings[0];
+            var updated = CreateModule(CreateSetting("keep", "string", "new persisted"),
+                CreateSetting("added", "int", 5));
+            updated.SourcePath = oldModule.SourcePath;
+            var definitions = SettingsPresentationBuilder.BuildModuleSections(new ModuleSettingsDraft(updated), true);
+            var draft = session.ReconcileModule(updated);
+            page.BeginReconcile(draft, definitions, "Yes", "No");
+
+            original.TextValue = "typed while updating";
+            page.Sections.Single().Settings.Should().Contain(original);
+            FinishRender(page);
+
+            page.Sections.Single().Settings.Select(item => item.Draft.Setting.Key).Should().Equal("keep", "added");
+            page.Sections.Single().Settings[0].Should().BeSameAs(original);
+            original.TextValue.Should().Be("typed while updating");
+            draft.GetSetting("keep").Value.Should().Be("typed while updating");
+            draft.GetSetting("keep").HasChanges.Should().BeTrue();
+        }
+
+        /// <summary>
+        /// Verifies focused controls defer external values even before their text differs from its baseline.
+        /// </summary>
+        [Fact]
+        public void Runtime_refresh_defers_focus_and_preserves_pending_edits()
+        {
+            var setting = CreateSetting("caption", "string", "old");
+            var draft = new ModuleSettingsDraft(CreateModule(setting));
+            var page = CreatePage(draft);
+            var item = page.Sections.Single().Settings.Single();
+            item.IsEditing = true;
+            var prepared = new PreparedSettingValue(setting, "new runtime", null, false);
+
+            page.ApplyPreparedValue(prepared).Should().BeFalse();
+            item.TextValue.Should().Be("old");
+            item.EndEditing();
+            page.ApplyPreparedValue(prepared).Should().BeTrue();
+            item.TextValue.Should().Be("new runtime");
+            item.TextValue = "user edit";
+            page.ApplyPreparedValue(prepared with { Value = "later runtime" }).Should().BeTrue();
+            item.TextValue.Should().Be("user edit");
+        }
+
+        /// <summary>
+        /// Verifies a runtime engine result can select its read-only template after the row was already rendered.
+        /// </summary>
+        [Fact]
+        public void Prepared_engine_value_updates_the_existing_editor_kind()
+        {
+            var setting = CreateSetting("runtime", "engine", false);
+            var page = CreatePage(new ModuleSettingsDraft(CreateModule(setting)));
+            var item = page.Sections.Single().Settings.Single();
+
+            page.ApplyPreparedValue(new PreparedSettingValue(setting, true, null, true));
+
+            page.Sections.Single().Settings.Single().Should().BeSameAs(item);
+            item.EditorKind.Should().Be(ModuleSettingEditorKind.EngineStatus);
+            item.IsEngineInstalled.Should().BeTrue();
+        }
+
+        /// <summary>
+        /// Completes a bounded pure-model render without invoking MAUI handlers or a platform dispatcher.
+        /// </summary>
+        private static void FinishRender(ModuleSettingsPageViewModel page)
+        {
+            for (var index = 0; index < 1000 && (page.HasRenderSteps || page.HasUnrevealedRows); index++) page.RenderNext();
+            page.HasRenderSteps.Should().BeFalse();
+        }
+
+
         // Helpers
 
         /// <summary>

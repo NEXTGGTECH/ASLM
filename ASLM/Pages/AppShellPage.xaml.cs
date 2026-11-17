@@ -392,7 +392,7 @@ namespace ASLM.Pages
             ApplyHomeNavigationState();
             ScheduleEnsureModuleBrowserLeftToRight();
             RestoreInitialPage();
-            _ = StartEnabledModulesAsync();
+            _ = StartModulesAndPreparationAsync();
         }
 
         /// <summary>
@@ -740,32 +740,47 @@ namespace ASLM.Pages
         // Overlay navigation
 
         /// <summary>
-        /// Opens the shared settings overlay and refreshes it before showing.
+        /// Shows prepared settings without rediscovering modules or restarting an in-flight load.
         /// </summary>
         /// <param name="category">Settings category to open directly, or null to just refresh the view.</param>
         private void OpenSettingsOverlay(SettingsCategoryKind? category = null)
         {
-            // Create the view on first use and subscribe once (unsubscribe-first avoids duplicate handlers).
+            var settingsView = EnsureSettingsHost();
+            OverlayContainer.IsVisible = false;
+            SettingsHost.Opacity = 1;
+            SettingsHost.InputTransparent = false;
+            AutomationProperties.SetExcludedWithChildren(SettingsHost, false);
+            _ = settingsView.OpenAsync(category);
+        }
+
+        /// <summary>
+        /// Creates the persistent native settings host without making it interactive during preparation.
+        /// </summary>
+        private SettingsView EnsureSettingsHost()
+        {
             _settingsView ??= _services.GetRequiredService<SettingsView>();
-            if (_settingsView is SettingsView settingsView)
+            var settingsView = (SettingsView)_settingsView;
+            settingsView.CloseRequested -= OnSettingsCloseRequested;
+            settingsView.CloseRequested += OnSettingsCloseRequested;
+            settingsView.NavigationSettingsSaved -= OnNavigationSettingsSaved;
+            settingsView.NavigationSettingsSaved += OnNavigationSettingsSaved;
+            if (!ReferenceEquals(SettingsHost.Content, settingsView))
             {
-                settingsView.CloseRequested -= OnSettingsCloseRequested;
-                settingsView.CloseRequested += OnSettingsCloseRequested;
-                settingsView.NavigationSettingsSaved -= OnNavigationSettingsSaved;
-                settingsView.NavigationSettingsSaved += OnNavigationSettingsSaved;
+                SettingsHost.IsEnabled = true;
+                SettingsHost.Content = settingsView;
             }
+            return settingsView;
+        }
 
-            OverlayContainer.Content = _settingsView;
-            OverlayContainer.IsVisible = true;
-
-            // Jump to the requested category, or just refresh the view.
-            if (_settingsView is SettingsView visibleSettingsView)
-            {
-                if (category.HasValue)
-                    visibleSettingsView.SelectCategory(category.Value);
-                else
-                    _ = visibleSettingsView.RefreshAsync();
-            }
+        /// <summary>
+        /// Makes cached controls noninteractive without detaching their native tree.
+        /// </summary>
+        private void HideSettingsHost()
+        {
+            if (_settingsView is SettingsView settingsView) settingsView.HideOverlay();
+            SettingsHost.Opacity = 0;
+            SettingsHost.InputTransparent = true;
+            AutomationProperties.SetExcludedWithChildren(SettingsHost, true);
         }
 
         /// <summary>
@@ -773,6 +788,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OpenNotificationsOverlay()
         {
+            HideSettingsHost();
             // The popover opens next to the sidebar button that was clicked.
             _notificationsView ??= _services.GetRequiredService<NotificationsView>();
             if (_notificationsView is NotificationsView notificationsView)
@@ -792,6 +808,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OpenDownloadOverlay()
         {
+            HideSettingsHost();
             _downloadsView ??= _services.GetRequiredService<DownloadsView>();
             if (_downloadsView is DownloadsView downloadsView)
             {
@@ -800,7 +817,7 @@ namespace ASLM.Pages
                 _ = downloadsView.OpenAsync();
             }
 
-            OverlayContainer.Content = _downloadsView;
+            if (!ReferenceEquals(OverlayContainer.Content, _downloadsView)) OverlayContainer.Content = _downloadsView;
             OverlayContainer.IsVisible = true;
         }
 
@@ -821,6 +838,7 @@ namespace ASLM.Pages
         /// <param name="section">Section of the module information view to open first.</param>
         private async Task OpenModuleInfoOverlayAsync(ModuleConfig module, ModuleInfo.Section section)
         {
+            HideSettingsHost();
             // Create the view on first use, show it in the overlay, then load the module into it.
             _moduleInfoView ??= _services.GetRequiredService<ModuleInfo>();
             _moduleInfoView.CloseRequested -= OnModuleInfoCloseRequested;
@@ -836,7 +854,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OnSettingsCloseRequested(object? sender, EventArgs e)
         {
-            OverlayContainer.IsVisible = false;
+            HideSettingsHost();
             ApplyConsoleNavigationState();
 
             if (_consolesView is ConsolesView consolesView)
@@ -1843,7 +1861,19 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Starts enabled modules that expose run commands when the shell opens.
-        /// Modules are launched in parallel; failed launches are only written to the debug output.
+        /// Starts preparation alongside module autostart; lifecycle reservations give each module launch precedence.
+        /// </summary>
+        private async Task StartModulesAndPreparationAsync()
+        {
+            var starts = StartEnabledModulesAsync();
+            _services.GetRequiredService<DataPreparationService>().Start();
+            await Task.Yield();
+            EnsureSettingsHost();
+            await starts;
+        }
+
+        /// <summary>
+        /// Starts enabled modules through their ordinary lifecycle coordinator.
         /// </summary>
         private async Task StartEnabledModulesAsync()
         {

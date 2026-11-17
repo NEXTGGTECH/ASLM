@@ -239,7 +239,8 @@ namespace ASLM.Tests.TestSupport
         /// unregistered URLs fail with the synthetic 599 status until a test registers them.
         /// </summary>
         /// <param name="root">Existing root to build on; when null the graph creates and later deletes its own.</param>
-        public TestServiceGraph(UniqueAslmRoot? root = null)
+        /// <param name="preparation">Optional preparation queue for session-lifetime integration tests.</param>
+        public TestServiceGraph(UniqueAslmRoot? root = null, DataPreparationQueue? preparation = null)
         {
             _ownsRoot = root == null;
             Root = root ?? new UniqueAslmRoot();
@@ -280,9 +281,9 @@ namespace ASLM.Tests.TestSupport
                 Engines, Environments, Ports, _processTracker, Consoles, ProcessSnapshots,
                 ThemePayload, LocalePayload, Trust, GitHubAccounts, Sunrise, InteropHost,
                 _services = new ServiceRegistry(),
-                TestLoggerFactory.Create<ModuleRunner>());
+                TestLoggerFactory.Create<ModuleRunner>(), preparation);
             EngineReconciler = new ModuleEngineReconciler(Engines);
-            Installer = new ModuleInstaller(Runner, Trust, EngineReconciler, Engines, GitHub, Ports);
+            Installer = new ModuleInstaller(Runner, Trust, EngineReconciler, Engines, GitHub, Ports, preparation);
             Dependencies = new ModuleDependencyService(Installer, Runner, TestLoggerFactory.Create<ModuleDependencyService>());
 
             // The dependency service is built from the runner, while the runner resolves the dependency service
@@ -299,7 +300,7 @@ namespace ASLM.Tests.TestSupport
 
             // Download catalog services on top of the module bridge.
             DownloadState = new DownloadStateStore(TestLoggerFactory.Create<DownloadStateStore>());
-            Bridge = new ModuleDownloadBridge(Engines, Environments, Runner, TestLoggerFactory.Create<ModuleDownloadBridge>());
+            Bridge = new ModuleDownloadBridge(Engines, Environments, Runner, TestLoggerFactory.Create<ModuleDownloadBridge>(), preparation);
             Downloads = new DownloadInstaller(
                 Installer, Bridge, Engines, Environments, DownloadState, Notifications,
                 TestLoggerFactory.Create<DownloadInstaller>(), Queue, new HttpClient(DownloadHttp));
