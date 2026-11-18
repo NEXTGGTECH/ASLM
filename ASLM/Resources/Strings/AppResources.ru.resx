@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Обновлено</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub отказал в доступе: проверьте права токена на репозиторий, доступ к организации и лимиты API</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub отклонил токен: повторно подключите учётную запись GitHub в настройках</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>Каталог</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Закрыть информацию о модуле</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>Модуль «{0}» уже существует с другим источником либо папка для его установки занята</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>Некорректный манифест модуля: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>Идентификатор модуля не соответствует правилам именования папок на поддерживаемых платформах</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>Введите owner/repository или HTTPS-ссылку на репозиторий GitHub</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>Не удалось загрузить каталог модулей</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>Файл ASLM_Module.json не найден в корне репозитория или недоступен с текущим токеном</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>Исчерпан лимит запросов к API GitHub: дождитесь его сброса и повторите попытку</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>Введите репозиторий и нажмите «Найти»; для приватных репозиториев используется токен GitHub, указанный в настройках</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository или https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>Репозиторий не найден или недоступен с текущим токеном GitHub</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Поиск доступных модулей</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>Не удалось выполнить поиск на GitHub: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>Найти</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>Выполняется поиск</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>Источник в манифесте модуля не совпадает с указанным репозиторием GitHub</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Бета</value>

@@ -103,7 +103,7 @@
                             <settings:BuiltInSettingsView x:Name="BuiltInSettingsContainer"
                                                           IsVisible="False" />
 
-                            <ContentView x:Name="ModuleSettingsContainer"
+                            <Grid x:Name="ModuleSettingsContainer"
                                          MinimumWidthRequest="0"
                                          HorizontalOptions="Fill"
                                          IsVisible="False" />

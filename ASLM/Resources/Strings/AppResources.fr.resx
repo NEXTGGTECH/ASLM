@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Mis à jour</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub a refusé l’accès : vérifiez les autorisations du jeton pour le dépôt, l’accès à l’organisation et les limites de l’API</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub a rejeté le jeton : reconnectez votre compte GitHub dans les Paramètres</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>Catalogue</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Fermer les informations du module</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>Le module « {0} » existe déjà avec une autre source ou son dossier de destination est déjà occupé</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>Manifeste du module invalide : {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>L’identifiant du module ne respecte pas les règles de nommage des dossiers des plateformes prises en charge</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>Saisissez owner/repository ou un lien HTTPS vers un dépôt GitHub</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>Impossible de charger le catalogue des modules</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>Le fichier ASLM_Module.json est introuvable à la racine du dépôt ou n’est pas accessible avec le jeton actuel</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>La limite de requêtes à l’API GitHub est atteinte : attendez sa réinitialisation, puis réessayez</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>Saisissez un dépôt et cliquez sur « Rechercher » ; les dépôts privés utilisent le jeton GitHub configuré dans les Paramètres</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository ou https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>Le dépôt est introuvable ou n’est pas accessible avec le jeton GitHub actuel</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Rechercher des modules disponibles</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>Impossible d’effectuer la recherche sur GitHub : {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>Rechercher</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>Recherche en cours</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>La source indiquée dans le manifeste du module ne correspond pas au dépôt GitHub spécifié</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Bêta</value>

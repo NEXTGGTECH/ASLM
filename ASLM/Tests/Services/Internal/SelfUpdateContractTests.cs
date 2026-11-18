@@ -16,30 +16,11 @@ namespace ASLM.Tests.Services.Internal
         // Patcher location
 
         /// <summary>
-        /// Path of the patcher executable that the build of the patcher CLI project (Debug configuration) places in
-        /// the repository.
+        /// Path of the real patcher built alongside the test layout, including layouts outside the repository.
         /// </summary>
-        private static string PatcherExecutable => Path.Combine(
-            GetRepoRoot(AppDomain.CurrentDomain.BaseDirectory),
-            "ASLM", "Patcher", "Patcher-CLI", "bin", "Debug", "net10.0",
-            OperatingSystem.IsWindows() ? "aslm-patcher.exe" : "aslm-patcher");
-
-        /// <summary>
-        /// Finds the repository root by walking up from the given directory until the solution file is found.
-        /// </summary>
-        /// <param name="start">Directory from which the search starts.</param>
-        /// <returns>The full path of the repository root.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when no parent directory contains the solution file.</exception>
-        private static string GetRepoRoot(string start)
-        {
-            var directory = new DirectoryInfo(start);
-            while (directory != null && !File.Exists(Path.Combine(directory.FullName, "ASLM.slnx")))
-            {
-                directory = directory.Parent;
-            }
-
-            return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
-        }
+        private static string PatcherExecutable => Path.GetFullPath(Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory, "..", "Patcher",
+            OperatingSystem.IsWindows() ? "aslm-patcher.exe" : "aslm-patcher"));
 
 
         // Self-update contract

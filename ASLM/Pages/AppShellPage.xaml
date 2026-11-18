@@ -105,9 +105,28 @@
                      FlowDirection="LeftToRight"
                      IsVisible="False"
                      HandlerChanged="Browser_HandlerChanged"
-                     Navigating="Browser_Navigating" />
+                     Navigating="Browser_Navigating"
+                     Navigated="Browser_Navigated" />
+
+            <!-- ASLM owns the startup message while the module page is unavailable. -->
+            <Grid x:Name="ModuleStarting"
+                  IsVisible="False"
+                  BackgroundColor="{DynamicResource BackgroundPrimary}">
+                <Label x:Name="ModuleStartingText"
+                       Margin="8"
+                       VerticalOptions="Start"
+                       TextColor="{DynamicResource LabelPrimary}" />
+            </Grid>
         </Grid>
         
+        <!-- Prepared settings stay mounted so opening them reuses native editor controls. -->
+        <ContentView x:Name="SettingsHost"
+                     Grid.ColumnSpan="2"
+                     Opacity="0"
+                     IsEnabled="False"
+                     InputTransparent="True"
+                     AutomationProperties.ExcludedWithChildren="True" />
+
         <!-- Overlay Container -->
         <ContentView x:Name="OverlayContainer"
                      Grid.ColumnSpan="2"

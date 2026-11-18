@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>تم التحديث</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>رفض GitHub الوصول: تحقّق من أذونات رمز الوصول للمستودع، وإمكانية الوصول إلى المؤسسة، وحدود طلبات API</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>رفض GitHub رمز الوصول: أعد ربط حساب GitHub من الإعدادات</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>الفهرس</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>إغلاق معلومات الوحدة</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>توجد الوحدة «{0}» بالفعل بمصدر آخر أو أن مجلد الوجهة مستخدم</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>ملف بيان الوحدة غير صالح: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>معرّف الوحدة لا يستوفي قواعد تسمية المجلدات على المنصات المدعومة</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>أدخل owner/repository أو رابط HTTPS لمستودع GitHub</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>تعذّر تحميل فهرس الوحدات</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>لم يُعثر على ASLM_Module.json في جذر المستودع أو لا يمكن الوصول إليه باستخدام رمز الوصول الحالي</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>تم بلوغ حد طلبات API لـ GitHub: انتظر حتى يُعاد تعيين الحد ثم حاول مجددًا</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>أدخل مستودعًا واضغط على «بحث»؛ تستخدم المستودعات الخاصة رمز وصول GitHub المحفوظ في الإعدادات</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository أو https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>لم يُعثر على المستودع أو لا يمكن الوصول إليه باستخدام رمز وصول GitHub الحالي</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>البحث عن الوحدات المتاحة</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>تعذّر البحث في GitHub: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>جارٍ البحث</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>المصدر المحدد في ملف بيان الوحدة لا يطابق مستودع GitHub الذي أدخلته</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>بيتا</value>

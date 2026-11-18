@@ -18,6 +18,59 @@ namespace ASLM.Controls.Settings
         }
 
         /// <summary>
+        /// Captures the row at the viewport top so preceding schema edits do not move the reading position.
+        /// </summary>
+        internal ModuleSettingsScrollAnchor CaptureScrollAnchor(double scrollY)
+        {
+            var anchor = new ModuleSettingsScrollAnchor(null, 0, scrollY);
+            foreach (var row in GetSettingRows())
+            {
+                var top = GetRowOffset(row);
+                if (top > scrollY) break;
+                if (row.BindingContext is ModuleSettingItemViewModel item)
+                    anchor = new(item.Draft.Setting.Key, scrollY - top, scrollY);
+            }
+            return anchor;
+        }
+
+        /// <summary>
+        /// Resolves the same setting in the replacement tree, falling back to the former absolute offset if removed.
+        /// </summary>
+        internal double ResolveScrollOffset(ModuleSettingsScrollAnchor anchor)
+        {
+            foreach (var row in GetSettingRows())
+                if (row.BindingContext is ModuleSettingItemViewModel item &&
+                    string.Equals(item.Draft.Setting.Key, anchor.SettingKey, StringComparison.OrdinalIgnoreCase))
+                    return Math.Max(0, GetRowOffset(row) + anchor.RowOffset);
+            return anchor.AbsoluteOffset;
+        }
+
+        /// <summary>
+        /// Enumerates only the visible editors in the unchanged section hierarchy.
+        /// </summary>
+        private IEnumerable<View> GetSettingRows()
+        {
+            foreach (var (_, card) in GetVisibleSectionViews())
+                if (card.SectionContent is Layout rows)
+                    foreach (var row in rows.Children.OfType<View>().Where(static row => row.IsVisible)) yield return row;
+        }
+
+        /// <summary>
+        /// Resolves a row's existing layout position without forcing synchronous measurement.
+        /// </summary>
+        private double GetRowOffset(View row)
+        {
+            var offset = 0d;
+            Element? element = row;
+            while (element != null && !ReferenceEquals(element, this))
+            {
+                if (element is VisualElement visual) offset += visual.Y;
+                element = element.Parent;
+            }
+            return offset;
+        }
+
+        /// <summary>
         /// Finds the rendered card that belongs to one stable section view model.
         /// </summary>
         /// <param name="section">Section view model whose card is searched by reference.</param>
@@ -54,4 +107,13 @@ namespace ASLM.Controls.Settings
             }
         }
     }
+
+    /// <summary>
+    /// Retains a setting's position inside the viewport across replacement of its module's settings schema.
+    /// </summary>
+    /// <param name="SettingKey">Stable manifest key of the row nearest the viewport top.</param>
+    /// <param name="RowOffset">Scrolled distance past the row's top.</param>
+    /// <param name="AbsoluteOffset">Fallback offset when the row no longer exists.</param>
+    internal sealed record ModuleSettingsScrollAnchor(string? SettingKey, double RowOffset, double AbsoluteOffset);
+
 }

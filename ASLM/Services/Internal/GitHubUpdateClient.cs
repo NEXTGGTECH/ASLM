@@ -169,7 +169,7 @@ namespace ASLM.Services.Internal
             // The cache stores the unfiltered list, so both channels share one GitHub request.
             var releases = await GetOrFetchCachedValueAsync(
                 cache: _releaseCache,
-                cacheKey: repo.Trim(),
+                cacheKey: GetRepositoryCacheKey(repo),
                 lifetime: ReleaseCacheLifetime,
                 fetch: async cancellationToken => await FetchReleasesAsync(repo, requestSource, cancellationToken),
                 ct);
@@ -205,7 +205,7 @@ namespace ASLM.Services.Internal
 
             return GetOrFetchCachedValueAsync(
                 cache: _branchCache,
-                cacheKey: repo.Trim(),
+                cacheKey: GetRepositoryCacheKey(repo),
                 lifetime: BranchCacheLifetime,
                 fetch: async cancellationToken => await FetchBranchesAsync(repo, requestSource, cancellationToken),
                 ct);
@@ -221,11 +221,15 @@ namespace ASLM.Services.Internal
         /// <param name="repo">Repository in <c>owner/name</c> form.</param>
         /// <param name="moduleId">Module id that the repository manifest must declare.</param>
         /// <param name="ct">Cancellation token for the requests.</param>
-        internal async Task<ModuleArtwork> GetModuleArtworkAsync(string repo, string moduleId, CancellationToken ct = default) =>
-            new(await _moduleIcons.GetOrDownloadAsync(moduleId,
+        /// <param name="manifestJson">Root manifest from discovery, or null for an ordinary catalog entry.</param>
+        internal async Task<ModuleArtwork> GetModuleArtworkAsync(string repo, string moduleId,
+            CancellationToken ct = default, string? manifestJson = null) =>
+            new(await _moduleIcons.GetOrDownloadAsync(manifestJson == null ? moduleId : repo + "/" + moduleId,
                 async token =>
                 {
-                    var manifestBytes = await GetRepositoryFileAsync(repo, "ASLM_Module.json", 1024 * 1024, token);
+                    var manifestBytes = manifestJson == null
+                        ? await GetRepositoryFileAsync(repo, "ASLM_Module.json", 1024 * 1024, token)
+                        : System.Text.Encoding.UTF8.GetBytes(manifestJson);
                     using var manifest = JsonDocument.Parse(manifestBytes);
                     var iconPath = ReadModuleIconPath(manifest.RootElement, moduleId);
                     return iconPath == null ? null : new ModuleIconCache.DownloadedIcon(
@@ -321,6 +325,11 @@ namespace ASLM.Services.Internal
 
             // Send the request and account for it in the quota history before touching the body.
             using var request = CreateAuthorizedGetRequest(url);
+            if (IsReleaseAssetRequest(request))
+            {
+                request.Headers.Accept.Clear();
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+            }
             using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
             ApplyRateLimitHeaders(response, request);
             _rateLimitStore.RecordRequest(
@@ -404,12 +413,14 @@ namespace ASLM.Services.Internal
         /// <param name="lifetime">How long a fetched value stays fresh.</param>
         /// <param name="fetch">Loads the value from GitHub.</param>
         /// <param name="ct">Cancellation token for waiting and fetching.</param>
+        /// <param name="allowStale">Whether an expired value may be used when a refresh fails.</param>
         private async Task<T> GetOrFetchCachedValueAsync<T>(
             ConcurrentDictionary<string, CachedRequest<T>> cache,
             string cacheKey,
             TimeSpan lifetime,
             Func<CancellationToken, Task<T>> fetch,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool allowStale = true)
         {
             // Coalesce the same request without making unrelated repositories or branches wait for it.
             var request = cache.GetOrAdd(cacheKey, _ => new CachedRequest<T>());
@@ -430,7 +441,7 @@ namespace ASLM.Services.Internal
                     request.Entry = new CacheEntry<T>(fetched, DateTimeOffset.UtcNow.Add(lifetime));
                     return fetched;
                 }
-                catch when (!ct.IsCancellationRequested && request.Entry != null)
+                catch when (allowStale && !ct.IsCancellationRequested && request.Entry != null)
                 {
                     // When GitHub throttles the client, stale metadata is still more useful than a hard failure.
                     return request.Entry.Value;
@@ -587,6 +598,14 @@ namespace ASLM.Services.Internal
             string.Equals(uri.Host, "api.github.com", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Identifies release asset API downloads that need binary content rather than JSON metadata.
+        /// </summary>
+        private static bool IsReleaseAssetRequest(HttpRequestMessage request) =>
+            IsGitHubApiRequest(request) && request.RequestUri!.AbsolutePath.Split('/') is
+                ["", "repos", _, _, "releases", "assets", var id] &&
+            long.TryParse(id, out var assetId) && assetId > 0;
+
+        /// <summary>
         /// Resolves the persisted request type for one download URL.
         /// </summary>
         private static string ResolveDownloadRequestType(string url)
@@ -689,6 +708,12 @@ namespace ASLM.Services.Internal
     /// </summary>
     public sealed class GitHubReleaseAssetInfo
     {
+        /// <summary>
+        /// Authenticated API URL used to download public and private release assets.
+        /// </summary>
+        [JsonPropertyName("url")]
+        public string ApiUrl { get; set; } = string.Empty;
+
         /// <summary>
         /// File name of the asset as uploaded to the release.
         /// </summary>

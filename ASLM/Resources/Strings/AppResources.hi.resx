@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>अपडेट हुआ</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub ने एक्सेस अस्वीकार कर दिया: टोकन की रिपॉज़िटरी अनुमतियाँ, संगठन का एक्सेस और API की सीमाएँ जाँचें</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub ने टोकन अस्वीकार कर दिया: सेटिंग्स में अपना GitHub खाता फिर से कनेक्ट करें</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>कैटलॉग</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>मॉड्यूल की जानकारी बंद करें</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>मॉड्यूल “{0}” किसी अन्य स्रोत के साथ पहले से मौजूद है या उसका गंतव्य फ़ोल्डर उपयोग में है</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>मॉड्यूल का मैनिफ़ेस्ट अमान्य है: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>मॉड्यूल की आईडी समर्थित प्लेटफ़ॉर्म पर फ़ोल्डर के नामकरण के नियमों के अनुरूप नहीं है</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>owner/repository या GitHub रिपॉज़िटरी का HTTPS लिंक दर्ज करें</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>मॉड्यूल कैटलॉग लोड नहीं हो सका</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>रिपॉज़िटरी की मूल निर्देशिका में ASLM_Module.json नहीं मिला या मौजूदा टोकन से उस तक पहुँच नहीं है</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>GitHub API की अनुरोध सीमा पूरी हो गई है: सीमा रीसेट होने तक प्रतीक्षा करें, फिर दोबारा प्रयास करें</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>रिपॉज़िटरी दर्ज करें और “खोजें” पर क्लिक करें; निजी रिपॉज़िटरी के लिए सेटिंग्स में सहेजे गए GitHub टोकन का उपयोग होता है</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository या https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>रिपॉज़िटरी नहीं मिली या मौजूदा GitHub टोकन से उस तक पहुँच नहीं है</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>उपलब्ध मॉड्यूल खोजें</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>GitHub पर खोज नहीं की जा सकी: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>खोजें</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>खोज जारी है</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>मॉड्यूल के मैनिफ़ेस्ट में दिया गया स्रोत निर्दिष्ट GitHub रिपॉज़िटरी से मेल नहीं खाता</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>बीटा</value>

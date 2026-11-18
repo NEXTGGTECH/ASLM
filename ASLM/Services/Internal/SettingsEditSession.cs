@@ -20,6 +20,54 @@ namespace ASLM.Services.Internal
             new(StringComparer.OrdinalIgnoreCase);
 
 
+        /// <summary>
+        /// Replaces one schema while retaining edits only for keys whose declared type remains compatible.
+        /// </summary>
+        public void UpdateModule(ModuleConfig module)
+        {
+            PublishModule(new ModuleSettingsDraft(module));
+        }
+
+        /// <summary>
+        /// Publishes a fully prepared draft and carries edits made while its replacement was being prepared.
+        /// </summary>
+        public void PublishModule(ModuleSettingsDraft replacement)
+        {
+            var key = GetModuleKey(replacement.Module);
+            if (_moduleDrafts.TryGetValue(key, out var previous))
+            {
+                var edits = previous.Settings.Where(static draft => draft.HasChanges)
+                    .ToDictionary(static draft => draft.Setting.Key, StringComparer.OrdinalIgnoreCase);
+                foreach (var draft in replacement.Settings)
+                {
+                    if (!edits.TryGetValue(draft.Setting.Key, out var old) ||
+                        old.Setting.NormalizedType != draft.Setting.NormalizedType ||
+                        !SettingsService.TryValidateSettingValue(draft.Setting, old.Value, out _)) continue;
+                    draft.PreserveEdit(old);
+                }
+            }
+            _moduleDrafts[key] = replacement;
+        }
+
+
+        /// <summary>
+        /// Removes a deleted module's drafts so stale edits cannot keep the settings dialog dirty.
+        /// </summary>
+        public void RemoveModule(ModuleConfig module) => _moduleDrafts.Remove(GetModuleKey(module));
+
+
+        /// <summary>
+        /// Reconciles a schema while retaining compatible draft objects still referenced by displayed editors.
+        /// </summary>
+        internal ModuleSettingsDraft ReconcileModule(ModuleConfig module)
+        {
+            var key = GetModuleKey(module);
+            if (_moduleDrafts.TryGetValue(key, out var draft)) draft.Reconcile(module);
+            else _moduleDrafts[key] = draft = new ModuleSettingsDraft(module);
+            return draft;
+        }
+
+
         // Draft access
 
         /// <summary>
@@ -350,12 +398,12 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets the module whose settings will receive committed values.
         /// </summary>
-        public ModuleConfig Module { get; }
+        public ModuleConfig Module { get; private set; }
 
         /// <summary>
         /// Gets detached drafts in manifest declaration order.
         /// </summary>
-        public IReadOnlyList<ModuleSettingDraft> Settings { get; }
+        public IReadOnlyList<ModuleSettingDraft> Settings { get; private set; }
 
         /// <summary>
         /// Gets whether any editable setting differs from its accepted baseline.
@@ -364,6 +412,28 @@ namespace ASLM.Services.Internal
 
 
         // Draft operations
+
+        /// <summary>
+        /// Updates definitions without orphaning compatible drafts while their original controls remain visible.
+        /// </summary>
+        internal void Reconcile(ModuleConfig module)
+        {
+            var next = new List<ModuleSettingDraft>();
+            foreach (var definition in module.Settings)
+            {
+                if (_settingsByKey.TryGetValue(definition.Key, out var previous) &&
+                    previous.Setting.NormalizedType == definition.NormalizedType)
+                {
+                    previous.RebindDefinition(definition);
+                    next.Add(previous);
+                }
+                else next.Add(new ModuleSettingDraft(definition));
+            }
+            Module = module;
+            Settings = next;
+            _settingsByKey.Clear();
+            foreach (var draft in next) _settingsByKey.Add(draft.Setting.Key, draft);
+        }
 
         /// <summary>
         /// Returns the setting draft with the requested manifest key.
@@ -479,7 +549,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets the setting definition and eventual commit target.
         /// </summary>
-        public ModuleSetting Setting { get; }
+        public ModuleSetting Setting { get; private set; }
 
         /// <summary>
         /// Gets or sets the detached user value.
@@ -545,6 +615,34 @@ namespace ASLM.Services.Internal
             }
 
             AcceptChanges();
+        }
+
+        /// <summary>
+        /// Retains the runtime baseline and valid pending value when compatible metadata changes.
+        /// </summary>
+        internal void RebindDefinition(ModuleSetting definition)
+        {
+            var preserve = !HasChanges || SettingsService.TryValidateSettingValue(definition, Value, out _);
+            Setting = definition;
+            if (preserve) return;
+            Value = definition.NormalizeUserValue(definition.Value ?? definition.Default);
+            UseCustomValue = definition.UseCustomValue;
+            AcceptChanges();
+        }
+
+        /// <summary>
+        /// Carries a compatible pending edit and its accepted runtime baseline into a refreshed setting definition.
+        /// </summary>
+        internal void PreserveEdit(ModuleSettingDraft source)
+        {
+            Value = Setting.NormalizeUserValue(source.Value);
+            AutomaticValue = source.AutomaticValue;
+            UseCustomValue = source.UseCustomValue;
+            _baseline = source._baseline;
+            _acceptedValue = Setting.NormalizeUserValue(source._acceptedValue);
+            _acceptedAutomaticValue = source._acceptedAutomaticValue;
+            _acceptedUseCustomValue = source._acceptedUseCustomValue;
+            _acceptedIsReadOnly = source._acceptedIsReadOnly;
         }
 
         /// <summary>

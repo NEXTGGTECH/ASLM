@@ -61,6 +61,12 @@ namespace ASLM.Services.Internal
         private readonly Action _valueChanged;
 
         /// <summary>
+        /// Wakes deferred value work after focus leaves without re-evaluating every dependency on focus changes.
+        /// </summary>
+        private readonly Action _editingEnded;
+
+
+        /// <summary>
         /// Backing field of <see cref="TextValue"/>.
         /// </summary>
         private string _textValue;
@@ -91,6 +97,11 @@ namespace ASLM.Services.Internal
         private bool _isVisible;
 
         /// <summary>
+        /// Defers first-time native measurement until this prepared editor is revealed by the incremental renderer.
+        /// </summary>
+        private bool _isPresented = true;
+
+        /// <summary>
         /// Text of the user's custom value, shown again when a managed setting switches back from automatic mode.
         /// </summary>
         private string _customTextValue;
@@ -105,15 +116,18 @@ namespace ASLM.Services.Internal
         /// <param name="engineInstalledText">Localized text shown when an engine is installed.</param>
         /// <param name="engineNotInstalledText">Localized text shown when an engine is not installed.</param>
         /// <param name="valueChanged">Callback invoked after the editor changed the draft.</param>
+        /// <param name="editingEnded">Optional callback that resumes deferred values after focus leaves.</param>
         public ModuleSettingItemViewModel(
             ModuleSettingDraft draft,
             string engineInstalledText,
             string engineNotInstalledText,
-            Action valueChanged)
+            Action valueChanged,
+            Action? editingEnded = null)
         {
             // The editor kind comes first because the initial display state depends on it.
             Draft = draft;
             _valueChanged = valueChanged;
+            _editingEnded = editingEnded ?? valueChanged;
             EngineInstalledText = engineInstalledText;
             EngineNotInstalledText = engineNotInstalledText;
             EditorKind = ResolveEditorKind(draft);
@@ -132,12 +146,12 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets the detached draft updated by editor bindings.
         /// </summary>
-        public ModuleSettingDraft Draft { get; }
+        public ModuleSettingDraft Draft { get; private set; }
 
         /// <summary>
         /// Gets the editor kind consumed by XAML visibility properties.
         /// </summary>
-        public ModuleSettingEditorKind EditorKind { get; }
+        public ModuleSettingEditorKind EditorKind { get; private set; }
 
         /// <summary>
         /// Gets the setting title from the module manifest.
@@ -173,7 +187,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public bool IsVisible
         {
-            get => _isVisible;
+            get => _isVisible && _isPresented;
             private set => SetProperty(ref _isVisible, value);
         }
 
@@ -355,6 +369,15 @@ namespace ASLM.Services.Internal
         /// </summary>
         public void RefreshFromDraft()
         {
+            var kind = ResolveEditorKind(Draft);
+            if (kind != EditorKind)
+            {
+                EditorKind = kind;
+                foreach (var property in new[] { nameof(EditorKind), nameof(IsEngineStatus), nameof(IsBooleanEditor),
+                    nameof(IsManagedEditor), nameof(IsChoiceEditor), nameof(IsNumericEditor), nameof(IsPasswordEditor),
+                    nameof(IsTextEditor), nameof(IsValueEditor) }) RaisePropertyChanged(property);
+            }
+
             // Choice lists can change with the draft, so rebuild them before reselecting the value.
             if (IsChoiceEditor)
             {
@@ -390,6 +413,51 @@ namespace ASLM.Services.Internal
             RefreshVisibility();
         }
 
+
+        /// <summary>
+        /// Gets whether an editor owns keyboard focus and should retain its text selection during runtime refresh.
+        /// </summary>
+        internal bool IsEditing { get; set; }
+
+        /// <summary>
+        /// Releases a deferred runtime refresh when focus leaves the editor.
+        /// </summary>
+        internal void EndEditing()
+        {
+            IsEditing = false;
+            _editingEnded();
+        }
+
+        /// <summary>
+        /// Updates compatible metadata while retaining the bound row and unchanged editor values.
+        /// </summary>
+        internal void Rebind(ModuleSettingDraft draft)
+        {
+            Draft = draft;
+            RaisePropertyChanged(nameof(Title));
+            RaisePropertyChanged(nameof(Description));
+            if (!IsEditing) RefreshFromDraft();
+        }
+
+        /// <summary>
+        /// Gets dependency visibility independently from whether the prepared row has been shown yet.
+        /// </summary>
+        internal bool IsLogicallyVisible => _isVisible;
+
+        /// <summary>
+        /// Gets whether the original native template may participate in layout.
+        /// </summary>
+        internal bool IsPresented => _isPresented;
+
+        /// <summary>
+        /// Reveals one prepared editor without attaching a complete unmeasured tree in one UI turn.
+        /// </summary>
+        internal void SetPresented(bool presented)
+        {
+            if (_isPresented == presented) return;
+            _isPresented = presented;
+            RaisePropertyChanged(nameof(IsVisible));
+        }
 
         // Editor resolution
 
@@ -527,18 +595,25 @@ namespace ASLM.Services.Internal
             string navigationTitle,
             Action<ModuleSettingsSectionViewModel> select)
         {
+            Key = section.Kind == ModuleSettingsSectionKind.Uncategorized ? "uncategorized" :
+                "category:" + section.Settings.FirstOrDefault()?.Setting.Category;
             Kind = section.Kind;
             Title = section.Title;
             Description = section.Description;
             NavigationTitle = navigationTitle;
             _select = select;
             Settings = new ObservableCollection<ModuleSettingItemViewModel>(settings);
-            _isVisible = Settings.Any(static item => item.IsVisible);
+            _isVisible = Settings.Any(static item => item.IsLogicallyVisible);
             SelectCommand = new Command(Select, () => IsVisible);
         }
 
 
         // Section content
+
+        /// <summary>
+        /// Gets the original manifest identity independently from category title or row movement.
+        /// </summary>
+        internal string Key { get; }
 
         /// <summary>
         /// Gets the section layout role.
@@ -548,17 +623,17 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Gets the optional section title.
         /// </summary>
-        public string? Title { get; }
+        public string? Title { get; private set; }
 
         /// <summary>
         /// Gets the optional section description.
         /// </summary>
-        public string? Description { get; }
+        public string? Description { get; private set; }
 
         /// <summary>
         /// Gets the title displayed in the module section navigation.
         /// </summary>
-        public string NavigationTitle { get; }
+        public string NavigationTitle { get; private set; }
 
         /// <summary>
         /// Gets setting rows in manifest declaration order.
@@ -595,13 +670,26 @@ namespace ASLM.Services.Internal
         // State changes
 
         /// <summary>
+        /// Refreshes section metadata without replacing its card or section navigation command.
+        /// </summary>
+        internal void Rebind(ModuleSettingsSectionPresentation section, string navigationTitle)
+        {
+            Title = section.Title;
+            Description = section.Description;
+            NavigationTitle = navigationTitle;
+            RaisePropertyChanged(nameof(Title));
+            RaisePropertyChanged(nameof(Description));
+            RaisePropertyChanged(nameof(NavigationTitle));
+        }
+
+        /// <summary>
         /// Refreshes the section after item visibility changes.
         /// </summary>
         public void RefreshVisibility()
         {
             // The select command can only run while the section is visible, so its availability follows visibility.
             var wasVisible = IsVisible;
-            IsVisible = Settings.Any(static item => item.IsVisible);
+            IsVisible = Settings.Any(static item => item.IsLogicallyVisible);
             if (wasVisible != IsVisible)
             {
                 SelectCommand.ChangeCanExecute();
@@ -774,7 +862,8 @@ namespace ASLM.Services.Internal
                     draft,
                     engineInstalledText,
                     engineNotInstalledText,
-                    OnItemValueChanged));
+                    OnItemValueChanged,
+                    _valueChanged));
                 Sections.Add(new ModuleSettingsSectionViewModel(
                     section,
                     items,
@@ -825,60 +914,213 @@ namespace ASLM.Services.Internal
             string engineNotInstalledText,
             CancellationToken cancellationToken)
         {
-            // Start from an empty page and flag the load as running until every row is in place.
-            _moduleDraft = moduleDraft;
-            Sections.Clear();
-            IsFullyLoaded = false;
-            IsLoading = true;
-
             try
             {
-                var sections = SettingsPresentationBuilder.BuildModuleSections(
-                    moduleDraft,
-                    includeDependencyHiddenSettings: true);
-                HasSettings = sections.Count > 0;
-
-                // Each section is added empty first, then filled row by row so the UI can paint between rows.
-                foreach (var section in sections)
+                cancellationToken.ThrowIfCancellationRequested();
+                var sections = await Task.Run(() => SettingsPresentationBuilder.BuildModuleSections(
+                    moduleDraft, includeDependencyHiddenSettings: true), cancellationToken);
+                BeginReconcile(moduleDraft, sections, engineInstalledText, engineNotInstalledText);
+                while (HasRenderSteps || HasUnrevealedRows)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var sectionViewModel = new ModuleSettingsSectionViewModel(
-                        section,
-                        [],
-                        ResolveNavigationTitle(moduleDraft.Module, section),
-                        OnSectionSelected);
-                    Sections.Add(sectionViewModel);
+                    RenderNext();
+                    await Task.Delay(1, cancellationToken);
+                }
+            }
+            finally { IsLoading = false; }
+        }
 
-                    foreach (var draft in section.Settings)
+
+        // Incremental reconciliation
+
+        /// <summary>
+        /// Retains the cursor of a partially reconciled schema across priority changes and navigation.
+        /// </summary>
+        private IEnumerator<bool>? _renderSteps;
+
+        /// <summary>
+        /// Retains prepared editors whose first visible layout still needs a separate UI turn.
+        /// </summary>
+        private readonly Queue<ModuleSettingItemViewModel> _unrevealed = new();
+
+        /// <summary>
+        /// Controls first-time row exposure for the currently selected module only.
+        /// </summary>
+        private bool _revealRows;
+
+        /// <summary>
+        /// Gets the editor touched by the last renderer step, or null for a section-only operation.
+        /// </summary>
+        internal string? LastRenderedKey { get; private set; }
+
+        /// <summary>
+        /// Gets whether the last step changed row positions or section dimensions.
+        /// </summary>
+        internal bool LastStepChangedLayout { get; private set; }
+
+        /// <summary>
+        /// Gets whether previously prepared rows still need their first visible layout.
+        /// </summary>
+        internal bool HasUnrevealedRows => _unrevealed.Count > 0;
+
+        /// <summary>
+        /// Gets whether a schema still has editor operations waiting to be rendered.
+        /// </summary>
+        internal bool HasRenderSteps => _renderSteps != null;
+
+        /// <summary>
+        /// Starts a schema diff without clearing existing sections or creating all native templates synchronously.
+        /// </summary>
+        internal void BeginReconcile(ModuleSettingsDraft draft,
+            IReadOnlyList<ModuleSettingsSectionPresentation> sections, string installedText, string missingText)
+        {
+            _renderSteps?.Dispose();
+            var keys = sections.SelectMany(section => section.Settings).Select(setting => setting.Setting.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var pending = _unrevealed.Where(item => keys.Contains(item.Draft.Setting.Key)).ToArray();
+            _unrevealed.Clear();
+            foreach (var item in pending) _unrevealed.Enqueue(item);
+            _moduleDraft = draft;
+            IsLoading = true;
+            IsFullyLoaded = false;
+            _renderSteps = ReconcileSteps(draft, sections, installedText, missingText).GetEnumerator();
+        }
+
+        /// <summary>
+        /// Performs at most one editor operation and retains the remaining work for the next UI turn.
+        /// </summary>
+        internal void RenderNext(bool reveal = true)
+        {
+            LastRenderedKey = null;
+            LastStepChangedLayout = false;
+            _revealRows = reveal;
+            if (reveal && _unrevealed.TryDequeue(out var prepared))
+            {
+                if (Sections.Any(section => section.Settings.Contains(prepared)))
+                {
+                    prepared.SetPresented(true);
+                    LastStepChangedLayout = true;
+                    LastRenderedKey = prepared.Draft.Setting.Key;
+                }
+                return;
+            }
+            if (_renderSteps == null) return;
+            LastStepChangedLayout = true;
+            if (_renderSteps.MoveNext()) return;
+            _renderSteps.Dispose();
+            _renderSteps = null;
+            IsLoading = false;
+            IsFullyLoaded = true;
+            RefreshVisibility();
+        }
+
+        /// <summary>
+        /// Diffs validated definitions by setting key and section identity, retaining compatible editor instances.
+        /// </summary>
+        private IEnumerable<bool> ReconcileSteps(ModuleSettingsDraft draft,
+            IReadOnlyList<ModuleSettingsSectionPresentation> definitions, string installedText, string missingText)
+        {
+            var existing = Sections.SelectMany(section => section.Settings)
+                .ToDictionary(item => item.Draft.Setting.Key, StringComparer.OrdinalIgnoreCase);
+            var retained = new HashSet<ModuleSettingsSectionViewModel>();
+            for (var sectionIndex = 0; sectionIndex < definitions.Count; sectionIndex++)
+            {
+                var definition = definitions[sectionIndex];
+                var key = SectionKey(definition.Kind, definition.Settings.FirstOrDefault()?.Setting.Category);
+                var section = Sections.FirstOrDefault(candidate => string.Equals(candidate.Key, key, StringComparison.OrdinalIgnoreCase));
+                if (section == null)
+                {
+                    section = new(definition, [], ResolveNavigationTitle(draft.Module, definition), OnSectionSelected);
+                    Sections.Insert(Math.Min(sectionIndex, Sections.Count), section);
+                }
+                else
+                {
+                    section.Rebind(definition, ResolveNavigationTitle(draft.Module, definition));
+                    var oldIndex = Sections.IndexOf(section);
+                    if (oldIndex != sectionIndex) Sections.Move(oldIndex, sectionIndex);
+                }
+                retained.Add(section);
+                yield return true;
+
+                var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (var itemIndex = 0; itemIndex < definition.Settings.Count; itemIndex++)
+                {
+                    var setting = draft.GetSetting(definition.Settings[itemIndex].Setting.Key);
+                    keys.Add(setting.Setting.Key);
+                    if (existing.TryGetValue(setting.Setting.Key, out var item) &&
+                        item.Draft.Setting.NormalizedType == setting.Setting.NormalizedType)
+                        item.Rebind(setting);
+                    else
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        // Navigation is recomputed whenever a new row makes its section appear.
-                        var wasVisible = sectionViewModel.IsVisible;
-                        sectionViewModel.Settings.Add(new ModuleSettingItemViewModel(
-                            draft,
-                            engineInstalledText,
-                            engineNotInstalledText,
-                            OnItemValueChanged));
-                        sectionViewModel.RefreshVisibility();
-                        if (wasVisible != sectionViewModel.IsVisible)
-                        {
-                            RefreshNavigationState();
-                        }
-
-                        // A short asynchronous boundary lets input, painting, and close events run between heavy XAML rows.
-                        await Task.Delay(1, cancellationToken);
+                        item = new(setting, installedText, missingText, OnItemValueChanged, _valueChanged);
+                        item.SetPresented(_revealRows);
+                        if (!_revealRows) _unrevealed.Enqueue(item);
                     }
+
+                    // Moving a row changes only its section; compatible editors keep their draft and pending edits.
+                    var source = Sections.FirstOrDefault(candidate => !ReferenceEquals(candidate, section) &&
+                        candidate.Settings.Contains(item));
+                    source?.Settings.Remove(item);
+                    var previousIndex = section.Settings.IndexOf(item);
+                    if (previousIndex < 0)
+                    {
+                        if (itemIndex < section.Settings.Count && section.Settings[itemIndex].Draft.Setting.Key == setting.Setting.Key)
+                            section.Settings[itemIndex] = item;
+                        else section.Settings.Insert(itemIndex, item);
+                    }
+                    else if (previousIndex != itemIndex) section.Settings.Move(previousIndex, itemIndex);
+                    LastRenderedKey = setting.Setting.Key;
+                    section.RefreshVisibility();
+                    HasSettings = true;
+                    RefreshNavigationState();
+                    yield return true;
                 }
 
-                RefreshVisibility();
-                IsFullyLoaded = true;
+                // Definitions are complete before removals begin, so partial rendering never means an empty schema.
+                for (var index = section.Settings.Count - 1; index >= 0; index--)
+                    if (!keys.Contains(section.Settings[index].Draft.Setting.Key))
+                    {
+                        section.Settings.RemoveAt(index);
+                        yield return true;
+                    }
+                section.RefreshVisibility();
             }
-            finally
-            {
-                // A cancelled or failed load must not leave the page stuck in the loading state.
-                IsLoading = false;
-            }
+            for (var index = Sections.Count - 1; index >= 0; index--)
+                if (!retained.Contains(Sections[index]))
+                {
+                    Sections.RemoveAt(index);
+                    yield return true;
+                }
+            HasSettings = Sections.Any(section => section.Settings.Count > 0);
+        }
+
+        /// <summary>
+        /// Returns a section identity that survives display-name changes in the module manifest.
+        /// </summary>
+        private static string SectionKey(ModuleSettingsSectionKind kind, string? category) =>
+            kind == ModuleSettingsSectionKind.Uncategorized ? "uncategorized" : "category:" + category;
+
+        /// <summary>
+        /// Returns whether a runtime notification already has an editor to update.
+        /// </summary>
+        internal bool ContainsSetting(string key) => Sections.SelectMany(section => section.Settings)
+            .Any(item => string.Equals(item.Draft.Setting.Key, key, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// Applies one prepared runtime value without replacing the row or overwriting pending keyboard input.
+        /// </summary>
+        internal bool ApplyPreparedValue(PreparedSettingValue value)
+        {
+            if (_moduleDraft == null) return true;
+            var item = Sections.SelectMany(section => section.Settings).FirstOrDefault(candidate =>
+                string.Equals(candidate.Draft.Setting.Key, value.Definition.Key, StringComparison.OrdinalIgnoreCase));
+            if (item == null) return true;
+            if (item.IsEditing) return false;
+            if (item.Draft.HasChanges || item.Draft.Setting.NormalizedType != value.Definition.NormalizedType) return true;
+            item.Draft.LoadRuntimeValue(value.Value, value.AutomaticValue, value.IsReadOnly);
+            item.RefreshFromDraft();
+            if (SettingsService.HasDependentSettings(_moduleDraft.Module, item.Draft.Setting)) RefreshVisibility();
+            return true;
         }
 
 

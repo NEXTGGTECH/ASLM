@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using ASLM.Localization;
 using ASLM.Models;
@@ -377,6 +378,7 @@ namespace ASLM.Pages
 
             if (_hasLoaded)
             {
+                if (_activeModule is { } activeModule) ActivateModulePage(activeModule);
                 return;
             }
 
@@ -392,7 +394,7 @@ namespace ASLM.Pages
             ApplyHomeNavigationState();
             ScheduleEnsureModuleBrowserLeftToRight();
             RestoreInitialPage();
-            _ = StartEnabledModulesAsync();
+            _ = StartModulesAndPreparationAsync();
         }
 
         /// <summary>
@@ -413,6 +415,7 @@ namespace ASLM.Pages
         {
             _localization.CultureChanged -= OnLocalizationCultureChanged;
             UnhookShellEvents();
+            ClearModuleBrowserNavigationTarget();
 #if WINDOWS
             CancelModuleBrowserRetry();
             ReleaseModuleWebViewDropTarget();
@@ -434,6 +437,7 @@ namespace ASLM.Pages
             _mirrorServer.StateChanged += OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged += OnModulesChanged;
             _ports.PortsRedistributed += OnPortsRedistributed;
+            _moduleRunner.ConsoleStore.StateChanged += OnModuleBrowserProcessesChanged;
             ThemeService.PaletteApplied += OnAppPaletteApplied;
             _shellEventsHooked = true;
         }
@@ -453,6 +457,7 @@ namespace ASLM.Pages
             _mirrorServer.StateChanged -= OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged -= OnModulesChanged;
             _ports.PortsRedistributed -= OnPortsRedistributed;
+            _moduleRunner.ConsoleStore.StateChanged -= OnModuleBrowserProcessesChanged;
             ThemeService.PaletteApplied -= OnAppPaletteApplied;
             _shellEventsHooked = false;
         }
@@ -556,15 +561,14 @@ namespace ASLM.Pages
             if ((!string.IsNullOrWhiteSpace(activeModuleSourcePath) && _activeModule == null) ||
                 _activeModule is { HasPage: true, Status.Enabled: false })
             {
+                ClearModuleBrowserNavigationTarget();
+                _moduleBrowserModule = null;
                 NavigateTo(HomeButton);
             }
             else if (_activeModule is { HasPage: true, Status.Enabled: true } activeModule && Browser.IsVisible)
             {
-                var url = _ports.GetModuleUrl(activeModule);
-                if (!ModuleBrowserUrlsMatch(_moduleBrowserExpectedUrl, url))
-                {
-                    NavigateModuleBrowser(url);
-                }
+                _moduleBrowserModule = activeModule;
+                RefreshModuleBrowserPage();
             }
 
             // Push the new snapshot into every system view that has already been created.
@@ -618,7 +622,8 @@ namespace ASLM.Pages
                     return;
                 }
 
-                NavigateModuleBrowser(_ports.GetModuleUrl(activeModule));
+                _moduleBrowserReadySessions.Clear();
+                RefreshModuleBrowserPage(force: true);
             });
         }
 
@@ -740,32 +745,47 @@ namespace ASLM.Pages
         // Overlay navigation
 
         /// <summary>
-        /// Opens the shared settings overlay and refreshes it before showing.
+        /// Shows prepared settings without rediscovering modules or restarting an in-flight load.
         /// </summary>
         /// <param name="category">Settings category to open directly, or null to just refresh the view.</param>
         private void OpenSettingsOverlay(SettingsCategoryKind? category = null)
         {
-            // Create the view on first use and subscribe once (unsubscribe-first avoids duplicate handlers).
+            var settingsView = EnsureSettingsHost();
+            OverlayContainer.IsVisible = false;
+            SettingsHost.Opacity = 1;
+            SettingsHost.InputTransparent = false;
+            AutomationProperties.SetExcludedWithChildren(SettingsHost, false);
+            _ = settingsView.OpenAsync(category);
+        }
+
+        /// <summary>
+        /// Creates the persistent native settings host without making it interactive during preparation.
+        /// </summary>
+        private SettingsView EnsureSettingsHost()
+        {
             _settingsView ??= _services.GetRequiredService<SettingsView>();
-            if (_settingsView is SettingsView settingsView)
+            var settingsView = (SettingsView)_settingsView;
+            settingsView.CloseRequested -= OnSettingsCloseRequested;
+            settingsView.CloseRequested += OnSettingsCloseRequested;
+            settingsView.NavigationSettingsSaved -= OnNavigationSettingsSaved;
+            settingsView.NavigationSettingsSaved += OnNavigationSettingsSaved;
+            if (!ReferenceEquals(SettingsHost.Content, settingsView))
             {
-                settingsView.CloseRequested -= OnSettingsCloseRequested;
-                settingsView.CloseRequested += OnSettingsCloseRequested;
-                settingsView.NavigationSettingsSaved -= OnNavigationSettingsSaved;
-                settingsView.NavigationSettingsSaved += OnNavigationSettingsSaved;
+                SettingsHost.IsEnabled = true;
+                SettingsHost.Content = settingsView;
             }
+            return settingsView;
+        }
 
-            OverlayContainer.Content = _settingsView;
-            OverlayContainer.IsVisible = true;
-
-            // Jump to the requested category, or just refresh the view.
-            if (_settingsView is SettingsView visibleSettingsView)
-            {
-                if (category.HasValue)
-                    visibleSettingsView.SelectCategory(category.Value);
-                else
-                    _ = visibleSettingsView.RefreshAsync();
-            }
+        /// <summary>
+        /// Makes cached controls noninteractive without detaching their native tree.
+        /// </summary>
+        private void HideSettingsHost()
+        {
+            if (_settingsView is SettingsView settingsView) settingsView.HideOverlay();
+            SettingsHost.Opacity = 0;
+            SettingsHost.InputTransparent = true;
+            AutomationProperties.SetExcludedWithChildren(SettingsHost, true);
         }
 
         /// <summary>
@@ -773,6 +793,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OpenNotificationsOverlay()
         {
+            HideSettingsHost();
             // The popover opens next to the sidebar button that was clicked.
             _notificationsView ??= _services.GetRequiredService<NotificationsView>();
             if (_notificationsView is NotificationsView notificationsView)
@@ -792,6 +813,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OpenDownloadOverlay()
         {
+            HideSettingsHost();
             _downloadsView ??= _services.GetRequiredService<DownloadsView>();
             if (_downloadsView is DownloadsView downloadsView)
             {
@@ -800,7 +822,7 @@ namespace ASLM.Pages
                 _ = downloadsView.OpenAsync();
             }
 
-            OverlayContainer.Content = _downloadsView;
+            if (!ReferenceEquals(OverlayContainer.Content, _downloadsView)) OverlayContainer.Content = _downloadsView;
             OverlayContainer.IsVisible = true;
         }
 
@@ -821,6 +843,7 @@ namespace ASLM.Pages
         /// <param name="section">Section of the module information view to open first.</param>
         private async Task OpenModuleInfoOverlayAsync(ModuleConfig module, ModuleInfo.Section section)
         {
+            HideSettingsHost();
             // Create the view on first use, show it in the overlay, then load the module into it.
             _moduleInfoView ??= _services.GetRequiredService<ModuleInfo>();
             _moduleInfoView.CloseRequested -= OnModuleInfoCloseRequested;
@@ -836,7 +859,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OnSettingsCloseRequested(object? sender, EventArgs e)
         {
-            OverlayContainer.IsVisible = false;
+            HideSettingsHost();
             ApplyConsoleNavigationState();
 
             if (_consolesView is ConsolesView consolesView)
@@ -1327,7 +1350,7 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Activates one shell view and updates button highlighting.
-        /// Leaves any active module page, so the module browser is hidden and its navigation target is cleared.
+        /// Leaves any active module page while retaining its document for a later return.
         /// </summary>
         /// <param name="navButton">
         /// Sidebar button of the view to show; Home is replaced by Modules when the Home page is disabled.
@@ -1338,10 +1361,10 @@ namespace ASLM.Pages
             if (navButton == HomeButton && _appData.Data.Navigation.DisableHomePage)
                 navButton = ModulesButton;
 
-            // Leave the module page: hide the module browser and forget its navigation target.
+            // Hide the module browser without discarding a loaded document.
             _activeModule = null;
-            ClearModuleBrowserNavigationTarget();
             Browser.IsVisible = false;
+            ModuleStarting.IsVisible = false;
 
             // Clear active styling from both fixed shell buttons and dynamic module buttons.
             foreach (var button in _navButtons)
@@ -1797,17 +1820,15 @@ namespace ASLM.Pages
                 return;
             }
 
-            // A full page switch must load a fresh document even when the native browser kept the same URL.
-            var forceNavigation = !Browser.IsVisible ||
-                !string.Equals(_activeModule?.Id, resolved.Id, StringComparison.OrdinalIgnoreCase);
+            // Reuse the current document when returning from a built-in view of the same live module.
+            var sameModule = string.Equals(_moduleBrowserModule?.SourcePath,
+                resolved.SourcePath, StringComparison.OrdinalIgnoreCase);
             _activeModule = resolved;
-            var url = _ports.GetModuleUrl(resolved);
-
-            // Swap the content area for the browser and point the browser at the module page.
+            _moduleBrowserModule = resolved;
             ContentArea.Content = null;
-            EnsureModuleBrowserLeftToRight();
-            NavigateModuleBrowser(url, force: forceNavigation);
             Browser.IsVisible = true;
+            EnsureModuleBrowserLeftToRight();
+            RefreshModuleBrowserPage(force: !sameModule);
             ScheduleEnsureModuleBrowserLeftToRight();
 
             // Clear active styling from shell buttons before highlighting the module page button.
@@ -1843,7 +1864,19 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Starts enabled modules that expose run commands when the shell opens.
-        /// Modules are launched in parallel; failed launches are only written to the debug output.
+        /// Starts preparation alongside module autostart; lifecycle reservations give each module launch precedence.
+        /// </summary>
+        private async Task StartModulesAndPreparationAsync()
+        {
+            var starts = StartEnabledModulesAsync();
+            _services.GetRequiredService<DataPreparationService>().Start();
+            await Task.Yield();
+            EnsureSettingsHost();
+            await starts;
+        }
+
+        /// <summary>
+        /// Starts enabled modules through their ordinary lifecycle coordinator.
         /// </summary>
         private async Task StartEnabledModulesAsync()
         {
@@ -1927,6 +1960,51 @@ namespace ASLM.Pages
         /// </summary>
         private int _moduleBrowserNavigationSequence;
 
+        /// <summary>
+        /// Module whose document is retained in the shared browser, including while a built-in view is open.
+        /// </summary>
+        private ModuleConfig? _moduleBrowserModule;
+
+        /// <summary>
+        /// Process session whose page is being loaded; changes without modifying module lifecycle state.
+        /// </summary>
+        private string _moduleBrowserSession = string.Empty;
+
+        /// <summary>
+        /// Whether the current document was invalidated for a module maintenance operation.
+        /// </summary>
+        private bool _moduleBrowserChanging;
+
+        /// <summary>
+        /// Last successfully displayed process session and address of each visited module.
+        /// </summary>
+        private readonly Dictionary<string, (string Session, string Url)> _moduleBrowserReadySessions =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Whether the current document completed after the module's HTTP listener became available.
+        /// </summary>
+        private bool _moduleBrowserDocumentReady;
+
+        /// <summary>
+        /// Cancels only page requests, never a module command or lifecycle operation.
+        /// </summary>
+        private CancellationTokenSource? _moduleBrowserLoad;
+
+        /// <summary>
+        /// Sends readiness requests directly to the local server without the system proxy or cached responses.
+        /// </summary>
+        private static readonly HttpClient ModulePageHttp = new(new SocketsHttpHandler
+        {
+            UseProxy = false,
+            AllowAutoRedirect = false
+        }) { Timeout = TimeSpan.FromSeconds(5) };
+
+        /// <summary>
+        /// Navigation sequence for which a transport failure retry is queued.
+        /// </summary>
+        private int _moduleBrowserRetrySequence = -1;
+
 #if WINDOWS
         /// <summary>
         /// URL that must be navigated to once the WebView2 control has initialized, or null when none is waiting.
@@ -1944,13 +2022,85 @@ namespace ASLM.Pages
         private bool _moduleWebViewNavigationHooked;
 
         /// <summary>
-        /// Navigation sequence for which a retry is scheduled; -1 when no retry is pending.
+        /// Native navigation identifier that belongs to the current page request.
         /// </summary>
-        private int _moduleBrowserRetrySequence = -1;
+        private ulong _moduleBrowserNativeNavigationId;
+
+        /// <summary>
+        /// Shell request that started the current native navigation.
+        /// </summary>
+        private int _moduleBrowserNativeSequence;
 #endif
 
 
         // Module browser navigation
+
+        /// <summary>
+        /// Refreshes only the browser presentation when existing console events announce process changes.
+        /// </summary>
+        private void OnModuleBrowserProcessesChanged(object? sender, EventArgs e)
+        {
+            if (_activeModule is null) return;
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (_shellEventsHooked && _activeModule is not null) RefreshModuleBrowserPage();
+            });
+        }
+
+        /// <summary>
+        /// Identifies the latest tracked run using existing session identities, without reading console output.
+        /// </summary>
+        internal static string GetModuleBrowserSession(ModuleConsoleModuleSnapshot? module)
+        {
+            if (module is null || !module.Sessions.Any(session =>
+                session.IsRunning && (session.IsTrackedProcess || session.IsObservedProcess)))
+                return string.Empty;
+
+            return module.Sessions.Where(session => session.IsTrackedProcess && !session.IsObservedProcess)
+                .OrderByDescending(session => session.StartedUtc)
+                .Select(session => session.Id).FirstOrDefault() ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Retains a ready document until its process session, port or maintenance activity changes.
+        /// </summary>
+        private void RefreshModuleBrowserPage(bool force = false)
+        {
+            if (_moduleBrowserModule is not { } module) return;
+            var snapshot = _moduleRunner.ConsoleStore.GetSnapshot().FirstOrDefault(item =>
+                string.Equals(item.SourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase));
+            var session = GetModuleBrowserSession(snapshot);
+            var changing = _moduleRunner.ConsoleStore.GetActivity(module.SourcePath) is not null;
+            var url = _ports.GetModuleUrl(module);
+            var changed = force || session != _moduleBrowserSession || changing != _moduleBrowserChanging ||
+                !ModuleBrowserUrlsMatch(url, _moduleBrowserExpectedUrl);
+
+            // Maintenance and a new process invalidate only the page, never the runner's state.
+            if (changed)
+            {
+                if (changing || (_moduleBrowserReadySessions.TryGetValue(module.SourcePath, out var ready) &&
+                    (ready.Session != session || !ModuleBrowserUrlsMatch(ready.Url, url))))
+                    _moduleBrowserReadySessions.Remove(module.SourcePath);
+                _moduleBrowserSession = session;
+                _moduleBrowserChanging = changing;
+                _moduleBrowserDocumentReady = false;
+                CancelModuleBrowserLoad();
+                CancelModuleBrowserRetry();
+                _moduleBrowserExpectedUrl = url;
+                Browser.Source = null;
+            }
+
+            if (_activeModule is null) return;
+            var knownReady = _moduleBrowserReadySessions.TryGetValue(module.SourcePath, out var readySession) &&
+                readySession.Session == session && ModuleBrowserUrlsMatch(readySession.Url, url) &&
+                session.Length > 0 && !changing;
+            ModuleStartingText.Text = $"{module.Name} is starting...";
+            ModuleStarting.IsVisible = !_moduleBrowserDocumentReady && !knownReady;
+            Browser.Opacity = ModuleStarting.IsVisible ? 0 : 1;
+            Browser.InputTransparent = ModuleStarting.IsVisible;
+            if (!_moduleBrowserDocumentReady && _moduleBrowserLoad is null && !changing)
+                NavigateModuleBrowser(url, force: true);
+        }
 
         /// <summary>
         /// Returns the latest discovered module matching <paramref name="module"/>.
@@ -1974,11 +2124,12 @@ namespace ASLM.Pages
         /// </summary>
         private void ClearModuleBrowserNavigationTarget()
         {
-            Interlocked.Increment(ref _moduleBrowserNavigationSequence);
+            CancelModuleBrowserLoad();
+            _moduleBrowserDocumentReady = false;
             _moduleBrowserExpectedUrl = null;
             _moduleBrowserUrl = null;
-#if WINDOWS
             CancelModuleBrowserRetry();
+#if WINDOWS
             _pendingModuleBrowserUrl = null;
 #endif
             Browser.Source = null;
@@ -2014,8 +2165,7 @@ namespace ASLM.Pages
 
         /// <summary>
         /// Navigates the shared module browser, optionally reloading its URL after a full page switch.
-        /// Each request gets a new sequence number; the navigation is queued to the UI thread and dropped there
-        /// if a newer request or a page switch superseded it while it waited.
+        /// Each request waits for an HTTP response without blocking the UI and discards superseded loads.
         /// </summary>
         /// <param name="url">Module page URL to show.</param>
         /// <param name="force">True to navigate even when the browser already shows the same address.</param>
@@ -2026,14 +2176,87 @@ namespace ASLM.Pages
                 return;
             }
 
-#if WINDOWS
-            CancelModuleBrowserRetry();
-#endif
+            if (!force && ModuleBrowserUrlsMatch(_moduleBrowserExpectedUrl, url) &&
+                (_moduleBrowserDocumentReady || _moduleBrowserLoad is not null))
+                return;
 
-            // Stamp the request and record it as the expected target before queueing it.
-            var sequence = Interlocked.Increment(ref _moduleBrowserNavigationSequence);
+            CancelModuleBrowserLoad();
+            CancelModuleBrowserRetry();
+            var sequence = _moduleBrowserNavigationSequence;
             _moduleBrowserExpectedUrl = url;
-            MainThread.BeginInvokeOnMainThread(() => ApplyModuleBrowserNavigation(sequence, url, force));
+            _moduleBrowserDocumentReady = false;
+            _moduleBrowserLoad = new CancellationTokenSource();
+            var token = _moduleBrowserLoad.Token;
+            _ = LoadModuleBrowserPageAsync(sequence, url, token);
+        }
+
+        /// <summary>
+        /// Waits off the UI thread for any HTTP response, then loads the real document under the ASLM cover.
+        /// </summary>
+        private async Task LoadModuleBrowserPageAsync(int sequence, string url, CancellationToken token)
+        {
+            try
+            {
+                await WaitForModulePageAsync(ModulePageHttp, url, token).ConfigureAwait(false);
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    if (!token.IsCancellationRequested)
+                        ApplyModuleBrowserNavigation(sequence, url, force: true);
+                });
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                // Leaving or restarting this page cancels its requests without affecting the module.
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ModulePage] {ex}");
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    if (!token.IsCancellationRequested && sequence == _moduleBrowserNavigationSequence)
+                        CompleteModuleBrowserNavigation(hasResponse: false);
+                });
+            }
+        }
+
+        /// <summary>
+        /// Accepts every HTTP response; only transport failures and timeouts require another request.
+        /// </summary>
+        internal static async Task WaitForModulePageAsync(HttpClient client, string url, CancellationToken token)
+        {
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    request.Headers.CacheControl = new() { NoCache = true, NoStore = true };
+                    using var response = await client.SendAsync(request,
+                        HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+                    return;
+                }
+                catch (HttpRequestException)
+                {
+                    // The local listener can be unavailable until the real application finishes preparing.
+                }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested)
+                {
+                    // A per-request timeout is a transport failure, not cancellation of this page.
+                }
+
+                await Task.Delay(200, token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Cancels pending browser work and invalidates callbacks without interacting with the module runner.
+        /// </summary>
+        private void CancelModuleBrowserLoad()
+        {
+            Interlocked.Increment(ref _moduleBrowserNavigationSequence);
+            _moduleBrowserLoad?.Cancel();
+            _moduleBrowserLoad?.Dispose();
+            _moduleBrowserLoad = null;
         }
 
         /// <summary>
@@ -2072,7 +2295,9 @@ namespace ASLM.Pages
                 return;
             }
 
-            core.Navigate(url);
+            var request = core.Environment.CreateWebResourceRequest(url, "GET", null,
+                "Cache-Control: no-cache, no-store\r\n");
+            core.NavigateWithWebResourceRequest(request);
 #else
             Browser.Source = new UrlWebViewSource { Url = url };
 #endif
@@ -2090,71 +2315,80 @@ namespace ASLM.Pages
                 return;
             }
 
+            core.NavigationStarting += OnModuleBrowserNavigationStarting;
             core.NavigationCompleted += OnModuleBrowserNavigationCompleted;
             _moduleWebViewNavigationHooked = true;
         }
 
         /// <summary>
-        /// Re-navigates when an older in-flight request finishes after a newer module was selected.
-        /// Failed loads that may succeed later are retried, see <see cref="ShouldRetryModuleBrowserNavigation"/>.
+        /// Associates native completion with its page request so cancelled loads cannot reveal a newer page.
         /// </summary>
-        private void OnModuleBrowserNavigationCompleted(
-            object? sender,
-            Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
+        private void OnModuleBrowserNavigationStarting(object? sender,
+            Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs e)
         {
-            if (!Browser.IsVisible)
-            {
-                return;
-            }
-
-            // A failed load is retried when the module listener may simply not be bound yet.
-            var expected = _moduleBrowserExpectedUrl;
-            var actual = _moduleWebView2?.CoreWebView2?.Source;
-            if (!e.IsSuccess)
-            {
-                if (!string.IsNullOrWhiteSpace(expected) &&
-                    ShouldRetryModuleBrowserNavigation(e.WebErrorStatus))
-                {
-                    ScheduleModuleBrowserRetry(
-                        _moduleBrowserNavigationSequence,
-                        expected);
-                }
-
-                return;
-            }
-
-            // The load succeeded, so no retry is needed. When it landed on the expected page there is nothing to fix.
-            CancelModuleBrowserRetry();
-            if (string.IsNullOrWhiteSpace(expected) || ModuleBrowserUrlsMatch(actual, expected))
-            {
-                return;
-            }
-
-            // An older request completed after a newer module was selected: navigate again to the expected page.
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                if (string.IsNullOrWhiteSpace(_moduleBrowserExpectedUrl) ||
-                    !Browser.IsVisible)
-                {
-                    return;
-                }
-
-                ApplyModuleBrowserNavigation(_moduleBrowserNavigationSequence, _moduleBrowserExpectedUrl);
-            });
+            if (e.IsRedirected || !ModuleBrowserUrlsMatch(e.Uri, _moduleBrowserExpectedUrl)) return;
+            _moduleBrowserNativeNavigationId = e.NavigationId;
+            _moduleBrowserNativeSequence = _moduleBrowserNavigationSequence;
         }
 
         /// <summary>
-        /// Returns whether a failed local navigation can succeed once the module listener binds.
+        /// Reveals any HTTP document, including error responses; retries only failures without an HTTP response.
         /// </summary>
-        /// <param name="status">Error status reported by WebView2 for the failed navigation.</param>
-        private static bool ShouldRetryModuleBrowserNavigation(
-            Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus status) =>
-            status is Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ServerUnreachable
-                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.Timeout
-                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ConnectionAborted
-                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.ConnectionReset
-                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.Disconnected
-                or Microsoft.Web.WebView2.Core.CoreWebView2WebErrorStatus.CannotConnect;
+        private void OnModuleBrowserNavigationCompleted(object? sender,
+            Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
+        {
+            // WinRT can project the same native browser as different managed objects for the event and property.
+            // Match the navigation instead of comparing CoreWebView2 wrappers.
+            if (e.NavigationId != _moduleBrowserNativeNavigationId ||
+                _moduleBrowserNativeSequence != _moduleBrowserNavigationSequence)
+                return;
+
+            CompleteModuleBrowserNavigation(e.IsSuccess || e.HttpStatusCode > 0);
+        }
+#endif
+
+        /// <summary>
+        /// Receives document completion from MAUI on platforms without native HTTP completion handling.
+        /// </summary>
+        private void Browser_Navigated(object? sender, WebNavigatedEventArgs e)
+        {
+#if !WINDOWS
+            if (ModuleBrowserUrlsMatch(e.Url, _moduleBrowserExpectedUrl) && e.Result != WebNavigationResult.Cancel)
+                CompleteModuleBrowserNavigation(e.Result == WebNavigationResult.Success);
+#endif
+        }
+
+        /// <summary>
+        /// Removes the cover after a document completes, or queues another page load after a transport failure.
+        /// </summary>
+        private void CompleteModuleBrowserNavigation(bool hasResponse)
+        {
+            if (_moduleBrowserModule is null || _moduleBrowserExpectedUrl is null) return;
+            if (!hasResponse)
+            {
+                CancelModuleBrowserLoad();
+                _moduleBrowserDocumentReady = false;
+                _moduleBrowserReadySessions.Remove(_moduleBrowserModule.SourcePath);
+                if (_activeModule is not null)
+                {
+                    Browser.Opacity = 0;
+                    Browser.InputTransparent = true;
+                    ModuleStarting.IsVisible = true;
+                    ScheduleModuleBrowserRetry(_moduleBrowserNavigationSequence, _moduleBrowserExpectedUrl);
+                }
+                return;
+            }
+
+            CancelModuleBrowserRetry();
+            _moduleBrowserDocumentReady = true;
+            _moduleBrowserReadySessions[_moduleBrowserModule.SourcePath] =
+                (_moduleBrowserSession, _moduleBrowserExpectedUrl);
+            _moduleBrowserLoad?.Dispose();
+            _moduleBrowserLoad = null;
+            Browser.Opacity = 1;
+            Browser.InputTransparent = false;
+            ModuleStarting.IsVisible = false;
+        }
 
         /// <summary>
         /// Retries one failed local navigation without overlapping requests or surviving a page switch.
@@ -2181,9 +2415,9 @@ namespace ASLM.Pages
                 _moduleBrowserRetrySequence = -1;
                 if (sequence == _moduleBrowserNavigationSequence &&
                     string.Equals(_moduleBrowserExpectedUrl, url, StringComparison.OrdinalIgnoreCase) &&
-                    Browser.IsVisible)
+                    _activeModule is not null)
                 {
-                    ApplyModuleBrowserNavigation(sequence, url, force: true);
+                    NavigateModuleBrowser(url, force: true);
                 }
             });
         }
@@ -2195,7 +2429,6 @@ namespace ASLM.Pages
         {
             _moduleBrowserRetrySequence = -1;
         }
-#endif
 
         /// <summary>
         /// Wires the native WebView2 once the MAUI handler attaches so module pages can receive drag-and-drop.
@@ -2262,6 +2495,7 @@ namespace ASLM.Pages
 
             if (_moduleWebView2.CoreWebView2 is Microsoft.Web.WebView2.Core.CoreWebView2 core)
             {
+                core.NavigationStarting -= OnModuleBrowserNavigationStarting;
                 core.NavigationCompleted -= OnModuleBrowserNavigationCompleted;
             }
 
@@ -2288,7 +2522,7 @@ namespace ASLM.Pages
         /// </summary>
         private void Browser_Navigating(object? sender, WebNavigatingEventArgs e)
         {
-            if (string.IsNullOrEmpty(e.Url))
+            if (string.IsNullOrEmpty(e.Url) || e.Url == "about:blank")
             {
                 return;
             }

@@ -196,9 +196,29 @@ namespace ASLM.Pages
         private double _selectedInfoBlockWebHeight = 1;
 
         /// <summary>
-        /// Whether the dialog is open; results that arrive after it was closed are dropped.
+        /// Whether the dialog is interactive; snapshot preparation also continues while it is hidden.
         /// </summary>
         private bool _isDownloadsOpen;
+
+        /// <summary>
+        /// Shares startup catalog loading with repeated overlay opens.
+        /// </summary>
+        private Task? _openingTask;
+
+        /// <summary>
+        /// Remembers a completed catalog so navigation reuses it instead of rebuilding it.
+        /// </summary>
+        private bool _catalogLoaded;
+
+        /// <summary>
+        /// Counts module mutations so a burst of refresh requests collapses into one latest snapshot.
+        /// </summary>
+        private long _catalogRevision;
+
+        /// <summary>
+        /// Identifies the revision consumed by the last completed catalog load.
+        /// </summary>
+        private long _loadedCatalogRevision = -1;
 
         /// <summary>
         /// Whether the theme change handlers are attached.
@@ -412,6 +432,7 @@ namespace ASLM.Pages
             {
                 if (_isInternalModulesSelected == value) return;
                 _isInternalModulesSelected = value;
+                if (!value) ModulesContent.CancelRepositorySearch();
                 UpdateInfoBlockPreviewSource();
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsModuleCategorySelected));
@@ -722,20 +743,53 @@ namespace ASLM.Pages
         /// </summary>
         public Task OpenAsync()
         {
-            // Mark the dialog open first, so catalog results are accepted, and prepare the visuals.
+            if (_isDownloadsOpen) return _openingTask ?? Task.CompletedTask;
             _isDownloadsOpen = true;
-            RefreshThemeIcons();
             UpdateInfoBlockPreviewSource();
             UpdateDialogSize();
             ModuleInfoHost.IsVisible = false;
+            return EnsureCatalogAsync();
+        }
 
-            // Refresh the modules page and the catalog at the same time; the catalog loads with a forced upstream refresh.
-            return Task.WhenAll(ModulesContent.RefreshAsync(), LoadCatalogAsync(
-                preferCached: true,
-                forceRefresh: true,
-                preserveSelection: true,
-                showBusyIndicator: true,
-                silentRefresh: false));
+        /// <summary>
+        /// Reuses successful snapshots and joins startup work instead of cancelling it on repeated opens.
+        /// </summary>
+        private Task EnsureCatalogAsync()
+        {
+            if (_openingTask is { IsCompleted: false }) return _openingTask;
+            if (_catalogLoaded && _loadedCatalogRevision == _catalogRevision) return Task.CompletedTask;
+            return _openingTask = RefreshPreparedCatalogAsync();
+        }
+
+        /// <summary>
+        /// Loads initial lists into their persistent host without coupling their lifetime to visibility.
+        /// </summary>
+        private async Task RefreshPreparedCatalogAsync()
+        {
+            await Task.Yield();
+            do
+            {
+                var revision = _catalogRevision;
+                await Task.WhenAll(ModulesContent.RefreshAsync(), LoadCatalogAsync(
+                    preferCached: true, forceRefresh: false, preserveSelection: true,
+                    showBusyIndicator: Categories.Count == 0, silentRefresh: Categories.Count > 0));
+                _loadedCatalogRevision = revision;
+            } while (_loadedCatalogRevision != _catalogRevision);
+        }
+
+        /// <summary>
+        /// Stops interactive queries while preserving catalogs, details and in-flight snapshot preparation.
+        /// </summary>
+        internal void HideOverlay()
+        {
+            if (!_isDownloadsOpen) return;
+            SaveCategorySelection();
+            _isDownloadsOpen = false;
+            ModulesContent.CancelRepositorySearch();
+            _searchDebounceCts?.Cancel();
+#if WINDOWS
+            _infoBlockPreview?.Pause();
+#endif
         }
 
 
@@ -747,6 +801,12 @@ namespace ASLM.Pages
         /// </summary>
         private void OnLoaded(object? sender, EventArgs e)
         {
+            if (_catalog.Preparation != null)
+            {
+                _catalog.Preparation.Changed -= OnPreparedModuleChanged;
+                _catalog.Preparation.Changed += OnPreparedModuleChanged;
+            }
+
             // Unsubscribe before subscribing, so a repeated Loaded event cannot register the handler twice.
             _installer.OperationsChanged -= OnDownloadOperationsChanged;
             _installer.OperationsChanged += OnDownloadOperationsChanged;
@@ -757,6 +817,7 @@ namespace ASLM.Pages
             if (_hasLoaded) return;
             _hasLoaded = true;
             UpdateDialogSize();
+            _ = EnsureCatalogAsync();
         }
 
         /// <summary>
@@ -764,6 +825,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OnUnloaded(object? sender, EventArgs e)
         {
+            if (_catalog.Preparation != null) _catalog.Preparation.Changed -= OnPreparedModuleChanged;
             _installer.OperationsChanged -= OnDownloadOperationsChanged;
             DetachThemeHandlers();
         }
@@ -897,7 +959,7 @@ namespace ASLM.Pages
                 // of the selected item when the active category changed or delivered its first result.
                 void ApplyResult(IReadOnlyList<DownloadCatalogCategory> categories, HashSet<string>? retainedKeys = null)
                 {
-                    if (ct.IsCancellationRequested || !_isDownloadsOpen) return;
+                    if (ct.IsCancellationRequested) return;
                     var currentCategories = categories.Where(category => IsCurrentQuery(category.GroupKey)).ToList();
                     foreach (var category in currentCategories)
                     {
@@ -921,19 +983,29 @@ namespace ASLM.Pages
                         _ = LoadSelectedItemDetailAsync(preferCached, forceRefresh, previousVariantKey, silentRefresh);
                 }
 
+                var progressiveLoad = isCatalogLoad && Categories.Count == 0;
+
                 // Load off the UI thread. A full load reports each category as soon as it is discovered, so the sidebar
                 // fills progressively; a category query delivers everything with the final snapshot.
                 var snapshot = await Task.Run(
-                    () => _catalog.LoadCatalogAsync(
-                        categoryQueries: queries,
-                        categoryGroupKey: categoryGroupKey,
-                        preferCached: preferCached,
-                        forceRefresh: forceRefresh,
-                        ct: ct,
-                        categoryLoaded: isCatalogLoad
-                            ? category => MainThread.InvokeOnMainThreadAsync(() => ApplyResult([category]))
-                            : null),
-                    ct);
+                    async () =>
+                    {
+                        var result = await _catalog.LoadCatalogAsync(
+                            categoryQueries: queries,
+                            categoryGroupKey: categoryGroupKey,
+                            preferCached: preferCached,
+                            forceRefresh: forceRefresh,
+                            ct: ct,
+                            categoryLoaded: progressiveLoad
+                                ? category =>
+                                {
+                                    PrepareCategory(category);
+                                    return MainThread.InvokeOnMainThreadAsync(() => ApplyResult([category]));
+                                }
+                                : null).ConfigureAwait(false);
+                        foreach (var category in result.Categories) PrepareCategory(category);
+                        return result;
+                    }, ct);
                 if (ct.IsCancellationRequested) return;
 
                 // Remove vanished categories only after discovery finishes, preserving newer user queries.
@@ -942,7 +1014,10 @@ namespace ASLM.Pages
                         (!isCatalogLoad && !string.Equals(category.Category.GroupKey, categoryGroupKey, StringComparison.OrdinalIgnoreCase)))
                         .Select(category => category.Category.GroupKey))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (snapshot.Warnings.Count > 0)
+                    retainedKeys.UnionWith(Categories.Select(category => category.Category.GroupKey));
                 ApplyResult(snapshot.Categories, retainedKeys);
+                if (isCatalogLoad) _catalogLoaded = snapshot.Warnings.Count == 0;
             }
             catch (OperationCanceledException)
             {
@@ -966,6 +1041,20 @@ namespace ASLM.Pages
                     RaiseLayoutProperties();
                 }
             }
+        }
+
+
+        /// <summary>
+        /// Rebuilds merged categories from cached provider contributions after one module changes its content.
+        /// </summary>
+        private void OnPreparedModuleChanged(object? sender, DataPreparationChangedEventArgs e)
+        {
+            if (!e.Full) return;
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                _catalogRevision++;
+                await EnsureCatalogAsync();
+            });
         }
 
 
@@ -1119,15 +1208,22 @@ namespace ASLM.Pages
         /// <param name="selectedItemKey">Resource key of the item to select, or null to select the first item.</param>
         private void ApplyCurrentItemFilters(string? selectedItemKey)
         {
-            var items = _categoryItems
-                .OrderBy(item => item.SortOrder)
-                .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            CurrentItems.Clear();
+            var items = _activeCategory != null && _categoryRows.TryGetValue(_activeCategory.Category, out var prepared)
+                ? prepared : [];
+            var existing = CurrentItems.ToDictionary(item => item.Item.ResourceKey, StringComparer.OrdinalIgnoreCase);
+            var replacements = items.Select(item => existing.TryGetValue(item.Item.ResourceKey, out var row)
+                ? row : item).ToList();
             foreach (var item in items)
+                if (existing.TryGetValue(item.Item.ResourceKey, out var row) && !ReferenceEquals(row, item)) row.Update(item);
+            var retained = replacements.ToHashSet();
+            for (var index = CurrentItems.Count - 1; index >= 0; index--)
+                if (!retained.Contains(CurrentItems[index])) CurrentItems.RemoveAt(index);
+            for (var index = 0; index < replacements.Count; index++)
             {
-                CurrentItems.Add(new DownloadListItemViewModel(item, SelectItemAsync));
+                if (index < CurrentItems.Count && ReferenceEquals(CurrentItems[index], replacements[index])) continue;
+                var previous = CurrentItems.IndexOf(replacements[index]);
+                if (previous < 0) CurrentItems.Insert(index, replacements[index]);
+                else CurrentItems.Move(previous, index);
             }
 
             // Select the requested item, or the first one when it is not in the list.
@@ -1291,13 +1387,10 @@ namespace ASLM.Pages
             // The remembered detail was restored by ActivateCategory, so there is nothing to load.
             if (_selectedItemDetail != null) return;
 
-            // Load the detail of the selected item from cache first, then refresh it silently if nothing changed meanwhile.
+            // Prepared details are immediate; missing details start independently of speculative queue work.
             if (_selectedItem != null)
             {
-                var item = _selectedItem;
                 await LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: false, selectedVariantKey: null, silentRefresh: false);
-                if (_isDownloadsOpen && !IsInternalModulesSelected && ReferenceEquals(_activeCategory, category) && ReferenceEquals(_selectedItem, item))
-                    _ = LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: true, selectedVariantKey: _selectedVariant?.Variant.ResourceKey, silentRefresh: true);
             }
             else
             {
@@ -1306,7 +1399,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Loads cached details first, then refreshes them in the background.
+        /// Consumes prepared details or joins a session-owned load that continues after the dialog closes.
         /// </summary>
         private async Task SelectItemAsync(DownloadListItemViewModel item)
         {
@@ -1314,8 +1407,7 @@ namespace ASLM.Pages
 
             SetSelectedItem(item);
             await LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: false, selectedVariantKey: null, silentRefresh: false);
-            if (_isDownloadsOpen && !IsInternalModulesSelected && ReferenceEquals(_selectedItem, item))
-                _ = LoadSelectedItemDetailAsync(preferCached: true, forceRefresh: true, selectedVariantKey: _selectedVariant?.Variant.ResourceKey, silentRefresh: true);
+
         }
 
         /// <summary>
@@ -1349,8 +1441,9 @@ namespace ASLM.Pages
 
                 // A background refresh that returned the same content must not rebuild the variants and blocks,
                 // which would reset the selection and the preview.
-                var detailSignature = ComputeDetailSignature(detail);
-                if (silentRefresh && string.Equals(_lastDetailSignature, detailSignature, StringComparison.Ordinal))
+                var detailSignature = await Task.Run(() => ComputeDetailSignature(detail), ct);
+                if (ct.IsCancellationRequested || _selectedItem?.Item.ResourceKey != itemResourceKey) return;
+                if (string.Equals(_lastDetailSignature, detailSignature, StringComparison.Ordinal))
                 {
                     return;
                 }
@@ -1891,8 +1984,7 @@ namespace ASLM.Pages
             Uri.TryCreate(url, UriKind.Absolute, out var actual) && expected.Equals(actual);
 
         /// <summary>
-        /// Cancels all active refresh work before closing the dialog. While the module information overlay is
-        /// shown, only that overlay is closed.
+        /// Hides the dialog while shared preparation continues; an open module information overlay closes first.
         /// </summary>
         private void RequestClose()
         {
@@ -1902,17 +1994,31 @@ namespace ASLM.Pages
                 return;
             }
 
-            // Closing the dialog: keep the selection for the next opening, reject late results and stop all work.
-            SaveCategorySelection();
-            _isDownloadsOpen = false;
-#if WINDOWS
-            _infoBlockPreview?.Pause();
-#endif
-            _catalogLoadCts?.Cancel();
-            _catalogRefreshCts?.Cancel();
-            _detailRefreshCts?.Cancel();
-            _searchDebounceCts?.Cancel();
+            HideOverlay();
             CloseRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+
+        /// <summary>
+        /// Retains precomputed signatures only as long as their immutable catalog snapshots stay referenced.
+        /// </summary>
+        private static readonly ConditionalWeakTable<DownloadCatalogCategory, string> _categorySignatures = new();
+
+
+        /// <summary>
+        /// Shares detached catalog rows while their source snapshots remain cached by this dialog.
+        /// </summary>
+        private readonly ConditionalWeakTable<DownloadCatalogCategory, List<DownloadListItemViewModel>> _categoryRows = new();
+
+        /// <summary>
+        /// Prepares signatures, ordering, tags and row commands before dispatching a catalog to the UI.
+        /// </summary>
+        private void PrepareCategory(DownloadCatalogCategory category)
+        {
+            _categorySignatures.GetValue(category, ComputeCategorySignature);
+            _categoryRows.GetValue(category, source => source.Items.OrderBy(item => item.SortOrder)
+                .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+                .Select(item => new DownloadListItemViewModel(item, SelectItemAsync)).ToList());
         }
 
 
@@ -2291,7 +2397,8 @@ namespace ASLM.Pages
             /// <returns>True when the data changed; false when the new data is identical.</returns>
             internal bool Update(DownloadCatalogCategory category)
             {
-                if (string.Equals(ComputeCategorySignature(Category), ComputeCategorySignature(category), StringComparison.Ordinal))
+                if (string.Equals(_categorySignatures.GetValue(Category, ComputeCategorySignature),
+                    _categorySignatures.GetValue(category, ComputeCategorySignature), StringComparison.Ordinal))
                     return false;
 
                 Category = category;
@@ -2458,7 +2565,23 @@ namespace ASLM.Pages
             /// <summary>
             /// Catalog item that the card represents.
             /// </summary>
-            public DownloadCatalogItem Item { get; }
+            public DownloadCatalogItem Item { get; private set; }
+
+            /// <summary>
+            /// Publishes updated metadata without replacing the native row or its scroll anchor.
+            /// </summary>
+            internal void Update(DownloadListItemViewModel item)
+            {
+                Item = item.Item;
+                CatalogTags = item.CatalogTags;
+                OnPropertyChanged(nameof(Title));
+                OnPropertyChanged(nameof(Summary));
+                OnPropertyChanged(nameof(HasSummary));
+                OnPropertyChanged(nameof(CatalogTags));
+                OnPropertyChanged(nameof(HasCatalogTags));
+                OnPropertyChanged(nameof(MetadataLine));
+                OnPropertyChanged(nameof(HasMetadata));
+            }
 
             /// <summary>
             /// Title of the item.
@@ -2478,7 +2601,7 @@ namespace ASLM.Pages
             /// <summary>
             /// Tags with an icon that are shown on the card; tags without an icon or not meant for the catalog are left out.
             /// </summary>
-            public IReadOnlyList<DownloadFieldViewModel> CatalogTags { get; }
+            public IReadOnlyList<DownloadFieldViewModel> CatalogTags { get; private set; }
 
             /// <summary>
             /// Whether the card shows tags.

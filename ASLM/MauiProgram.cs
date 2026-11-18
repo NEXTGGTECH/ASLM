@@ -96,6 +96,8 @@ namespace ASLM
             builder.Services.AddSingleton<ModuleDependencyService>();
             builder.Services.AddSingleton<ModuleDownloadBridge>();
             builder.Services.AddSingleton<DownloadStateStore>();
+            builder.Services.AddSingleton<DataPreparationQueue>();
+            builder.Services.AddSingleton<DataPreparationService>();
             builder.Services.AddSingleton<DownloadCatalog>();
             builder.Services.AddSingleton<DownloadQueue>();
             builder.Services.AddSingleton<DownloadInstaller>();

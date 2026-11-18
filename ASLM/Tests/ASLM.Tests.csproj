@@ -12,7 +12,7 @@
 
 		<ASLMTestLayoutRoot>$(MSBuildProjectDirectory)\_layout_root\</ASLMTestLayoutRoot>
 		<!-- Generated test layouts are not project inputs; stale DLLs there must not override HintPath references. -->
-		<DefaultItemExcludes>$(DefaultItemExcludes);$(ASLMTestLayoutRoot)**</DefaultItemExcludes>
+		<DefaultItemExcludes>$(DefaultItemExcludes);$(ASLMTestLayoutRoot)**;$(MSBuildProjectDirectory)\_layout_root\**</DefaultItemExcludes>
 		<OutputPath>$(ASLMTestLayoutRoot)App\</OutputPath>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 
@@ -69,10 +69,10 @@
 	<Target Name="BuildPatcherCli" BeforeTargets="BeforeBuild" Condition="'$(ASLMBuildPatcherCli)' != 'false'">
 		<MSBuild Projects="$(MSBuildThisFileDirectory)..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
 		         Targets="Restore"
-		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />
+		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true;OutputPath=$(ASLMTestLayoutRoot)Patcher\;AppendTargetFrameworkToOutputPath=false" />
 		<MSBuild Projects="$(MSBuildThisFileDirectory)..\Patcher\Patcher-CLI\ASLM.Patcher.CLI.csproj"
 		         Targets="Build"
-		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true" />
+		         Properties="Configuration=$(Configuration);SkipUnitTestsOnBuild=true;OutputPath=$(ASLMTestLayoutRoot)Patcher\;AppendTargetFrameworkToOutputPath=false" />
 	</Target>
 
 	<Target Name="CopyAslmRuntime" AfterTargets="Build">

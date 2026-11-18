@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Diperbarui</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub menolak akses: periksa izin token untuk repositori, akses ke organisasi, dan batas API</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub menolak token: hubungkan kembali akun GitHub Anda di Pengaturan</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>Katalog</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Tutup informasi modul</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>Modul “{0}” sudah ada dengan sumber lain atau folder tujuannya sudah digunakan</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>Manifes modul tidak valid: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>ID modul tidak memenuhi aturan penamaan folder pada platform yang didukung</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>Masukkan owner/repository atau tautan HTTPS ke repositori GitHub</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>Katalog modul tidak dapat dimuat</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>ASLM_Module.json tidak ditemukan di direktori akar repositori atau tidak dapat diakses dengan token saat ini</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>Batas permintaan API GitHub tercapai: tunggu hingga batas direset, lalu coba lagi</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>Masukkan repositori dan klik “Cari”; repositori privat menggunakan token GitHub yang dikonfigurasi di Pengaturan</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository atau https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>Repositori tidak ditemukan atau tidak dapat diakses dengan token GitHub saat ini</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Cari modul yang tersedia</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>Pencarian di GitHub gagal: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>Cari</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>Sedang mencari</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>Sumber dalam manifes modul tidak cocok dengan repositori GitHub yang ditentukan</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Beta</value>

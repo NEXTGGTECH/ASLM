@@ -102,13 +102,21 @@ namespace ASLM.Services.Modules
             EngineInstaller engineInstaller,
             ModuleEnvironmentResolver environmentResolver,
             ModuleRunner moduleRunner,
-            ILogger<ModuleDownloadBridge> logger)
+            ILogger<ModuleDownloadBridge> logger,
+            DataPreparationQueue? preparation = null)
         {
             _engineInstaller = engineInstaller;
             _environmentResolver = environmentResolver;
             _moduleRunner = moduleRunner;
             _logger = logger;
+            _preparation = preparation;
         }
+
+
+        /// <summary>
+        /// Reuses read-only bridge responses independently of page lifetimes.
+        /// </summary>
+        private readonly DataPreparationQueue? _preparation;
 
 
         // Bridge operations
@@ -326,6 +334,48 @@ namespace ASLM.Services.Modules
             ModuleDownloadBridgeRequest request,
             CancellationToken ct = default)
         {
+            request.Normalize();
+            if (_preparation == null || request.Operation is not ("list_categories" or "list_items" or "describe_item"))
+                return await InvokeCoreAsync(module, request, ct).ConfigureAwait(false);
+
+            // Cache detached wire data and validated images; consumers never mutate shared response models.
+            var identity = JsonSerializer.Serialize(new
+            {
+                request.Operation, request.CategoryId, request.ResourceKey, request.QueryText,
+                Filters = request.Filters.OrderBy(key => key, StringComparer.Ordinal).ToArray(),
+                request.ForceRefresh
+            });
+            try
+            {
+                var cached = await _preparation.GetAsync(module.SourcePath, "bridge:" + identity, async token =>
+                {
+                    var response = await InvokeCoreAsync(module, request, token).ConfigureAwait(false);
+                    if (!response.Success) throw new InvalidOperationException(response.Error);
+                    var images = EnumerateMetadata(response).Where(field => field.Icon != null && field.Image != null)
+                        .DistinctBy(field => field.Icon).ToDictionary(field => field.Icon!, field => field.Image!,
+                            StringComparer.Ordinal);
+                    return new CachedBridgeResponse(JsonSerializer.Serialize(response, _jsonOptions), images);
+                }, ct, TimeSpan.FromMinutes(5)).ConfigureAwait(false);
+                var result = JsonSerializer.Deserialize<ModuleDownloadBridgeResponse>(cached.Json, _jsonOptions)!;
+                result.Normalize();
+                foreach (var field in EnumerateMetadata(result))
+                    if (field.Icon != null && cached.Images.TryGetValue(field.Icon, out var image)) field.Image = image;
+                return result;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                // Failed responses are not cached, and retain the bridge API's response-based failure contract.
+                return CreateErrorResponse(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Executes one bridge request without retaining page ownership or sharing mutable response models.
+        /// </summary>
+        private async Task<ModuleDownloadBridgeResponse> InvokeCoreAsync(
+            ModuleConfig module, ModuleDownloadBridgeRequest request, CancellationToken ct)
+        {
             // Register the module as in use for the whole request; this waits while an overlapping module removal
             // is running and keeps a removal from starting until the bridge process has finished.
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
@@ -459,6 +509,19 @@ namespace ASLM.Services.Modules
                 process?.Dispose();
             }
         }
+
+
+        /// <summary>
+        /// Enumerates resource-bearing metadata fields in a list or item description response.
+        /// </summary>
+        private static IEnumerable<ModuleDownloadField> EnumerateMetadata(ModuleDownloadBridgeResponse response) =>
+            response.Items.SelectMany(item => (item.Details ?? []).Concat(item.Tags ?? []))
+                .Concat(response.ItemDetail?.Details ?? []).Concat(response.ItemDetail?.Tags ?? []);
+
+        /// <summary>
+        /// Retains validated artwork separately from JSON so cloned responses need no additional filesystem reads.
+        /// </summary>
+        private sealed record CachedBridgeResponse(string Json, IReadOnlyDictionary<string, DownloadCatalogIcon> Images);
 
 
         // Process cleanup

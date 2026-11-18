@@ -124,6 +124,8 @@ namespace ASLM
         private async Task StopServicesAsync()
         {
             DisposeService<UpdateScheduler>();
+            await _services.GetRequiredService<DataPreparationService>().DisposeAsync().ConfigureAwait(false);
+            await _services.GetRequiredService<DataPreparationQueue>().DisposeAsync().ConfigureAwait(false);
             ModuleRunner? runner = null;
             try
             {

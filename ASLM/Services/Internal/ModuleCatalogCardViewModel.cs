@@ -140,9 +140,9 @@ namespace ASLM.Services.Internal
         public bool CanSelect => ShowSelection && Module.IsSupportedOnCurrentPlatform && !ModuleRegistry.IsRequired(Module.Id);
 
         /// <summary>
-        /// Whether the card shows that the module is unavailable on the current platform (selection mode only).
+        /// Whether the card shows that the module is unavailable on the current platform.
         /// </summary>
-        public bool ShowUnsupported => ShowSelection && !Module.IsSupportedOnCurrentPlatform;
+        public bool ShowUnsupported => !Module.IsSupportedOnCurrentPlatform;
 
         /// <summary>
         /// Localized text that names the current platform as unsupported by the module.
@@ -198,6 +198,8 @@ namespace ASLM.Services.Internal
             OnPropertyChanged(nameof(ExperimentalLabel));
             OnPropertyChanged(nameof(MaintenanceLabel));
             OnPropertyChanged(nameof(UnsupportedLabel));
+            OnPropertyChanged(nameof(ShowMaintenanceStatus));
+            OnPropertyChanged(nameof(IsRemoving));
         }
 
         /// <summary>
@@ -209,6 +211,12 @@ namespace ASLM.Services.Internal
             var revision = ++_presentationVersion;
             return Task.WhenAll(LoadIconAsync(updates, revision, ct), LoadVersionAsync(updates, revision, ct));
         }
+
+        /// <summary>
+        /// Loads a searched module's artwork without fetching release lists before its details are opened.
+        /// </summary>
+        internal Task RefreshArtworkAsync(UpdateManager updates, CancellationToken ct) =>
+            LoadIconAsync(updates, ++_presentationVersion, ct);
 
         /// <summary>
         /// Loads repository artwork through the shared local cache without waiting for release metadata.

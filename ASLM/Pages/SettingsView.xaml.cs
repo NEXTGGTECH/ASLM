@@ -194,18 +194,7 @@ namespace ASLM.Pages
         private readonly SettingsCategorySidebarViewModel _categoryPresentation;
 
         /// <summary>
-        /// Per-module gates that keep the runtime setting getters of one module sequential.
-        /// </summary>
-        private readonly Dictionary<string, SemaphoreSlim> _moduleRuntimeLoadLocks =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>
-        /// Lifetime of the module runtime reads; replaced and cancelled whenever the loaded values become obsolete.
-        /// </summary>
-        private CancellationTokenSource _moduleRuntimeLoadCancellation = new();
-
-        /// <summary>
-        /// Lifetime of the incremental creation of module setting rows; replaced and cancelled on navigation or close.
+        /// Lifetime of detached snapshot preparation; replaced when the host unloads or its culture becomes obsolete.
         /// </summary>
         private CancellationTokenSource _moduleSurfaceBuildCancellation = new();
 
@@ -291,11 +280,6 @@ namespace ASLM.Pages
         /// Set to 1 while a delayed footer button update is pending, so rapid changes are coalesced.
         /// </summary>
         private int _actionButtonUpdateQueued;
-
-        /// <summary>
-        /// Counter that is advanced to invalidate module runtime reads that started before the change.
-        /// </summary>
-        private int _moduleRuntimeLoadGeneration;
 
         /// <summary>
         /// Module catalog revision that <see cref="_loadedModules"/> was discovered at,
@@ -1014,20 +998,15 @@ namespace ASLM.Pages
         /// </summary>
         private async void RequestClose()
         {
-            // Pending edits need the user's decision; declining to discard them keeps the dialog open.
-            if (!await ConfirmDiscardChangesIfNeededAsync())
+            if (!_isDialogOpen || _isClosing) return;
+            _isClosing = true;
+            try
             {
-                return;
+                if (!await ConfirmDiscardChangesIfNeededAsync()) return;
+                HideOverlay();
+                CloseRequested?.Invoke(this, EventArgs.Empty);
             }
-
-            // Stop all background work started by the pages before the overlay goes away.
-            StopOllamaStatusPolling();
-            StopOllamaMetadataRefresh();
-            StopAslmAccountAction();
-            CancelModuleRuntimeLoads();
-            CancelModuleSurfaceBuilds();
-            _ollamaSettings.StopManagedRuntime();
-            CloseRequested?.Invoke(this, EventArgs.Empty);
+            finally { _isClosing = false; }
         }
 
 
@@ -1079,32 +1058,16 @@ namespace ASLM.Pages
         /// </summary>
         private async void OnLoaded(object? sender, EventArgs e)
         {
-            // Subscriptions are attached on every show because OnUnloaded detaches them.
+            // The persistent host observes data changes even while the dialog is hidden.
+            _settingsService.ModuleDataChanged -= OnPreparedModuleChanged;
+            _settingsService.ModuleDataChanged += OnPreparedModuleChanged;
+            _settingsService.SettingValuePrepared -= OnPreparedSettingValue;
+            _settingsService.SettingValuePrepared += OnPreparedSettingValue;
             AttachAccountLinkThemeHandlers();
             AttachUpdateSchedulerHandler();
 
-            // The content is loaded only once; later shows are refreshed through RefreshAsync.
-            if (_hasLoaded || _isLoading)
-            {
-                return;
-            }
-
             UpdateDialogSize();
-
-            try
-            {
-                _isLoading = true;
-                await LoadSettingsAsync();
-                _hasLoaded = true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to load settings view: {ex.Message}");
-            }
-            finally
-            {
-                _isLoading = false;
-            }
+            await EnsureInitializedAsync();
         }
 
         /// <summary>
@@ -1113,12 +1076,13 @@ namespace ASLM.Pages
         /// </summary>
         private void OnUnloaded(object? sender, EventArgs e)
         {
+            _settingsService.ModuleDataChanged -= OnPreparedModuleChanged;
+            _settingsService.SettingValuePrepared -= OnPreparedSettingValue;
             DetachAccountLinkThemeHandlers();
             DetachUpdateSchedulerHandler();
             StopOllamaStatusPolling();
             StopOllamaMetadataRefresh();
             StopAslmAccountAction();
-            CancelModuleRuntimeLoads();
             CancelModuleSurfaceBuilds();
             _ollamaSettings.StopManagedRuntime();
         }
@@ -1323,10 +1287,6 @@ namespace ASLM.Pages
         /// </summary>
         private async Task ReloadModuleDraftsAsync()
         {
-            // Obsolete runtime reads and half-built module pages must not outlive the reload.
-            RestartModuleRuntimeLoads();
-            RestartModuleSurfaceBuilds();
-
             // Skip discovery while the module catalog is unchanged since the last pass.
             var catalogRevision = _settingsService.ModuleCatalogRevision;
             if (_loadedModuleCatalogRevision == catalogRevision)
@@ -1335,7 +1295,7 @@ namespace ASLM.Pages
             }
 
             // Discover on a worker, then replace the module drafts and drop the cached module pages.
-            var cancellationToken = _moduleRuntimeLoadCancellation.Token;
+            var cancellationToken = _moduleSurfaceBuildCancellation.Token;
             var discovered = await Task.Run(
                     () => _settingsService.DiscoverModulesAsync(),
                     cancellationToken)
@@ -1348,7 +1308,7 @@ namespace ASLM.Pages
 
             // Keep the captured revision so a catalog mutation during discovery forces another pass next time.
             _loadedModuleCatalogRevision = catalogRevision;
-            ClearModuleSettingsSurfaceCache();
+            if (_hasLoaded) ClearModuleSettingsSurfaceCache();
         }
 
 
@@ -1416,9 +1376,7 @@ namespace ASLM.Pages
                     _themeService.ApplyFromSettings();
                 }
 
-                // Reads and half-built pages of the previous module are abandoned before the new page renders.
-                RestartModuleRuntimeLoads();
-                RestartModuleSurfaceBuilds();
+                // The selected category opens from the beginning while retaining its prepared controls.
                 ActivateCategory(resolvedCategory);
             }
             finally
@@ -1428,11 +1386,13 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Activates the selected category and optionally starts its lazy runtime read.
+        /// Activates the selected category and promotes an unfinished settings snapshot without awaiting it.
         /// </summary>
         private void ActivateCategory(SettingsCategory category, bool loadModuleRuntimeValues = true)
         {
             _activeCategory = category;
+            _moduleNavigationVersion++;
+            _settingsService.Preparation?.PrioritizeSettings(_isDialogOpen ? category.Module?.SourcePath : null);
             ActiveCategoryTitleLabel.Text = GetLocalizedCategoryTitle(category);
 
             // Render the page for the category kind; module values are read lazily after the page is shown.
@@ -1449,7 +1409,7 @@ namespace ASLM.Pages
                     break;
                 case SettingsCategoryKind.Module:
                     RenderModuleCategory(category.Module!);
-                    if (loadModuleRuntimeValues)
+                    if (loadModuleRuntimeValues && _isDialogOpen)
                     {
                         _ = RefreshActiveModuleRuntimeValuesAsync(category);
                     }
@@ -1471,6 +1431,8 @@ namespace ASLM.Pages
         /// </summary>
         private async void ResetSettingsScrollPosition()
         {
+            var version = ++_settingsScrollVersion;
+            _restoringSettingsScroll = true;
             try
             {
                 // A module page also selects its first section in the section navigation.
@@ -1484,175 +1446,50 @@ namespace ASLM.Pages
                 }
 
                 await Task.Yield();
+                if (version != _settingsScrollVersion) return;
                 await SettingsScroll.ScrollToAsync(0, 0, false);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to reset settings scroll position: {ex.Message}");
             }
-        }
-
-
-        // Module runtime loading
-
-        /// <summary>
-        /// Loads live runtime values only for the currently visible module settings page.
-        /// </summary>
-        private async Task RefreshActiveModuleRuntimeValuesAsync(SettingsCategory category)
-        {
-            if (category.Kind != SettingsCategoryKind.Module || category.Module == null)
-            {
-                return;
-            }
-
-            // Capture the module, its draft and the current generation now; the read finishes later and must
-            // detect that the dialog moved on in the meantime.
-            var module = category.Module;
-            var moduleDraft = _editSession.GetModule(module);
-            var runtimeKey = SettingsService.GetModuleRuntimeKey(module);
-            var loadGeneration = _moduleRuntimeLoadGeneration;
-            var moduleLoadLock = GetModuleRuntimeLoadLock(runtimeKey);
-            var cancellationToken = _moduleRuntimeLoadCancellation.Token;
-
-            // Wait for an earlier read of the same module, because its getters must run one at a time.
-            try
-            {
-                await moduleLoadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            try
-            {
-                // A refresh may replace every module draft while an older page read is waiting.
-                if (loadGeneration != _moduleRuntimeLoadGeneration)
-                {
-                    return;
-                }
-
-                // Only settings that are displayed need a live value.
-                var settings = module.Settings?.Where(SettingsService.ShouldDisplaySetting).ToList() ?? [];
-                if (settings.Count == 0)
-                {
-                    return;
-                }
-
-                // Keep getters ordered on a worker while publishing each completed value independently.
-                await Task.Run(async () =>
-                {
-                    foreach (var setting in settings)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        var loadedSetting = await _settingsService.LoadSettingValueAsync(
-                            module,
-                            setting,
-                            cancellationToken).ConfigureAwait(false);
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        // Publish on the UI thread, but only while this module's page is still the visible one.
-                        await MainThread.InvokeOnMainThreadAsync(() =>
-                        {
-                            if (loadGeneration != _moduleRuntimeLoadGeneration)
-                            {
-                                return;
-                            }
-
-                            var stillActive =
-                                _activeCategory?.Kind == SettingsCategoryKind.Module &&
-                                _activeCategory.Module != null &&
-                                string.Equals(
-                                    _activeCategory.Module.SourcePath,
-                                    module.SourcePath,
-                                    StringComparison.OrdinalIgnoreCase);
-                            if (!stillActive)
-                            {
-                                return;
-                            }
-
-                            // A delayed getter may update untouched rows but must never replace an edit in progress.
-                            var settingDraft = moduleDraft.GetSetting(setting.Key);
-                            if (settingDraft.HasChanges)
-                            {
-                                return;
-                            }
-
-                            // Store the loaded value in the draft and refresh only its row.
-                            _settingsService.ApplyLoadedSettingsToDraft(moduleDraft, [loadedSetting]);
-                            if (_moduleSettingsPresentations.TryGetValue(runtimeKey, out var presentation))
-                            {
-                                presentation.RefreshSettingFromDraft(
-                                    setting.Key,
-                                    SettingsService.HasDependentSettings(module, setting));
-                            }
-                        }).ConfigureAwait(false);
-                    }
-                }, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                // Closing or reopening settings intentionally abandons the obsolete runtime read.
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to refresh runtime settings for module '{module.Name}': {ex.Message}");
-            }
             finally
             {
-                moduleLoadLock.Release();
+                if (version == _settingsScrollVersion) _restoringSettingsScroll = false;
             }
         }
 
+
         /// <summary>
-        /// Returns the per-module gate that keeps its runtime getters sequential
-        /// while allowing different modules to load concurrently.
+        /// Refreshes only the affected module after maintenance and preserves compatible edits in other pages.
         /// </summary>
-        private SemaphoreSlim GetModuleRuntimeLoadLock(string runtimeKey)
-        {
-            if (_moduleRuntimeLoadLocks.TryGetValue(runtimeKey, out var moduleLoadLock))
+        private void OnPreparedModuleChanged(object? sender, DataPreparationChangedEventArgs e) =>
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                return moduleLoadLock;
-            }
-
-            moduleLoadLock = new SemaphoreSlim(1, 1);
-            _moduleRuntimeLoadLocks[runtimeKey] = moduleLoadLock;
-            return moduleLoadLock;
-        }
-
-        /// <summary>
-        /// Cancels obsolete reads and creates a fresh lifetime for the next settings discovery pass.
-        /// </summary>
-        private void RestartModuleRuntimeLoads()
-        {
-            var previousCancellation = _moduleRuntimeLoadCancellation;
-            _moduleRuntimeLoadCancellation = new CancellationTokenSource();
-            _moduleRuntimeLoadGeneration++;
-
-            QueueModuleRuntimeLoadCancellation(previousCancellation);
-        }
-
-        /// <summary>
-        /// Cancels active module getters so closing the settings overlay never waits for them.
-        /// </summary>
-        private void CancelModuleRuntimeLoads()
-        {
-            _moduleRuntimeLoadGeneration++;
-            QueueModuleRuntimeLoadCancellation(_moduleRuntimeLoadCancellation);
-        }
-
-        /// <summary>
-        /// Runs process-terminating cancellation callbacks away from the UI thread.
-        /// </summary>
-        private static void QueueModuleRuntimeLoadCancellation(CancellationTokenSource cancellation)
-        {
-            _ = Task.Run(() =>
-            {
-                if (!cancellation.IsCancellationRequested)
-                {
-                    cancellation.Cancel();
-                }
+                var module = _loadedModules.FirstOrDefault(candidate =>
+                    DataPreparationQueue.NormalizeOwner(candidate.SourcePath) == e.SourcePath)
+                    ?? new ModuleConfig { SourcePath = e.SourcePath };
+                if (!_surfaceWork.TryGetValue(module.SourcePath, out var work))
+                    _surfaceWork[module.SourcePath] = work = new(module);
+                if (e.Full) StartSurfaceSchema(work, discover: true, force: true);
+                else if (!_moduleSettingsPresentations.ContainsKey(module.SourcePath) && work.SchemaTask == null &&
+                    !work.SchemaRequested)
+                    StartSurfaceSchema(work, discover: !SettingsService.IsModuleEligibleForSettings(module));
+                if (!e.Full && !work.Discovering && SettingsService.IsModuleEligibleForSettings(module))
+                    _ = _settingsService.CompleteModuleValuesAsync(module);
+                ScheduleSurfaceStep();
             });
+
+
+        // Module rendering lifetime
+
+        /// <summary>
+        /// Ensures the visible module has queued work without starting another value pass or rendering loop.
+        /// </summary>
+        private Task RefreshActiveModuleRuntimeValuesAsync(SettingsCategory category)
+        {
+            if (category.Module is { } module) QueueModuleSurfacePreparation(module);
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1667,7 +1504,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Stops incremental row creation when the settings overlay is no longer visible.
+        /// Stops native editor preparation when its persistent host leaves the window.
         /// </summary>
         private void CancelModuleSurfaceBuilds()
         {
@@ -1688,18 +1525,7 @@ namespace ASLM.Pages
                 .Where(static pair => !pair.Value.IsFullyLoaded)
                 .Select(static pair => pair.Key)
                 .ToList();
-            foreach (var key in incompleteKeys)
-            {
-                if (_moduleSettingsViews.TryGetValue(key, out var incompleteView) &&
-                    ReferenceEquals(ModuleSettingsContainer.Content, incompleteView))
-                {
-                    ModuleSettingsContainer.Content = null;
-                }
-
-                _moduleSettingsViews.Remove(key);
-                _moduleSettingsPresentations.Remove(key);
-                _moduleSettingsPresentationsNeedingRefresh.Remove(key);
-            }
+            foreach (var key in incompleteKeys) RemoveModuleSettingsSurface(key);
         }
 
 
@@ -1766,6 +1592,8 @@ namespace ASLM.Pages
         /// </summary>
         private void UpdateActionButtons()
         {
+            if (!_isSaving) ScheduleSurfaceStep();
+
             // Decide what the user may do now; the footer reflects unsaved edits of every category,
             // not only the open one.
             var canInteract = !_isSaving && !_isAslmAccountActionRunning && _activeCategory != null;

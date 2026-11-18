@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>Bijgewerkt</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub heeft de toegang geweigerd: controleer de repositorymachtigingen van het token, de toegang tot de organisatie en de API-limieten</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub heeft het token geweigerd: verbind je GitHub-account opnieuw via Instellingen</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>Catalogus</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>Module-informatie sluiten</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>Module ‘{0}’ bestaat al met een andere bron of de doelmap is al in gebruik</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>Ongeldig modulemanifest: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>De module-ID voldoet niet aan de regels voor mapnamen op de ondersteunde platforms</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>Voer owner/repository of een HTTPS-link naar een GitHub-repository in</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>De modulecatalogus kon niet worden geladen</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>ASLM_Module.json is niet gevonden in de hoofdmap van de repository of is niet toegankelijk met het huidige token</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>De verzoeklimiet van de GitHub-API is bereikt: wacht tot de limiet is gereset en probeer het opnieuw</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>Voer een repository in en klik op ‘Zoeken’; voor privérepository’s wordt het in Instellingen opgeslagen GitHub-token gebruikt</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository of https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>De repository is niet gevonden of is niet toegankelijk met het huidige GitHub-token</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>Beschikbare modules zoeken</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>Zoeken op GitHub is mislukt: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>Zoeken</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>Bezig met zoeken</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>De bron in het modulemanifest komt niet overeen met de opgegeven GitHub-repository</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>Bèta</value>

@@ -2149,11 +2149,83 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на GitHub denied access: check the token&apos;s repository permissions, organization access and API limits.
+        /// </summary>
+        public static string ModulesDownloads_AccessDenied {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_AccessDenied", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на GitHub rejected the token: reconnect your GitHub account in Settings.
+        /// </summary>
+        public static string ModulesDownloads_AuthenticationFailed {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_AuthenticationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Catalog.
+        /// </summary>
+        public static string ModulesDownloads_Catalog {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_Catalog", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Close module information.
         /// </summary>
         public static string ModulesDownloads_Close {
             get {
                 return ResourceManager.GetString("ModulesDownloads_Close", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на GitHub.
+        /// </summary>
+        public static string ModulesDownloads_GitHub {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_GitHub", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Module &apos;{0}&apos; already exists under another source or its destination folder is occupied.
+        /// </summary>
+        public static string ModulesDownloads_IdentityConflict {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_IdentityConflict", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Invalid module manifest: {0}.
+        /// </summary>
+        public static string ModulesDownloads_InvalidManifest {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_InvalidManifest", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The module ID does not meet the folder naming requirements of the supported platforms.
+        /// </summary>
+        public static string ModulesDownloads_InvalidModuleId {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_InvalidModuleId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Enter owner/repository or an HTTPS link to a GitHub repository.
+        /// </summary>
+        public static string ModulesDownloads_InvalidRepository {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_InvalidRepository", resourceCulture);
             }
         }
         
@@ -2167,11 +2239,92 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на ASLM_Module.json was not found in the repository root or is not accessible to the current token.
+        /// </summary>
+        public static string ModulesDownloads_ManifestMissing {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_ManifestMissing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на GitHub API request limit reached: wait for the limit to reset and try again.
+        /// </summary>
+        public static string ModulesDownloads_RateLimited {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_RateLimited", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Enter a repository and click Search; private repositories use the GitHub token configured in Settings.
+        /// </summary>
+        public static string ModulesDownloads_RepositoryHint {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_RepositoryHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на owner/repository or https://github.com/owner/repository.
+        /// </summary>
+        public static string ModulesDownloads_RepositoryPlaceholder {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_RepositoryPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The repository was not found or is not accessible to the current GitHub token.
+        /// </summary>
+        public static string ModulesDownloads_RepositoryUnavailable {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_RepositoryUnavailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Search available modules.
         /// </summary>
         public static string ModulesDownloads_Search {
             get {
                 return ResourceManager.GetString("ModulesDownloads_Search", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Could not search GitHub: {0}.
+        /// </summary>
+        public static string ModulesDownloads_SearchFailed {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_SearchFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Searching.
+        /// </summary>
+        public static string ModulesDownloads_Searching {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_Searching", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Search.
+        /// </summary>
+        public static string ModulesDownloads_SearchRepository {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_SearchRepository", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на The source in the module manifest does not match the specified GitHub repository.
+        /// </summary>
+        public static string ModulesDownloads_SourceMismatch {
+            get {
+                return ResourceManager.GetString("ModulesDownloads_SourceMismatch", resourceCulture);
             }
         }
         

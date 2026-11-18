@@ -601,8 +601,10 @@ namespace ASLM.Pages
                 // Replace the caller's module with the freshly discovered one and read its registration.
                 _catalog = snapshot.Modules;
                 _engineCatalog = snapshot.Engines;
-                _module = _catalog.FirstOrDefault(candidate => string.Equals(candidate.Id, module.Id,
-                    StringComparison.OrdinalIgnoreCase)) ?? module;
+                _module = module.RepositoryPreview != null
+                    ? _updates.ResolveRepositorySelection(module, _catalog, snapshot: false)
+                    : _catalog.FirstOrDefault(candidate => string.Equals(candidate.Id, module.Id,
+                        StringComparison.OrdinalIgnoreCase)) ?? module;
                 _registered = snapshot.Installed.Contains(module.Id);
                 _updates.ApplyCatalogDefaults(_module, _registered);
             }

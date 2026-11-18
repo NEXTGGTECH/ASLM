@@ -633,14 +633,65 @@
   <data name="ModuleUpdate_Status_Updated" xml:space="preserve">
     <value>更新済み</value>
   </data>
+  <data name="ModulesDownloads_AccessDenied" xml:space="preserve">
+    <value>GitHub へのアクセスが拒否されました: トークンのリポジトリ権限、組織へのアクセス権、API のリクエスト上限を確認してください</value>
+  </data>
+  <data name="ModulesDownloads_AuthenticationFailed" xml:space="preserve">
+    <value>GitHub がトークンを拒否しました: 設定で GitHub アカウントを接続し直してください</value>
+  </data>
+  <data name="ModulesDownloads_Catalog" xml:space="preserve">
+    <value>カタログ</value>
+  </data>
   <data name="ModulesDownloads_Close" xml:space="preserve">
     <value>モジュール情報を閉じる</value>
+  </data>
+  <data name="ModulesDownloads_GitHub" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="ModulesDownloads_IdentityConflict" xml:space="preserve">
+    <value>ダウンロード元が異なるモジュール「{0}」がすでに存在するか、インストール先のフォルダーが使用されています</value>
+  </data>
+  <data name="ModulesDownloads_InvalidManifest" xml:space="preserve">
+    <value>モジュールのマニフェストが無効です: {0}</value>
+  </data>
+  <data name="ModulesDownloads_InvalidModuleId" xml:space="preserve">
+    <value>モジュール ID が対応プラットフォームのフォルダー命名規則に適合していません</value>
+  </data>
+  <data name="ModulesDownloads_InvalidRepository" xml:space="preserve">
+    <value>owner/repository または GitHub リポジトリへの HTTPS リンクを入力してください</value>
   </data>
   <data name="ModulesDownloads_LoadFailed" xml:space="preserve">
     <value>モジュールカタログを読み込めませんでした</value>
   </data>
+  <data name="ModulesDownloads_ManifestMissing" xml:space="preserve">
+    <value>リポジトリのルートに ASLM_Module.json が見つからないか、現在のトークンではアクセスできません</value>
+  </data>
+  <data name="ModulesDownloads_RateLimited" xml:space="preserve">
+    <value>GitHub API のリクエスト上限に達しました: 上限がリセットされるまで待ってから再試行してください</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryHint" xml:space="preserve">
+    <value>リポジトリを入力して「検索」をクリックしてください（非公開リポジトリには、設定で登録した GitHub トークンを使用します）</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryPlaceholder" xml:space="preserve">
+    <value>owner/repository または https://github.com/owner/repository</value>
+  </data>
+  <data name="ModulesDownloads_RepositoryUnavailable" xml:space="preserve">
+    <value>リポジトリが見つからないか、現在の GitHub トークンではアクセスできません</value>
+  </data>
   <data name="ModulesDownloads_Search" xml:space="preserve">
     <value>利用可能なモジュールを検索</value>
+  </data>
+  <data name="ModulesDownloads_SearchFailed" xml:space="preserve">
+    <value>GitHub で検索できませんでした: {0}</value>
+  </data>
+  <data name="ModulesDownloads_SearchRepository" xml:space="preserve">
+    <value>検索</value>
+  </data>
+  <data name="ModulesDownloads_Searching" xml:space="preserve">
+    <value>検索中</value>
+  </data>
+  <data name="ModulesDownloads_SourceMismatch" xml:space="preserve">
+    <value>モジュールのマニフェストに指定されたダウンロード元が、入力した GitHub リポジトリと一致しません</value>
   </data>
   <data name="Modules_Beta" xml:space="preserve">
     <value>ベータ</value>
