@@ -17,8 +17,7 @@ namespace ASLM.Tests.Pages
         // Module list
 
         /// <summary>
-        /// Verifies that a disabled module with console output stays listed, while a disabled module without output
-        /// and without a running activity is hidden.
+        /// Verifies that stopped module output is available in both the global console and the module list.
         /// </summary>
         [Fact]
         public void Stopped_module_with_console_output_stays_listed()
@@ -31,7 +30,7 @@ namespace ASLM.Tests.Pages
 
             var state = CreatePresenter(store, showCompletedProcesses: false).BuildState(store.GetSnapshot());
 
-            state.Modules.Select(module => module.SourcePath).Should().Equal(stopped.SourcePath);
+            state.Modules.Select(module => module.SourcePath).Should().Equal("__all_modules__", stopped.SourcePath);
         }
 
         /// <summary>
@@ -70,7 +69,10 @@ namespace ASLM.Tests.Pages
             var setup = store.StartProcessSession(module, new ModuleCommand { Name = "Setup" }, "Setup", "setup", process, false);
             store.CompleteProcessSession(setup, 0);
 
-            var state = CreatePresenter(store, showCompletedProcesses).BuildState(store.GetSnapshot());
+            var snapshots = store.GetSnapshot();
+            snapshots.Single().Sessions.Single(session => session.Id == setup.SessionId).EndedUtc =
+                DateTimeOffset.UtcNow.AddSeconds(-2);
+            var state = CreatePresenter(store, showCompletedProcesses).BuildState(snapshots);
 
             string[] expected = showCompletedProcesses
                 ? ["__module_unified__", "maintenance", setup.SessionId]

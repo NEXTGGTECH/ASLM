@@ -46,6 +46,7 @@
                     <CollectionView x:Name="ModulesCollection"
                                     Grid.Row="1"
                                     ItemsSource="{Binding Modules}"
+                                    HandlerChanged="OnConsoleListHandlerChanged"
                                     SelectionMode="Single"
                                     SelectionChanged="OnModuleSelectionChanged"
                                     Margin="0">
@@ -100,6 +101,7 @@
                     <CollectionView x:Name="SessionsCollection"
                                     Grid.Row="1"
                                     ItemsSource="{Binding Sessions}"
+                                    HandlerChanged="OnConsoleListHandlerChanged"
                                     SelectionMode="Single"
                                     SelectionChanged="OnSessionSelectionChanged"
                                     Margin="0">
