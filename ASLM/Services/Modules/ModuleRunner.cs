@@ -545,6 +545,28 @@ namespace ASLM.Services.Modules
         // Running module queries
 
         /// <summary>
+        /// Identifies one live module launch independently of the console sessions of its commands and children.
+        /// </summary>
+        internal CancellationToken? GetModulePageRun(string sourcePath)
+        {
+            lock (_processLock)
+            {
+                if (!_runs.ContainsKey(sourcePath) &&
+                    (OperatingSystem.IsWindows() || OperatingSystem.IsMacCatalyst() || OperatingSystem.IsMacOS()))
+                {
+                    sourcePath = _runs.Keys.FirstOrDefault(path =>
+                        string.Equals(path, sourcePath, StringComparison.OrdinalIgnoreCase)) ?? sourcePath;
+                }
+
+                if (_runs.TryGetValue(sourcePath, out var run) && !run.Stop.IsCancellationRequested &&
+                    _runningProcesses.TryGetValue(sourcePath, out var processes) && processes.Any(IsProcessRunning))
+                    return run.Stop.Token;
+
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Returns the source paths of modules that currently have tracked running processes.
         /// Modules whose run is being stopped are not reported.
         /// </summary>

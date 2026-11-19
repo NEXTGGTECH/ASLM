@@ -83,6 +83,11 @@ namespace ASLM.Services.Modules
         /// </summary>
         private int _stateChangeQueued;
 
+        /// <summary>
+        /// Records process or maintenance transitions for the next debounced notification.
+        /// </summary>
+        private int _modulePageChangeQueued;
+
 
         // Events
 
@@ -90,6 +95,11 @@ namespace ASLM.Services.Modules
         /// Raised whenever the console store changes.
         /// </summary>
         public event EventHandler? StateChanged;
+
+        /// <summary>
+        /// Signals changes that can invalidate a module page without waking its checks for ordinary log output.
+        /// </summary>
+        internal event EventHandler? ModulePageStateChanged;
 
 
         // Maintenance activity
@@ -108,7 +118,7 @@ namespace ASLM.Services.Modules
                 active[token] = activity;
             }
 
-            RaiseStateChanged();
+            RaiseStateChanged(modulePageChanged: true);
             return new ActivityScope(this, sourcePath, token);
         }
 
@@ -234,7 +244,7 @@ namespace ASLM.Services.Modules
                     if (active.Count == 0) store._activities.Remove(sourcePath);
                 }
 
-                store.RaiseStateChanged();
+                store.RaiseStateChanged(modulePageChanged: true);
             }
         }
 
@@ -357,7 +367,7 @@ namespace ASLM.Services.Modules
 
             if (changed)
             {
-                RaiseStateChanged();
+                RaiseStateChanged(modulePageChanged: true);
             }
         }
 
@@ -415,7 +425,7 @@ namespace ASLM.Services.Modules
                 }
             }
 
-            RaiseStateChanged();
+            RaiseStateChanged(modulePageChanged: isTrackedProcess);
 
             return new ModuleConsoleSessionHandle(module.SourcePath, sessionState.Id);
         }
@@ -500,6 +510,7 @@ namespace ASLM.Services.Modules
         public void CompleteProcessSession(ModuleConsoleSessionHandle handle, int? exitCode)
         {
             var changed = false;
+            var modulePageChanged = false;
 
             lock (_sync)
             {
@@ -510,12 +521,13 @@ namespace ASLM.Services.Modules
                     sessionState.EndedUtc = DateTimeOffset.UtcNow;
                     moduleState.LastActivityUtc = sessionState.EndedUtc;
                     changed = true;
+                    modulePageChanged = sessionState.IsTrackedProcess;
                 }
             }
 
             if (changed)
             {
-                RaiseStateChanged();
+                RaiseStateChanged(modulePageChanged);
             }
         }
 
@@ -617,7 +629,7 @@ namespace ASLM.Services.Modules
 
             if (stateChanged)
             {
-                RaiseStateChanged();
+                RaiseStateChanged(modulePageChanged: true);
             }
         }
 
@@ -1089,11 +1101,12 @@ namespace ASLM.Services.Modules
         }
 
         /// <summary>
-        /// Raises <see cref="StateChanged"/> on a background task with debouncing.
+        /// Merges console notifications and separately reports changes relevant to module pages.
         /// </summary>
-        private void RaiseStateChanged()
+        private void RaiseStateChanged(bool modulePageChanged = false)
         {
             // Only the first change of a burst queues a notification; later changes are covered by it.
+            if (modulePageChanged) Interlocked.Exchange(ref _modulePageChangeQueued, 1);
             if (Interlocked.Exchange(ref _stateChangeQueued, 1) == 1)
             {
                 return;
@@ -1104,6 +1117,8 @@ namespace ASLM.Services.Modules
             {
                 await Task.Delay(StateChangedDebounceMilliseconds);
                 Interlocked.Exchange(ref _stateChangeQueued, 0);
+                if (Interlocked.Exchange(ref _modulePageChangeQueued, 0) == 1)
+                    ModulePageStateChanged?.Invoke(this, EventArgs.Empty);
                 StateChanged?.Invoke(this, EventArgs.Empty);
             });
         }
