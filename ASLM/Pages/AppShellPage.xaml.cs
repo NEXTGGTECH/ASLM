@@ -2,6 +2,7 @@
 
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using ASLM.Localization;
 using ASLM.Models;
 using Microsoft.Maui.Controls.Shapes;
@@ -83,11 +84,6 @@ namespace ASLM.Pages
         private const string IconPage = "icon_page.png";
 
         /// <summary>
-        /// Transparent background used by navigation buttons that are not active.
-        /// </summary>
-        private static Color TransparentBackground => Colors.Transparent;
-
-        /// <summary>
         /// Installer used to discover installed modules and to react to changes of their set.
         /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
@@ -166,6 +162,11 @@ namespace ASLM.Pages
         /// Installed modules from the last refresh, including modules that are still installing.
         /// </summary>
         private List<ModuleConfig> _allModules = [];
+
+        /// <summary>
+        /// Content hashes of the readable module sidebar icons in the latest discovery snapshot.
+        /// </summary>
+        private Dictionary<string, string> _moduleSidebarIconHashes = new(StringComparer.Ordinal);
 
         /// <summary>
         /// Module whose page is currently shown, or null when a system view is active.
@@ -323,21 +324,13 @@ namespace ASLM.Pages
             // The buttons of the system views share styling, alignment and active-state handling.
             _navButtons = [HomeButton, ConsolesButton, ModulesButton, AslmApiButton, NotificationsButton, DownloadsButton, SettingsButton];
 
-            // Hook alignment updates once so WinUI buttons keep the same content layout.
+            // Initialize the built-in buttons before the first selection and keep their native content aligned.
             CollapseButton.HandlerChanged += OnSidebarButtonHandlerChanged;
             foreach (var button in _navButtons)
             {
                 button.HandlerChanged += OnSidebarButtonHandlerChanged;
+                ApplyShellNavInactiveStyle(button);
             }
-
-            // Assign all static sidebar icons up front.
-            HomeButton.ImageSource = IconHome;
-            ConsolesButton.ImageSource = IconConsole;
-            ModulesButton.ImageSource = IconModules;
-            AslmApiButton.ImageSource = IconApi;
-            NotificationsButton.ImageSource = IconNotifications;
-            DownloadsButton.ImageSource = IconDownload;
-            SettingsButton.ImageSource = IconSettings;
 
             ApplySidebarButtonIconFromPalette(CollapseButton, "LabelPrimary");
 
@@ -475,37 +468,14 @@ namespace ASLM.Pages
             ApplySidebarButtonLayout();
             ScheduleSidebarButtonLayoutRefresh();
 
-            // Reset every sidebar button (system views and module pages) to the inactive style of the new palette.
-            foreach (var button in _navButtons)
+            // Apply the new palette directly in each button's current selection state.
+            var selected = GetActiveSidebarButton();
+            foreach (var button in _navButtons.Concat(ModulePagePanel.Children.OfType<Button>()))
             {
-                ApplyShellNavInactiveStyle(button);
-            }
-
-            foreach (var child in ModulePagePanel.Children)
-            {
-                if (child is Button button)
-                {
+                if (button == selected)
+                    ApplyShellNavActiveStyle(button);
+                else
                     ApplyShellNavInactiveStyle(button);
-                }
-            }
-
-            // Re-highlight the active entry: the active system view, or the button of the active module page.
-            if (_activeNavButton != null)
-            {
-                ApplyShellNavActiveStyle(_activeNavButton);
-            }
-            else if (_activeModule != null)
-            {
-                foreach (var child in ModulePagePanel.Children)
-                {
-                    if (child is Button button &&
-                        button.ClassId == "PAGE" &&
-                        string.Equals(button.AutomationId, _activeModule.Id, StringComparison.Ordinal))
-                    {
-                        ApplyShellNavActiveStyle(button);
-                        break;
-                    }
-                }
             }
         }
 
@@ -513,7 +483,7 @@ namespace ASLM.Pages
         // Module refresh
 
         /// <summary>
-        /// Reloads modules, rebuilds page buttons, and refreshes the dashboard if needed.
+        /// Reloads modules and their sidebar artwork before updating the shell and loaded module views.
         /// Concurrent requests are coalesced: while one refresh runs, further requests only set a flag and the
         /// running refresh repeats once more, so the last change is never lost and refreshes never overlap.
         /// </summary>
@@ -532,8 +502,12 @@ namespace ASLM.Pages
                 do
                 {
                     Interlocked.Exchange(ref _moduleRefreshQueued, 0);
-                    var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync(includeInstalling: true));
-                    await MainThread.InvokeOnMainThreadAsync(() => ApplyModules(modules));
+                    var (modules, iconHashes) = await Task.Run(async () =>
+                    {
+                        var discovered = await _moduleInstaller.DiscoverInstalledModulesAsync(includeInstalling: true);
+                        return (discovered, ReadModuleSidebarIconHashes(discovered));
+                    });
+                    await MainThread.InvokeOnMainThreadAsync(() => ApplyModules(modules, iconHashes));
                 }
                 while (Interlocked.Exchange(ref _moduleRefreshQueued, 0) == 1);
             }
@@ -547,11 +521,13 @@ namespace ASLM.Pages
         /// Applies the latest module API snapshot to the sidebar and loaded module-backed views.
         /// </summary>
         /// <param name="modules">Fresh list of installed modules.</param>
-        private void ApplyModules(List<ModuleConfig> modules)
+        /// <param name="iconHashes">Fingerprints of the sidebar files found in this snapshot.</param>
+        private void ApplyModules(List<ModuleConfig> modules, Dictionary<string, string> iconHashes)
         {
             // Swap in the new list and re-resolve the active module by source path in the new instances.
             var activeModuleSourcePath = _activeModule?.SourcePath;
             _allModules = modules;
+            _moduleSidebarIconHashes = iconHashes;
 
             if (!string.IsNullOrWhiteSpace(activeModuleSourcePath))
             {
@@ -559,7 +535,8 @@ namespace ASLM.Pages
                     string.Equals(module.SourcePath, activeModuleSourcePath, StringComparison.OrdinalIgnoreCase));
             }
 
-            BuildPageButtons();
+            if (UpdateModulePageButtons())
+                ScheduleSidebarButtonLayoutRefresh();
 
             // Leave the module page if the module was removed or disabled; otherwise make sure the browser still
             // shows the module's current URL.
@@ -1365,6 +1342,8 @@ namespace ASLM.Pages
             if (navButton == HomeButton && _appData.Data.Navigation.DisableHomePage)
                 navButton = ModulesButton;
 
+            var previousSelection = GetActiveSidebarButton();
+
             // Release an unfinished page to background preparation and retain any already loaded document.
             if (_activeModule != null && !_moduleBrowserDocumentReady)
                 ClearModuleBrowserNavigationTarget();
@@ -1374,23 +1353,9 @@ namespace ASLM.Pages
             Browser.IsVisible = false;
             ModuleStarting.IsVisible = false;
 
-            // Clear active styling from both fixed shell buttons and dynamic module buttons.
-            foreach (var button in _navButtons)
-            {
-                ApplyShellNavInactiveStyle(button);
-            }
-
-            foreach (var child in ModulePagePanel.Children)
-            {
-                if (child is Button button)
-                {
-                    ApplyShellNavInactiveStyle(button);
-                }
-            }
-
             // Highlight the new button, show its view and remember it as the page to restore on the next start.
-            ApplyShellNavActiveStyle(navButton);
             _activeNavButton = navButton;
+            UpdateSidebarSelection(previousSelection, navButton);
 
             ContentArea.Content = GetViewForButton(navButton);
             RememberPage(GetRouteForButton(navButton));
@@ -1671,53 +1636,114 @@ namespace ASLM.Pages
         // Module page buttons
 
         /// <summary>
-        /// Rebuilds sidebar buttons for enabled modules that expose a page.
+        /// Reads sidebar icon fingerprints off the UI thread so replacements at the same path are detected.
         /// </summary>
-        private void BuildPageButtons()
+        private static Dictionary<string, string> ReadModuleSidebarIconHashes(IEnumerable<ModuleConfig> modules)
         {
-            ModulePagePanel.Children.Clear();
+            var hashes = new Dictionary<string, string>(StringComparer.Ordinal);
+            var paths = modules.Where(module => module.HasPage && module.Status.Enabled)
+                .Select(module => module.SidebarIconFullPath).OfType<string>().Distinct(StringComparer.Ordinal);
+            foreach (var path in paths)
+            {
+                try
+                {
+                    using var input = File.OpenRead(path);
+                    hashes.Add(path, Convert.ToHexString(SHA256.HashData(input)));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A missing or unreadable icon uses the packaged module page icon for this snapshot.
+                }
+            }
 
+            return hashes;
+        }
+
+        /// <summary>
+        /// Updates the module buttons in place and reports whether native icon alignment needs another pass.
+        /// </summary>
+        private bool UpdateModulePageButtons()
+        {
+            var children = ModulePagePanel.Children;
             var pageModules = _allModules
                 .Where(module => module.HasPage && module.Status.Enabled)
+                .OrderBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(module => module.SourcePath, StringComparer.OrdinalIgnoreCase)
+                .DistinctBy(module => module.SourcePath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            var wanted = pageModules.Select(module => module.SourcePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var buttons = new Dictionary<string, Button>(StringComparer.OrdinalIgnoreCase);
+            var layoutChanged = false;
 
-            foreach (var module in pageModules)
+            // Remove obsolete entries first so an insertion or removal does not move the other buttons.
+            for (var index = children.Count - 1; index >= 0; index--)
             {
-                // Use the module's own sidebar icon when its file exists, otherwise the generic page icon.
-                ImageSource sidebarIcon;
-                if (!string.IsNullOrEmpty(module.SidebarIconFullPath) && File.Exists(module.SidebarIconFullPath))
+                if (children[index] is not Button { BindingContext: ModuleConfig module } button)
+                    continue;
+
+                if (wanted.Contains(module.SourcePath))
                 {
-                    sidebarIcon = ImageSource.FromFile(module.SidebarIconFullPath);
+                    buttons.Add(module.SourcePath, button);
+                    continue;
+                }
+
+                button.Clicked -= OnModulePageClicked;
+                button.HandlerChanged -= OnSidebarButtonHandlerChanged;
+                children.RemoveAt(index);
+                layoutChanged = true;
+            }
+
+            // Keep each live button mounted unless its position actually needs to change.
+            for (var index = 0; index < pageModules.Count; index++)
+            {
+                var module = pageModules[index];
+                if (buttons.TryGetValue(module.SourcePath, out var button))
+                {
+                    button.BindingContext = module;
+                    var text = _panelExpanded ? module.Name : string.Empty;
+                    if (button.Text != text) button.Text = text;
+                    layoutChanged |= ApplySidebarButtonIconFromPalette(button, "LabelPrimary");
+
+                    if (children[index] == button) continue;
+                    children.Remove(button);
                 }
                 else
                 {
-                    sidebarIcon = IconPage;
+                    button = CreateModulePageButton(module);
                 }
 
-                // The module id travels in AutomationId and the PAGE class marks the button as a module page.
-                var button = new Button
-                {
-                    Text = _panelExpanded ? module.Name : string.Empty,
-                    AutomationId = module.Id,
-                    BindingContext = module,
-                    ClassId = "PAGE",
-                    ImageSource = sidebarIcon,
-                    ContentLayout = new Button.ButtonContentLayout(Button.ButtonContentLayout.ImagePosition.Left, 0),
-                    Style = (Style)Application.Current!.Resources["SidebarButton"],
-                    BackgroundColor = TransparentBackground,
-                    HeightRequest = 36,
-                    HorizontalOptions = LayoutOptions.Fill
-                };
-
-                // The click handler captures its own module instance.
-                var capturedModule = module;
-                button.Clicked += (_, _) => ActivateModulePage(capturedModule);
-                button.HandlerChanged += OnSidebarButtonHandlerChanged;
-                ModulePagePanel.Children.Add(button);
-                ApplyShellNavInactiveStyle(button);
+                children.Insert(index, button);
+                layoutChanged = true;
             }
 
-            ScheduleSidebarButtonLayoutRefresh();
+            return layoutChanged;
+        }
+
+        /// <summary>
+        /// Creates a sidebar button for a newly available page and gives it the current selection style.
+        /// </summary>
+        private Button CreateModulePageButton(ModuleConfig module)
+        {
+            var button = new Button
+            {
+                Text = _panelExpanded ? module.Name : string.Empty,
+                AutomationId = module.Id,
+                BindingContext = module,
+                ContentLayout = new Button.ButtonContentLayout(
+                    Button.ButtonContentLayout.ImagePosition.Left, _panelExpanded ? 14 : 0),
+                Style = (Style)Application.Current!.Resources["SidebarButton"],
+                HeightRequest = 36,
+                HorizontalOptions = LayoutOptions.Fill
+            };
+
+            if (string.Equals(module.SourcePath, _activeModule?.SourcePath, StringComparison.OrdinalIgnoreCase))
+                ApplyShellNavActiveStyle(button);
+            else
+                ApplyShellNavInactiveStyle(button);
+
+            button.Clicked += OnModulePageClicked;
+            button.HandlerChanged += OnSidebarButtonHandlerChanged;
+            return button;
         }
 
         /// <summary>
@@ -1817,54 +1843,52 @@ namespace ASLM.Pages
         // Module page activation
 
         /// <summary>
+        /// Opens the page using the button's latest configuration after any intervening module refresh.
+        /// </summary>
+        private void OnModulePageClicked(object? sender, EventArgs e)
+        {
+            if (sender is Button { BindingContext: ModuleConfig module }) ActivateModulePage(module);
+        }
+
+        /// <summary>
+        /// Finds the selected entry from the open view or the installed module's manifest path.
+        /// </summary>
+        private Button? GetActiveSidebarButton() => _activeNavButton ?? ModulePagePanel.Children.OfType<Button>()
+            .FirstOrDefault(button => button.BindingContext is ModuleConfig module &&
+                string.Equals(module.SourcePath, _activeModule?.SourcePath, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// Updates only the buttons that gained or lost selection.
+        /// </summary>
+        private void UpdateSidebarSelection(Button? previous, Button? selected)
+        {
+            if (previous == selected) return;
+            if (previous is not null) ApplyShellNavInactiveStyle(previous);
+            if (selected is not null) ApplyShellNavActiveStyle(selected);
+        }
+
+        /// <summary>
         /// Opens one module page inside the embedded browser and updates highlighting.
         /// </summary>
-        /// <param name="module">Module whose page to open; the latest discovered instance of it is used.</param>
+        /// <param name="module">Latest discovered configuration of the page to open.</param>
         private void ActivateModulePage(ModuleConfig module)
         {
-            var resolved = ResolveModuleConfig(module);
-            if (resolved == null)
-            {
-                return;
-            }
+            var previousSelection = GetActiveSidebarButton();
 
             // Reuse the current document when returning from a built-in view of the same live module.
             var sameModule = string.Equals(_moduleBrowserModule?.SourcePath,
-                resolved.SourcePath, StringComparison.OrdinalIgnoreCase);
-            _activeModule = resolved;
-            _moduleBrowserModule = resolved;
+                module.SourcePath, StringComparison.OrdinalIgnoreCase);
+            _activeModule = module;
+            _moduleBrowserModule = module;
             ContentArea.Content = null;
             Browser.IsVisible = true;
             EnsureModuleBrowserLeftToRight();
             RefreshModuleBrowserPage(force: !sameModule);
             ScheduleEnsureModuleBrowserLeftToRight();
 
-            // Clear active styling from shell buttons before highlighting the module page button.
-            foreach (var button in _navButtons)
-            {
-                ApplyShellNavInactiveStyle(button);
-            }
-
             _activeNavButton = null;
-
-            // Highlight only the button of the opened module page.
-            foreach (var child in ModulePagePanel.Children)
-            {
-                if (child is not Button button)
-                {
-                    continue;
-                }
-
-                if (button.ClassId == "PAGE" && button.AutomationId == resolved.Id)
-                {
-                    ApplyShellNavActiveStyle(button);
-                    continue;
-                }
-
-                ApplyShellNavInactiveStyle(button);
-            }
-
-            RememberPage(ShellNavigationRoute.ForModule(resolved.Id));
+            UpdateSidebarSelection(previousSelection, GetActiveSidebarButton());
+            RememberPage(ShellNavigationRoute.ForModule(module.Id));
         }
 
 
@@ -2074,22 +2098,6 @@ namespace ASLM.Pages
             ModuleStarting.IsVisible = visible;
             Browser.Opacity = visible ? 0 : 1;
             Browser.InputTransparent = visible;
-        }
-
-        /// <summary>
-        /// Returns the latest discovered module matching <paramref name="module"/>.
-        /// </summary>
-        /// <param name="module">Module whose current instance from the last module refresh is wanted.</param>
-        private ModuleConfig? ResolveModuleConfig(ModuleConfig module)
-        {
-            if (string.IsNullOrWhiteSpace(module.Id))
-            {
-                return module;
-            }
-
-            return _allModules.FirstOrDefault(candidate =>
-                       string.Equals(candidate.Id, module.Id, StringComparison.OrdinalIgnoreCase))
-                   ?? module;
         }
 
         /// <summary>
@@ -2557,16 +2565,21 @@ namespace ASLM.Pages
         /// Sidebar button whose icon is replaced; buttons without a known icon are left unchanged.
         /// </param>
         /// <param name="paletteResourceKey">Palette resource key of the tint color.</param>
-        private void ApplySidebarButtonIconFromPalette(Button button, string paletteResourceKey)
+        /// <returns>Whether the button's image changed.</returns>
+        private bool ApplySidebarButtonIconFromPalette(Button button, string paletteResourceKey)
         {
             var path = ResolveSidebarIconFile(button);
             if (string.IsNullOrEmpty(path))
             {
-                return;
+                return false;
             }
 
             var tint = IconTintHelper.ResolvePaletteColor(paletteResourceKey);
-            button.ImageSource = PackagedIconTintCache.Get(path, tint);
+            var source = PackagedIconTintCache.Get(path, tint, _moduleSidebarIconHashes.GetValueOrDefault(path));
+            if (ReferenceEquals(button.ImageSource, source)) return false;
+
+            button.ImageSource = source;
+            return true;
         }
 
         /// <summary>
@@ -2618,12 +2631,11 @@ namespace ASLM.Pages
             }
 
             // Module page buttons use the module's own icon file, or the generic page icon without one.
-            if (string.Equals(button.ClassId, "PAGE", StringComparison.Ordinal) &&
-                button.BindingContext is ModuleConfig module)
+            if (button.BindingContext is ModuleConfig module)
             {
-                if (!string.IsNullOrEmpty(module.SidebarIconFullPath) && File.Exists(module.SidebarIconFullPath))
+                if (module.SidebarIconFullPath is { } path && _moduleSidebarIconHashes.ContainsKey(path))
                 {
-                    return module.SidebarIconFullPath;
+                    return path;
                 }
 
                 return IconPage;
