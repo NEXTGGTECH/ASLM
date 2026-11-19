@@ -428,8 +428,6 @@
                                 StrokeShape="RoundRectangle 8"
                                 Padding="0">
                             <services:ConsoleOutputView x:Name="ActivityLogConsole"
-                                                        Text="{Binding LogText}"
-                                                        SessionKey="{Binding LogSessionKey}"
                                                         HorizontalOptions="Fill"
                                                         VerticalOptions="Fill" />
                         </Border>

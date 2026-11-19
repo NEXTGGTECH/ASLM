@@ -287,8 +287,6 @@
                                 StrokeShape="RoundRectangle 8"
                                 Padding="8">
                             <services:ConsoleOutputView x:Name="InstallLogConsole"
-                                                        Text="{Binding InstallLogText, Source={x:Reference RootView}}"
-                                                        SessionKey="{Binding InstallLogSessionKey, Source={x:Reference RootView}}"
                                                         HorizontalOptions="Fill"
                                                         VerticalOptions="Fill" />
                         </Border>

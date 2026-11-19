@@ -170,8 +170,11 @@ namespace ASLM.Services.Modules
                 ModuleConsoleSessionState? session = null;
                 module?.Sessions.TryGetValue(MaintenanceSessionId, out session);
                 var running = module?.Sessions.Values.Any(item => item.IsTrackedProcess && item.IsRunning) == true;
-                return new(activity, running, $"{sourcePath}|{session?.StartedUtc.Ticks}",
-                    session?.Lines.Count > 0 ? string.Join(Environment.NewLine, BuildDisplayLines(session.Lines)) : string.Empty);
+                var key = $"{sourcePath}|{session?.StartedUtc.Ticks}";
+                var output = session?.Lines.Count > 0
+                    ? ConsoleOutput.FromLines(key, BuildDisplayLines(session.Lines))
+                    : new ConsoleOutput(key, string.Empty);
+                return new(activity, running, output);
             }
         }
 
@@ -650,11 +653,17 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Returns the buffered console lines for one session, trimmed to a UI-safe size.
         /// </summary>
-        public IReadOnlyList<string> GetSessionLines(string moduleSourcePath, string sessionId)
+        public IReadOnlyList<string> GetSessionLines(string moduleSourcePath, string sessionId) =>
+            GetSessionOutputLines(moduleSourcePath, sessionId).Select(line => line.Text).ToArray();
+
+        /// <summary>
+        /// Returns the display lines with their original sequence numbers for scroll anchoring.
+        /// </summary>
+        internal IReadOnlyList<ConsoleOutputLine> GetSessionOutputLines(string moduleSourcePath, string sessionId)
         {
             if (string.IsNullOrWhiteSpace(moduleSourcePath) || string.IsNullOrWhiteSpace(sessionId))
             {
-                return ["No output yet."];
+                return [new(0, "No output yet.")];
             }
 
             lock (_sync)
@@ -663,7 +672,7 @@ namespace ASLM.Services.Modules
                     !moduleState.Sessions.TryGetValue(sessionId, out var sessionState) ||
                     sessionState.Lines.Count == 0)
                 {
-                    return ["No output yet."];
+                    return [new(0, "No output yet.")];
                 }
 
                 return BuildDisplayLines(sessionState.Lines);
@@ -673,25 +682,31 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Returns the merged console lines for one module-level unified console.
         /// </summary>
-        public IReadOnlyList<string> GetUnifiedModuleLines(string moduleSourcePath)
+        public IReadOnlyList<string> GetUnifiedModuleLines(string moduleSourcePath) =>
+            GetUnifiedModuleOutputLines(moduleSourcePath).Select(line => line.Text).ToArray();
+
+        /// <summary>
+        /// Returns the display lines with their original sequence numbers for scroll anchoring.
+        /// </summary>
+        internal IReadOnlyList<ConsoleOutputLine> GetUnifiedModuleOutputLines(string moduleSourcePath)
         {
             if (string.IsNullOrWhiteSpace(moduleSourcePath))
             {
-                return ["No module logs yet."];
+                return [new(0, "No module logs yet.")];
             }
 
             lock (_sync)
             {
                 if (!_modules.TryGetValue(moduleSourcePath, out var moduleState))
                 {
-                    return ["No module logs yet."];
+                    return [new(0, "No module logs yet.")];
                 }
 
                 var (mergedEntries, totalLineCount) = SelectLatestDisplayEntries(BuildUnifiedModuleEntries(moduleState));
 
                 if (totalLineCount == 0)
                 {
-                    return ["No module logs yet."];
+                    return [new(0, "No module logs yet.")];
                 }
 
                 return BuildDisplayLines(mergedEntries, totalLineCount);
@@ -701,11 +716,17 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Returns the merged console lines for multiple modules.
         /// </summary>
-        public IReadOnlyList<string> GetUnifiedOverviewLines(IReadOnlyCollection<string> moduleSourcePaths)
+        public IReadOnlyList<string> GetUnifiedOverviewLines(IReadOnlyCollection<string> moduleSourcePaths) =>
+            GetUnifiedOverviewOutputLines(moduleSourcePaths).Select(line => line.Text).ToArray();
+
+        /// <summary>
+        /// Returns the display lines with their original sequence numbers for scroll anchoring.
+        /// </summary>
+        internal IReadOnlyList<ConsoleOutputLine> GetUnifiedOverviewOutputLines(IReadOnlyCollection<string> moduleSourcePaths)
         {
             if (moduleSourcePaths.Count == 0)
             {
-                return ["No active module logs yet."];
+                return [new(0, "No active module logs yet.")];
             }
 
             lock (_sync)
@@ -717,7 +738,7 @@ namespace ASLM.Services.Modules
 
                 if (totalLineCount == 0)
                 {
-                    return ["No active module logs yet."];
+                    return [new(0, "No active module logs yet.")];
                 }
 
                 return BuildDisplayLines(mergedEntries, totalLineCount);
@@ -934,17 +955,17 @@ namespace ASLM.Services.Modules
         /// </summary>
         /// <param name="lines">Buffered lines in ascending sequence order.</param>
         /// <param name="totalLineCountOverride">Number of lines before an earlier selection step, when it trimmed already.</param>
-        private static IReadOnlyList<string> BuildDisplayLines(IReadOnlyList<ModuleConsoleLineState> lines, int? totalLineCountOverride = null)
+        private static IReadOnlyList<ConsoleOutputLine> BuildDisplayLines(IReadOnlyList<ModuleConsoleLineState> lines, int? totalLineCountOverride = null)
         {
             // Take the newest tail of buffered lines, applying per-line display truncation.
             var startIndex = Math.Max(0, lines.Count - MaxDisplayedLines);
-            var selectedLines = new List<string>(lines.Count - startIndex);
+            var selectedLines = new List<ConsoleOutputLine>(lines.Count - startIndex);
             var currentLength = 0;
 
             for (var index = startIndex; index < lines.Count; index++)
             {
                 var text = TrimLineForDisplay(lines[index].Text);
-                selectedLines.Add(text);
+                selectedLines.Add(new ConsoleOutputLine(lines[index].Sequence, text));
                 currentLength += text.Length + Environment.NewLine.Length;
             }
 
@@ -954,7 +975,7 @@ namespace ASLM.Services.Modules
             while (selectedLines.Count - firstVisibleIndex > 1 && currentLength > MaxDisplayedCharacters)
             {
                 truncatedByCharacters = true;
-                currentLength -= selectedLines[firstVisibleIndex].Length + Environment.NewLine.Length;
+                currentLength -= selectedLines[firstVisibleIndex].Text.Length + Environment.NewLine.Length;
                 firstVisibleIndex++;
             }
 
@@ -968,7 +989,8 @@ namespace ASLM.Services.Modules
             var trimmedLineCount = totalLineCount - selectedLines.Count;
             if (trimmedLineCount > 0 || truncatedByCharacters)
             {
-                selectedLines.Insert(0, $"[Console output trimmed: showing the latest {selectedLines.Count} lines]");
+                selectedLines.Insert(0, new ConsoleOutputLine(0,
+                    $"[Console output trimmed: showing the latest {selectedLines.Count} lines]"));
             }
 
             return selectedLines;
@@ -1258,7 +1280,18 @@ namespace ASLM.Services.Modules
     /// <param name="IsRunning">True when a tracked process of the module is running.</param>
     /// <param name="SessionKey">Identifies the current maintenance session; changes when a new session starts.</param>
     /// <param name="Text">Maintenance console text prepared for display, or empty when there is none.</param>
-    internal sealed record ModuleMaintenanceSnapshot(ModuleActivity? Activity, bool IsRunning, string SessionKey, string Text);
+    internal sealed record ModuleMaintenanceSnapshot(ModuleActivity? Activity, bool IsRunning, ConsoleOutput Output)
+    {
+        /// <summary>
+        /// Gets the key that identifies the current maintenance session.
+        /// </summary>
+        internal string SessionKey => Output.SessionKey;
+
+        /// <summary>
+        /// Gets the current maintenance log.
+        /// </summary>
+        internal string Text => Output.Text;
+    }
 
     /// <summary>
     /// Describes one observed child process started by a module at runtime.

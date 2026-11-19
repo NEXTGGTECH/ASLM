@@ -160,11 +160,6 @@ namespace ASLM.Pages
         private int _logFlushRequested;
 
         /// <summary>
-        /// Set to 1 while the delayed layout refresh passes of the install log are scheduled.
-        /// </summary>
-        private int _installLogLayoutRefreshQueued;
-
-        /// <summary>
         /// Whether the account radio buttons are being set from code, so their change events are ignored.
         /// </summary>
         private bool _suppressAccountSelectionEvents;
@@ -1051,54 +1046,17 @@ namespace ASLM.Pages
         public new event PropertyChangedEventHandler? PropertyChanged;
 
         /// <summary>
-        /// Gets the installation log text rendered by <see cref="ConsoleOutputView"/>.
+        /// Publishes the latest batch of installation log lines.
         /// </summary>
-        public string InstallLogText
+        private void PublishInstallLog()
         {
-            get
+            string text;
+            lock (_logLock)
             {
-                lock (_logLock)
-                {
-                    return _logBuffer.ToString();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets the session key used to reset console scroll position for a new install run.
-        /// </summary>
-        public string InstallLogSessionKey => _installLogSessionKey;
-
-        /// <summary>
-        /// Schedules layout refresh passes so the native console host measures like <see cref="ConsolesView"/>.
-        /// Refreshes at once, then again 16 ms and 48 ms later, unless those delayed passes are already scheduled.
-        /// </summary>
-        private void QueueInstallLogLayoutRefresh()
-        {
-            RefreshInstallLogLayout();
-
-            // Only one set of delayed passes may be pending at a time.
-            if (Dispatcher == null || Interlocked.Exchange(ref _installLogLayoutRefreshQueued, 1) == 1)
-            {
-                return;
+                text = _logBuffer.ToString();
             }
 
-            // Two delayed passes; the last one allows scheduling again.
-            Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(16), RefreshInstallLogLayout);
-            Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(48), () =>
-            {
-                RefreshInstallLogLayout();
-                Interlocked.Exchange(ref _installLogLayoutRefreshQueued, 0);
-            });
-        }
-
-        /// <summary>
-        /// Invalidates the install panel and console host after text changes.
-        /// </summary>
-        private void RefreshInstallLogLayout()
-        {
-            InstallPanel.InvalidateMeasure();
-            InstallLogConsole.InvalidateMeasure();
+            InstallLogConsole.SetOutput(new ConsoleOutput(_installLogSessionKey, text));
         }
 
 
@@ -1179,9 +1137,8 @@ namespace ASLM.Pages
             }
 
             _installLogSessionKey = $"setup-install-{DateTime.UtcNow.Ticks}";
-            OnPropertyChanged(nameof(InstallLogSessionKey));
-            OnPropertyChanged(nameof(InstallLogText));
-            QueueInstallLogLayoutRefresh();
+            PublishInstallLog();
+            InstallPanel.InvalidateMeasure();
 
             // Each run gets its own cancellation source, and installer output goes straight into the log.
             _cts?.Dispose();
@@ -1771,11 +1728,7 @@ namespace ASLM.Pages
                     Interlocked.Exchange(ref _logFlushRequested, 0);
                     await Task.Delay(75);
 
-                    await MainThread.InvokeOnMainThreadAsync(() =>
-                    {
-                        OnPropertyChanged(nameof(InstallLogText));
-                        QueueInstallLogLayoutRefresh();
-                    });
+                    await MainThread.InvokeOnMainThreadAsync(PublishInstallLog);
                 }
                 while (Interlocked.CompareExchange(ref _logFlushRequested, 0, 0) == 1);
             }

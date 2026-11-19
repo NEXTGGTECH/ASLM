@@ -155,8 +155,6 @@
 
                     <services:ConsoleOutputView x:Name="ConsoleOutputHost"
                                                 Grid.Row="1"
-                                                Text="{Binding SelectedSessionText}"
-                                                SessionKey="{Binding SelectedSessionKey}"
                                                 HorizontalOptions="Fill"
                                                 VerticalOptions="Fill" />
                 </Grid>

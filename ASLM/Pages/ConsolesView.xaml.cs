@@ -55,6 +55,11 @@ namespace ASLM.Pages
         private int _layoutRefreshQueued;
 
         /// <summary>
+        /// Layout choices already applied to the console workspace.
+        /// </summary>
+        private (bool Compact, bool IncludesSessions)? _workspaceLayout;
+
+        /// <summary>
         /// Cancellation source of the periodic refresh loop, or null while the loop is stopped.
         /// </summary>
         private CancellationTokenSource? _autoRefreshCts;
@@ -224,13 +229,12 @@ namespace ASLM.Pages
 
             // Copy the selected session's texts into the bindable view model.
             _viewModel.SelectedSessionId = state.SelectedSessionId;
-            _viewModel.SelectedSessionKey = state.SelectedSessionKey;
             _viewModel.SelectedSessionTitle = state.SelectedSessionTitle;
             _viewModel.SelectedSessionStatus = state.SelectedSessionStatus;
             _viewModel.SelectedSessionDescription = state.SelectedSessionDescription;
             _viewModel.SelectedSessionCommandLine = state.SelectedSessionCommandLine;
             _viewModel.SelectedSessionFooter = state.SelectedSessionFooter;
-            _viewModel.SelectedSessionText = string.Join(Environment.NewLine, state.SelectedSessionLines);
+            ConsoleOutputHost.SetOutput(state.SelectedOutput);
 
 #if MACCATALYST
             UIKit.UIView.PerformWithoutAnimation(() => RenderLists(state));
@@ -240,8 +244,7 @@ namespace ASLM.Pages
 
             // Show the session list only when there is more than one console to pick from, then re-measure.
             SessionsPanel.IsVisible = state.ShowSessionList;
-            UpdateResponsiveLayout(state.ShowSessionList);
-            QueueConsoleLayoutRefresh();
+            if (UpdateResponsiveLayout(state.ShowSessionList)) QueueConsoleLayoutRefresh();
             _suppressSelection = false;
         }
 
@@ -319,13 +322,15 @@ namespace ASLM.Pages
         /// <param name="showSessionList">
         /// Whether the sessions panel takes part in the layout; null uses the current visibility of the panel.
         /// </param>
-        private void UpdateResponsiveLayout(bool? showSessionList = null)
+        private bool UpdateResponsiveLayout(bool? showSessionList = null)
         {
             // A desktop sidebar can make this page narrower than the breakpoint without making the
             // application window compact. Honor the host's minimum width before stacking console panels.
             var minimumWindowWidth = Window?.MinimumWidth ?? 0;
             var isCompact = Width > 0 && Width < CompactBreakpoint && minimumWindowWidth < CompactBreakpoint;
             var includeSessions = showSessionList ?? SessionsPanel.IsVisible;
+            if (_workspaceLayout == (isCompact, includeSessions)) return false;
+            _workspaceLayout = (isCompact, includeSessions);
 
             // The grid definitions are rebuilt from scratch for the chosen layout.
             WorkspaceLayout.ColumnDefinitions.Clear();
@@ -368,6 +373,8 @@ namespace ASLM.Pages
                 Grid.SetRow(OutputPanel, 0);
                 Grid.SetColumn(OutputPanel, includeSessions ? 2 : 1);
             }
+
+            return true;
         }
 
         /// <summary>
@@ -932,7 +939,7 @@ namespace ASLM.Pages
 
             DateTimeOffset? nextSessionExpiryUtc = null;
             IReadOnlyList<ConsoleSessionItemViewModel> sessionItems;
-            IReadOnlyList<string> selectedSessionLines;
+            IReadOnlyList<ConsoleOutputLine> selectedSessionLines;
             string selectedSessionTitle;
             string selectedSessionStatus;
             string selectedSessionDescription;
@@ -955,7 +962,7 @@ namespace ASLM.Pages
                     }
                 ];
 
-                selectedSessionLines = _consoleStore.GetUnifiedOverviewLines(unifiedModulePaths);
+                selectedSessionLines = _consoleStore.GetUnifiedOverviewOutputLines(unifiedModulePaths);
                 selectedSessionTitle = L.Get(LocalizationKeys.Consoles_AllModulesUnifiedTitle);
                 selectedSessionStatus = string.Empty;
                 selectedSessionDescription = string.Empty;
@@ -967,7 +974,7 @@ namespace ASLM.Pages
                 // Nothing selected: show the empty-selection placeholders.
                 _selectedSessionId = null;
                 sessionItems = [];
-                selectedSessionLines = [L.Get(LocalizationKeys.Consoles_NoOutputYet)];
+                selectedSessionLines = [new(0, L.Get(LocalizationKeys.Consoles_NoOutputYet))];
                 selectedSessionTitle = L.Get(LocalizationKeys.Consoles_EmptySelectionTitle);
                 selectedSessionStatus = L.Get(LocalizationKeys.Consoles_EmptySelectionStatus);
                 selectedSessionDescription = L.Get(LocalizationKeys.Consoles_EmptySelectionDescription);
@@ -1030,7 +1037,7 @@ namespace ASLM.Pages
                 // Fill the output pane: merged module console, placeholders for a vanished session, or session output.
                 if (selectedSessionItem == null || string.Equals(_selectedSessionId, UnifiedSessionId, StringComparison.Ordinal))
                 {
-                    selectedSessionLines = _consoleStore.GetUnifiedModuleLines(selectedModule.SourcePath);
+                    selectedSessionLines = _consoleStore.GetUnifiedModuleOutputLines(selectedModule.SourcePath);
                     selectedSessionTitle = L.Get(LocalizationKeys.Consoles_ModuleUnifiedTitleFormat, selectedModule.Name);
                     selectedSessionStatus = string.Empty;
                     selectedSessionDescription = string.Empty;
@@ -1040,7 +1047,7 @@ namespace ASLM.Pages
                 else if (selectedSession == null)
                 {
                     // The selected item has no matching store session any more.
-                    selectedSessionLines = [L.Get(LocalizationKeys.Consoles_NoOutputYet)];
+                    selectedSessionLines = [new(0, L.Get(LocalizationKeys.Consoles_NoOutputYet))];
                     selectedSessionTitle = L.Get(LocalizationKeys.Consoles_EmptySelectionTitle);
                     selectedSessionStatus = L.Get(LocalizationKeys.Consoles_EmptySelectionStatus);
                     selectedSessionDescription = L.Get(LocalizationKeys.Consoles_EmptySelectionDescription);
@@ -1050,7 +1057,7 @@ namespace ASLM.Pages
                 else
                 {
                     // A concrete process session: its output, status, description (or stage) and command line.
-                    selectedSessionLines = _consoleStore.GetSessionLines(selectedModule.SourcePath, selectedSession.Id);
+                    selectedSessionLines = _consoleStore.GetSessionOutputLines(selectedModule.SourcePath, selectedSession.Id);
                     selectedSessionTitle = $"{selectedModule.Name} / {selectedSession.Title}";
                     selectedSessionStatus = BuildSelectedStatus(selectedSession, IsRunningForDisplay(selectedSession));
                     selectedSessionDescription = selectedSession.IsObservedProcess
@@ -1072,12 +1079,11 @@ namespace ASLM.Pages
                 ShowSessionList = sessionItems.Count > 1 && !isGlobalModule,
                 NextSessionExpiryUtc = nextSessionExpiryUtc,
                 SelectedSessionId = _selectedSessionId,
-                SelectedSessionKey = $"{_selectedModuleSourcePath}|{_selectedSessionId}",
                 SelectedSessionTitle = selectedSessionTitle,
                 SelectedSessionStatus = selectedSessionStatus,
                 SelectedSessionDescription = selectedSessionDescription,
                 SelectedSessionCommandLine = selectedSessionCommandLine,
-                SelectedSessionLines = selectedSessionLines,
+                SelectedOutput = ConsoleOutput.FromLines($"{_selectedModuleSourcePath}|{_selectedSessionId}", selectedSessionLines),
                 SelectedSessionFooter = selectedSessionFooter
             };
         }
@@ -1286,11 +1292,6 @@ namespace ASLM.Pages
         public string? SelectedSessionId { get; set; }
 
         /// <summary>
-        /// Gets or sets the composite key used to detect session changes in the native console host.
-        /// </summary>
-        public string SelectedSessionKey { get; set; } = string.Empty;
-
-        /// <summary>
         /// Gets or sets the title shown above the selected console output.
         /// </summary>
         public string SelectedSessionTitle { get; set; } = string.Empty;
@@ -1311,9 +1312,9 @@ namespace ASLM.Pages
         public string SelectedSessionCommandLine { get; set; } = string.Empty;
 
         /// <summary>
-        /// Gets or sets the console lines shown in the output pane.
+        /// Gets or sets the output and session identity to render together.
         /// </summary>
-        public IReadOnlyList<string> SelectedSessionLines { get; set; } = [];
+        internal ConsoleOutput SelectedOutput { get; set; } = ConsoleOutput.Empty;
 
         /// <summary>
         /// Gets or sets the footer shown below the selected console output.
@@ -1332,11 +1333,6 @@ namespace ASLM.Pages
         /// Backing field of <see cref="SelectedSessionId"/>.
         /// </summary>
         private string? _selectedSessionId;
-
-        /// <summary>
-        /// Backing field of <see cref="SelectedSessionKey"/>.
-        /// </summary>
-        private string _selectedSessionKey = string.Empty;
 
         /// <summary>
         /// Backing field of <see cref="SelectedSessionTitle"/>.
@@ -1362,11 +1358,6 @@ namespace ASLM.Pages
         /// Backing field of <see cref="SelectedSessionFooter"/>.
         /// </summary>
         private string _selectedSessionFooter = string.Empty;
-
-        /// <summary>
-        /// Backing field of <see cref="SelectedSessionText"/>.
-        /// </summary>
-        private string _selectedSessionText = string.Empty;
 
 
         // Events
@@ -1396,15 +1387,6 @@ namespace ASLM.Pages
         {
             get => _selectedSessionId;
             set => SetProperty(ref _selectedSessionId, value);
-        }
-
-        /// <summary>
-        /// Gets or sets the composite session key used by the native console host.
-        /// </summary>
-        public string SelectedSessionKey
-        {
-            get => _selectedSessionKey;
-            set => SetProperty(ref _selectedSessionKey, value);
         }
 
         /// <summary>
@@ -1450,15 +1432,6 @@ namespace ASLM.Pages
         {
             get => _selectedSessionFooter;
             set => SetProperty(ref _selectedSessionFooter, value);
-        }
-
-        /// <summary>
-        /// Gets or sets the text rendered by the native console output host.
-        /// </summary>
-        public string SelectedSessionText
-        {
-            get => _selectedSessionText;
-            set => SetProperty(ref _selectedSessionText, value);
         }
 
 
