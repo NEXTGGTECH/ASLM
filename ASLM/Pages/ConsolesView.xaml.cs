@@ -137,10 +137,11 @@ namespace ASLM.Pages
         // Lifetime events
 
         /// <summary>
-        /// Activates the presenter and refreshes the measured output layout when the view loads.
+        /// Follows the selected console's latest output each time the page opens.
         /// </summary>
         private async void OnLoaded(object? sender, EventArgs e)
         {
+            ConsoleOutputHost.ResetOutputPosition();
             await _presenter.ActivateAsync();
             StartAutoRefresh();
             QueueConsoleLayoutRefresh();
@@ -912,8 +913,7 @@ namespace ASLM.Pages
                 moduleItems.Add(new ConsoleModuleItemViewModel
                 {
                     SourcePath = AllModulesModuleId,
-                    Name = L.Get(LocalizationKeys.Consoles_AllModules),
-                    StatusText = L.Get(LocalizationKeys.Consoles_MergedOutput)
+                    Name = L.Get(LocalizationKeys.Consoles_AllModules)
                 });
             }
 
@@ -957,8 +957,7 @@ namespace ASLM.Pages
                         Id = GlobalUnifiedSessionId,
                         ModuleSourcePath = AllModulesModuleId,
                         SessionSourceId = GlobalUnifiedSessionId,
-                        Title = L.Get(LocalizationKeys.Consoles_UnifiedConsole),
-                        StatusText = L.Get(LocalizationKeys.Consoles_MergedOutput)
+                        Title = L.Get(LocalizationKeys.Consoles_UnifiedConsole)
                     }
                 ];
 
@@ -1010,7 +1009,6 @@ namespace ASLM.Pages
                     ModuleSourcePath = selectedModule.SourcePath,
                     SessionSourceId = UnifiedSessionId,
                     Title = L.Get(LocalizationKeys.Consoles_UnifiedConsole),
-                    StatusText = L.Get(LocalizationKeys.Consoles_MergedOutput),
                     Preview = L.Get(LocalizationKeys.Consoles_UnifiedPreview)
                 };
 
@@ -1128,16 +1126,16 @@ namespace ASLM.Pages
             var enabledLabel = module.IsEnabled
                 ? L.Get(LocalizationKeys.Consoles_Status_Enabled)
                 : L.Get(LocalizationKeys.Consoles_Status_Disabled);
+            var sessions = module.Sessions.Count(session => !session.IsObservedProcess);
+            var status = module.ActiveProcessCount > 0
+                ? L.Get(LocalizationKeys.Consoles_Status_ModuleActiveFormat, enabledLabel, sessions, module.ActiveProcessCount)
+                : L.Get(LocalizationKeys.Consoles_Status_ModuleFormat, enabledLabel, sessions);
 
             return new ConsoleModuleItemViewModel
             {
                 SourcePath = module.SourcePath,
                 Name = module.Name,
-                StatusText = L.Get(
-                    LocalizationKeys.Consoles_Status_ModuleFormat,
-                    enabledLabel,
-                    module.ActiveProcessCount,
-                    module.Sessions.Count(session => !session.IsObservedProcess)),
+                StatusText = status,
                 ActivityText = activityText
             };
         }
@@ -1152,18 +1150,15 @@ namespace ASLM.Pages
         private static ConsoleSessionItemViewModel MapSession(
             ModuleConsoleModuleSnapshot module, ModuleConsoleSessionSnapshot session, bool isRunningForDisplay)
         {
-            // Status line: observed services only report running or stopped; own processes also report the exit code.
-            var pidSuffix = FormatPid(session.ProcessId);
-            var stageLabel = LocalizeConsoleStage(session.Stage);
-            var status = session.IsObservedProcess
-                ? isRunningForDisplay
-                    ? L.Get(LocalizationKeys.Consoles_Status_ServiceObservedRunningFormat, pidSuffix)
-                    : L.Get(LocalizationKeys.Consoles_Status_ServiceObservedStoppedFormat, pidSuffix)
-                : isRunningForDisplay
-                    ? L.Get(LocalizationKeys.Consoles_Status_RunningFormat, stageLabel, pidSuffix)
-                    : session.ExitCode.HasValue
-                        ? L.Get(LocalizationKeys.Consoles_Status_ExitFormat, stageLabel, session.ExitCode.Value, pidSuffix)
-                        : L.Get(LocalizationKeys.Consoles_Status_Completed, stageLabel);
+            // Keep technical terms and numeric identifiers consistent across locales.
+            var pidPrefix = session.ProcessId is { } pid ? FormattableString.Invariant($"PID {pid}, ") : string.Empty;
+            var status = session switch
+            {
+                { IsObservedProcess: true } => isRunningForDisplay ? "Observed" : "Stopped",
+                _ when isRunningForDisplay => "Running",
+                { ExitCode: { } code } => FormattableString.Invariant($"Exit {code}"),
+                _ => "Completed"
+            };
 
             // Build the list item; a session without preview text gets a placeholder that says why it is empty.
             return new ConsoleSessionItemViewModel
@@ -1172,7 +1167,7 @@ namespace ASLM.Pages
                 ModuleSourcePath = module.SourcePath,
                 SessionSourceId = session.Id,
                 Title = session.Title,
-                StatusText = status,
+                StatusText = $"{session.Stage} ({pidPrefix}{status})",
                 Preview = string.IsNullOrWhiteSpace(session.Preview)
                     ? session.IsObservedProcess
                         ? L.Get(LocalizationKeys.Consoles_SessionObservedPreview)
@@ -1188,17 +1183,18 @@ namespace ASLM.Pages
         /// <param name="isRunningForDisplay">Whether to show a running status for this session.</param>
         private static string BuildSelectedStatus(ModuleConsoleSessionSnapshot session, bool isRunningForDisplay)
         {
+            var pidSuffix = session.ProcessId is { } pid ? $" - {FormatPid(pid)}" : string.Empty;
             if (session.IsObservedProcess)
             {
                 return isRunningForDisplay
-                    ? L.Get(LocalizationKeys.Consoles_Selected_ObservedRunning, FormatPid(session.ProcessId))
-                    : L.Get(LocalizationKeys.Consoles_Selected_ObservedStopped, FormatPid(session.ProcessId));
+                    ? L.Get(LocalizationKeys.Consoles_Selected_ObservedRunning, pidSuffix)
+                    : L.Get(LocalizationKeys.Consoles_Selected_ObservedStopped, pidSuffix);
             }
 
             var stageLabel = LocalizeConsoleStage(session.Stage);
             if (isRunningForDisplay)
             {
-                return L.Get(LocalizationKeys.Consoles_Selected_SessionRunning, stageLabel, FormatPid(session.ProcessId));
+                return L.Get(LocalizationKeys.Consoles_Selected_SessionRunning, stageLabel, pidSuffix);
             }
 
             if (session.ExitCode.HasValue)
@@ -1207,7 +1203,7 @@ namespace ASLM.Pages
                     LocalizationKeys.Consoles_Selected_SessionExitFormat,
                     stageLabel,
                     session.ExitCode.Value,
-                    FormatPid(session.ProcessId));
+                    pidSuffix);
             }
 
             return L.Get(LocalizationKeys.Consoles_Selected_SessionCompleted, stageLabel);
@@ -1241,14 +1237,10 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats the process identifier suffix used in session status labels; empty when there is no process id.
+        /// Formats the PID text used by the session status labels.
         /// </summary>
-        private static string FormatPid(int? processId)
-        {
-            return processId.HasValue
-                ? L.Get(LocalizationKeys.Consoles_PidFormat, processId.Value)
-                : string.Empty;
-        }
+        private static string FormatPid(int processId) =>
+            L.Get(LocalizationKeys.Consoles_PidFormat, processId);
     }
 
 

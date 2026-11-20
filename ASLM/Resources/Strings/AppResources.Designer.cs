@@ -466,15 +466,6 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Merged output.
-        /// </summary>
-        public static string Consoles_MergedOutput {
-            get {
-                return ResourceManager.GetString("Consoles_MergedOutput", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Modules.
         /// </summary>
         public static string Consoles_ModulesHeader {
@@ -529,7 +520,7 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на  - PID {0}.
+        ///   Ищет локализованную строку, похожую на PID {0}.
         /// </summary>
         public static string Consoles_PidFormat {
             get {
@@ -646,15 +637,6 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} - Completed.
-        /// </summary>
-        public static string Consoles_Status_Completed {
-            get {
-                return ResourceManager.GetString("Consoles_Status_Completed", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Disabled.
         /// </summary>
         public static string Consoles_Status_Disabled {
@@ -673,47 +655,20 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} - Exit {1}{2}.
+        ///   Ищет локализованную строку, похожую на {0} - {1} sessions ({2} active).
         /// </summary>
-        public static string Consoles_Status_ExitFormat {
+        public static string Consoles_Status_ModuleActiveFormat {
             get {
-                return ResourceManager.GetString("Consoles_Status_ExitFormat", resourceCulture);
+                return ResourceManager.GetString("Consoles_Status_ModuleActiveFormat", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} - {1} active - {2} sessions.
+        ///   Ищет локализованную строку, похожую на {0} - {1} sessions.
         /// </summary>
         public static string Consoles_Status_ModuleFormat {
             get {
                 return ResourceManager.GetString("Consoles_Status_ModuleFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на {0} - Running{1}.
-        /// </summary>
-        public static string Consoles_Status_RunningFormat {
-            get {
-                return ResourceManager.GetString("Consoles_Status_RunningFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Service - Observed{0}.
-        /// </summary>
-        public static string Consoles_Status_ServiceObservedRunningFormat {
-            get {
-                return ResourceManager.GetString("Consoles_Status_ServiceObservedRunningFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Service - Stopped{0}.
-        /// </summary>
-        public static string Consoles_Status_ServiceObservedStoppedFormat {
-            get {
-                return ResourceManager.GetString("Consoles_Status_ServiceObservedStoppedFormat", resourceCulture);
             }
         }
         

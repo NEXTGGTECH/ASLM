@@ -119,6 +119,16 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Reopens the current output at the end through the same rendering path as a session change.
+        /// </summary>
+        internal void ResetOutputPosition()
+        {
+            _selectionGesture = false;
+            _renderedOutput = null;
+            QueueOutput();
+        }
+
+        /// <summary>
         /// Attaches the platform renderer and schedules the latest snapshot.
         /// </summary>
         internal void ConnectOutput(Action<ConsoleOutput, ConsoleOutput?, bool> renderOutput)

@@ -558,7 +558,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Recursively searches the WinUI visual tree for the first nested scroll viewer.
         /// </summary>
-        private static ScrollViewer? FindDescendantScrollViewer(DependencyObject root)
+        internal static ScrollViewer? FindDescendantScrollViewer(DependencyObject root)
         {
             if (root is ScrollViewer scrollViewer)
             {
