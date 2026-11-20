@@ -303,7 +303,7 @@
                                Margin="0,20,0,0"
                                IsVisible="False">
             <Button x:Name="BackButton"
-                    BackgroundColor="{DynamicResource SystemGray4}"
+                    BackgroundColor="{DynamicResource BackgroundTertiary}"
                     TextColor="{DynamicResource LabelPrimary}"
                     FontSize="14"
                     Padding="20,10"

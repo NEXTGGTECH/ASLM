@@ -4,6 +4,7 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
              xmlns:downloads="clr-namespace:ASLM.Controls.Downloads"
              x:Class="ASLM.Pages.DownloadsView"
              BackgroundColor="{DynamicResource OverlayBackground}">
@@ -53,13 +54,14 @@
                                     </Border.Triggers>
                                     <Label x:Name="InternalModulesLabel"
                                            Text="Modules"
+                                           settings:SettingsControlChrome.TextColorResource="LabelSecondary"
                                            Style="{StaticResource SettingsSelectorButtonLabelStyle}">
                                         <Label.Triggers>
                                             <DataTrigger TargetType="Label"
                                                          Binding="{Binding IsInternalModulesSelected}"
                                                          Value="True">
-                                                <Setter Property="TextColor"
-                                                        Value="{DynamicResource LabelPrimary}" />
+                                                <Setter Property="settings:SettingsControlChrome.TextColorResource"
+                                                        Value="LabelPrimary" />
                                             </DataTrigger>
                                         </Label.Triggers>
                                     </Label>
@@ -91,13 +93,14 @@
                                                         </DataTrigger>
                                                     </Border.Triggers>
                                                     <Label Text="{Binding Title}"
+                                                           settings:SettingsControlChrome.TextColorResource="LabelSecondary"
                                                            Style="{StaticResource SettingsSelectorButtonLabelStyle}">
                                                         <Label.Triggers>
                                                             <DataTrigger TargetType="Label"
                                                                          Binding="{Binding IsSelected}"
                                                                          Value="True">
-                                                                <Setter Property="TextColor"
-                                                                        Value="{DynamicResource LabelPrimary}" />
+                                                                <Setter Property="settings:SettingsControlChrome.TextColorResource"
+                                                                        Value="LabelPrimary" />
                                                             </DataTrigger>
                                                         </Label.Triggers>
                                                     </Label>

@@ -1429,8 +1429,6 @@ namespace ASLM.Pages
             BackButton.Clicked -= OnBackClicked;
             BackButton.Clicked += OnBackClicked;
 
-            NextButton.BackgroundColor = GetColorResource("ActionBlue", Color.FromArgb("#007AFF"));
-            BackButton.BackgroundColor = GetColorResource("BackgroundTertiary", Color.FromArgb("#3A3A3C"));
             BackButton.Text = L.Get(LocalizationKeys.Common_Back);
         }
 
@@ -1753,13 +1751,5 @@ namespace ASLM.Pages
         /// </summary>
         protected new void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-        /// <summary>
-        /// Finds a named color resource with a defensive fallback when the key is absent or is not a color.
-        /// </summary>
-        private static Color GetColorResource(string key, Color fallback) =>
-            Application.Current?.Resources.TryGetValue(key, out var value) == true && value is Color c
-                ? c
-                : fallback;
     }
 }

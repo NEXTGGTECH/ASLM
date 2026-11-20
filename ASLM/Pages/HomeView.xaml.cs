@@ -16,40 +16,6 @@ using ASLM.Models;
 
 namespace ASLM.Pages
 {
-    // Palette
-
-    /// <summary>
-    /// Reads semantic colors from the active app palette so presenter snapshots stay readable in light and dark themes.
-    /// </summary>
-    internal static class HomePaletteColors
-    {
-        /// <summary>
-        /// Primary text color of the active theme; falls back to opaque black when the resource is missing.
-        /// </summary>
-        public static Color LabelPrimary =>
-            Resolve("LabelPrimary", Color.FromArgb("#FF000000"));
-
-        /// <summary>
-        /// Secondary (muted) text color of the active theme; falls back to a mid gray when the resource is missing.
-        /// </summary>
-        public static Color LabelSecondary =>
-            Resolve("LabelSecondary", Color.FromArgb("#FF636366"));
-
-        /// <summary>
-        /// Resolves a semantic palette color from application resources, returning the fallback when it is not a color.
-        /// </summary>
-        private static Color Resolve(string key, Color fallback)
-        {
-            if (Application.Current?.Resources.TryGetValue(key, out var v) == true && v is Color c)
-            {
-                return c;
-            }
-
-            return fallback;
-        }
-    }
-
-
     // Home view
 
     /// <summary>
@@ -965,7 +931,7 @@ namespace ASLM.Pages
             {
                 Key = node.Key,
                 Title = node.Title,
-                TitleColor = node.TitleColor,
+                IsObservedService = node.IsObservedService,
                 TitleFontAttributes = node.TitleFontAttributes,
                 CpuText = node.CpuText,
                 GpuText = node.GpuText,
@@ -2105,9 +2071,9 @@ namespace ASLM.Pages
         private string _title = string.Empty;
 
         /// <summary>
-        /// Backing field of <see cref="TitleColor"/>; starts with the primary label color of the active theme.
+        /// Whether the row represents an observed service process.
         /// </summary>
-        private Color _titleColor = HomePaletteColors.LabelPrimary;
+        private bool _isObservedService;
 
         /// <summary>
         /// Backing field of <see cref="TitleFontAttributes"/>.
@@ -2186,12 +2152,12 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Gets or sets the row title color.
+        /// Gets or sets whether the row represents an observed service process.
         /// </summary>
-        public Color TitleColor
+        public bool IsObservedService
         {
-            get => _titleColor;
-            set => SetProperty(ref _titleColor, value);
+            get => _isObservedService;
+            set => SetProperty(ref _isObservedService, value);
         }
 
         /// <summary>
@@ -2303,7 +2269,7 @@ namespace ASLM.Pages
         {
             Key = source.Key;
             Title = source.Title;
-            TitleColor = source.TitleColor;
+            IsObservedService = source.IsObservedService;
             TitleFontAttributes = source.TitleFontAttributes;
             CpuText = source.CpuText;
             GpuText = source.GpuText;
@@ -2849,7 +2815,6 @@ namespace ASLM.Pages
                 {
                     Key = "module:aslm_internal",
                     Title = "ASLM Internal",
-                    TitleColor = HomePaletteColors.LabelPrimary,
                     TitleFontAttributes = FontAttributes.Bold,
                     CpuText = HomeDashboardPresenter.FormatPercent(internalUsage.CpuPercent),
                     GpuText = HomeDashboardPresenter.FormatPercentOrNa(internalUsage.GpuPercent),
@@ -2870,7 +2835,6 @@ namespace ASLM.Pages
             {
                 Key = "root:aslm",
                 Title = "ASLM",
-                TitleColor = HomePaletteColors.LabelPrimary,
                 TitleFontAttributes = FontAttributes.Bold,
                 CpuText = HomeDashboardPresenter.FormatPercent(rootUsage.CpuPercent),
                 GpuText = HomeDashboardPresenter.FormatPercentOrNa(rootUsage.GpuPercent),
@@ -2932,7 +2896,6 @@ namespace ASLM.Pages
             {
                 Key = $"module:{moduleDiagnostics.Module.SourcePath}",
                 Title = moduleDiagnostics.Module.Name,
-                TitleColor = HomePaletteColors.LabelPrimary,
                 TitleFontAttributes = FontAttributes.Bold,
                 CpuText = HomeDashboardPresenter.FormatPercent(moduleDiagnostics.Usage.CpuPercent),
                 GpuText = HomeDashboardPresenter.FormatPercentOrNa(moduleDiagnostics.Usage.GpuPercent),
@@ -3008,9 +2971,7 @@ namespace ASLM.Pages
             {
                 Key = $"process:{process.ProcessId}",
                 Title = title,
-                TitleColor = isObservedService
-                    ? Color.FromArgb("#FFFFD60A")
-                    : HomePaletteColors.LabelPrimary,
+                IsObservedService = isObservedService,
                 TitleFontAttributes = FontAttributes.None,
                 CpuText = HomeDashboardPresenter.FormatPercent(process.Usage.CpuPercent),
                 GpuText = HomeDashboardPresenter.FormatPercentOrNa(process.Usage.GpuPercent),
@@ -4554,9 +4515,9 @@ namespace ASLM.Pages
         public string Title { get; set; } = string.Empty;
 
         /// <summary>
-        /// Gets or sets the row title color.
+        /// Gets or sets whether the row represents an observed service process.
         /// </summary>
-        public Color TitleColor { get; set; } = HomePaletteColors.LabelPrimary;
+        public bool IsObservedService { get; set; }
 
         /// <summary>
         /// Gets or sets the title font weight.

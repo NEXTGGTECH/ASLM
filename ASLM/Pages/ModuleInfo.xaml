@@ -59,10 +59,10 @@
                     Value="44" />
             <Setter Property="BackgroundColor"
                     Value="Transparent" />
-            <Setter Property="TextColor"
-                    Value="{DynamicResource LabelPrimary}" />
-            <Setter Property="TitleColor"
-                    Value="{DynamicResource LabelPrimary}" />
+            <Setter Property="settings:SettingsControlChrome.TextColorResource"
+                    Value="LabelPrimary" />
+            <Setter Property="settings:SettingsControlChrome.TitleColorResource"
+                    Value="LabelPrimary" />
         </Style>
         <Style x:Key="ModuleInfoTabStyle"
                TargetType="Button"
@@ -202,14 +202,15 @@
             <HorizontalStackLayout Grid.Row="2"
                                    Spacing="0">
                 <Button x:Name="InfoTabButton"
+                        settings:SettingsControlChrome.TextColorResource="LabelSecondary"
                         Style="{StaticResource ModuleInfoTabStyle}"
                         Clicked="OnInfoTabClicked">
                     <Button.Triggers>
                         <DataTrigger TargetType="Button"
                                      Binding="{Binding IsInfoSelected}"
                                      Value="True">
-                            <Setter Property="TextColor"
-                                    Value="{DynamicResource LabelPrimary}" />
+                            <Setter Property="settings:SettingsControlChrome.TextColorResource"
+                                    Value="LabelPrimary" />
                         </DataTrigger>
                     </Button.Triggers>
                 </Button>
@@ -218,14 +219,15 @@
                          Color="{DynamicResource Separator}"
                          VerticalOptions="Fill" />
                 <Button x:Name="ConfigurationTabButton"
+                        settings:SettingsControlChrome.TextColorResource="LabelSecondary"
                         Style="{StaticResource ModuleInfoTabStyle}"
                         Clicked="OnConfigurationTabClicked">
                     <Button.Triggers>
                         <DataTrigger TargetType="Button"
                                      Binding="{Binding IsConfigurationSelected}"
                                      Value="True">
-                            <Setter Property="TextColor"
-                                    Value="{DynamicResource LabelPrimary}" />
+                            <Setter Property="settings:SettingsControlChrome.TextColorResource"
+                                    Value="LabelPrimary" />
                         </DataTrigger>
                     </Button.Triggers>
                 </Button>
@@ -234,14 +236,15 @@
                          Color="{DynamicResource Separator}"
                          VerticalOptions="Fill" />
                 <Button x:Name="StatusTabButton"
+                        settings:SettingsControlChrome.TextColorResource="LabelSecondary"
                         Style="{StaticResource ModuleInfoTabStyle}"
                         Clicked="OnStatusTabClicked">
                     <Button.Triggers>
                         <DataTrigger TargetType="Button"
                                      Binding="{Binding IsStatusSelected}"
                                      Value="True">
-                            <Setter Property="TextColor"
-                                    Value="{DynamicResource LabelPrimary}" />
+                            <Setter Property="settings:SettingsControlChrome.TextColorResource"
+                                    Value="LabelPrimary" />
                         </DataTrigger>
                     </Button.Triggers>
                 </Button>

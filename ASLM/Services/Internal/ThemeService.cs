@@ -161,15 +161,15 @@ namespace ASLM.Services.Internal
         /// </summary>
         private void ApplySystemTheme()
         {
-            // Unsubscribe before subscribing so repeated calls never register the handler twice.
+            // Release the fixed override before reading the OS appearance or subscribing again.
             if (Application.Current is { } app)
             {
-                app.UserAppTheme = AppTheme.Unspecified;
                 app.RequestedThemeChanged -= OnSystemThemeChanged;
+                app.UserAppTheme = AppTheme.Unspecified;
                 app.RequestedThemeChanged += OnSystemThemeChanged;
             }
 
-            ApplyBuiltInTheme(isDark: IsSystemDark());
+            ApplyBuiltInPalette(IsSystemDark());
         }
 
         /// <summary>
@@ -189,8 +189,12 @@ namespace ASLM.Services.Internal
         private void OnSystemThemeChanged(object? sender, AppThemeChangedEventArgs e)
         {
             // The event may arrive on a background thread, while resources must be written on the main thread.
-            var isDark = e.RequestedTheme != AppTheme.Light;
-            MainThread.BeginInvokeOnMainThread(() => ApplyBuiltInTheme(isDark));
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                // A fixed theme may have been selected while the notification was queued.
+                if (Application.Current?.UserAppTheme == AppTheme.Unspecified)
+                    ApplyBuiltInPalette(IsSystemDark());
+            });
         }
 
         /// <summary>
@@ -205,12 +209,14 @@ namespace ASLM.Services.Internal
                 app.UserAppTheme = isDark ? AppTheme.Dark : AppTheme.Light;
             }
 
-            var palette = isDark
-                ? ThemePaletteResolver.BuildDarkPalette()
-                : ThemePaletteResolver.BuildLightPalette();
-
-            WritePaletteToResources(palette);
+            ApplyBuiltInPalette(isDark);
         }
+
+        /// <summary>
+        /// Replaces the palette without changing the active theme tracking mode.
+        /// </summary>
+        private static void ApplyBuiltInPalette(bool isDark) =>
+            WritePaletteToResources(isDark ? ThemePaletteResolver.BuildDarkPalette() : ThemePaletteResolver.BuildLightPalette());
 
         /// <summary>
         /// Applies one custom theme palette to application resources.
