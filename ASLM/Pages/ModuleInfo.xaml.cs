@@ -373,19 +373,9 @@ namespace ASLM.Pages
                 ?? L.Get(ResolveStateKey(_registered, _activity?.IsRunning == true, _activity?.Activity));
 
         /// <summary>
-        /// Maintenance console text of the shown module; it is read only while the status tab is selected.
+        /// Gets whether there is maintenance output to show.
         /// </summary>
-        public string LogText { get; private set; } = string.Empty;
-
-        /// <summary>
-        /// Whether the maintenance console has any text.
-        /// </summary>
-        public bool HasLog => !string.IsNullOrWhiteSpace(LogText);
-
-        /// <summary>
-        /// Key of the console session that <see cref="LogText"/> belongs to; the console view resets its scroll position when it changes.
-        /// </summary>
-        public string LogSessionKey { get; private set; } = string.Empty;
+        public bool HasLog { get; private set; }
 
         /// <summary>
         /// Operation that this view started for the shown module, or null when there is none.
@@ -742,11 +732,10 @@ namespace ASLM.Pages
             // Console text can be large, so it is copied only while the Status section shows it.
             if (!IsStatusSelected) return;
             var hadLog = HasLog;
-            LogSessionKey = _activity?.SessionKey ?? string.Empty;
-            LogText = _activity?.Text ?? string.Empty;
-            OnPropertyChanged(nameof(LogSessionKey));
-            OnPropertyChanged(nameof(LogText));
-            OnPropertyChanged(nameof(HasLog));
+            var output = _activity?.Output ?? ConsoleOutput.Empty;
+            ActivityLogConsole.SetOutput(output);
+            HasLog = !string.IsNullOrWhiteSpace(output.Text);
+            if (hadLog != HasLog) OnPropertyChanged(nameof(HasLog));
 
             // The first output changes the console size, so its layout must be measured again.
             if (!hadLog && HasLog) RefreshLogLayout();

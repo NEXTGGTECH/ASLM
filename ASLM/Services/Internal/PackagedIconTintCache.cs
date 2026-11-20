@@ -19,9 +19,10 @@ namespace ASLM.Services.Internal
         private static readonly object Gate = new();
 
         /// <summary>
-        /// Tinted images for file-based icons, keyed by file name or path together with the tint color.
+        /// Latest tinted image for each file name or path and tint color.
         /// </summary>
-        private static readonly Dictionary<string, ImageSource> Cache = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, (string? ContentHash, ImageSource Source)> Cache =
+            new(StringComparer.Ordinal);
 
         /// <summary>
         /// Tinted images for in-memory icons: per icon byte array, one image per tint color key.
@@ -52,19 +53,20 @@ namespace ASLM.Services.Internal
         /// </summary>
         /// <param name="fileNameOrPath">Packaged icon file name or absolute path of a PNG on disk.</param>
         /// <param name="tint">Color multiplied into the icon pixels.</param>
-        internal static ImageSource Get(string fileNameOrPath, Color tint)
+        /// <param name="contentHash">Fingerprint for a replaceable file, or null for packaged artwork.</param>
+        internal static ImageSource Get(string fileNameOrPath, Color tint, string? contentHash = null)
         {
             // The unit separator character keeps file name and color from running together in the key.
             var key = $"{fileNameOrPath}\u001f{ColorToKey(tint)}";
             lock (Gate)
             {
-                if (Cache.TryGetValue(key, out var existing))
+                if (Cache.TryGetValue(key, out var existing) && existing.ContentHash == contentHash)
                 {
-                    return existing;
+                    return existing.Source;
                 }
 
                 var created = CreateImageSource(fileNameOrPath, tint);
-                Cache[key] = created;
+                Cache[key] = (contentHash, created);
                 return created;
             }
         }

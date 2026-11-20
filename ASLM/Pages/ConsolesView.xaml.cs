@@ -55,6 +55,11 @@ namespace ASLM.Pages
         private int _layoutRefreshQueued;
 
         /// <summary>
+        /// Layout choices already applied to the console workspace.
+        /// </summary>
+        private (bool Compact, bool IncludesSessions)? _workspaceLayout;
+
+        /// <summary>
         /// Cancellation source of the periodic refresh loop, or null while the loop is stopped.
         /// </summary>
         private CancellationTokenSource? _autoRefreshCts;
@@ -132,10 +137,11 @@ namespace ASLM.Pages
         // Lifetime events
 
         /// <summary>
-        /// Activates the presenter and refreshes the measured output layout when the view loads.
+        /// Follows the selected console's latest output each time the page opens.
         /// </summary>
         private async void OnLoaded(object? sender, EventArgs e)
         {
+            ConsoleOutputHost.ResetOutputPosition();
             await _presenter.ActivateAsync();
             StartAutoRefresh();
             QueueConsoleLayoutRefresh();
@@ -148,6 +154,20 @@ namespace ASLM.Pages
         {
             StopAutoRefresh();
             _presenter.Deactivate();
+        }
+
+        /// <summary>
+        /// Disables the WinUI list and item transitions whenever either console list gets a native handler.
+        /// </summary>
+        private void OnConsoleListHandlerChanged(object? sender, EventArgs e)
+        {
+#if WINDOWS
+            if (sender is CollectionView { Handler.PlatformView: Microsoft.UI.Xaml.Controls.ListViewBase list })
+            {
+                list.Transitions = new();
+                list.ItemContainerTransitions = new();
+            }
+#endif
         }
 
 
@@ -210,15 +230,30 @@ namespace ASLM.Pages
 
             // Copy the selected session's texts into the bindable view model.
             _viewModel.SelectedSessionId = state.SelectedSessionId;
-            _viewModel.SelectedSessionKey = state.SelectedSessionKey;
             _viewModel.SelectedSessionTitle = state.SelectedSessionTitle;
             _viewModel.SelectedSessionStatus = state.SelectedSessionStatus;
             _viewModel.SelectedSessionDescription = state.SelectedSessionDescription;
             _viewModel.SelectedSessionCommandLine = state.SelectedSessionCommandLine;
             _viewModel.SelectedSessionFooter = state.SelectedSessionFooter;
-            _viewModel.SelectedSessionText = string.Join(Environment.NewLine, state.SelectedSessionLines);
+            ConsoleOutputHost.SetOutput(state.SelectedOutput);
 
-            // Update the lists in place and point both collection views at the presenter's selection.
+#if MACCATALYST
+            UIKit.UIView.PerformWithoutAnimation(() => RenderLists(state));
+#else
+            RenderLists(state);
+#endif
+
+            // Show the session list only when there is more than one console to pick from, then re-measure.
+            SessionsPanel.IsVisible = state.ShowSessionList;
+            if (UpdateResponsiveLayout(state.ShowSessionList)) QueueConsoleLayoutRefresh();
+            _suppressSelection = false;
+        }
+
+        /// <summary>
+        /// Updates the lists in place and reuses the selected items so the selection stays stable during refreshes.
+        /// </summary>
+        private void RenderLists(ConsolesDashboardState state)
+        {
             SyncModuleItems(_viewModel.Modules, state.Modules);
             SyncSessionItems(_viewModel.Sessions, state.Sessions);
 
@@ -233,12 +268,6 @@ namespace ASLM.Pages
             {
                 SessionsCollection.SelectedItem = selectedSession;
             }
-
-            // Show the session list only when there is more than one console to pick from, then re-measure.
-            SessionsPanel.IsVisible = state.ShowSessionList;
-            UpdateResponsiveLayout(state.ShowSessionList);
-            QueueConsoleLayoutRefresh();
-            _suppressSelection = false;
         }
 
 
@@ -294,13 +323,15 @@ namespace ASLM.Pages
         /// <param name="showSessionList">
         /// Whether the sessions panel takes part in the layout; null uses the current visibility of the panel.
         /// </param>
-        private void UpdateResponsiveLayout(bool? showSessionList = null)
+        private bool UpdateResponsiveLayout(bool? showSessionList = null)
         {
             // A desktop sidebar can make this page narrower than the breakpoint without making the
             // application window compact. Honor the host's minimum width before stacking console panels.
             var minimumWindowWidth = Window?.MinimumWidth ?? 0;
             var isCompact = Width > 0 && Width < CompactBreakpoint && minimumWindowWidth < CompactBreakpoint;
             var includeSessions = showSessionList ?? SessionsPanel.IsVisible;
+            if (_workspaceLayout == (isCompact, includeSessions)) return false;
+            _workspaceLayout = (isCompact, includeSessions);
 
             // The grid definitions are rebuilt from scratch for the chosen layout.
             WorkspaceLayout.ColumnDefinitions.Clear();
@@ -343,6 +374,8 @@ namespace ASLM.Pages
                 Grid.SetRow(OutputPanel, 0);
                 Grid.SetColumn(OutputPanel, includeSessions ? 2 : 1);
             }
+
+            return true;
         }
 
         /// <summary>
@@ -506,7 +539,7 @@ namespace ASLM.Pages
         // Fields and constants
 
         /// <summary>
-        /// Module source path of the synthetic "all modules" entry that merges the output of every active module.
+        /// Module source path of the synthetic "all modules" entry that merges the available module logs.
         /// </summary>
         private const string AllModulesModuleId = "__all_modules__";
 
@@ -519,6 +552,16 @@ namespace ASLM.Pages
         /// Session id of the merged console of one module, listed before its individual process consoles.
         /// </summary>
         private const string UnifiedSessionId = "__module_unified__";
+
+        /// <summary>
+        /// Identifies the lifecycle log included in the merged console.
+        /// </summary>
+        private const string OverviewSessionId = "overview";
+
+        /// <summary>
+        /// Time a completed process still appears active so consecutive short commands keep the picker open.
+        /// </summary>
+        private static readonly TimeSpan CompletedSessionDisplayDuration = TimeSpan.FromSeconds(1);
 
         /// <summary>
         /// View that receives the dashboard state.
@@ -560,6 +603,11 @@ namespace ASLM.Pages
         /// accessed through <see cref="Interlocked"/>.
         /// </summary>
         private int _refreshQueued;
+
+        /// <summary>
+        /// Cancels the pending refresh for the next expiration in the selected module's session list.
+        /// </summary>
+        private CancellationTokenSource? _sessionExpiryCts;
 
         /// <summary>
         /// Whether finished process sessions stay listed; mirrors the persisted console preference.
@@ -615,7 +663,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Stops listening for console store changes.
+        /// Stops listening for console store changes and cancels the scheduled session refresh.
         /// </summary>
         public void Deactivate()
         {
@@ -626,6 +674,7 @@ namespace ASLM.Pages
 
             _consoleStore.StateChanged -= OnConsoleStateChanged;
             _isActive = false;
+            CancelSessionExpiry();
         }
 
 
@@ -701,9 +750,13 @@ namespace ASLM.Pages
         /// <param name="moduleSourcePath">
         /// Module whose merged console should be selected, or null to keep the current selection.
         /// </param>
-        private async Task RefreshAsync(bool forceModuleReload, string? moduleSourcePath)
+        /// <param name="cancellationToken">
+        /// Cancels an expiration refresh when it is superseded or the page unloads.
+        /// </param>
+        private async Task RefreshAsync(
+            bool forceModuleReload, string? moduleSourcePath, CancellationToken cancellationToken = default)
         {
-            await _refreshLock.WaitAsync();
+            await _refreshLock.WaitAsync(cancellationToken);
             try
             {
                 // Apply external selection under the refresh lock so an older refresh cannot reset it.
@@ -737,11 +790,59 @@ namespace ASLM.Pages
                     return BuildState(snapshots);
                 });
 
-                await MainThread.InvokeOnMainThreadAsync(() => _view.Render(state));
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    if (cancellationToken.IsCancellationRequested) return;
+                    _view.Render(state);
+                    ScheduleSessionExpiry(state.NextSessionExpiryUtc);
+                });
             }
             finally
             {
                 _refreshLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Schedules one refresh for the first visible session that will stop appearing active.
+        /// </summary>
+        private void ScheduleSessionExpiry(DateTimeOffset? expiryUtc)
+        {
+            CancelSessionExpiry();
+            if (!_isActive || expiryUtc is not { } deadline) return;
+
+            var cts = new CancellationTokenSource();
+            _sessionExpiryCts = cts;
+            _ = RefreshOnSessionExpiryAsync(deadline, cts.Token);
+        }
+
+        /// <summary>
+        /// Cancels the previous session expiry when a new state is rendered or the view unloads.
+        /// </summary>
+        private void CancelSessionExpiry()
+        {
+            _sessionExpiryCts?.Cancel();
+            _sessionExpiryCts?.Dispose();
+            _sessionExpiryCts = null;
+        }
+
+        /// <summary>
+        /// Refreshes the list when a completed process's display grace period ends, even if no new output arrives.
+        /// </summary>
+        private async Task RefreshOnSessionExpiryAsync(DateTimeOffset expiryUtc, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var delay = expiryUtc - DateTimeOffset.UtcNow;
+                if (delay > TimeSpan.Zero)
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+
+                await RefreshAsync(forceModuleReload: false, moduleSourcePath: null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // A newer render now owns the expiry schedule, or the view has unloaded.
             }
         }
 
@@ -798,20 +899,21 @@ namespace ASLM.Pages
                     module.Sessions.Any(session => session.LineCount > 0) ||
                     string.Equals(module.SourcePath, _selectedModuleSourcePath, StringComparison.OrdinalIgnoreCase))
                 .ToList();
-            var activeModules = snapshots
-                .Where(module => module.IsEnabled || module.ActiveProcessCount > 0)
+            var unifiedModulePaths = snapshots
+                .Where(module => module.Sessions.Any(session => session.LineCount > 0 &&
+                    (string.Equals(session.Id, OverviewSessionId, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(session.Stage, "Settings", StringComparison.OrdinalIgnoreCase))))
+                .Select(module => module.SourcePath)
                 .ToList();
 
-            // Module list: the "all modules" entry first (only when something is active), then each visible module.
+            // The global console remains available for as long as there is merged module output in the store.
             var moduleItems = new List<ConsoleModuleItemViewModel>();
-            if (activeModules.Count > 0)
+            if (unifiedModulePaths.Count > 0)
             {
                 moduleItems.Add(new ConsoleModuleItemViewModel
                 {
                     SourcePath = AllModulesModuleId,
-                    Name = L.Get(LocalizationKeys.Consoles_AllModules),
-                    StatusText = L.Get(LocalizationKeys.Consoles_ActiveModulesFormat, activeModules.Count),
-                    ActivityText = L.Get(LocalizationKeys.Consoles_UnifiedConsoleForActive)
+                    Name = L.Get(LocalizationKeys.Consoles_AllModules)
                 });
             }
 
@@ -833,11 +935,11 @@ namespace ASLM.Pages
             var isGlobalModule = string.Equals(_selectedModuleSourcePath, AllModulesModuleId, StringComparison.Ordinal);
             var selectedModule = visibleModules.FirstOrDefault(module =>
                 string.Equals(module.SourcePath, _selectedModuleSourcePath, StringComparison.OrdinalIgnoreCase));
-            var activeModulePaths = activeModules.Select(module => module.SourcePath).ToList();
             var showIndividualConsoles = _appData.Data.Consoles.ShowIndividualModuleConsoles;
 
+            DateTimeOffset? nextSessionExpiryUtc = null;
             IReadOnlyList<ConsoleSessionItemViewModel> sessionItems;
-            IReadOnlyList<string> selectedSessionLines;
+            IReadOnlyList<ConsoleOutputLine> selectedSessionLines;
             string selectedSessionTitle;
             string selectedSessionStatus;
             string selectedSessionDescription;
@@ -846,7 +948,7 @@ namespace ASLM.Pages
 
             if (isGlobalModule)
             {
-                // All modules: a single merged console over every active module.
+                // All modules: a single merged console over every module with output to include.
                 _selectedSessionId = GlobalUnifiedSessionId;
                 sessionItems =
                 [
@@ -855,13 +957,11 @@ namespace ASLM.Pages
                         Id = GlobalUnifiedSessionId,
                         ModuleSourcePath = AllModulesModuleId,
                         SessionSourceId = GlobalUnifiedSessionId,
-                        Title = L.Get(LocalizationKeys.Consoles_UnifiedConsole),
-                        StatusText = L.Get(LocalizationKeys.Consoles_AllActiveModules),
-                        Preview = L.Get(LocalizationKeys.Consoles_UnifiedPreview)
+                        Title = L.Get(LocalizationKeys.Consoles_UnifiedConsole)
                     }
                 ];
 
-                selectedSessionLines = _consoleStore.GetUnifiedOverviewLines(activeModulePaths);
+                selectedSessionLines = _consoleStore.GetUnifiedOverviewOutputLines(unifiedModulePaths);
                 selectedSessionTitle = L.Get(LocalizationKeys.Consoles_AllModulesUnifiedTitle);
                 selectedSessionStatus = string.Empty;
                 selectedSessionDescription = string.Empty;
@@ -873,7 +973,7 @@ namespace ASLM.Pages
                 // Nothing selected: show the empty-selection placeholders.
                 _selectedSessionId = null;
                 sessionItems = [];
-                selectedSessionLines = [L.Get(LocalizationKeys.Consoles_NoOutputYet)];
+                selectedSessionLines = [new(0, L.Get(LocalizationKeys.Consoles_NoOutputYet))];
                 selectedSessionTitle = L.Get(LocalizationKeys.Consoles_EmptySelectionTitle);
                 selectedSessionStatus = L.Get(LocalizationKeys.Consoles_EmptySelectionStatus);
                 selectedSessionDescription = L.Get(LocalizationKeys.Consoles_EmptySelectionDescription);
@@ -882,16 +982,25 @@ namespace ASLM.Pages
             }
             else
             {
-                // One module: list its sessions except the overview, which the merged console shows, and observed
-                // processes, whose output cannot be captured. The preference hides finished processes; the
-                // maintenance log has no process and is listed once it has output.
-                var visibleSessions = selectedModule.Sessions
-                    .Where(session => !string.Equals(session.Id, "overview", StringComparison.OrdinalIgnoreCase))
-                    .Where(session => !session.IsObservedProcess)
-                    .Where(session => session.ProcessId.HasValue
-                        ? _showCompletedProcesses || session.IsRunning
-                        : session.LineCount > 0)
-                    .ToList();
+                var nowUtc = DateTimeOffset.UtcNow;
+
+                // Returns the running state used consistently by the picker and the selected session.
+                bool IsRunningForDisplay(ModuleConsoleSessionSnapshot session) =>
+                    session.IsRunning || GetSessionDisplayExpiry(session, nowUtc).HasValue;
+
+                // The overview belongs to the merged console. Observed processes have no captured output.
+                List<ModuleConsoleSessionSnapshot> visibleSessions = showIndividualConsoles
+                    ? selectedModule.Sessions
+                        .Where(session => !string.Equals(session.Id, OverviewSessionId, StringComparison.OrdinalIgnoreCase))
+                        .Where(session => !session.IsObservedProcess)
+                        .Where(session => session.ProcessId.HasValue
+                            ? _showCompletedProcesses || IsRunningForDisplay(session)
+                            : session.LineCount > 0)
+                        .OrderByDescending(IsRunningForDisplay)
+                        .ThenByDescending(session => session.StartedUtc)
+                        .ToList()
+                    : [];
+                nextSessionExpiryUtc = visibleSessions.Min(session => GetSessionDisplayExpiry(session, nowUtc));
 
                 // The module's merged console is always first; individual consoles follow when the preference allows.
                 var unifiedItem = new ConsoleSessionItemViewModel
@@ -900,13 +1009,14 @@ namespace ASLM.Pages
                     ModuleSourcePath = selectedModule.SourcePath,
                     SessionSourceId = UnifiedSessionId,
                     Title = L.Get(LocalizationKeys.Consoles_UnifiedConsole),
-                    StatusText = L.Get(LocalizationKeys.Consoles_MergedOutput),
                     Preview = L.Get(LocalizationKeys.Consoles_UnifiedPreview)
                 };
 
-                sessionItems = showIndividualConsoles
-                    ? [unifiedItem, .. visibleSessions.Select(session => MapSession(selectedModule, session))]
-                    : [unifiedItem];
+                sessionItems =
+                [
+                    unifiedItem,
+                    .. visibleSessions.Select(session => MapSession(selectedModule, session, IsRunningForDisplay(session)))
+                ];
 
                 // Session selection: fall back to the first item when the stored session is missing or gone.
                 if (string.IsNullOrWhiteSpace(_selectedSessionId) ||
@@ -925,7 +1035,7 @@ namespace ASLM.Pages
                 // Fill the output pane: merged module console, placeholders for a vanished session, or session output.
                 if (selectedSessionItem == null || string.Equals(_selectedSessionId, UnifiedSessionId, StringComparison.Ordinal))
                 {
-                    selectedSessionLines = _consoleStore.GetUnifiedModuleLines(selectedModule.SourcePath);
+                    selectedSessionLines = _consoleStore.GetUnifiedModuleOutputLines(selectedModule.SourcePath);
                     selectedSessionTitle = L.Get(LocalizationKeys.Consoles_ModuleUnifiedTitleFormat, selectedModule.Name);
                     selectedSessionStatus = string.Empty;
                     selectedSessionDescription = string.Empty;
@@ -935,7 +1045,7 @@ namespace ASLM.Pages
                 else if (selectedSession == null)
                 {
                     // The selected item has no matching store session any more.
-                    selectedSessionLines = [L.Get(LocalizationKeys.Consoles_NoOutputYet)];
+                    selectedSessionLines = [new(0, L.Get(LocalizationKeys.Consoles_NoOutputYet))];
                     selectedSessionTitle = L.Get(LocalizationKeys.Consoles_EmptySelectionTitle);
                     selectedSessionStatus = L.Get(LocalizationKeys.Consoles_EmptySelectionStatus);
                     selectedSessionDescription = L.Get(LocalizationKeys.Consoles_EmptySelectionDescription);
@@ -945,9 +1055,9 @@ namespace ASLM.Pages
                 else
                 {
                     // A concrete process session: its output, status, description (or stage) and command line.
-                    selectedSessionLines = _consoleStore.GetSessionLines(selectedModule.SourcePath, selectedSession.Id);
+                    selectedSessionLines = _consoleStore.GetSessionOutputLines(selectedModule.SourcePath, selectedSession.Id);
                     selectedSessionTitle = $"{selectedModule.Name} / {selectedSession.Title}";
-                    selectedSessionStatus = BuildSelectedStatus(selectedSession);
+                    selectedSessionStatus = BuildSelectedStatus(selectedSession, IsRunningForDisplay(selectedSession));
                     selectedSessionDescription = selectedSession.IsObservedProcess
                         ? L.Get(LocalizationKeys.Consoles_SessionObservedDescription)
                         : string.IsNullOrWhiteSpace(selectedSession.CommandDescription)
@@ -965,19 +1075,31 @@ namespace ASLM.Pages
                 SelectedModuleSourcePath = _selectedModuleSourcePath,
                 Sessions = sessionItems,
                 ShowSessionList = sessionItems.Count > 1 && !isGlobalModule,
+                NextSessionExpiryUtc = nextSessionExpiryUtc,
                 SelectedSessionId = _selectedSessionId,
-                SelectedSessionKey = $"{_selectedModuleSourcePath}|{_selectedSessionId}",
                 SelectedSessionTitle = selectedSessionTitle,
                 SelectedSessionStatus = selectedSessionStatus,
                 SelectedSessionDescription = selectedSessionDescription,
                 SelectedSessionCommandLine = selectedSessionCommandLine,
-                SelectedSessionLines = selectedSessionLines,
+                SelectedOutput = ConsoleOutput.FromLines($"{_selectedModuleSourcePath}|{_selectedSessionId}", selectedSessionLines),
                 SelectedSessionFooter = selectedSessionFooter
             };
         }
 
 
         // Mapping
+
+        /// <summary>
+        /// Returns when a completed process will stop appearing active, if its grace period is still in effect.
+        /// </summary>
+        private static DateTimeOffset? GetSessionDisplayExpiry(ModuleConsoleSessionSnapshot session, DateTimeOffset nowUtc)
+        {
+            if (session.IsRunning || !session.ProcessId.HasValue || session.EndedUtc is not { } endedUtc)
+                return null;
+
+            var expiryUtc = endedUtc + CompletedSessionDisplayDuration;
+            return expiryUtc > nowUtc ? expiryUtc : null;
+        }
 
         /// <summary>
         /// Maps internal console stage identifiers to localized labels; unknown stages are shown as they are.
@@ -1004,16 +1126,16 @@ namespace ASLM.Pages
             var enabledLabel = module.IsEnabled
                 ? L.Get(LocalizationKeys.Consoles_Status_Enabled)
                 : L.Get(LocalizationKeys.Consoles_Status_Disabled);
+            var sessions = module.Sessions.Count(session => !session.IsObservedProcess);
+            var status = module.ActiveProcessCount > 0
+                ? L.Get(LocalizationKeys.Consoles_Status_ModuleActiveFormat, enabledLabel, sessions, module.ActiveProcessCount)
+                : L.Get(LocalizationKeys.Consoles_Status_ModuleFormat, enabledLabel, sessions);
 
             return new ConsoleModuleItemViewModel
             {
                 SourcePath = module.SourcePath,
                 Name = module.Name,
-                StatusText = L.Get(
-                    LocalizationKeys.Consoles_Status_ModuleFormat,
-                    enabledLabel,
-                    module.ActiveProcessCount,
-                    module.Sessions.Count(session => !session.IsObservedProcess)),
+                StatusText = status,
                 ActivityText = activityText
             };
         }
@@ -1024,20 +1146,19 @@ namespace ASLM.Pages
         /// </summary>
         /// <param name="module">Module that owns the session.</param>
         /// <param name="session">Session to map.</param>
-        private static ConsoleSessionItemViewModel MapSession(ModuleConsoleModuleSnapshot module, ModuleConsoleSessionSnapshot session)
+        /// <param name="isRunningForDisplay">Whether to show a running status for this session.</param>
+        private static ConsoleSessionItemViewModel MapSession(
+            ModuleConsoleModuleSnapshot module, ModuleConsoleSessionSnapshot session, bool isRunningForDisplay)
         {
-            // Status line: observed services only report running or stopped; own processes also report the exit code.
-            var pidSuffix = FormatPid(session.ProcessId);
-            var stageLabel = LocalizeConsoleStage(session.Stage);
-            var status = session.IsObservedProcess
-                ? session.IsRunning
-                    ? L.Get(LocalizationKeys.Consoles_Status_ServiceObservedRunningFormat, pidSuffix)
-                    : L.Get(LocalizationKeys.Consoles_Status_ServiceObservedStoppedFormat, pidSuffix)
-                : session.IsRunning
-                    ? L.Get(LocalizationKeys.Consoles_Status_RunningFormat, stageLabel, pidSuffix)
-                    : session.ExitCode.HasValue
-                        ? L.Get(LocalizationKeys.Consoles_Status_ExitFormat, stageLabel, session.ExitCode.Value, pidSuffix)
-                        : L.Get(LocalizationKeys.Consoles_Status_Completed, stageLabel);
+            // Keep technical terms and numeric identifiers consistent across locales.
+            var pidPrefix = session.ProcessId is { } pid ? FormattableString.Invariant($"PID {pid}, ") : string.Empty;
+            var status = session switch
+            {
+                { IsObservedProcess: true } => isRunningForDisplay ? "Observed" : "Stopped",
+                _ when isRunningForDisplay => "Running",
+                { ExitCode: { } code } => FormattableString.Invariant($"Exit {code}"),
+                _ => "Completed"
+            };
 
             // Build the list item; a session without preview text gets a placeholder that says why it is empty.
             return new ConsoleSessionItemViewModel
@@ -1046,7 +1167,7 @@ namespace ASLM.Pages
                 ModuleSourcePath = module.SourcePath,
                 SessionSourceId = session.Id,
                 Title = session.Title,
-                StatusText = status,
+                StatusText = $"{session.Stage} ({pidPrefix}{status})",
                 Preview = string.IsNullOrWhiteSpace(session.Preview)
                     ? session.IsObservedProcess
                         ? L.Get(LocalizationKeys.Consoles_SessionObservedPreview)
@@ -1059,19 +1180,21 @@ namespace ASLM.Pages
         /// Builds the human-readable status line shown above the selected console output.
         /// </summary>
         /// <param name="session">Selected session snapshot.</param>
-        private static string BuildSelectedStatus(ModuleConsoleSessionSnapshot session)
+        /// <param name="isRunningForDisplay">Whether to show a running status for this session.</param>
+        private static string BuildSelectedStatus(ModuleConsoleSessionSnapshot session, bool isRunningForDisplay)
         {
+            var pidSuffix = session.ProcessId is { } pid ? $" - {FormatPid(pid)}" : string.Empty;
             if (session.IsObservedProcess)
             {
-                return session.IsRunning
-                    ? L.Get(LocalizationKeys.Consoles_Selected_ObservedRunning, FormatPid(session.ProcessId))
-                    : L.Get(LocalizationKeys.Consoles_Selected_ObservedStopped, FormatPid(session.ProcessId));
+                return isRunningForDisplay
+                    ? L.Get(LocalizationKeys.Consoles_Selected_ObservedRunning, pidSuffix)
+                    : L.Get(LocalizationKeys.Consoles_Selected_ObservedStopped, pidSuffix);
             }
 
             var stageLabel = LocalizeConsoleStage(session.Stage);
-            if (session.IsRunning)
+            if (isRunningForDisplay)
             {
-                return L.Get(LocalizationKeys.Consoles_Selected_SessionRunning, stageLabel, FormatPid(session.ProcessId));
+                return L.Get(LocalizationKeys.Consoles_Selected_SessionRunning, stageLabel, pidSuffix);
             }
 
             if (session.ExitCode.HasValue)
@@ -1080,7 +1203,7 @@ namespace ASLM.Pages
                     LocalizationKeys.Consoles_Selected_SessionExitFormat,
                     stageLabel,
                     session.ExitCode.Value,
-                    FormatPid(session.ProcessId));
+                    pidSuffix);
             }
 
             return L.Get(LocalizationKeys.Consoles_Selected_SessionCompleted, stageLabel);
@@ -1114,14 +1237,10 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Formats the process identifier suffix used in session status labels; empty when there is no process id.
+        /// Formats the PID text used by the session status labels.
         /// </summary>
-        private static string FormatPid(int? processId)
-        {
-            return processId.HasValue
-                ? L.Get(LocalizationKeys.Consoles_PidFormat, processId.Value)
-                : string.Empty;
-        }
+        private static string FormatPid(int processId) =>
+            L.Get(LocalizationKeys.Consoles_PidFormat, processId);
     }
 
 
@@ -1155,14 +1274,14 @@ namespace ASLM.Pages
         public bool ShowSessionList { get; set; }
 
         /// <summary>
+        /// Gets or sets when the next visible completed process will stop appearing active.
+        /// </summary>
+        public DateTimeOffset? NextSessionExpiryUtc { get; set; }
+
+        /// <summary>
         /// Gets or sets the selected session identifier.
         /// </summary>
         public string? SelectedSessionId { get; set; }
-
-        /// <summary>
-        /// Gets or sets the composite key used to detect session changes in the native console host.
-        /// </summary>
-        public string SelectedSessionKey { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the title shown above the selected console output.
@@ -1185,9 +1304,9 @@ namespace ASLM.Pages
         public string SelectedSessionCommandLine { get; set; } = string.Empty;
 
         /// <summary>
-        /// Gets or sets the console lines shown in the output pane.
+        /// Gets or sets the output and session identity to render together.
         /// </summary>
-        public IReadOnlyList<string> SelectedSessionLines { get; set; } = [];
+        internal ConsoleOutput SelectedOutput { get; set; } = ConsoleOutput.Empty;
 
         /// <summary>
         /// Gets or sets the footer shown below the selected console output.
@@ -1206,11 +1325,6 @@ namespace ASLM.Pages
         /// Backing field of <see cref="SelectedSessionId"/>.
         /// </summary>
         private string? _selectedSessionId;
-
-        /// <summary>
-        /// Backing field of <see cref="SelectedSessionKey"/>.
-        /// </summary>
-        private string _selectedSessionKey = string.Empty;
 
         /// <summary>
         /// Backing field of <see cref="SelectedSessionTitle"/>.
@@ -1236,11 +1350,6 @@ namespace ASLM.Pages
         /// Backing field of <see cref="SelectedSessionFooter"/>.
         /// </summary>
         private string _selectedSessionFooter = string.Empty;
-
-        /// <summary>
-        /// Backing field of <see cref="SelectedSessionText"/>.
-        /// </summary>
-        private string _selectedSessionText = string.Empty;
 
 
         // Events
@@ -1270,15 +1379,6 @@ namespace ASLM.Pages
         {
             get => _selectedSessionId;
             set => SetProperty(ref _selectedSessionId, value);
-        }
-
-        /// <summary>
-        /// Gets or sets the composite session key used by the native console host.
-        /// </summary>
-        public string SelectedSessionKey
-        {
-            get => _selectedSessionKey;
-            set => SetProperty(ref _selectedSessionKey, value);
         }
 
         /// <summary>
@@ -1324,15 +1424,6 @@ namespace ASLM.Pages
         {
             get => _selectedSessionFooter;
             set => SetProperty(ref _selectedSessionFooter, value);
-        }
-
-        /// <summary>
-        /// Gets or sets the text rendered by the native console output host.
-        /// </summary>
-        public string SelectedSessionText
-        {
-            get => _selectedSessionText;
-            set => SetProperty(ref _selectedSessionText, value);
         }
 
 

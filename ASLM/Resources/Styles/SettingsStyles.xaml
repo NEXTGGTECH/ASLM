@@ -4,7 +4,8 @@
 
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:settings="clr-namespace:ASLM.Controls.Settings">
 
     <!-- Overlay shell -->
     <Style x:Key="SettingsDialogBorderStyle" TargetType="Border">
@@ -79,10 +80,27 @@
     </Style>
 
     <!-- Category selector -->
-    <Style x:Key="SettingsSelectorHeaderLabelStyle" TargetType="Label">
+    <Style x:Key="SettingsSelectorLabelStyle" TargetType="Label">
+        <Setter Property="settings:SettingsControlChrome.TextColorResource" Value="LabelPrimary" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="settings:SettingsControlChrome.TextColorResource" Value="SystemGray2" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <Style x:Key="SettingsSelectorHeaderLabelStyle"
+           TargetType="Label"
+           BasedOn="{StaticResource SettingsSelectorLabelStyle}">
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontAttributes" Value="Bold" />
-        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
         <Setter Property="Margin" Value="0,0,0,8" />
         <Setter Property="Padding" Value="0" />
     </Style>
@@ -98,9 +116,11 @@
         <Setter Property="HorizontalOptions" Value="Fill" />
     </Style>
 
-    <Style x:Key="SettingsSelectorButtonLabelStyle" TargetType="Label">
+    <Style x:Key="SettingsSelectorButtonLabelStyle"
+           TargetType="Label"
+           BasedOn="{StaticResource SettingsSelectorLabelStyle}">
         <Setter Property="FontSize" Value="14" />
-        <Setter Property="TextColor" Value="{DynamicResource LabelSecondary}" />
+        <Setter Property="settings:SettingsControlChrome.TextColorResource" Value="LabelSecondary" />
         <Setter Property="Margin" Value="8,0,0,0" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="VerticalOptions" Value="Center" />
@@ -269,8 +289,8 @@
     </Style>
 
     <Style x:Key="SettingsPickerStyle" TargetType="Picker">
-        <Setter Property="TextColor" Value="{DynamicResource LabelPrimary}" />
-        <Setter Property="TitleColor" Value="{DynamicResource LabelSecondary}" />
+        <Setter Property="settings:SettingsControlChrome.TextColorResource" Value="LabelPrimary" />
+        <Setter Property="settings:SettingsControlChrome.TitleColorResource" Value="LabelSecondary" />
         <Setter Property="BackgroundColor" Value="Transparent" />
         <Setter Property="FontFamily" Value="OpenSansRegular" />
         <Setter Property="FontSize" Value="12" />

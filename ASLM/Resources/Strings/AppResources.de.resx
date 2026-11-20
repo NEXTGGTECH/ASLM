@@ -133,22 +133,19 @@
     <value>Keine Konsole ausgewählt</value>
   </data>
   <data name="Consoles_Footer_BufferedFormat" xml:space="preserve">
-    <value>{0} gepufferte Zeilen – {1}{2}{3}</value>
+    <value>{0} gepufferte Zeilen - {1}{2}{3}</value>
   </data>
   <data name="Consoles_Footer_EndedFormat" xml:space="preserve">
-    <value> – Beendet {0}</value>
+    <value> - Beendet {0}</value>
   </data>
   <data name="Consoles_Footer_ObservedCaptureNote" xml:space="preserve">
-    <value> – direkte stdout/stderr-Erfassung möglicherweise nicht verfügbar</value>
+    <value> - direkte stdout/stderr-Erfassung möglicherweise nicht verfügbar</value>
   </data>
   <data name="Consoles_Footer_StartedFormat" xml:space="preserve">
     <value>Gestartet {0}</value>
   </data>
   <data name="Consoles_LastActivityFormat" xml:space="preserve">
     <value>Letzte Aktivität {0}</value>
-  </data>
-  <data name="Consoles_MergedOutput" xml:space="preserve">
-    <value>Zusammengeführte Ausgabe</value>
   </data>
   <data name="Consoles_ModuleUnifiedTitleFormat" xml:space="preserve">
     <value>{0} / Einheitliche Konsole</value>
@@ -169,7 +166,7 @@
     <value>Noch keine Ausgabe</value>
   </data>
   <data name="Consoles_PidFormat" xml:space="preserve">
-    <value> – PID {0}</value>
+    <value>PID {0}</value>
   </data>
   <data name="Consoles_Run" xml:space="preserve">
     <value>Ausführen</value>
@@ -207,29 +204,17 @@
   <data name="Consoles_Stage_Service" xml:space="preserve">
     <value>Dienst</value>
   </data>
-  <data name="Consoles_Status_Completed" xml:space="preserve">
-    <value>{0} – Abgeschlossen</value>
-  </data>
   <data name="Consoles_Status_Disabled" xml:space="preserve">
     <value>Deaktiviert</value>
   </data>
   <data name="Consoles_Status_Enabled" xml:space="preserve">
     <value>Aktiviert</value>
   </data>
-  <data name="Consoles_Status_ExitFormat" xml:space="preserve">
-    <value>{0} – Beendet {1}{2}</value>
+  <data name="Consoles_Status_ModuleActiveFormat" xml:space="preserve">
+    <value>{0} - {1} Sitzungen ({2} aktiv)</value>
   </data>
   <data name="Consoles_Status_ModuleFormat" xml:space="preserve">
-    <value>{0} – {1} aktiv – {2} Sitzungen</value>
-  </data>
-  <data name="Consoles_Status_RunningFormat" xml:space="preserve">
-    <value>{0} – Läuft{1}</value>
-  </data>
-  <data name="Consoles_Status_ServiceObservedRunningFormat" xml:space="preserve">
-    <value>Dienst – Beobachtet{0}</value>
-  </data>
-  <data name="Consoles_Status_ServiceObservedStoppedFormat" xml:space="preserve">
-    <value>Dienst – Gestoppt{0}</value>
+    <value>{0} - {1} Sitzungen</value>
   </data>
   <data name="Consoles_Title" xml:space="preserve">
     <value>Konsolen</value>
@@ -424,7 +409,7 @@
     <value>Kombinierter I/O-Verkehr verwalteter Prozesse</value>
   </data>
   <data name="Home_Metric_Disk_Rw" xml:space="preserve">
-    <value>L {0} – S {1}</value>
+    <value>L {0} - S {1}</value>
   </data>
   <data name="Home_Metric_Gpu_Index" xml:space="preserve">
     <value>GPU {0}</value>
@@ -445,7 +430,7 @@
     <value>Offene TCP- und UDP-Endpunkte im ASLM-Baum</value>
   </data>
   <data name="Home_Metric_Network_RxTx" xml:space="preserve">
-    <value>Rx {0} – Tx {1}</value>
+    <value>Rx {0} - Tx {1}</value>
   </data>
   <data name="Home_Metric_NotAvailable" xml:space="preserve">
     <value>k. A.</value>
@@ -1332,7 +1317,7 @@
     <value>Überspringen</value>
   </data>
   <data name="SetupWizard_StepFormat" xml:space="preserve">
-    <value>Schritt {0} von {1} – {2}</value>
+    <value>Schritt {0} von {1} - {2}</value>
   </data>
   <data name="SetupWizard_Step_ModuleSelection" xml:space="preserve">
     <value>Modulauswahl</value>

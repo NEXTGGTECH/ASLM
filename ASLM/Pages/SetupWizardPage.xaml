@@ -287,8 +287,6 @@
                                 StrokeShape="RoundRectangle 8"
                                 Padding="8">
                             <services:ConsoleOutputView x:Name="InstallLogConsole"
-                                                        Text="{Binding InstallLogText, Source={x:Reference RootView}}"
-                                                        SessionKey="{Binding InstallLogSessionKey, Source={x:Reference RootView}}"
                                                         HorizontalOptions="Fill"
                                                         VerticalOptions="Fill" />
                         </Border>
@@ -305,7 +303,7 @@
                                Margin="0,20,0,0"
                                IsVisible="False">
             <Button x:Name="BackButton"
-                    BackgroundColor="{DynamicResource SystemGray4}"
+                    BackgroundColor="{DynamicResource BackgroundTertiary}"
                     TextColor="{DynamicResource LabelPrimary}"
                     FontSize="14"
                     Padding="20,10"

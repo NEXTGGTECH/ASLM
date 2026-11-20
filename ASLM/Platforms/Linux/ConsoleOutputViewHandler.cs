@@ -12,13 +12,11 @@ namespace ASLM.Services.Internal
         // Fields
 
         /// <summary>
-        /// Maps console view properties to the native text view update that each one requires.
+        /// Maps the scrollbar mode to the native scrolled window.
         /// </summary>
         public static readonly IPropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler> Mapper =
             new PropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler>(ViewMapper)
             {
-                [nameof(ConsoleOutputView.Text)] = (handler, _) => handler.QueueTextUpdate(),
-                [nameof(ConsoleOutputView.SessionKey)] = (handler, _) => handler.ResetSession(),
                 [nameof(ConsoleOutputView.UseCustomScrollBar)] = (handler, _) => handler.ApplyScrollChrome()
             };
 
@@ -38,17 +36,32 @@ namespace ASLM.Services.Internal
         private string _rendered = string.Empty;
 
         /// <summary>
-        /// Whether a text update is already queued on the dispatcher.
+        /// Capture-phase input observer that leaves GTK's text selection gestures in charge.
         /// </summary>
-        private bool _pending;
+        private Gtk.EventControllerLegacy? _pointerEvents;
 
         /// <summary>
-        /// Whether the view follows new output because the reader is at (or near) the bottom.
+        /// Whether the current output update should scroll to the bottom after layout.
         /// </summary>
-        private bool _pinToBottom = true;
+        private bool _pendingFollow;
 
         /// <summary>
-        /// Incremented on connect and disconnect so queued callbacks of an earlier connection can be recognized and dropped.
+        /// Position to restore once GTK has recalculated the scrollable extent.
+        /// </summary>
+        private ConsoleScrollPosition? _pendingPosition;
+
+        /// <summary>
+        /// Suppresses adjustment notifications while the native buffer is being modified.
+        /// </summary>
+        private bool _applyingOutput;
+
+        /// <summary>
+        /// Whether a post-layout viewport update is already queued.
+        /// </summary>
+        private bool _viewportQueued;
+
+        /// <summary>
+        /// Invalidates queued viewport callbacks when the native widget disconnects.
         /// </summary>
         private int _generation;
 
@@ -72,6 +85,7 @@ namespace ASLM.Services.Internal
             _textView = Gtk.TextView.New();
             _textView.SetEditable(false);
             _textView.SetCursorVisible(false);
+            _textView.GetBuffer().SetEnableUndo(false);
             _textView.SetMonospace(true);
             _textView.SetWrapMode(Gtk.WrapMode.WordChar);
             _textView.SetLeftMargin(10);
@@ -109,7 +123,16 @@ namespace ASLM.Services.Internal
             ThemeService.PaletteApplied += OnPaletteApplied;
             ApplyTheme();
             ApplyScrollChrome();
-            QueueTextUpdate();
+
+            if (_textView is { } textView)
+            {
+                _pointerEvents = Gtk.EventControllerLegacy.New();
+                _pointerEvents.SetPropagationPhase(Gtk.PropagationPhase.Capture);
+                _pointerEvents.OnEvent += OnPointerEvent;
+                textView.AddController(_pointerEvents);
+            }
+
+            VirtualView.ConnectOutput(ApplyOutput);
         }
 
         /// <summary>
@@ -119,7 +142,20 @@ namespace ASLM.Services.Internal
         {
             // Invalidate queued dispatcher callbacks so they cannot touch the detached widgets.
             _generation++;
-            _pending = false;
+            _viewportQueued = false;
+            _pendingPosition = null;
+            _pendingFollow = false;
+            _rendered = string.Empty;
+
+            if (_textView is { } textView)
+            {
+                if (_pointerEvents is { } pointerEvents)
+                {
+                    pointerEvents.OnEvent -= OnPointerEvent;
+                    textView.RemoveController(pointerEvents);
+                    _pointerEvents = null;
+                }
+            }
 
             // Detach the adjustment signals before the native widgets go away.
             if (_adjustment != null)
@@ -130,63 +166,135 @@ namespace ASLM.Services.Internal
 
             _adjustment = null;
             VirtualView.ScrollToOffset = null;
+            VirtualView.DisconnectOutput();
             ThemeService.PaletteApplied -= OnPaletteApplied;
             base.DisconnectHandler(platformView);
         }
 
 
-        // Text rendering
+        // Native selection
 
         /// <summary>
-        /// Coalesces console notifications into one GTK update and ignores callbacks from old handlers.
+        /// Tracks pointer and touch sequences without claiming or consuming GTK events.
         /// </summary>
-        private void QueueTextUpdate()
+        private bool OnPointerEvent(Gtk.EventControllerLegacy sender, Gtk.EventControllerLegacy.EventSignalArgs args)
         {
-            if (_pending || _adjustment == null) return;
-            _pending = true;
+            switch (args.Event.GetEventType())
+            {
+                case Gdk.EventType.ButtonPress:
+                case Gdk.EventType.TouchBegin:
+                    _pendingFollow = false;
+                    _pendingPosition = null;
+                    VirtualView.SetSelectionGesture(true);
+                    break;
+                case Gdk.EventType.ButtonRelease:
+                case Gdk.EventType.TouchEnd:
+                case Gdk.EventType.TouchCancel:
+                case Gdk.EventType.GrabBroken:
+                    VirtualView.SetSelectionGesture(false);
+                    break;
+                case Gdk.EventType.Scroll:
+                    _pendingFollow = false;
+                    _pendingPosition = null;
+                    break;
+            }
+
+            return false;
+        }
+
+
+        // Output and viewport
+
+        /// <summary>
+        /// Changes buffer ranges in place so GTK keeps its selection marks on retained text.
+        /// </summary>
+        private void ApplyOutput(ConsoleOutput output, ConsoleOutput? previous, bool sessionChanged)
+        {
+            if (_textView == null || _adjustment is not { } adjustment) return;
+
+            // Resolve a preceding viewport correction before capturing the next one.
+            if (_pendingPosition.HasValue && !sessionChanged) ApplyViewport();
+            var offset = adjustment.GetValue();
+            _pendingFollow = sessionChanged || _pendingFollow || VirtualView.ShouldFollowOutput(offset, GetMaximumOffset(adjustment));
+            var appendOnly = output.Text.StartsWith(_rendered, StringComparison.Ordinal);
+            _pendingPosition = _pendingFollow || appendOnly ? null : output.PreservePosition(previous, offset, GetLineTop);
+
+            var buffer = _textView.GetBuffer();
+            _applyingOutput = true;
+            try
+            {
+                if (sessionChanged || previous == null)
+                {
+                    buffer.SetText(output.Text, -1);
+                }
+                else
+                {
+                    foreach (var edit in output.GetEdits(previous))
+                    {
+                        buffer.GetIterAtOffset(out var start, GetBufferIndex(edit.Start));
+                        if (edit.End > edit.Start)
+                        {
+                            buffer.GetIterAtOffset(out var end, GetBufferIndex(edit.End));
+                            buffer.Delete(start, end);
+                            buffer.GetIterAtOffset(out start, GetBufferIndex(edit.Start));
+                        }
+
+                        if (edit.Text.Length > 0) buffer.Insert(start, edit.Text, -1);
+                    }
+                }
+
+                _rendered = output.Text;
+            }
+            finally
+            {
+                _applyingOutput = false;
+            }
+
+            QueueViewportRefresh();
+        }
+
+        /// <summary>
+        /// Converts a UTF-16 source index to an offset in Unicode characters in the GTK buffer.
+        /// </summary>
+        private int GetBufferIndex(int index)
+        {
+            var nativeIndex = 0;
+            foreach (var _ in _rendered.AsSpan(0, index).EnumerateRunes()) nativeIndex++;
+            return nativeIndex;
+        }
+
+        /// <summary>
+        /// Gets a line's vertical position in the full GTK text buffer.
+        /// </summary>
+        private double? GetLineTop(int index)
+        {
+            if (_textView == null || index > _rendered.Length) return null;
+            _textView.GetBuffer().GetIterAtOffset(out var iter, GetBufferIndex(index));
+            _textView.GetLineYrange(iter, out var y, out _);
+            return y;
+        }
+
+        /// <summary>
+        /// Applies the viewport after pending text geometry work, even if the extent did not change.
+        /// </summary>
+        private void QueueViewportRefresh()
+        {
+            if (_viewportQueued) return;
+
+            _viewportQueued = true;
             var generation = _generation;
-            VirtualView.Dispatcher.Dispatch(() =>
+            if (!VirtualView.Dispatcher.Dispatch(() =>
             {
                 if (generation != _generation) return;
-                _pending = false;
-                ApplyText();
-            });
-        }
-
-        /// <summary>
-        /// Appends new output without replacing existing selection; replaces text only after trimming or session changes.
-        /// </summary>
-        private void ApplyText()
-        {
-            var text = VirtualView.Text ?? string.Empty;
-            var buffer = _textView?.GetBuffer();
-            if (buffer == null || text == _rendered) return;
-
-            // Pure growth only appends the new tail, which keeps the reader's selection and scroll position intact.
-            if (text.StartsWith(_rendered, StringComparison.Ordinal))
+                ApplyViewport();
+                _pendingPosition = null;
+                _pendingFollow = false;
+                _viewportQueued = false;
+            }))
             {
-                buffer.GetEndIter(out var end);
-                buffer.Insert(end, text[_rendered.Length..], -1);
+                _viewportQueued = false;
             }
-            else buffer.SetText(text, -1);
-
-            _rendered = text;
-            PublishScrollMetrics();
         }
-
-        /// <summary>
-        /// Resets bottom pinning when a different process or module console is selected.
-        /// </summary>
-        private void ResetSession()
-        {
-            _pinToBottom = true;
-            _rendered = string.Empty;
-            _textView?.GetBuffer().SetText(string.Empty, -1);
-            QueueTextUpdate();
-        }
-
-
-        // Scrolling
 
         /// <summary>
         /// Hides native chrome without disabling GTK's scrollable viewport.
@@ -195,30 +303,46 @@ namespace ASLM.Services.Internal
             VirtualView.UseCustomScrollBar ? Gtk.PolicyType.External : Gtk.PolicyType.Automatic);
 
         /// <summary>
-        /// Preserves the user's scroll position unless output was already pinned to the bottom.
+        /// Applies the pending position again if layout changes the extent before the queued viewport pass.
         /// </summary>
         private void OnGeometryChanged(Gtk.Adjustment sender, EventArgs args)
         {
-            if (_pinToBottom) sender.SetValue(Math.Max(0, sender.GetUpper() - sender.GetPageSize()));
-            PublishScrollMetrics();
+            if (!_applyingOutput) ApplyViewport();
         }
 
         /// <summary>
-        /// Tracks user scrolling so new output does not pull a reader away from older log entries.
+        /// Publishes native scrolling to the shared scrollbar.
         /// </summary>
-        private void OnScrollChanged(Gtk.Adjustment sender, EventArgs args)
+        private void OnScrollChanged(Gtk.Adjustment sender, EventArgs args) => PublishScrollMetrics();
+
+        /// <summary>
+        /// Follows output or compensates for a change of text above the current viewport.
+        /// </summary>
+        private void ApplyViewport()
         {
-            _pinToBottom = sender.GetUpper() - sender.GetPageSize() - sender.GetValue() <= 48;
+            if (_adjustment is not { } adjustment) return;
+            var maximum = GetMaximumOffset(adjustment);
+            if (_pendingFollow) adjustment.SetValue(maximum);
+            else if (_pendingPosition is { } position)
+                adjustment.SetValue(Math.Clamp(position.Resolve(GetLineTop), 0, maximum));
             PublishScrollMetrics();
         }
 
         /// <summary>
-        /// Applies a scrollbar drag within the native adjustment's valid range.
+        /// Returns the largest valid offset of the native scroll adjustment.
+        /// </summary>
+        private static double GetMaximumOffset(Gtk.Adjustment adjustment) =>
+            Math.Max(0, adjustment.GetUpper() - adjustment.GetPageSize());
+
+        /// <summary>
+        /// Gives the shared scrollbar control of the native viewport.
         /// </summary>
         private void ScrollTo(double offset)
         {
-            if (_adjustment is { } adjustment)
-                adjustment.SetValue(Math.Clamp(offset, 0, Math.Max(0, adjustment.GetUpper() - adjustment.GetPageSize())));
+            if (_adjustment is not { } adjustment) return;
+            _pendingFollow = false;
+            _pendingPosition = null;
+            adjustment.SetValue(Math.Clamp(offset, 0, GetMaximumOffset(adjustment)));
         }
 
         /// <summary>

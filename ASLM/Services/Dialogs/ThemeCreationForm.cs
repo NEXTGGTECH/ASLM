@@ -2,6 +2,7 @@
 
 using ASLM.Localization;
 using ASLM.Models;
+using ASLM.Services.Internal;
 
 namespace ASLM.Services.Dialogs
 {
@@ -34,14 +35,19 @@ namespace ASLM.Services.Dialogs
         }
 
         /// <summary>
-        /// Builds a detached theme that inherits its base palette; the store assigns its ID on save.
+        /// Builds a detached theme with a copy of the selected base palette. The store assigns its ID on save.
         /// </summary>
         /// <param name="values">Validated dialog values keyed by field ID (<c>name</c> and <c>baseAppearance</c>).</param>
-        /// <returns>A new custom theme with the trimmed name and the chosen base appearance.</returns>
-        public CustomTheme BuildTheme(IReadOnlyDictionary<string, object?> values) => new()
+        /// <returns>A new custom theme with the trimmed name, chosen base appearance, and explicit color values.</returns>
+        public CustomTheme BuildTheme(IReadOnlyDictionary<string, object?> values)
         {
-            Name = values["name"]!.ToString()!.Trim(),
-            BaseAppearance = values["baseAppearance"]!.ToString()!
-        };
+            var theme = new CustomTheme
+            {
+                Name = values["name"]!.ToString()!.Trim(),
+                BaseAppearance = values["baseAppearance"]!.ToString()!
+            };
+            ThemePaletteResolver.PrefillCustomThemeFromBuiltIn(theme);
+            return theme;
+        }
     }
 }

@@ -309,14 +309,9 @@ namespace ASLM.Pages
         /// </summary>
         private void RenderLegalDocumentValidation()
         {
-            // Theme colors fall back to fixed colors when the resources are not available.
             var showError = _showLegalRequired && !IsCurrentLegalDocumentAccepted();
-            var errorColor = (Color?)Application.Current?.Resources["SystemRed"] ?? Colors.Red;
-            var normalBorderColor = (Color?)Application.Current?.Resources["Separator"] ?? Colors.Gray;
-            var normalLabelColor = (Color?)Application.Current?.Resources["LabelPrimary"] ?? Colors.White;
-
-            LegalDocumentBorder.Stroke = showError ? errorColor : normalBorderColor;
-            AcceptLegalLabel.TextColor = showError ? errorColor : normalLabelColor;
+            LegalDocumentBorder.SetDynamicResource(Border.StrokeProperty, showError ? "SystemRed" : "Separator");
+            AcceptLegalLabel.SetDynamicResource(Label.TextColorProperty, showError ? "SystemRed" : "LabelPrimary");
         }
 
 

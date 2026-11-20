@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using CoreGraphics;
+using Foundation;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
@@ -26,32 +27,18 @@ namespace ASLM.Services.Internal
         private const string ConsoleTextColorKey = "LabelPrimary";
 
         /// <summary>
-        /// Distance from the bottom, in points, within which the view still counts as scrolled to the end
-        /// and keeps following new output.
-        /// </summary>
-        private const double BottomStickinessThreshold = 48;
-
-        /// <summary>
-        /// Routes changes of the virtual view's text, session key and scrollbar mode to the native text view.
+        /// Maps the scrollbar mode to the native text view.
         /// </summary>
         public static readonly IPropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler> Mapper =
             new PropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler>(ViewHandler.ViewMapper)
             {
-                [nameof(ConsoleOutputView.Text)] = static (handler, view) => handler.ApplyText(view.Text),
-                [nameof(ConsoleOutputView.SessionKey)] = static (handler, view) => handler.ApplySessionKey(view.SessionKey),
                 [nameof(ConsoleOutputView.UseCustomScrollBar)] = static (handler, view) => handler.ApplyScrollChrome()
             };
 
         /// <summary>
-        /// Session key applied last, used to detect a switch to another console session.
+        /// Watches native pointer gestures without recognizing a gesture or taking over selection.
         /// </summary>
-        private string _lastSessionKey = string.Empty;
-
-        /// <summary>
-        /// Whether the next text update must scroll to the end regardless of the current position,
-        /// as after the first load or a session switch.
-        /// </summary>
-        private bool _forceScrollToEnd = true;
+        private SelectionPointerObserver? _selectionPointer;
 
 
         // Initialization
@@ -106,10 +93,18 @@ namespace ASLM.Services.Internal
 
             // Report scroll geometry to the shared scrollbar and let it drive the native scroll offset.
             ApplyConsoleTheme(platformView);
+            _selectionPointer = new SelectionPointerObserver(VirtualView.SetSelectionGesture)
+            {
+                CancelsTouchesInView = false,
+                DelaysTouchesBegan = false,
+                DelaysTouchesEnded = false
+            };
+            platformView.AddGestureRecognizer(_selectionPointer);
             platformView.Scrolled += OnScrolled;
             VirtualView.SizeChanged += OnScrolled;
             VirtualView.ScrollToOffset = offset => platformView.SetContentOffset(new CGPoint(0, offset), false);
             ApplyScrollChrome();
+            VirtualView.ConnectOutput(ApplyOutput);
         }
 
         /// <summary>
@@ -124,83 +119,80 @@ namespace ASLM.Services.Internal
 
             ThemeService.PaletteApplied -= OnPaletteApplied;
             platformView.Scrolled -= OnScrolled;
+            if (_selectionPointer is { } pointer)
+            {
+                platformView.RemoveGestureRecognizer(pointer);
+                pointer.Dispose();
+                _selectionPointer = null;
+            }
             if (VirtualView != null)
             {
                 VirtualView.SizeChanged -= OnScrolled;
                 VirtualView.ScrollToOffset = null;
+                VirtualView.DisconnectOutput();
             }
 
             base.DisconnectHandler(platformView);
         }
 
 
-        // Property application
+        // Output and viewport
 
         /// <summary>
-        /// Replaces the console text and keeps the viewport pinned to the newest output.
+        /// Edits the text storage in place and keeps the scroll position independent of the selection.
         /// </summary>
-        private void ApplyText(string text)
+        private void ApplyOutput(ConsoleOutput output, ConsoleOutput? previous, bool sessionChanged)
         {
-            if (PlatformView is not { } textView)
+            var textView = PlatformView;
+            var offset = (double)textView.ContentOffset.Y;
+            var follow = sessionChanged || VirtualView.ShouldFollowOutput(offset, GetMaximumOffset(textView));
+            var position = follow ? default : output.PreservePosition(previous, offset, GetLineTop);
+
+            // Avoid replacing UITextView.Text during live output, which resets TextKit's selection.
+            if (sessionChanged || previous == null || previous.Text.Length == 0)
             {
-                return;
+                textView.Text = output.Text;
+                if (textView.SelectedRange.Length > 0) textView.SelectedRange = new NSRange(0, 0);
+            }
+            else
+            {
+                var storage = textView.TextStorage;
+                storage.BeginEditing();
+                try
+                {
+                    foreach (var edit in output.GetEdits(previous))
+                        storage.Replace(new NSRange(edit.Start, edit.End - edit.Start), edit.Text);
+                }
+                finally
+                {
+                    storage.EndEditing();
+                }
             }
 
-            var pinToBottom = _forceScrollToEnd || IsNearBottom(textView);
-            textView.Text = text ?? string.Empty;
-            MainThread.BeginInvokeOnMainThread(PublishScrollMetrics);
-
-            if (pinToBottom)
-            {
-                ScrollToEnd(textView);
-            }
+            if (follow || position.CharacterIndex >= 0) textView.LayoutIfNeeded();
+            var maximum = GetMaximumOffset(textView);
+            var target = follow ? maximum : Math.Clamp(position.Resolve(GetLineTop), -textView.ContentInset.Top, maximum);
+            if (Math.Abs((double)textView.ContentOffset.Y - target) >= 0.5)
+                textView.SetContentOffset(new CGPoint(0, target), animated: false);
+            PublishScrollMetrics();
         }
 
         /// <summary>
-        /// Resets scroll pinning when a different console session is selected.
+        /// Returns the vertical offset of the end of the native scroll view.
         /// </summary>
-        private void ApplySessionKey(string sessionKey)
-        {
-            var normalized = sessionKey ?? string.Empty;
-            if (string.Equals(_lastSessionKey, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _lastSessionKey = normalized;
-            _forceScrollToEnd = true;
-
-            if (PlatformView is { } textView)
-            {
-                ScrollToEnd(textView);
-            }
-        }
-
-
-        // Scrolling
+        private static double GetMaximumOffset(UITextView view) =>
+            Math.Max(-view.ContentInset.Top, view.ContentSize.Height - view.Bounds.Height + view.ContentInset.Bottom);
 
         /// <summary>
-        /// Returns whether the viewport currently sits close enough to the bottom to stay pinned.
+        /// Gets a line's vertical position in the text view's scroll content.
         /// </summary>
-        private static bool IsNearBottom(UITextView textView)
+        private double? GetLineTop(int index)
         {
-            var visibleBottom = textView.ContentOffset.Y + textView.Bounds.Height;
-            return visibleBottom >= textView.ContentSize.Height - BottomStickinessThreshold;
-        }
-
-        /// <summary>
-        /// Scrolls to the end of the content after the pending layout pass completes.
-        /// </summary>
-        private void ScrollToEnd(UITextView textView)
-        {
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                textView.LayoutIfNeeded();
-                var target = textView.ContentSize.Height - textView.Bounds.Height + textView.ContentInset.Bottom;
-                textView.SetContentOffset(new CGPoint(0, Math.Max(0, target)), animated: false);
-                _forceScrollToEnd = false;
-                PublishScrollMetrics();
-            });
+            var textView = PlatformView;
+            var position = textView.GetPosition(textView.BeginningOfDocument, index);
+            if (position == null) return null;
+            var rect = textView.GetCaretRectForPosition(position);
+            return rect.Height > 0 ? rect.Y : null;
         }
 
         /// <summary>
@@ -216,7 +208,6 @@ namespace ASLM.Services.Internal
         {
             if (VirtualView?.UseCustomScrollBar == true && PlatformView is { } view)
             {
-                view.LayoutIfNeeded();
                 VirtualView.SetScrollMetrics(view.Bounds.Height, view.ContentSize.Height, view.ContentOffset.Y);
             }
         }
@@ -300,5 +291,53 @@ namespace ASLM.Services.Internal
                 (nfloat)color.Green,
                 (nfloat)color.Blue,
                 (nfloat)color.Alpha);
+
+        // Native input
+
+        /// <summary>
+        /// Observes pointer activity before UITextView creates a nonempty selection range.
+        /// </summary>
+        private sealed class SelectionPointerObserver(Action<bool> setPressed) : UIGestureRecognizer
+        {
+            /// <summary>
+            /// Keeps native touch and pointer delivery independent of this observer.
+            /// </summary>
+            public override bool CanPreventGestureRecognizer(UIGestureRecognizer preventedGestureRecognizer) => false;
+
+            /// <summary>
+            /// Keeps tracking the pointer through gestures owned by the native view.
+            /// </summary>
+            public override bool CanBePreventedByGestureRecognizer(UIGestureRecognizer preventingGestureRecognizer) => false;
+
+            /// <summary>
+            /// Pauses bottom-following at the start of a native pointer sequence.
+            /// </summary>
+            public override void TouchesBegan(NSSet touches, UIEvent evt) => setPressed(true);
+
+            /// <summary>
+            /// Ends observation without recognizing or claiming the sequence.
+            /// </summary>
+            public override void TouchesEnded(NSSet touches, UIEvent evt) => FinishTracking();
+
+            /// <summary>
+            /// Releases the guard when the system cancels the native sequence.
+            /// </summary>
+            public override void TouchesCancelled(NSSet touches, UIEvent evt) => FinishTracking();
+
+            /// <summary>
+            /// Releases the pointer guard after UIKit resets the observer.
+            /// </summary>
+            public override void Reset() => setPressed(false);
+
+            /// <summary>
+            /// Releases the guard before UIKit resets the unrecognized sequence.
+            /// </summary>
+            private void FinishTracking()
+            {
+                setPressed(false);
+                State = UIGestureRecognizerState.Failed;
+            }
+        }
+
     }
 }

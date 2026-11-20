@@ -91,7 +91,6 @@ namespace ASLM.Controls.Dialogs
             {
                 // The picker stores the selected choice ID, never its translated caption.
                 _picker = new Picker { FontSize = 14 };
-                _picker.SetDynamicResource(Picker.TextColorProperty, "LabelPrimary");
                 SettingsControlChrome.SetCompactPicker(_picker, true);
                 _picker.SelectedIndexChanged += (_, _) =>
                 {

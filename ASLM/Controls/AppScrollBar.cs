@@ -19,6 +19,13 @@ namespace ASLM.Controls
             nameof(Target), typeof(VisualElement), typeof(AppScrollBar), null,
             propertyChanged: (bindable, _, _) => ((AppScrollBar)bindable).Reconnect());
 
+        /// <summary>
+        /// Identifies the optional style that replaces the application's default thumb style.
+        /// </summary>
+        public static readonly BindableProperty ThumbStyleProperty = BindableProperty.Create(
+            nameof(ThumbStyle), typeof(Style), typeof(AppScrollBar), null,
+            propertyChanged: (bindable, _, _) => ((AppScrollBar)bindable).ApplyThumbStyle());
+
 
         // Fields
 
@@ -43,7 +50,12 @@ namespace ASLM.Controls
         private bool _updating;
 
         /// <summary>
-        /// Thumb translation captured when the current drag gesture started.
+        /// Whether a refresh is queued to read the viewport after its current native changes.
+        /// </summary>
+        private bool _refreshQueued;
+
+        /// <summary>
+        /// Thumb position captured when the current drag gesture started.
         /// </summary>
         private double _dragStart;
 
@@ -57,6 +69,15 @@ namespace ASLM.Controls
         {
             get => (VisualElement?)GetValue(TargetProperty);
             set => SetValue(TargetProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the thumb style, or null to use the application default.
+        /// </summary>
+        public Style? ThumbStyle
+        {
+            get => (Style?)GetValue(ThumbStyleProperty);
+            set => SetValue(ThumbStyleProperty, value);
         }
 
 
@@ -75,7 +96,7 @@ namespace ASLM.Controls
             IsVisible = false;
 
             // The thumb takes its look from the themed style; dragging it scrolls the target.
-            _thumb.SetDynamicResource(StyleProperty, "AppScrollBarThumbStyle");
+            ApplyThumbStyle();
             Children.Add(_thumb);
             var pan = new PanGestureRecognizer();
             pan.PanUpdated += OnPanUpdated;
@@ -84,7 +105,18 @@ namespace ASLM.Controls
             // Subscribe to the target only while the bar is part of the visual tree.
             Loaded += (_, _) => Reconnect();
             Unloaded += (_, _) => Disconnect();
-            SizeChanged += (_, _) => Refresh();
+            SizeChanged += (_, _) => QueueRefresh();
+        }
+
+        /// <summary>
+        /// Restores the shared themed thumb or applies the style supplied by this instance.
+        /// </summary>
+        private void ApplyThumbStyle()
+        {
+            if (ThumbStyle is { } style)
+                _thumb.Style = style;
+            else
+                _thumb.SetDynamicResource(StyleProperty, "AppScrollBarThumbStyle");
         }
 
 
@@ -101,6 +133,7 @@ namespace ASLM.Controls
             if (_connected == null) return;
             _connected.SizeChanged += OnGeometryChanged;
             _connected.PropertyChanged += OnTargetPropertyChanged;
+            _connected.HandlerChanging += OnHandlerChanging;
             _connected.HandlerChanged += OnHandlerChanged;
 
             // Native consoles expose metrics directly; regular scroll views report content geometry.
@@ -116,6 +149,10 @@ namespace ASLM.Controls
                 console.UseCustomScrollBar = true;
                 console.ScrollMetricsChanged += OnGeometryChanged;
             }
+            else if (_connected is CollectionView list)
+            {
+                ConnectCollectionScroll(list);
+            }
 
             ApplyNativeChrome();
             Refresh();
@@ -130,12 +167,14 @@ namespace ASLM.Controls
             {
                 _connected.SizeChanged -= OnGeometryChanged;
                 _connected.PropertyChanged -= OnTargetPropertyChanged;
+                _connected.HandlerChanging -= OnHandlerChanging;
                 _connected.HandlerChanged -= OnHandlerChanged;
             }
 
             // Undo the target-type specific subscriptions made in Reconnect, including the content size handler.
             if (_connected is ScrollView scroll) scroll.Scrolled -= OnScrolled;
             if (_connected is ConsoleOutputView console) console.ScrollMetricsChanged -= OnGeometryChanged;
+            DisconnectCollectionScroll();
             ConnectContent(null);
             _connected = null;
         }
@@ -157,18 +196,29 @@ namespace ASLM.Controls
         {
             if (_connected is ScrollView scroll && e.PropertyName == nameof(ScrollView.Content)) ConnectContent(scroll.Content);
             if (e.PropertyName == nameof(ScrollView.Orientation)) ApplyNativeChrome();
-            if (e.PropertyName is nameof(ScrollView.ContentSize) or nameof(IsVisible) or nameof(ScrollView.Content)) Refresh();
+            if (e.PropertyName is nameof(ScrollView.ContentSize) or nameof(IsVisible) or nameof(ScrollView.Content)) QueueRefresh();
         }
+
+        /// <summary>
+        /// Detaches collection observers before the outgoing native handler releases its controls.
+        /// </summary>
+        private void OnHandlerChanging(object? sender, HandlerChangingEventArgs e) => DisconnectCollectionScroll();
 
         /// <summary>
         /// Reapplies native chrome after MAUI creates or replaces the target handler.
         /// </summary>
-        private void OnHandlerChanged(object? sender, EventArgs e) { ApplyNativeChrome(); Refresh(); }
+        private void OnHandlerChanged(object? sender, EventArgs e)
+        {
+            DisconnectCollectionScroll();
+            if (_connected is CollectionView list) ConnectCollectionScroll(list);
+            ApplyNativeChrome();
+            Refresh();
+        }
 
         /// <summary>
         /// Recomputes the thumb when the viewport or its content changes size.
         /// </summary>
-        private void OnGeometryChanged(object? sender, EventArgs e) => Refresh();
+        private void OnGeometryChanged(object? sender, EventArgs e) => QueueRefresh();
 
         /// <summary>
         /// Moves the thumb to follow a scroll initiated by the native view.
@@ -211,6 +261,7 @@ namespace ASLM.Controls
         private (double Viewport, double Content, double Offset) Metrics => _connected switch
         {
             ScrollView scroll => (scroll.Height, Math.Max(scroll.ContentSize.Height, scroll.Content?.Height ?? 0), scroll.ScrollY),
+            CollectionView => _readCollectionMetrics?.Invoke() ?? default,
             ConsoleOutputView console => (console.ScrollViewport, console.ScrollExtent, console.ScrollOffset),
             _ => default
         };
@@ -225,6 +276,24 @@ namespace ASLM.Controls
             var length = track > 0 ? track : viewport;
             var height = Math.Min(length, Math.Max(24, length * viewport / content));
             return (height, Math.Clamp(offset / (content - viewport) * (length - height), 0, length - height));
+        }
+
+        /// <summary>
+        /// Coalesces native size and offset notifications from the same frame before reading the viewport.
+        /// </summary>
+        private void QueueRefresh()
+        {
+            if (_refreshQueued) return;
+            _refreshQueued = true;
+            if (Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(16), () =>
+            {
+                _refreshQueued = false;
+                Refresh();
+            }))
+                return;
+
+            _refreshQueued = false;
+            Refresh();
         }
 
         /// <summary>
@@ -243,13 +312,17 @@ namespace ASLM.Controls
                 var visible = height > 0 && _connected?.IsVisible == true;
                 changed = IsVisible != visible;
                 IsVisible = visible;
-                if (visible) _thumb.HeightRequest = height;
-                _thumb.TranslationY = top;
+                if (visible)
+                {
+                    // Arrange the height and position together instead of translating the previous thumb size.
+                    _thumb.HeightRequest = height;
+                    _thumb.Margin = new Thickness(0, top, 0, 0);
+                }
             }
             finally { _updating = false; }
 
             // Visibility affects the available track size; use the next layout pass to settle it.
-            if (changed) Dispatcher.Dispatch(Refresh);
+            if (changed) QueueRefresh();
         }
 
 
@@ -260,7 +333,7 @@ namespace ASLM.Controls
         /// </summary>
         private void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
         {
-            if (e.StatusType == GestureStatus.Started) _dragStart = _thumb.TranslationY;
+            if (e.StatusType == GestureStatus.Started) _dragStart = _thumb.Y;
             else if (e.StatusType == GestureStatus.Running)
             {
                 var metrics = Metrics;
@@ -269,8 +342,8 @@ namespace ASLM.Controls
 
                 // Normalize against thumb travel, not content height, so both endpoints remain reachable.
                 var offset = travel > 0 ? top / travel * Math.Max(0, metrics.Content - metrics.Viewport) : 0;
-                _thumb.TranslationY = top;
                 if (_connected is ScrollView scroll) _ = scroll.ScrollToAsync(0, offset, false);
+                else if (_connected is CollectionView) _scrollCollectionTo?.Invoke(offset);
                 else if (_connected is ConsoleOutputView console) console.ScrollToOffset?.Invoke(offset);
             }
             else Refresh();

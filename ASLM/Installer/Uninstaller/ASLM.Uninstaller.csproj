@@ -10,9 +10,9 @@
 		<RootNamespace>ASLM.Installer.Uninstaller</RootNamespace>
 		<UseWindowsForms>true</UseWindowsForms>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
-		<Version>0.11.3.14</Version>
-		<FileVersion>0.11.3.14</FileVersion>
-		<InformationalVersion>0.11.3.14</InformationalVersion>
+		<Version>0.11.4.8</Version>
+		<FileVersion>0.11.4.8</FileVersion>
+		<InformationalVersion>0.11.4.8</InformationalVersion>
 	</PropertyGroup>
 
 	<Import Project="..\..\..\ASLM.Build.props" />

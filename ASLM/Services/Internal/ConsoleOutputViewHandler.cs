@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 #if WINDOWS
+using System.Runtime.InteropServices;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
@@ -22,12 +23,11 @@ namespace ASLM.Services.Internal
     /// Maps <see cref="ConsoleOutputView"/> to a native WinUI text box with stable selection, sizing, and scrolling.
     /// </summary>
     /// <remarks>
-    /// WinUI 3 <see cref="TextBox"/> text selection can lag at very high USB mouse report rates (for example 1000 Hz);
-    /// most of that work runs inside the framework before application handlers. Lowering the device polling rate is a known workaround.
-    /// The native host is a derived <see cref="TextBox"/> that forwards mouse <see cref="UIElement.PointerMoved"/> to the base implementation
+    /// WinUI text selection can lag at very high USB mouse report rates (for example 1000 Hz).
+    /// The native host forwards mouse <see cref="UIElement.PointerMoved"/> to the base implementation
     /// at a bounded rate during left-button drags so selection work is not invoked once per USB report.
     /// </remarks>
-    public sealed class ConsoleOutputViewHandler : ViewHandler<ConsoleOutputView, TextBox>
+    public sealed class ConsoleOutputViewHandler : ViewHandler<ConsoleOutputView, RichEditBox>
     {
         // Fields and constants
 
@@ -47,13 +47,11 @@ namespace ASLM.Services.Internal
         private const string ConsoleSelectionColorKey = "SystemBlueOverlay";
 
         /// <summary>
-        /// Maps console view properties to the native text box update that each one requires.
+        /// Maps the scrollbar mode to the native text box.
         /// </summary>
         public static readonly IPropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler> Mapper =
             new PropertyMapper<ConsoleOutputView, ConsoleOutputViewHandler>(ViewHandler.ViewMapper)
             {
-                [nameof(ConsoleOutputView.Text)] = static (handler, view) => handler.ApplyText(view.Text),
-                [nameof(ConsoleOutputView.SessionKey)] = static (handler, view) => handler.ApplySessionKey(view.SessionKey),
                 [nameof(ConsoleOutputView.UseCustomScrollBar)] = static (handler, view) => handler.ApplyScrollChrome()
             };
 
@@ -63,54 +61,29 @@ namespace ASLM.Services.Internal
         private ScrollViewer? _scrollViewer;
 
         /// <summary>
-        /// Whether the viewport is at (or close to) the bottom, which keeps new output followed.
+        /// Pending scroll to the end of the output after native layout.
         /// </summary>
-        private bool _isNearBottom = true;
+        private bool _pendingScrollToEnd;
 
         /// <summary>
-        /// Whether the next text update must scroll to the end regardless of the current position; set for a new session.
+        /// Text assigned to the native control, used to translate source offsets to RichEdit positions.
         /// </summary>
-        private bool _forceScrollToEnd = true;
+        private string _renderedText = string.Empty;
 
         /// <summary>
-        /// Whether a scroll to the end was requested and has not been carried out yet.
+        /// Indicates that a post-layout viewport pass is already queued.
         /// </summary>
-        private bool _pendingScrollToEnd = true;
+        private bool _viewportRefreshQueued;
 
         /// <summary>
-        /// Set while the handler itself scrolls, so that scroll is not mistaken for a user scroll.
+        /// Invalidates viewport callbacks of a disconnected native text box.
         /// </summary>
-        private bool _isApplyingProgrammaticScroll;
+        private int _connectionGeneration;
 
         /// <summary>
-        /// Session key of the console that is currently shown.
+        /// Whether this text box is currently connected to the virtual console.
         /// </summary>
-        private string _lastSessionKey = string.Empty;
-
-        /// <summary>
-        /// 1 while a chain of deferred viewport refresh passes is scheduled, otherwise 0; accessed with <see cref="Interlocked"/>.
-        /// </summary>
-        private int _viewportRefreshQueued;
-
-        /// <summary>
-        /// Number of viewport refresh passes that are still to run.
-        /// </summary>
-        private int _queuedViewportPasses;
-
-        /// <summary>
-        /// Whether a pointer is currently pressed on the console, for example while the user selects text.
-        /// </summary>
-        private bool _pointerDownOnConsole;
-
-        /// <summary>
-        /// Whether a scroll to the end was held back by pointer or selection activity and must run afterwards.
-        /// </summary>
-        private bool _deferScrollAfterInteraction;
-
-        /// <summary>
-        /// Set while the handler assigns the text, so the resulting native text-changed event is ignored.
-        /// </summary>
-        private bool _suppressNativeTextChanged;
+        private bool _connected;
 
 
         // Initialization
@@ -128,14 +101,15 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Creates the native WinUI text box used to render console output.
         /// </summary>
-        protected override TextBox CreatePlatformView()
+        protected override RichEditBox CreatePlatformView()
         {
             // Read-only, wrapping monospace text that fills the available space; spell checking and prediction
             // are off because the content is program output.
-            var textBox = new ConsoleOutputHostTextBox
+            var textBox = new ConsoleOutputHost
             {
                 AcceptsReturn = true,
                 IsReadOnly = true,
+                ClipboardCopyFormat = RichEditClipboardFormat.PlainText,
                 TextWrapping = TextWrapping.Wrap,
                 HorizontalAlignment = WinUIHorizontalAlignment.Stretch,
                 VerticalAlignment = WinUIVerticalAlignment.Stretch,
@@ -152,6 +126,7 @@ namespace ASLM.Services.Internal
                 CornerRadius = new WinUICornerRadius(10)
             };
 
+            textBox.Document.UndoLimit = 0;
             ApplyConsoleTheme(textBox);
             return textBox;
         }
@@ -159,7 +134,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Hooks native events and applies the initial virtual view state.
         /// </summary>
-        protected override void ConnectHandler(TextBox platformView)
+        protected override void ConnectHandler(RichEditBox platformView)
         {
             base.ConnectHandler(platformView);
 
@@ -175,33 +150,22 @@ namespace ASLM.Services.Internal
 
             ApplyConsoleTheme(platformView);
 
-            // Native events that drive layout, autoscroll and the pointer/selection guard.
+            // Observe handled pointer events too, because the text box owns the native selection gesture.
+            _connected = true;
             platformView.Loaded += OnPlatformViewLoaded;
-            platformView.SizeChanged += OnPlatformViewSizeChanged;
-            platformView.TextChanged += OnPlatformViewTextChanged;
-            platformView.PointerPressed += OnPlatformViewPointerPressed;
-            platformView.PointerReleased += OnPlatformViewPointerEnded;
-            platformView.PointerCanceled += OnPlatformViewPointerEnded;
-            platformView.PointerCaptureLost += OnPlatformViewPointerCaptureLost;
-            platformView.SelectionChanged += OnPlatformViewSelectionChanged;
-
-            // Let the shared ASLM scrollbar scroll the inner viewer, then apply the initial state and
-            // queue several refresh passes so the view ends up pinned to the latest output.
-            EnsureScrollViewer();
-            VirtualView.ScrollToOffset = offset =>
-            {
-                EnsureScrollViewer();
-                _scrollViewer?.ChangeView(null, offset, null, disableAnimation: true);
-            };
-            ApplySessionKey(VirtualView?.SessionKey);
-            ApplyText(VirtualView?.Text);
-            QueueViewportRefresh(scrollToEnd: true, passCount: 3);
+            platformView.AddHandler(UIElement.PointerPressedEvent, (PointerEventHandler)OnPlatformViewPointerPressed, true);
+            platformView.AddHandler(UIElement.PointerReleasedEvent, (PointerEventHandler)OnPlatformViewPointerEnded, true);
+            platformView.AddHandler(UIElement.PointerCanceledEvent, (PointerEventHandler)OnPlatformViewPointerEnded, true);
+            platformView.AddHandler(UIElement.PointerCaptureLostEvent, (PointerEventHandler)OnPlatformViewPointerEnded, true);
+            platformView.AddHandler(UIElement.PointerWheelChangedEvent, (PointerEventHandler)OnPlatformViewWheelChanged, true);
+            VirtualView.ScrollToOffset = ScrollTo;
+            VirtualView.ConnectOutput(ApplyOutput);
         }
 
         /// <summary>
         /// Unhooks native events and releases the cached scroll viewer.
         /// </summary>
-        protected override void DisconnectHandler(TextBox platformView)
+        protected override void DisconnectHandler(RichEditBox platformView)
         {
             // Unsubscribe from everything subscribed in ConnectHandler and EnsureScrollViewer.
             if (Microsoft.Maui.Controls.Application.Current is { } app)
@@ -211,14 +175,17 @@ namespace ASLM.Services.Internal
 
             ThemeService.PaletteApplied -= OnPaletteApplied;
 
+            _connected = false;
+            _connectionGeneration++;
+            _viewportRefreshQueued = false;
+            _renderedText = string.Empty;
+            _pendingScrollToEnd = false;
             platformView.Loaded -= OnPlatformViewLoaded;
-            platformView.SizeChanged -= OnPlatformViewSizeChanged;
-            platformView.TextChanged -= OnPlatformViewTextChanged;
-            platformView.PointerPressed -= OnPlatformViewPointerPressed;
-            platformView.PointerReleased -= OnPlatformViewPointerEnded;
-            platformView.PointerCanceled -= OnPlatformViewPointerEnded;
-            platformView.PointerCaptureLost -= OnPlatformViewPointerCaptureLost;
-            platformView.SelectionChanged -= OnPlatformViewSelectionChanged;
+            platformView.RemoveHandler(UIElement.PointerPressedEvent, (PointerEventHandler)OnPlatformViewPointerPressed);
+            platformView.RemoveHandler(UIElement.PointerReleasedEvent, (PointerEventHandler)OnPlatformViewPointerEnded);
+            platformView.RemoveHandler(UIElement.PointerCanceledEvent, (PointerEventHandler)OnPlatformViewPointerEnded);
+            platformView.RemoveHandler(UIElement.PointerCaptureLostEvent, (PointerEventHandler)OnPlatformViewPointerEnded);
+            platformView.RemoveHandler(UIElement.PointerWheelChangedEvent, (PointerEventHandler)OnPlatformViewWheelChanged);
 
             if (_scrollViewer != null)
             {
@@ -229,7 +196,8 @@ namespace ASLM.Services.Internal
             }
 
             // The shared scrollbar must no longer call into a detached handler.
-            if (VirtualView != null) VirtualView.ScrollToOffset = null;
+            VirtualView.ScrollToOffset = null;
+            VirtualView.DisconnectOutput();
 
             base.DisconnectHandler(platformView);
         }
@@ -270,7 +238,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Applies console surface, text, selection, and WinUI text control chrome from the active ASLM palette.
         /// </summary>
-        private static void ApplyConsoleTheme(TextBox textBox)
+        private static void ApplyConsoleTheme(RichEditBox textBox)
         {
             var surface = ToWinUiColor(ResolveThemeColor(ConsoleSurfaceColorKey));
             var text = ToWinUiColor(ResolveThemeColor(ConsoleTextColorKey));
@@ -313,7 +281,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Applies text control resource brushes so hover and focus states match the console surface and text colors.
         /// </summary>
-        private static void ApplyConsoleChrome(TextBox textBox, WinUIColor surfaceColor, WinUIColor textColor)
+        private static void ApplyConsoleChrome(RichEditBox textBox, WinUIColor surfaceColor, WinUIColor textColor)
         {
             var surfaceBrush = new WinUISolidColorBrush(surfaceColor);
             var textBrush = new WinUISolidColorBrush(textColor);
@@ -340,386 +308,184 @@ namespace ASLM.Services.Internal
         // Platform events
 
         /// <summary>
-        /// Refreshes the viewport after the native text box enters the visual tree.
+        /// Resolves the template scroll viewer before applying the initial viewport position.
         /// </summary>
         private void OnPlatformViewLoaded(object sender, RoutedEventArgs e)
         {
             EnsureScrollViewer();
-            _pendingScrollToEnd = true;
-            QueueViewportRefresh(scrollToEnd: true, passCount: 3);
+            QueueViewportRefresh();
         }
 
         /// <summary>
-        /// Reapplies viewport sizing after the native text box changes size.
+        /// Publishes current geometry when the reader scrolls.
         /// </summary>
-        private void OnPlatformViewSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (UserBlocksAutoscrollForScroll())
-            {
-                return;
-            }
-
-            if (_pendingScrollToEnd || _isNearBottom)
-            {
-                QueueViewportRefresh(scrollToEnd: true, passCount: 2);
-            }
-            else
-            {
-                // The reader scrolled up: refresh the layout but keep their position.
-                QueueViewportRefresh(scrollToEnd: false, passCount: 1);
-            }
-        }
+        private void OnScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e) => PublishScrollMetrics();
 
         /// <summary>
-        /// Continues deferred scroll-to-end work after the native text content changes.
-        /// </summary>
-        private void OnPlatformViewTextChanged(object sender, Microsoft.UI.Xaml.Controls.TextChangedEventArgs e)
-        {
-            // Changes made by ApplyText already queue their own refresh.
-            if (_suppressNativeTextChanged)
-            {
-                return;
-            }
-
-            // Only follow the text while a scroll to the end is still wanted.
-            if (!_pendingScrollToEnd)
-            {
-                return;
-            }
-
-            // The user is selecting: keep the view still and scroll once they are done.
-            if (UserBlocksAutoscrollForScroll())
-            {
-                _deferScrollAfterInteraction = true;
-                return;
-            }
-
-            QueueViewportRefresh(scrollToEnd: true, passCount: 2);
-        }
-
-        /// <summary>
-        /// Tracks whether the user is still near the bottom of the console output.
-        /// </summary>
-        private void OnScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
-        {
-            PublishScrollMetrics();
-            if (_scrollViewer == null || _isApplyingProgrammaticScroll)
-            {
-                return;
-            }
-
-            _isNearBottom = IsNearBottom();
-        }
-
-        /// <summary>
-        /// Marks the console as actively receiving pointer input.
+        /// Cancels an already queued follow when a native selection gesture starts.
         /// </summary>
         private void OnPlatformViewPointerPressed(object sender, PointerRoutedEventArgs e)
         {
-            _pointerDownOnConsole = true;
+            if ((int)e.Pointer.PointerDeviceType == (int)Windows.Devices.Input.PointerDeviceType.Mouse &&
+                !e.GetCurrentPoint(PlatformView).Properties.IsLeftButtonPressed)
+            {
+                return;
+            }
+
+            _pendingScrollToEnd = false;
+            VirtualView.SetSelectionGesture(true);
         }
 
         /// <summary>
-        /// Clears pointer tracking and flushes any deferred scroll.
+        /// Releases the gesture guard when WinUI ends or cancels the native pointer sequence.
         /// </summary>
         private void OnPlatformViewPointerEnded(object sender, PointerRoutedEventArgs e)
         {
-            _pointerDownOnConsole = false;
-            TryFlushDeferredScroll();
+            VirtualView.SetSelectionGesture(false);
         }
 
         /// <summary>
-        /// Clears pointer tracking when capture is lost and flushes any deferred scroll.
+        /// Gives scrolling by wheel priority over an automatic viewport update already queued.
         /// </summary>
-        private void OnPlatformViewPointerCaptureLost(object sender, PointerRoutedEventArgs e)
-        {
-            _pointerDownOnConsole = false;
-            TryFlushDeferredScroll();
-        }
+        private void OnPlatformViewWheelChanged(object sender, PointerRoutedEventArgs e) => _pendingScrollToEnd = false;
+
+
+        // Output and viewport
 
         /// <summary>
-        /// Attempts to flush deferred scroll after the text selection changes.
+        /// Updates native document ranges and offsets changes above the reader's viewport.
         /// </summary>
-        private void OnPlatformViewSelectionChanged(object sender, RoutedEventArgs e)
+        private void ApplyOutput(ConsoleOutput output, ConsoleOutput? previous, bool sessionChanged)
         {
-            TryFlushDeferredScroll();
-        }
+            EnsureScrollViewer();
+            var viewer = _scrollViewer;
+            var offset = viewer?.VerticalOffset ?? 0;
+            var follow = sessionChanged || _pendingScrollToEnd ||
+                         VirtualView.ShouldFollowOutput(offset, viewer?.ScrollableHeight ?? 0);
+            var position = follow ? default : output.PreservePosition(previous, offset, GetLineTop);
 
+            WriteOutput(output, previous, sessionChanged);
 
-        // Scroll and viewport
-
-        /// <summary>
-        /// Returns true while the user is dragging, holding pointer, or has an active text selection.
-        /// </summary>
-        private bool UserBlocksAutoscrollForScroll()
-        {
-            if (PlatformView == null)
-            {
-                return false;
-            }
-
-            return _pointerDownOnConsole || PlatformView.SelectionLength > 0;
-        }
-
-        /// <summary>
-        /// Runs a deferred scroll-to-end once pointer and selection no longer block autoscroll.
-        /// </summary>
-        private void TryFlushDeferredScroll()
-        {
-            if (!_deferScrollAfterInteraction || !_pendingScrollToEnd || PlatformView == null)
-            {
-                return;
-            }
-
-            if (UserBlocksAutoscrollForScroll())
-            {
-                return;
-            }
-
-            _deferScrollAfterInteraction = false;
-            QueueViewportRefresh(scrollToEnd: true, passCount: 3);
-        }
-
-        /// <summary>
-        /// Detects when the selected session changes so a new console opens pinned to the latest output.
-        /// </summary>
-        private void ApplySessionKey(string? sessionKey)
-        {
-            var resolvedSessionKey = sessionKey ?? string.Empty;
-            if (string.Equals(_lastSessionKey, resolvedSessionKey, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            // A different console was selected: drop stale interaction state and force the next text update to the end.
-            _lastSessionKey = resolvedSessionKey;
-            _pointerDownOnConsole = false;
-            _deferScrollAfterInteraction = false;
-            _forceScrollToEnd = true;
-            _pendingScrollToEnd = true;
-            QueueViewportRefresh(scrollToEnd: true, passCount: 3);
-        }
-
-        /// <summary>
-        /// Applies updated console text and decides whether the viewport should remain pinned to the bottom.
-        /// </summary>
-        private void ApplyText(string? text)
-        {
-            if (PlatformView == null)
-            {
-                return;
-            }
-
-            // Decide before the text changes whether the reader follows the output: a new session, a viewport
-            // already at the bottom, or an empty console all pin the view to the end.
-            var resolvedText = text ?? string.Empty;
-            var shouldPinToBottom = _forceScrollToEnd || IsNearBottom() || string.IsNullOrEmpty(PlatformView.Text);
-
-            // Replace the text only when it changed. If the user is selecting, the scroll waits until they are done.
-            if (!string.Equals(PlatformView.Text, resolvedText, StringComparison.Ordinal))
-            {
-                if (UserBlocksAutoscrollForScroll())
-                {
-                    _deferScrollAfterInteraction = true;
-                }
-
-                // The native text-changed event raised by this assignment must not trigger another refresh.
-                _suppressNativeTextChanged = true;
-                try
-                {
-                    PlatformView.Text = resolvedText;
-                }
-                finally
-                {
-                    _suppressNativeTextChanged = false;
-                }
-            }
-
-            // Follow the output to the bottom, or leave the reader where they are scrolled.
-            if (shouldPinToBottom)
+            _renderedText = output.Text;
+            if (follow)
             {
                 _pendingScrollToEnd = true;
-                if (UserBlocksAutoscrollForScroll())
-                {
-                    _deferScrollAfterInteraction = true;
-                }
-                else
-                {
-                    QueueViewportRefresh(scrollToEnd: true, passCount: 2);
-                }
+                QueueViewportRefresh();
             }
-            else
+            else if (viewer != null)
             {
-                _pendingScrollToEnd = false;
-                _deferScrollAfterInteraction = false;
-                QueueViewportRefresh(scrollToEnd: false, passCount: 1);
+                if (position.CharacterIndex >= 0) PlatformView.UpdateLayout();
+                var target = Math.Clamp(position.Resolve(GetLineTop), 0, viewer.ScrollableHeight);
+                if (Math.Abs(viewer.VerticalOffset - target) >= 0.5)
+                    viewer.ChangeView(null, target, null, disableAnimation: true);
             }
-
-            _forceScrollToEnd = false;
         }
 
         /// <summary>
-        /// Schedules one or more deferred viewport refresh passes on the native dispatcher queue.
+        /// Edits document ranges with the control writable for this synchronous operation only.
         /// </summary>
-        /// <param name="scrollToEnd">Whether the refresh must end with a scroll to the bottom.</param>
-        /// <param name="passCount">Number of passes to run, clamped to 1-3; a larger pending request is kept.</param>
-        private void QueueViewportRefresh(bool scrollToEnd, int passCount)
+        private void WriteOutput(ConsoleOutput output, ConsoleOutput? previous, bool sessionChanged)
         {
-            if (PlatformView?.DispatcherQueue == null)
+            var editor = PlatformView;
+            var document = editor.Document;
+
+            // WinUI rejects document writes with IsReadOnly set. No input is dispatched during the write.
+            document.BatchDisplayUpdates();
+            try
             {
-                return;
-            }
-
-            if (scrollToEnd)
-            {
-                _pendingScrollToEnd = true;
-            }
-
-            // Several passes let the scroll position be applied again after layout has been updated.
-            // Only one chain of passes runs at a time; later requests just raise the remaining pass count.
-            _queuedViewportPasses = Math.Max(_queuedViewportPasses, Math.Clamp(passCount, 1, 3));
-            if (Interlocked.Exchange(ref _viewportRefreshQueued, 1) == 1)
-            {
-                return;
-            }
-
-            QueueViewportRefreshPass();
-        }
-
-        /// <summary>
-        /// Runs one deferred viewport refresh pass and reschedules the remainder when needed.
-        /// </summary>
-        private void QueueViewportRefreshPass()
-        {
-            // Without a dispatcher queue no pass can run, so the chain is marked as finished.
-            if (PlatformView?.DispatcherQueue == null)
-            {
-                Interlocked.Exchange(ref _viewportRefreshQueued, 0);
-                return;
-            }
-
-            if (!PlatformView.DispatcherQueue.TryEnqueue(() =>
-            {
-                // Count this pass as done.
-                var remainingPasses = _queuedViewportPasses;
-                _queuedViewportPasses = Math.Max(0, remainingPasses - 1);
-
-                // Refresh layout unless a pending scroll to the end would fight the user's pointer or selection;
-                // in that case the work is deferred until the interaction ends.
-                var userBlocks = UserBlocksAutoscrollForScroll();
-                if (!userBlocks || !_pendingScrollToEnd)
+                editor.IsReadOnly = false;
+                if (sessionChanged || previous == null)
                 {
-                    RefreshViewport();
-                }
-                else
-                {
-                    _deferScrollAfterInteraction = true;
-                }
-
-                // Carry out the requested scroll to the end, or defer it while the user interacts.
-                if (_pendingScrollToEnd && !userBlocks)
-                {
-                    ScrollToEnd();
-                }
-                else if (_pendingScrollToEnd && userBlocks)
-                {
-                    _deferScrollAfterInteraction = true;
-                }
-
-                // Run the next pass, or release the chain and restart it if another pass was requested meanwhile.
-                if (_queuedViewportPasses > 0)
-                {
-                    QueueViewportRefreshPass();
+                    document.SetText(TextSetOptions.None, output.Text);
+                    document.Selection.SetRange(0, 0);
                     return;
                 }
 
-                Interlocked.Exchange(ref _viewportRefreshQueued, 0);
-                if (_queuedViewportPasses > 0 &&
-                    Interlocked.Exchange(ref _viewportRefreshQueued, 1) == 0)
+                // Independent ranges keep the active selection and the native drag anchor in the document.
+                foreach (var edit in output.GetEdits(previous))
                 {
-                    QueueViewportRefreshPass();
+                    var start = GetDocumentIndex(edit.Start);
+                    var end = GetDocumentIndex(edit.End);
+                    document.GetRange(start, end).SetText(TextSetOptions.None, edit.Text);
                 }
+            }
+            finally
+            {
+                editor.IsReadOnly = true;
+                document.ApplyDisplayUpdates();
+            }
+        }
+
+        /// <summary>
+        /// Converts a UTF-16 source index to a RichEdit position, where CRLF counts as one character.
+        /// </summary>
+        private int GetDocumentIndex(int index) => index - _renderedText.AsSpan(0, index).Count("\r\n");
+
+        /// <summary>
+        /// Gets the line top in RichEdit's full text area, even when the line is outside the visible viewport.
+        /// </summary>
+        private double? GetLineTop(int index)
+        {
+            if (_scrollViewer == null || index >= _renderedText.Length) return null;
+
+            var documentIndex = GetDocumentIndex(index);
+            try
+            {
+                var range = PlatformView.Document.GetRange(documentIndex, documentIndex);
+                range.GetPoint(HorizontalCharacterAlignment.Left, VerticalCharacterAlignment.Top,
+                    PointOptions.Start | PointOptions.ClientCoordinates | PointOptions.AllowOffClient, out var point);
+                return double.IsFinite(point.Y) ? point.Y : null;
+            }
+            catch (Exception ex) when (ex is ArgumentException or COMException)
+            {
+                // The old offset is still usable when the native document has no line rectangle yet.
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Coalesces layout and scroll work into one pass bound to the current native connection.
+        /// </summary>
+        private void QueueViewportRefresh()
+        {
+            if (!_connected || !_pendingScrollToEnd || _viewportRefreshQueued) return;
+
+            _viewportRefreshQueued = true;
+            var generation = _connectionGeneration;
+            if (!PlatformView.DispatcherQueue.TryEnqueue(() =>
+            {
+                if (generation != _connectionGeneration) return;
+                _viewportRefreshQueued = false;
+                ApplyViewport();
             }))
             {
-                // The dispatcher refused the work item, so no pass is pending any more.
-                Interlocked.Exchange(ref _viewportRefreshQueued, 0);
+                _viewportRefreshQueued = false;
             }
         }
 
         /// <summary>
-        /// Forces the native text box and its inner scroll viewer to update layout.
+        /// Follows the latest output after layout, unless native input canceled the pending request.
         /// </summary>
-        private void RefreshViewport()
+        private void ApplyViewport()
         {
-            if (PlatformView == null)
-            {
-                return;
-            }
-
-            if (_pointerDownOnConsole)
-            {
-                return;
-            }
-
-            if (PlatformView.SelectionLength > 0 && _pendingScrollToEnd)
-            {
-                return;
-            }
-
+            if (!_pendingScrollToEnd) return;
             EnsureScrollViewer();
+            if (_scrollViewer is not { } viewer) return;
+
             PlatformView.UpdateLayout();
-            _scrollViewer?.UpdateLayout();
-        }
-
-        /// <summary>
-        /// Scrolls the inner viewer to the end without moving the caret, unless the scroll viewer is not ready yet.
-        /// </summary>
-        private void ScrollToEnd()
-        {
-            if (PlatformView == null)
-            {
-                return;
-            }
-
-            // Never move the view under the user's pointer or selection; try again once they are done.
-            if (UserBlocksAutoscrollForScroll())
-            {
-                _deferScrollAfterInteraction = true;
-                return;
-            }
-
-            // Scroll the inner viewer to its end without animation; the flag keeps the resulting
-            // view-changed event from being treated as a user scroll.
-            if (_scrollViewer != null)
-            {
-                _isApplyingProgrammaticScroll = true;
-                _scrollViewer.ChangeView(null, _scrollViewer.ScrollableHeight, null, true);
-                _isApplyingProgrammaticScroll = false;
-            }
-            else
-            {
-                // Without a scroll viewer, put the caret at the end of the text, which scrolls the text box.
-                var textLength = PlatformView.Text?.Length ?? 0;
-                PlatformView.Select(textLength, 0);
-            }
-
-            // The view is at the bottom now, so nothing remains pending.
-            _isNearBottom = true;
             _pendingScrollToEnd = false;
-            _deferScrollAfterInteraction = false;
+            viewer.ChangeView(null, viewer.ScrollableHeight, null, disableAnimation: true);
+            PublishScrollMetrics();
         }
 
         /// <summary>
-        /// Determines whether the current viewport is already close enough to the bottom to keep autoscroll enabled.
+        /// Moves the scroll viewer in response to a drag on ASLM's scrollbar.
         /// </summary>
-        private bool IsNearBottom()
+        private void ScrollTo(double offset)
         {
+            _pendingScrollToEnd = false;
             EnsureScrollViewer();
-
-            // Counts as near the bottom when nothing is scrollable or the offset is within 8 units of the end.
-            return _scrollViewer == null ||
-                   _scrollViewer.ScrollableHeight <= 0 ||
-                   _scrollViewer.VerticalOffset >= _scrollViewer.ScrollableHeight - 8;
+            _scrollViewer?.ChangeView(null, offset, null, disableAnimation: true);
         }
 
         /// <summary>
@@ -758,7 +524,6 @@ namespace ASLM.Services.Internal
                 _scrollViewer.SizeChanged += OnScrollMetricsChanged;
                 _scrollViewer.LayoutUpdated += OnScrollMetricsChanged;
                 ApplyScrollChrome();
-                _isNearBottom = IsNearBottom();
             }
         }
 
@@ -793,7 +558,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Recursively searches the WinUI visual tree for the first nested scroll viewer.
         /// </summary>
-        private static ScrollViewer? FindDescendantScrollViewer(DependencyObject root)
+        internal static ScrollViewer? FindDescendantScrollViewer(DependencyObject root)
         {
             if (root is ScrollViewer scrollViewer)
             {
@@ -818,12 +583,12 @@ namespace ASLM.Services.Internal
         // Native host
 
         /// <summary>
-        /// Native console <see cref="TextBox"/> that caps how often mouse-move updates reach WinUI text selection during LMB drags.
+        /// Caps WinUI mouse-move processing during a left-button drag while retaining native text selection.
         /// </summary>
-        private sealed class ConsoleOutputHostTextBox : TextBox
+        private sealed class ConsoleOutputHost : RichEditBox
         {
             /// <summary>
-            /// Minimum milliseconds between forwarded <see cref="UIElement.PointerMoved"/> events while selecting with the mouse.
+            /// Minimum time between forwarded mouse moves during a selection drag, in milliseconds.
             /// </summary>
             private const int PointerMoveMinIntervalMs = 10;
 
@@ -877,7 +642,7 @@ namespace ASLM.Services.Internal
                     return;
                 }
 
-                // Do not invoke TextBox pointer-move selection for this report (high-Hz mice).
+                // Do not invoke RichEditBox pointer-move selection for this report (high-Hz mice).
                 e.Handled = true;
             }
         }

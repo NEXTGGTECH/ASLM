@@ -48,7 +48,6 @@ public static class LocalizationKeys
     public const string Consoles_Footer_ObservedCaptureNote = "Consoles_Footer_ObservedCaptureNote";
     public const string Consoles_Footer_StartedFormat = "Consoles_Footer_StartedFormat";
     public const string Consoles_LastActivityFormat = "Consoles_LastActivityFormat";
-    public const string Consoles_MergedOutput = "Consoles_MergedOutput";
     public const string Consoles_ModuleUnifiedTitleFormat = "Consoles_ModuleUnifiedTitleFormat";
     public const string Consoles_ModulesHeader = "Consoles_ModulesHeader";
     public const string Consoles_NoActiveModules = "Consoles_NoActiveModules";
@@ -68,14 +67,10 @@ public static class LocalizationKeys
     public const string Consoles_Stage_Command = "Consoles_Stage_Command";
     public const string Consoles_Stage_Lifecycle = "Consoles_Stage_Lifecycle";
     public const string Consoles_Stage_Service = "Consoles_Stage_Service";
-    public const string Consoles_Status_Completed = "Consoles_Status_Completed";
     public const string Consoles_Status_Disabled = "Consoles_Status_Disabled";
     public const string Consoles_Status_Enabled = "Consoles_Status_Enabled";
-    public const string Consoles_Status_ExitFormat = "Consoles_Status_ExitFormat";
+    public const string Consoles_Status_ModuleActiveFormat = "Consoles_Status_ModuleActiveFormat";
     public const string Consoles_Status_ModuleFormat = "Consoles_Status_ModuleFormat";
-    public const string Consoles_Status_RunningFormat = "Consoles_Status_RunningFormat";
-    public const string Consoles_Status_ServiceObservedRunningFormat = "Consoles_Status_ServiceObservedRunningFormat";
-    public const string Consoles_Status_ServiceObservedStoppedFormat = "Consoles_Status_ServiceObservedStoppedFormat";
     public const string Consoles_Title = "Consoles_Title";
     public const string Consoles_UnifiedConsole = "Consoles_UnifiedConsole";
     public const string Consoles_UnifiedConsoleForActive = "Consoles_UnifiedConsoleForActive";

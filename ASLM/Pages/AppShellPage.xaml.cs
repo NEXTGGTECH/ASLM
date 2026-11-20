@@ -1,8 +1,8 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.ComponentModel;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using ASLM.Localization;
 using ASLM.Models;
 using Microsoft.Maui.Controls.Shapes;
@@ -84,11 +84,6 @@ namespace ASLM.Pages
         private const string IconPage = "icon_page.png";
 
         /// <summary>
-        /// Transparent background used by navigation buttons that are not active.
-        /// </summary>
-        private static Color TransparentBackground => Colors.Transparent;
-
-        /// <summary>
         /// Installer used to discover installed modules and to react to changes of their set.
         /// </summary>
         private readonly ModuleInstaller _moduleInstaller;
@@ -159,9 +154,19 @@ namespace ASLM.Pages
         private readonly IServiceProvider _services;
 
         /// <summary>
+        /// Shares HTTP readiness with the dedicated background worker for module pages.
+        /// </summary>
+        private readonly ModulePagePreparationQueue _modulePages;
+
+        /// <summary>
         /// Installed modules from the last refresh, including modules that are still installing.
         /// </summary>
         private List<ModuleConfig> _allModules = [];
+
+        /// <summary>
+        /// Content hashes of the readable module sidebar icons in the latest discovery snapshot.
+        /// </summary>
+        private Dictionary<string, string> _moduleSidebarIconHashes = new(StringComparer.Ordinal);
 
         /// <summary>
         /// Module whose page is currently shown, or null when a system view is active.
@@ -299,6 +304,7 @@ namespace ASLM.Pages
             _legalAcceptance = legalAcceptance;
             _localization = localization;
             _services = services;
+            _modulePages = services.GetRequiredService<ModulePagePreparationQueue>();
 
             // Build the XAML tree, then wire the dialog host, the rate-limit notice and localization to it.
             InitializeComponent();
@@ -318,21 +324,13 @@ namespace ASLM.Pages
             // The buttons of the system views share styling, alignment and active-state handling.
             _navButtons = [HomeButton, ConsolesButton, ModulesButton, AslmApiButton, NotificationsButton, DownloadsButton, SettingsButton];
 
-            // Hook alignment updates once so WinUI buttons keep the same content layout.
+            // Initialize the built-in buttons before the first selection and keep their native content aligned.
             CollapseButton.HandlerChanged += OnSidebarButtonHandlerChanged;
             foreach (var button in _navButtons)
             {
                 button.HandlerChanged += OnSidebarButtonHandlerChanged;
+                ApplyShellNavInactiveStyle(button);
             }
-
-            // Assign all static sidebar icons up front.
-            HomeButton.ImageSource = IconHome;
-            ConsolesButton.ImageSource = IconConsole;
-            ModulesButton.ImageSource = IconModules;
-            AslmApiButton.ImageSource = IconApi;
-            NotificationsButton.ImageSource = IconNotifications;
-            DownloadsButton.ImageSource = IconDownload;
-            SettingsButton.ImageSource = IconSettings;
 
             ApplySidebarButtonIconFromPalette(CollapseButton, "LabelPrimary");
 
@@ -437,7 +435,7 @@ namespace ASLM.Pages
             _mirrorServer.StateChanged += OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged += OnModulesChanged;
             _ports.PortsRedistributed += OnPortsRedistributed;
-            _moduleRunner.ConsoleStore.StateChanged += OnModuleBrowserProcessesChanged;
+            _moduleRunner.ConsoleStore.ModulePageStateChanged += OnModuleBrowserProcessesChanged;
             ThemeService.PaletteApplied += OnAppPaletteApplied;
             _shellEventsHooked = true;
         }
@@ -457,7 +455,7 @@ namespace ASLM.Pages
             _mirrorServer.StateChanged -= OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged -= OnModulesChanged;
             _ports.PortsRedistributed -= OnPortsRedistributed;
-            _moduleRunner.ConsoleStore.StateChanged -= OnModuleBrowserProcessesChanged;
+            _moduleRunner.ConsoleStore.ModulePageStateChanged -= OnModuleBrowserProcessesChanged;
             ThemeService.PaletteApplied -= OnAppPaletteApplied;
             _shellEventsHooked = false;
         }
@@ -470,37 +468,14 @@ namespace ASLM.Pages
             ApplySidebarButtonLayout();
             ScheduleSidebarButtonLayoutRefresh();
 
-            // Reset every sidebar button (system views and module pages) to the inactive style of the new palette.
-            foreach (var button in _navButtons)
+            // Apply the new palette directly in each button's current selection state.
+            var selected = GetActiveSidebarButton();
+            foreach (var button in _navButtons.Concat(ModulePagePanel.Children.OfType<Button>()))
             {
-                ApplyShellNavInactiveStyle(button);
-            }
-
-            foreach (var child in ModulePagePanel.Children)
-            {
-                if (child is Button button)
-                {
+                if (button == selected)
+                    ApplyShellNavActiveStyle(button);
+                else
                     ApplyShellNavInactiveStyle(button);
-                }
-            }
-
-            // Re-highlight the active entry: the active system view, or the button of the active module page.
-            if (_activeNavButton != null)
-            {
-                ApplyShellNavActiveStyle(_activeNavButton);
-            }
-            else if (_activeModule != null)
-            {
-                foreach (var child in ModulePagePanel.Children)
-                {
-                    if (child is Button button &&
-                        button.ClassId == "PAGE" &&
-                        string.Equals(button.AutomationId, _activeModule.Id, StringComparison.Ordinal))
-                    {
-                        ApplyShellNavActiveStyle(button);
-                        break;
-                    }
-                }
             }
         }
 
@@ -508,7 +483,7 @@ namespace ASLM.Pages
         // Module refresh
 
         /// <summary>
-        /// Reloads modules, rebuilds page buttons, and refreshes the dashboard if needed.
+        /// Reloads modules and their sidebar artwork before updating the shell and loaded module views.
         /// Concurrent requests are coalesced: while one refresh runs, further requests only set a flag and the
         /// running refresh repeats once more, so the last change is never lost and refreshes never overlap.
         /// </summary>
@@ -527,8 +502,12 @@ namespace ASLM.Pages
                 do
                 {
                     Interlocked.Exchange(ref _moduleRefreshQueued, 0);
-                    var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync(includeInstalling: true));
-                    await MainThread.InvokeOnMainThreadAsync(() => ApplyModules(modules));
+                    var (modules, iconHashes) = await Task.Run(async () =>
+                    {
+                        var discovered = await _moduleInstaller.DiscoverInstalledModulesAsync(includeInstalling: true);
+                        return (discovered, ReadModuleSidebarIconHashes(discovered));
+                    });
+                    await MainThread.InvokeOnMainThreadAsync(() => ApplyModules(modules, iconHashes));
                 }
                 while (Interlocked.Exchange(ref _moduleRefreshQueued, 0) == 1);
             }
@@ -542,11 +521,13 @@ namespace ASLM.Pages
         /// Applies the latest module API snapshot to the sidebar and loaded module-backed views.
         /// </summary>
         /// <param name="modules">Fresh list of installed modules.</param>
-        private void ApplyModules(List<ModuleConfig> modules)
+        /// <param name="iconHashes">Fingerprints of the sidebar files found in this snapshot.</param>
+        private void ApplyModules(List<ModuleConfig> modules, Dictionary<string, string> iconHashes)
         {
             // Swap in the new list and re-resolve the active module by source path in the new instances.
             var activeModuleSourcePath = _activeModule?.SourcePath;
             _allModules = modules;
+            _moduleSidebarIconHashes = iconHashes;
 
             if (!string.IsNullOrWhiteSpace(activeModuleSourcePath))
             {
@@ -554,12 +535,13 @@ namespace ASLM.Pages
                     string.Equals(module.SourcePath, activeModuleSourcePath, StringComparison.OrdinalIgnoreCase));
             }
 
-            BuildPageButtons();
+            if (UpdateModulePageButtons())
+                ScheduleSidebarButtonLayoutRefresh();
 
             // Leave the module page if the module was removed or disabled; otherwise make sure the browser still
             // shows the module's current URL.
             if ((!string.IsNullOrWhiteSpace(activeModuleSourcePath) && _activeModule == null) ||
-                _activeModule is { HasPage: true, Status.Enabled: false })
+                _activeModule is { HasPage: false } or { Status.Enabled: false })
             {
                 ClearModuleBrowserNavigationTarget();
                 _moduleBrowserModule = null;
@@ -617,13 +599,12 @@ namespace ASLM.Pages
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (_activeModule is not { HasPage: true } activeModule || !Browser.IsVisible)
+                if (_activeModule is not { HasPage: true } || !Browser.IsVisible)
                 {
                     return;
                 }
 
-                _moduleBrowserReadySessions.Clear();
-                RefreshModuleBrowserPage(force: true);
+                RefreshModuleBrowserPage();
             });
         }
 
@@ -1361,28 +1342,20 @@ namespace ASLM.Pages
             if (navButton == HomeButton && _appData.Data.Navigation.DisableHomePage)
                 navButton = ModulesButton;
 
-            // Hide the module browser without discarding a loaded document.
+            var previousSelection = GetActiveSidebarButton();
+
+            // Release an unfinished page to background preparation and retain any already loaded document.
+            if (_activeModule != null && !_moduleBrowserDocumentReady)
+                ClearModuleBrowserNavigationTarget();
+            else
+                _modulePages.SetVisibleModulePage(null);
             _activeModule = null;
             Browser.IsVisible = false;
             ModuleStarting.IsVisible = false;
 
-            // Clear active styling from both fixed shell buttons and dynamic module buttons.
-            foreach (var button in _navButtons)
-            {
-                ApplyShellNavInactiveStyle(button);
-            }
-
-            foreach (var child in ModulePagePanel.Children)
-            {
-                if (child is Button button)
-                {
-                    ApplyShellNavInactiveStyle(button);
-                }
-            }
-
             // Highlight the new button, show its view and remember it as the page to restore on the next start.
-            ApplyShellNavActiveStyle(navButton);
             _activeNavButton = navButton;
+            UpdateSidebarSelection(previousSelection, navButton);
 
             ContentArea.Content = GetViewForButton(navButton);
             RememberPage(GetRouteForButton(navButton));
@@ -1663,53 +1636,114 @@ namespace ASLM.Pages
         // Module page buttons
 
         /// <summary>
-        /// Rebuilds sidebar buttons for enabled modules that expose a page.
+        /// Reads sidebar icon fingerprints off the UI thread so replacements at the same path are detected.
         /// </summary>
-        private void BuildPageButtons()
+        private static Dictionary<string, string> ReadModuleSidebarIconHashes(IEnumerable<ModuleConfig> modules)
         {
-            ModulePagePanel.Children.Clear();
+            var hashes = new Dictionary<string, string>(StringComparer.Ordinal);
+            var paths = modules.Where(module => module.HasPage && module.Status.Enabled)
+                .Select(module => module.SidebarIconFullPath).OfType<string>().Distinct(StringComparer.Ordinal);
+            foreach (var path in paths)
+            {
+                try
+                {
+                    using var input = File.OpenRead(path);
+                    hashes.Add(path, Convert.ToHexString(SHA256.HashData(input)));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A missing or unreadable icon uses the packaged module page icon for this snapshot.
+                }
+            }
 
+            return hashes;
+        }
+
+        /// <summary>
+        /// Updates the module buttons in place and reports whether native icon alignment needs another pass.
+        /// </summary>
+        private bool UpdateModulePageButtons()
+        {
+            var children = ModulePagePanel.Children;
             var pageModules = _allModules
                 .Where(module => module.HasPage && module.Status.Enabled)
+                .OrderBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(module => module.SourcePath, StringComparer.OrdinalIgnoreCase)
+                .DistinctBy(module => module.SourcePath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            var wanted = pageModules.Select(module => module.SourcePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var buttons = new Dictionary<string, Button>(StringComparer.OrdinalIgnoreCase);
+            var layoutChanged = false;
 
-            foreach (var module in pageModules)
+            // Remove obsolete entries first so an insertion or removal does not move the other buttons.
+            for (var index = children.Count - 1; index >= 0; index--)
             {
-                // Use the module's own sidebar icon when its file exists, otherwise the generic page icon.
-                ImageSource sidebarIcon;
-                if (!string.IsNullOrEmpty(module.SidebarIconFullPath) && File.Exists(module.SidebarIconFullPath))
+                if (children[index] is not Button { BindingContext: ModuleConfig module } button)
+                    continue;
+
+                if (wanted.Contains(module.SourcePath))
                 {
-                    sidebarIcon = ImageSource.FromFile(module.SidebarIconFullPath);
+                    buttons.Add(module.SourcePath, button);
+                    continue;
+                }
+
+                button.Clicked -= OnModulePageClicked;
+                button.HandlerChanged -= OnSidebarButtonHandlerChanged;
+                children.RemoveAt(index);
+                layoutChanged = true;
+            }
+
+            // Keep each live button mounted unless its position actually needs to change.
+            for (var index = 0; index < pageModules.Count; index++)
+            {
+                var module = pageModules[index];
+                if (buttons.TryGetValue(module.SourcePath, out var button))
+                {
+                    button.BindingContext = module;
+                    var text = _panelExpanded ? module.Name : string.Empty;
+                    if (button.Text != text) button.Text = text;
+                    layoutChanged |= ApplySidebarButtonIconFromPalette(button, "LabelPrimary");
+
+                    if (children[index] == button) continue;
+                    children.Remove(button);
                 }
                 else
                 {
-                    sidebarIcon = IconPage;
+                    button = CreateModulePageButton(module);
                 }
 
-                // The module id travels in AutomationId and the PAGE class marks the button as a module page.
-                var button = new Button
-                {
-                    Text = _panelExpanded ? module.Name : string.Empty,
-                    AutomationId = module.Id,
-                    BindingContext = module,
-                    ClassId = "PAGE",
-                    ImageSource = sidebarIcon,
-                    ContentLayout = new Button.ButtonContentLayout(Button.ButtonContentLayout.ImagePosition.Left, 0),
-                    Style = (Style)Application.Current!.Resources["SidebarButton"],
-                    BackgroundColor = TransparentBackground,
-                    HeightRequest = 36,
-                    HorizontalOptions = LayoutOptions.Fill
-                };
-
-                // The click handler captures its own module instance.
-                var capturedModule = module;
-                button.Clicked += (_, _) => ActivateModulePage(capturedModule);
-                button.HandlerChanged += OnSidebarButtonHandlerChanged;
-                ModulePagePanel.Children.Add(button);
-                ApplyShellNavInactiveStyle(button);
+                children.Insert(index, button);
+                layoutChanged = true;
             }
 
-            ScheduleSidebarButtonLayoutRefresh();
+            return layoutChanged;
+        }
+
+        /// <summary>
+        /// Creates a sidebar button for a newly available page and gives it the current selection style.
+        /// </summary>
+        private Button CreateModulePageButton(ModuleConfig module)
+        {
+            var button = new Button
+            {
+                Text = _panelExpanded ? module.Name : string.Empty,
+                AutomationId = module.Id,
+                BindingContext = module,
+                ContentLayout = new Button.ButtonContentLayout(
+                    Button.ButtonContentLayout.ImagePosition.Left, _panelExpanded ? 14 : 0),
+                Style = (Style)Application.Current!.Resources["SidebarButton"],
+                HeightRequest = 36,
+                HorizontalOptions = LayoutOptions.Fill
+            };
+
+            if (string.Equals(module.SourcePath, _activeModule?.SourcePath, StringComparison.OrdinalIgnoreCase))
+                ApplyShellNavActiveStyle(button);
+            else
+                ApplyShellNavInactiveStyle(button);
+
+            button.Clicked += OnModulePageClicked;
+            button.HandlerChanged += OnSidebarButtonHandlerChanged;
+            return button;
         }
 
         /// <summary>
@@ -1809,54 +1843,52 @@ namespace ASLM.Pages
         // Module page activation
 
         /// <summary>
+        /// Opens the page using the button's latest configuration after any intervening module refresh.
+        /// </summary>
+        private void OnModulePageClicked(object? sender, EventArgs e)
+        {
+            if (sender is Button { BindingContext: ModuleConfig module }) ActivateModulePage(module);
+        }
+
+        /// <summary>
+        /// Finds the selected entry from the open view or the installed module's manifest path.
+        /// </summary>
+        private Button? GetActiveSidebarButton() => _activeNavButton ?? ModulePagePanel.Children.OfType<Button>()
+            .FirstOrDefault(button => button.BindingContext is ModuleConfig module &&
+                string.Equals(module.SourcePath, _activeModule?.SourcePath, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// Updates only the buttons that gained or lost selection.
+        /// </summary>
+        private void UpdateSidebarSelection(Button? previous, Button? selected)
+        {
+            if (previous == selected) return;
+            if (previous is not null) ApplyShellNavInactiveStyle(previous);
+            if (selected is not null) ApplyShellNavActiveStyle(selected);
+        }
+
+        /// <summary>
         /// Opens one module page inside the embedded browser and updates highlighting.
         /// </summary>
-        /// <param name="module">Module whose page to open; the latest discovered instance of it is used.</param>
+        /// <param name="module">Latest discovered configuration of the page to open.</param>
         private void ActivateModulePage(ModuleConfig module)
         {
-            var resolved = ResolveModuleConfig(module);
-            if (resolved == null)
-            {
-                return;
-            }
+            var previousSelection = GetActiveSidebarButton();
 
             // Reuse the current document when returning from a built-in view of the same live module.
             var sameModule = string.Equals(_moduleBrowserModule?.SourcePath,
-                resolved.SourcePath, StringComparison.OrdinalIgnoreCase);
-            _activeModule = resolved;
-            _moduleBrowserModule = resolved;
+                module.SourcePath, StringComparison.OrdinalIgnoreCase);
+            _activeModule = module;
+            _moduleBrowserModule = module;
             ContentArea.Content = null;
             Browser.IsVisible = true;
             EnsureModuleBrowserLeftToRight();
             RefreshModuleBrowserPage(force: !sameModule);
             ScheduleEnsureModuleBrowserLeftToRight();
 
-            // Clear active styling from shell buttons before highlighting the module page button.
-            foreach (var button in _navButtons)
-            {
-                ApplyShellNavInactiveStyle(button);
-            }
-
             _activeNavButton = null;
-
-            // Highlight only the button of the opened module page.
-            foreach (var child in ModulePagePanel.Children)
-            {
-                if (child is not Button button)
-                {
-                    continue;
-                }
-
-                if (button.ClassId == "PAGE" && button.AutomationId == resolved.Id)
-                {
-                    ApplyShellNavActiveStyle(button);
-                    continue;
-                }
-
-                ApplyShellNavInactiveStyle(button);
-            }
-
-            RememberPage(ShellNavigationRoute.ForModule(resolved.Id));
+            UpdateSidebarSelection(previousSelection, GetActiveSidebarButton());
+            RememberPage(ShellNavigationRoute.ForModule(module.Id));
         }
 
 
@@ -1966,20 +1998,9 @@ namespace ASLM.Pages
         private ModuleConfig? _moduleBrowserModule;
 
         /// <summary>
-        /// Process session whose page is being loaded; changes without modifying module lifecycle state.
+        /// Process session and URL whose readiness can be shared with the preparation worker.
         /// </summary>
-        private string _moduleBrowserSession = string.Empty;
-
-        /// <summary>
-        /// Whether the current document was invalidated for a module maintenance operation.
-        /// </summary>
-        private bool _moduleBrowserChanging;
-
-        /// <summary>
-        /// Last successfully displayed process session and address of each visited module.
-        /// </summary>
-        private readonly Dictionary<string, (string Session, string Url)> _moduleBrowserReadySessions =
-            new(StringComparer.OrdinalIgnoreCase);
+        private ModulePageTarget? _moduleBrowserTarget;
 
         /// <summary>
         /// Whether the current document completed after the module's HTTP listener became available.
@@ -1992,25 +2013,11 @@ namespace ASLM.Pages
         private CancellationTokenSource? _moduleBrowserLoad;
 
         /// <summary>
-        /// Sends readiness requests directly to the local server without the system proxy or cached responses.
-        /// </summary>
-        private static readonly HttpClient ModulePageHttp = new(new SocketsHttpHandler
-        {
-            UseProxy = false,
-            AllowAutoRedirect = false
-        }) { Timeout = TimeSpan.FromSeconds(5) };
-
-        /// <summary>
         /// Navigation sequence for which a transport failure retry is queued.
         /// </summary>
         private int _moduleBrowserRetrySequence = -1;
 
 #if WINDOWS
-        /// <summary>
-        /// URL that must be navigated to once the WebView2 control has initialized, or null when none is waiting.
-        /// </summary>
-        private string? _pendingModuleBrowserUrl;
-
         /// <summary>
         /// Native WebView2 control behind the module browser, once its handler exists.
         /// </summary>
@@ -2048,74 +2055,49 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Identifies the latest tracked run using existing session identities, without reading console output.
-        /// </summary>
-        internal static string GetModuleBrowserSession(ModuleConsoleModuleSnapshot? module)
-        {
-            if (module is null || !module.Sessions.Any(session =>
-                session.IsRunning && (session.IsTrackedProcess || session.IsObservedProcess)))
-                return string.Empty;
-
-            return module.Sessions.Where(session => session.IsTrackedProcess && !session.IsObservedProcess)
-                .OrderByDescending(session => session.StartedUtc)
-                .Select(session => session.Id).FirstOrDefault() ?? string.Empty;
-        }
-
-        /// <summary>
-        /// Retains a ready document until its process session, port or maintenance activity changes.
+        /// Retains the current page until its launch or address changes.
         /// </summary>
         private void RefreshModuleBrowserPage(bool force = false)
         {
             if (_moduleBrowserModule is not { } module) return;
-            var snapshot = _moduleRunner.ConsoleStore.GetSnapshot().FirstOrDefault(item =>
-                string.Equals(item.SourcePath, module.SourcePath, StringComparison.OrdinalIgnoreCase));
-            var session = GetModuleBrowserSession(snapshot);
-            var changing = _moduleRunner.ConsoleStore.GetActivity(module.SourcePath) is not null;
-            var url = _ports.GetModuleUrl(module);
-            var changed = force || session != _moduleBrowserSession || changing != _moduleBrowserChanging ||
-                !ModuleBrowserUrlsMatch(url, _moduleBrowserExpectedUrl);
+            var target = _modulePages.RefreshModulePageCheck(module);
+            var changed = force || target != _moduleBrowserTarget;
 
-            // Maintenance and a new process invalidate only the page, never the runner's state.
+            // A different launch or address invalidates both the document and its pending callbacks.
             if (changed)
             {
-                if (changing || (_moduleBrowserReadySessions.TryGetValue(module.SourcePath, out var ready) &&
-                    (ready.Session != session || !ModuleBrowserUrlsMatch(ready.Url, url))))
-                    _moduleBrowserReadySessions.Remove(module.SourcePath);
-                _moduleBrowserSession = session;
-                _moduleBrowserChanging = changing;
+                _moduleBrowserTarget = target;
                 _moduleBrowserDocumentReady = false;
                 CancelModuleBrowserLoad();
                 CancelModuleBrowserRetry();
-                _moduleBrowserExpectedUrl = url;
+                _moduleBrowserExpectedUrl = target?.Url;
+                _moduleBrowserUrl = null;
                 Browser.Source = null;
             }
 
             if (_activeModule is null) return;
-            var knownReady = _moduleBrowserReadySessions.TryGetValue(module.SourcePath, out var readySession) &&
-                readySession.Session == session && ModuleBrowserUrlsMatch(readySession.Url, url) &&
-                session.Length > 0 && !changing;
+            _modulePages.SetVisibleModulePage(target);
             ModuleStartingText.Text = $"{module.Name} is starting...";
-            ModuleStarting.IsVisible = !_moduleBrowserDocumentReady && !knownReady;
-            Browser.Opacity = ModuleStarting.IsVisible ? 0 : 1;
-            Browser.InputTransparent = ModuleStarting.IsVisible;
-            if (!_moduleBrowserDocumentReady && _moduleBrowserLoad is null && !changing)
-                NavigateModuleBrowser(url, force: true);
+            if (_moduleBrowserLoad is null && _moduleBrowserRetrySequence == -1)
+            {
+                // A verified run can start navigation with the browser already visible.
+                var knownReady = target is { } page && _modulePages.IsModulePageReady(page);
+                SetModuleStartingVisible(!_moduleBrowserDocumentReady && !knownReady);
+            }
+
+            if (!_moduleBrowserDocumentReady && _moduleBrowserLoad is null && _moduleBrowserRetrySequence == -1 &&
+                target is { } pending)
+                NavigateModuleBrowser(pending);
         }
 
         /// <summary>
-        /// Returns the latest discovered module matching <paramref name="module"/>.
+        /// Updates the startup cover and its browser input state together.
         /// </summary>
-        /// <param name="module">Module whose current instance from the last module refresh is wanted.</param>
-        private ModuleConfig? ResolveModuleConfig(ModuleConfig module)
+        private void SetModuleStartingVisible(bool visible)
         {
-            if (string.IsNullOrWhiteSpace(module.Id))
-            {
-                return module;
-            }
-
-            return _allModules.FirstOrDefault(candidate =>
-                       string.Equals(candidate.Id, module.Id, StringComparison.OrdinalIgnoreCase))
-                   ?? module;
+            ModuleStarting.IsVisible = visible;
+            Browser.Opacity = visible ? 0 : 1;
+            Browser.InputTransparent = visible;
         }
 
         /// <summary>
@@ -2125,13 +2107,12 @@ namespace ASLM.Pages
         private void ClearModuleBrowserNavigationTarget()
         {
             CancelModuleBrowserLoad();
+            _modulePages.SetVisibleModulePage(null);
+            _moduleBrowserTarget = null;
             _moduleBrowserDocumentReady = false;
             _moduleBrowserExpectedUrl = null;
             _moduleBrowserUrl = null;
             CancelModuleBrowserRetry();
-#if WINDOWS
-            _pendingModuleBrowserUrl = null;
-#endif
             Browser.Source = null;
         }
 
@@ -2164,47 +2145,44 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Navigates the shared module browser, optionally reloading its URL after a full page switch.
-        /// Each request waits for an HTTP response without blocking the UI and discards superseded loads.
+        /// Starts the browser's load for one run once its shared HTTP check succeeds.
         /// </summary>
-        /// <param name="url">Module page URL to show.</param>
-        /// <param name="force">True to navigate even when the browser already shows the same address.</param>
-        private void NavigateModuleBrowser(string url, bool force = false)
+        private void NavigateModuleBrowser(ModulePageTarget target)
         {
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                return;
-            }
-
-            if (!force && ModuleBrowserUrlsMatch(_moduleBrowserExpectedUrl, url) &&
-                (_moduleBrowserDocumentReady || _moduleBrowserLoad is not null))
-                return;
-
             CancelModuleBrowserLoad();
             CancelModuleBrowserRetry();
             var sequence = _moduleBrowserNavigationSequence;
-            _moduleBrowserExpectedUrl = url;
+            _moduleBrowserExpectedUrl = target.Url;
+            _moduleBrowserUrl = null;
             _moduleBrowserDocumentReady = false;
             _moduleBrowserLoad = new CancellationTokenSource();
             var token = _moduleBrowserLoad.Token;
-            _ = LoadModuleBrowserPageAsync(sequence, url, token);
+            _ = LoadModuleBrowserPageAsync(sequence, target, token);
         }
 
         /// <summary>
-        /// Waits off the UI thread for any HTTP response, then loads the real document under the ASLM cover.
+        /// Reveals the browser as soon as the current module answers HTTP and starts loading its document.
         /// </summary>
-        private async Task LoadModuleBrowserPageAsync(int sequence, string url, CancellationToken token)
+        private async Task LoadModuleBrowserPageAsync(int sequence, ModulePageTarget target, CancellationToken token)
         {
             try
             {
-                await WaitForModulePageAsync(ModulePageHttp, url, token).ConfigureAwait(false);
+                var ready = await _modulePages.WaitForModulePageAsync(target, token).ConfigureAwait(false);
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    if (!token.IsCancellationRequested)
-                        ApplyModuleBrowserNavigation(sequence, url, force: true);
+                    if (token.IsCancellationRequested || sequence != _moduleBrowserNavigationSequence) return;
+                    if (!ready || _moduleBrowserModule is not { } module ||
+                        !_modulePages.IsModulePageCurrent(module, target))
+                    {
+                        CancelModuleBrowserLoad();
+                        RefreshModuleBrowserPage();
+                        return;
+                    }
+                    SetModuleStartingVisible(false);
+                    ApplyModuleBrowserNavigation(sequence, target.Url, force: true);
                 });
             }
-            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            catch (OperationCanceledException) when (token.IsCancellationRequested || _modulePages.IsStopping)
             {
                 // Leaving or restarting this page cancels its requests without affecting the module.
             }
@@ -2216,35 +2194,6 @@ namespace ASLM.Pages
                     if (!token.IsCancellationRequested && sequence == _moduleBrowserNavigationSequence)
                         CompleteModuleBrowserNavigation(hasResponse: false);
                 });
-            }
-        }
-
-        /// <summary>
-        /// Accepts every HTTP response; only transport failures and timeouts require another request.
-        /// </summary>
-        internal static async Task WaitForModulePageAsync(HttpClient client, string url, CancellationToken token)
-        {
-            while (true)
-            {
-                token.ThrowIfCancellationRequested();
-                try
-                {
-                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                    request.Headers.CacheControl = new() { NoCache = true, NoStore = true };
-                    using var response = await client.SendAsync(request,
-                        HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
-                    return;
-                }
-                catch (HttpRequestException)
-                {
-                    // The local listener can be unavailable until the real application finishes preparing.
-                }
-                catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                {
-                    // A per-request timeout is a transport failure, not cancellation of this page.
-                }
-
-                await Task.Delay(200, token).ConfigureAwait(false);
             }
         }
 
@@ -2278,8 +2227,6 @@ namespace ASLM.Pages
 
 #if WINDOWS
             // Before the WebView2 core exists, assigning the source starts the load once the core is ready.
-            _pendingModuleBrowserUrl = url;
-
             if (_moduleWebView2?.CoreWebView2 is not Microsoft.Web.WebView2.Core.CoreWebView2 core)
             {
                 Browser.Source = new UrlWebViewSource { Url = url };
@@ -2287,7 +2234,6 @@ namespace ASLM.Pages
             }
 
             // The core is ready: navigate it directly, unless it already shows this address and no reload is forced.
-            _pendingModuleBrowserUrl = null;
             WireModuleWebViewNavigation(core);
 
             if (!force && ModuleBrowserUrlsMatch(core.Source, url))
@@ -2326,13 +2272,15 @@ namespace ASLM.Pages
         private void OnModuleBrowserNavigationStarting(object? sender,
             Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs e)
         {
-            if (e.IsRedirected || !ModuleBrowserUrlsMatch(e.Uri, _moduleBrowserExpectedUrl)) return;
+            if (_moduleBrowserLoad is null || _moduleBrowserUrl is null || e.IsRedirected ||
+                !ModuleBrowserUrlsMatch(e.Uri, _moduleBrowserExpectedUrl))
+                return;
             _moduleBrowserNativeNavigationId = e.NavigationId;
             _moduleBrowserNativeSequence = _moduleBrowserNavigationSequence;
         }
 
         /// <summary>
-        /// Reveals any HTTP document, including error responses; retries only failures without an HTTP response.
+        /// Accepts any HTTP document, including error responses, and retries transport failures.
         /// </summary>
         private void OnModuleBrowserNavigationCompleted(object? sender,
             Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs e)
@@ -2353,49 +2301,39 @@ namespace ASLM.Pages
         private void Browser_Navigated(object? sender, WebNavigatedEventArgs e)
         {
 #if !WINDOWS
-            if (ModuleBrowserUrlsMatch(e.Url, _moduleBrowserExpectedUrl) && e.Result != WebNavigationResult.Cancel)
+            if (_moduleBrowserUrl is not null && ModuleBrowserUrlsMatch(e.Url, _moduleBrowserExpectedUrl) &&
+                e.Result != WebNavigationResult.Cancel)
                 CompleteModuleBrowserNavigation(e.Result == WebNavigationResult.Success);
 #endif
         }
 
         /// <summary>
-        /// Removes the cover after a document completes, or queues another page load after a transport failure.
+        /// Records when the first document can be reused or retries startup navigation after a failure.
         /// </summary>
         private void CompleteModuleBrowserNavigation(bool hasResponse)
         {
-            if (_moduleBrowserModule is null || _moduleBrowserExpectedUrl is null) return;
+            if (_moduleBrowserLoad is null || _moduleBrowserTarget is not { } target) return;
             if (!hasResponse)
             {
                 CancelModuleBrowserLoad();
-                _moduleBrowserDocumentReady = false;
-                _moduleBrowserReadySessions.Remove(_moduleBrowserModule.SourcePath);
+                _moduleBrowserUrl = null;
                 if (_activeModule is not null)
-                {
-                    Browser.Opacity = 0;
-                    Browser.InputTransparent = true;
-                    ModuleStarting.IsVisible = true;
-                    ScheduleModuleBrowserRetry(_moduleBrowserNavigationSequence, _moduleBrowserExpectedUrl);
-                }
+                    ScheduleModuleBrowserRetry(_moduleBrowserNavigationSequence, target);
                 return;
             }
 
             CancelModuleBrowserRetry();
             _moduleBrowserDocumentReady = true;
-            _moduleBrowserReadySessions[_moduleBrowserModule.SourcePath] =
-                (_moduleBrowserSession, _moduleBrowserExpectedUrl);
             _moduleBrowserLoad?.Dispose();
             _moduleBrowserLoad = null;
-            Browser.Opacity = 1;
-            Browser.InputTransparent = false;
-            ModuleStarting.IsVisible = false;
         }
 
         /// <summary>
         /// Retries one failed local navigation without overlapping requests or surviving a page switch.
         /// </summary>
         /// <param name="sequence">Navigation sequence number of the failed request.</param>
-        /// <param name="url">URL that failed to load.</param>
-        private void ScheduleModuleBrowserRetry(int sequence, string url)
+        /// <param name="target">Launch and URL that failed to load.</param>
+        private void ScheduleModuleBrowserRetry(int sequence, ModulePageTarget target)
         {
             // Only one retry per navigation is pending at a time.
             if (_moduleBrowserRetrySequence == sequence)
@@ -2414,10 +2352,10 @@ namespace ASLM.Pages
 
                 _moduleBrowserRetrySequence = -1;
                 if (sequence == _moduleBrowserNavigationSequence &&
-                    string.Equals(_moduleBrowserExpectedUrl, url, StringComparison.OrdinalIgnoreCase) &&
+                    _moduleBrowserTarget == target &&
                     _activeModule is not null)
                 {
-                    NavigateModuleBrowser(url, force: true);
+                    NavigateModuleBrowser(target);
                 }
             });
         }
@@ -2449,8 +2387,8 @@ namespace ASLM.Pages
             ApplyModuleWebViewDropTarget(_moduleWebView2);
             EnsureModuleBrowserLeftToRight();
 
-            // A re-created handler starts empty: restore the page the browser was meant to show.
-            var targetUrl = _moduleBrowserExpectedUrl ?? _pendingModuleBrowserUrl ?? _moduleBrowserUrl;
+            // A re-created handler restores a page only after its HTTP preflight has allowed navigation.
+            var targetUrl = _moduleBrowserUrl;
             if (!string.IsNullOrWhiteSpace(targetUrl))
             {
                 ApplyModuleBrowserNavigation(_moduleBrowserNavigationSequence, targetUrl);
@@ -2476,10 +2414,6 @@ namespace ASLM.Pages
             }
 
             WireModuleWebViewNavigation(core);
-
-            // Browser.Source was assigned while the core was initializing;
-            // WebView2 will complete that one navigation without a second Navigate call.
-            _pendingModuleBrowserUrl = null;
         }
 
         /// <summary>
@@ -2631,16 +2565,21 @@ namespace ASLM.Pages
         /// Sidebar button whose icon is replaced; buttons without a known icon are left unchanged.
         /// </param>
         /// <param name="paletteResourceKey">Palette resource key of the tint color.</param>
-        private void ApplySidebarButtonIconFromPalette(Button button, string paletteResourceKey)
+        /// <returns>Whether the button's image changed.</returns>
+        private bool ApplySidebarButtonIconFromPalette(Button button, string paletteResourceKey)
         {
             var path = ResolveSidebarIconFile(button);
             if (string.IsNullOrEmpty(path))
             {
-                return;
+                return false;
             }
 
             var tint = IconTintHelper.ResolvePaletteColor(paletteResourceKey);
-            button.ImageSource = PackagedIconTintCache.Get(path, tint);
+            var source = PackagedIconTintCache.Get(path, tint, _moduleSidebarIconHashes.GetValueOrDefault(path));
+            if (ReferenceEquals(button.ImageSource, source)) return false;
+
+            button.ImageSource = source;
+            return true;
         }
 
         /// <summary>
@@ -2692,12 +2631,11 @@ namespace ASLM.Pages
             }
 
             // Module page buttons use the module's own icon file, or the generic page icon without one.
-            if (string.Equals(button.ClassId, "PAGE", StringComparison.Ordinal) &&
-                button.BindingContext is ModuleConfig module)
+            if (button.BindingContext is ModuleConfig module)
             {
-                if (!string.IsNullOrEmpty(module.SidebarIconFullPath) && File.Exists(module.SidebarIconFullPath))
+                if (module.SidebarIconFullPath is { } path && _moduleSidebarIconHashes.ContainsKey(path))
                 {
-                    return module.SidebarIconFullPath;
+                    return path;
                 }
 
                 return IconPage;

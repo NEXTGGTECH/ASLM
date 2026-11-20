@@ -4,6 +4,7 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:settings="clr-namespace:ASLM.Controls.Settings"
              xmlns:presentation="clr-namespace:ASLM.Services.Internal"
              x:Class="ASLM.Controls.Settings.SettingsCategorySelectorItemView"
              x:DataType="presentation:SettingsCategorySelectorItemViewModel">
@@ -25,8 +26,8 @@
                 <DataTrigger TargetType="Label"
                              Binding="{Binding IsActive}"
                              Value="True">
-                    <Setter Property="TextColor"
-                            Value="{DynamicResource LabelPrimary}" />
+                    <Setter Property="settings:SettingsControlChrome.TextColorResource"
+                            Value="LabelPrimary" />
                 </DataTrigger>
             </Label.Triggers>
         </Label>

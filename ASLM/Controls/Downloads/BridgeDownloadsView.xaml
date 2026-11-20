@@ -51,14 +51,14 @@
                            Text="{Binding StatusText}"
                            IsVisible="{Binding HasStatus}"
                            FontSize="14"
-                           TextColor="{DynamicResource LabelPrimary}"
+                           settings:SettingsControlChrome.TextColorResource="LabelPrimary"
                            HorizontalTextAlignment="End"
                            VerticalOptions="Center">
                         <Label.Triggers>
                             <DataTrigger TargetType="Label"
                                          Binding="{Binding IsDownloaded}"
                                          Value="True">
-                                <Setter Property="TextColor" Value="{DynamicResource ActionGreen}" />
+                                <Setter Property="settings:SettingsControlChrome.TextColorResource" Value="ActionGreen" />
                             </DataTrigger>
                         </Label.Triggers>
                     </Label>
@@ -117,7 +117,8 @@
                                                     Padding="2,0">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate>
-                                <Border Style="{StaticResource DownloadsChipBorderStyle}">
+                                <Border Style="{StaticResource DownloadsChipBorderStyle}"
+                                        settings:SettingsControlChrome.StrokeResource="Separator">
                                     <Border.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding ToggleCommand}" />
                                     </Border.GestureRecognizers>
@@ -125,8 +126,8 @@
                                         <DataTrigger TargetType="Border"
                                                      Binding="{Binding IsSelected}"
                                                      Value="True">
-                                            <Setter Property="Stroke"
-                                                    Value="{DynamicResource ActionBlue}" />
+                                            <Setter Property="settings:SettingsControlChrome.StrokeResource"
+                                                    Value="ActionBlue" />
                                         </DataTrigger>
                                     </Border.Triggers>
 

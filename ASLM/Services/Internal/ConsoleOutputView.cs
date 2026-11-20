@@ -3,24 +3,12 @@
 namespace ASLM.Services.Internal
 {
     /// <summary>
-    /// Hosts the bindable state consumed by the native console output handler. The handler renders the text and
-    /// reports its scroll geometry back through this view so the shared ASLM scrollbar can follow it.
+    /// Coordinates output and selection across native console handlers and reports their viewport geometry
+    /// to the shared scrollbar.
     /// </summary>
     public sealed class ConsoleOutputView : View
     {
         // Bindable property identifiers
-
-        /// <summary>
-        /// Identifies the bindable console text property.
-        /// </summary>
-        public static readonly BindableProperty TextProperty =
-            BindableProperty.Create(nameof(Text), typeof(string), typeof(ConsoleOutputView), string.Empty);
-
-        /// <summary>
-        /// Identifies the bindable session key property used to detect selection changes.
-        /// </summary>
-        public static readonly BindableProperty SessionKeyProperty =
-            BindableProperty.Create(nameof(SessionKey), typeof(string), typeof(ConsoleOutputView), string.Empty);
 
         /// <summary>
         /// Identifies the bindable property that switches the native scrollbar off in favor of the shared ASLM scrollbar.
@@ -83,24 +71,124 @@ namespace ASLM.Services.Internal
         }
 
 
-        // Bindable properties
+        // Output and selection
 
         /// <summary>
-        /// Gets or sets the console text rendered by the native host.
+        /// Latest snapshot supplied by the page.
         /// </summary>
-        public string Text
+        private ConsoleOutput _output = ConsoleOutput.Empty;
+
+        /// <summary>
+        /// Snapshot associated with the text currently rendered by the native view.
+        /// </summary>
+        private ConsoleOutput? _renderedOutput;
+
+        /// <summary>
+        /// Callback belonging to the current native handler.
+        /// </summary>
+        private Action<ConsoleOutput, ConsoleOutput?, bool>? _renderOutput;
+
+        /// <summary>
+        /// Whether a native selection gesture is in progress, including before the range becomes nonempty.
+        /// </summary>
+        private bool _selectionGesture;
+
+        /// <summary>
+        /// Whether one deferred native output update is already scheduled.
+        /// </summary>
+        private bool _outputQueued;
+
+        /// <summary>
+        /// Invalidates queued callbacks when a native handler is detached.
+        /// </summary>
+        private int _outputGeneration;
+
+        /// <summary>
+        /// Allows following new output only when the gesture has ended and the viewport is at the bottom.
+        /// </summary>
+        internal bool ShouldFollowOutput(double offset, double maximumOffset) =>
+            !_selectionGesture && maximumOffset - offset <= 1;
+
+        /// <summary>
+        /// Accepts new output regardless of what the user has selected.
+        /// </summary>
+        internal void SetOutput(ConsoleOutput output)
         {
-            get => (string)GetValue(TextProperty);
-            set => SetValue(TextProperty, value);
+            _output = output;
+            QueueOutput();
         }
 
         /// <summary>
-        /// Gets or sets the composite session key used to reset scroll position for a new session.
+        /// Reopens the current output at the end through the same rendering path as a session change.
         /// </summary>
-        public string SessionKey
+        internal void ResetOutputPosition()
         {
-            get => (string)GetValue(SessionKeyProperty);
-            set => SetValue(SessionKeyProperty, value);
+            _selectionGesture = false;
+            _renderedOutput = null;
+            QueueOutput();
+        }
+
+        /// <summary>
+        /// Attaches the platform renderer and schedules the latest snapshot.
+        /// </summary>
+        internal void ConnectOutput(Action<ConsoleOutput, ConsoleOutput?, bool> renderOutput)
+        {
+            _renderOutput = renderOutput;
+            QueueOutput();
+        }
+
+        /// <summary>
+        /// Detaches the renderer and clears native interaction state from the old connection.
+        /// </summary>
+        internal void DisconnectOutput()
+        {
+            _outputGeneration++;
+            _renderOutput = null;
+            _renderedOutput = null;
+            _outputQueued = false;
+            _selectionGesture = false;
+        }
+
+        /// <summary>
+        /// Holds automatic following during a native selection gesture.
+        /// </summary>
+        internal void SetSelectionGesture(bool pressed) => _selectionGesture = pressed;
+
+        /// <summary>
+        /// Coalesces output and waits for native input handling to finish before touching the text.
+        /// </summary>
+        private void QueueOutput()
+        {
+            if (_renderOutput == null || _outputQueued || ReferenceEquals(_renderedOutput, _output)) return;
+
+            _outputQueued = true;
+            var generation = _outputGeneration;
+            if (!Dispatcher.Dispatch(() =>
+            {
+                if (generation != _outputGeneration) return;
+                _outputQueued = false;
+                ApplyOutput();
+            }))
+            {
+                _outputQueued = false;
+            }
+        }
+
+        /// <summary>
+        /// Applies only the latest snapshot and lets a session change discard the old selection.
+        /// </summary>
+        private void ApplyOutput()
+        {
+            var output = _output;
+            var previous = _renderedOutput;
+            var sessionChanged = output.SessionKey != previous?.SessionKey;
+
+            _renderedOutput = output;
+
+            if (sessionChanged || output.Text != previous?.Text)
+            {
+                _renderOutput?.Invoke(output, previous, sessionChanged);
+            }
         }
     }
 }

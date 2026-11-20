@@ -2,8 +2,25 @@
 
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:ASLM.Controls"
              xmlns:services="clr-namespace:ASLM.Services.Internal"
              x:Class="ASLM.Pages.ConsolesView">
+
+    <ContentView.Resources>
+        <Style x:Key="ConsoleScrollBarThumbStyle" TargetType="BoxView" BasedOn="{StaticResource AppScrollBarThumbStyle}">
+            <Setter Property="Color" Value="{DynamicResource LabelSecondary}" />
+            <Setter Property="HorizontalOptions" Value="End" />
+        </Style>
+        <Style x:Key="ConsoleItemSubtitle" TargetType="Label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextColor" Value="{DynamicResource LabelSecondary}" />
+            <Style.Triggers>
+                <DataTrigger TargetType="Label" Binding="{Binding StatusText}" Value="">
+                    <Setter Property="IsVisible" Value="False" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </ContentView.Resources>
 
     <Grid RowDefinitions="Auto,*"
           RowSpacing="12"
@@ -43,40 +60,49 @@
                                TextColor="{DynamicResource LabelPrimary}" />
                     </VerticalStackLayout>
 
-                    <CollectionView x:Name="ModulesCollection"
-                                    Grid.Row="1"
-                                    ItemsSource="{Binding Modules}"
-                                    SelectionMode="Single"
-                                    SelectionChanged="OnModuleSelectionChanged"
-                                    Margin="0">
-                        <CollectionView.EmptyView>
-                            <Label x:Name="ModulesEmptyLabel"
-                                   Text="No active modules"
-                                   FontSize="13"
-                                   TextColor="{DynamicResource LabelSecondary}"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </CollectionView.EmptyView>
+                    <Grid Grid.Row="1">
+                        <CollectionView x:Name="ModulesCollection"
+                                        ItemsSource="{Binding Modules}"
+                                        HandlerChanged="OnConsoleListHandlerChanged"
+                                        SelectionMode="Single"
+                                        SelectionChanged="OnModuleSelectionChanged"
+                                        VerticalScrollBarVisibility="Never"
+                                        Margin="0">
+                            <CollectionView.EmptyView>
+                                <Label x:Name="ModulesEmptyLabel"
+                                       Text="No active modules"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelSecondary}"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+                            </CollectionView.EmptyView>
 
-                        <CollectionView.ItemTemplate>
-                            <DataTemplate>
-                                <Border StrokeThickness="0"
-                                        StrokeShape="RoundRectangle 8"
-                                        Padding="12"
-                                        Margin="0,0,0,4">
-                                    <VerticalStackLayout Spacing="4">
-                                        <Label Text="{Binding Name}"
-                                               FontSize="14"
-                                               FontAttributes="Bold"
-                                               TextColor="{DynamicResource LabelPrimary}" />
-                                        <Label Text="{Binding StatusText}"
-                                               FontSize="12"
-                                               TextColor="{DynamicResource LabelSecondary}" />
-                                    </VerticalStackLayout>
-                                </Border>
-                            </DataTemplate>
-                        </CollectionView.ItemTemplate>
-                    </CollectionView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8"
+                                            Padding="12"
+                                            Margin="0,0,0,4">
+                                        <VerticalStackLayout Spacing="4">
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource LabelPrimary}" />
+                                            <Label Text="{Binding StatusText}"
+                                                   Style="{StaticResource ConsoleItemSubtitle}" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                        <controls:AppScrollBar HorizontalOptions="End"
+                                               WidthRequest="8"
+                                               MinimumWidthRequest="8"
+                                               Margin="0,12"
+                                               ZIndex="1"
+                                               Target="{x:Reference ModulesCollection}"
+                                               ThumbStyle="{StaticResource ConsoleScrollBarThumbStyle}" />
+                    </Grid>
                 </Grid>
             </Border>
 
@@ -97,40 +123,49 @@
                                TextColor="{DynamicResource LabelPrimary}" />
                     </VerticalStackLayout>
 
-                    <CollectionView x:Name="SessionsCollection"
-                                    Grid.Row="1"
-                                    ItemsSource="{Binding Sessions}"
-                                    SelectionMode="Single"
-                                    SelectionChanged="OnSessionSelectionChanged"
-                                    Margin="0">
-                        <CollectionView.EmptyView>
-                            <Label x:Name="SessionsEmptyLabel"
-                                   Text="No consoles"
-                                   FontSize="13"
-                                   TextColor="{DynamicResource LabelSecondary}"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center" />
-                        </CollectionView.EmptyView>
+                    <Grid Grid.Row="1">
+                        <CollectionView x:Name="SessionsCollection"
+                                        ItemsSource="{Binding Sessions}"
+                                        HandlerChanged="OnConsoleListHandlerChanged"
+                                        SelectionMode="Single"
+                                        SelectionChanged="OnSessionSelectionChanged"
+                                        VerticalScrollBarVisibility="Never"
+                                        Margin="0">
+                            <CollectionView.EmptyView>
+                                <Label x:Name="SessionsEmptyLabel"
+                                       Text="No consoles"
+                                       FontSize="13"
+                                       TextColor="{DynamicResource LabelSecondary}"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="Center" />
+                            </CollectionView.EmptyView>
 
-                        <CollectionView.ItemTemplate>
-                            <DataTemplate>
-                                <Border StrokeThickness="0"
-                                        StrokeShape="RoundRectangle 8"
-                                        Padding="12"
-                                        Margin="0,0,0,4">
-                                    <VerticalStackLayout Spacing="4">
-                                        <Label Text="{Binding Title}"
-                                               FontSize="14"
-                                               FontAttributes="Bold"
-                                               TextColor="{DynamicResource LabelPrimary}" />
-                                        <Label Text="{Binding StatusText}"
-                                               FontSize="12"
-                                               TextColor="{DynamicResource LabelSecondary}" />
-                                    </VerticalStackLayout>
-                                </Border>
-                            </DataTemplate>
-                        </CollectionView.ItemTemplate>
-                    </CollectionView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border StrokeThickness="0"
+                                            StrokeShape="RoundRectangle 8"
+                                            Padding="12"
+                                            Margin="0,0,0,4">
+                                        <VerticalStackLayout Spacing="4">
+                                            <Label Text="{Binding Title}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="{DynamicResource LabelPrimary}" />
+                                            <Label Text="{Binding StatusText}"
+                                                   Style="{StaticResource ConsoleItemSubtitle}" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                        <controls:AppScrollBar HorizontalOptions="End"
+                                               WidthRequest="8"
+                                               MinimumWidthRequest="8"
+                                               Margin="0,12"
+                                               ZIndex="1"
+                                               Target="{x:Reference SessionsCollection}"
+                                               ThumbStyle="{StaticResource ConsoleScrollBarThumbStyle}" />
+                    </Grid>
                 </Grid>
             </Border>
 
@@ -151,12 +186,18 @@
                                TextColor="{DynamicResource LabelPrimary}" />
                     </VerticalStackLayout>
 
-                    <services:ConsoleOutputView x:Name="ConsoleOutputHost"
-                                                Grid.Row="1"
-                                                Text="{Binding SelectedSessionText}"
-                                                SessionKey="{Binding SelectedSessionKey}"
-                                                HorizontalOptions="Fill"
-                                                VerticalOptions="Fill" />
+                    <Grid Grid.Row="1">
+                        <services:ConsoleOutputView x:Name="ConsoleOutputHost"
+                                                    HorizontalOptions="Fill"
+                                                    VerticalOptions="Fill" />
+                        <controls:AppScrollBar HorizontalOptions="End"
+                                               WidthRequest="8"
+                                               MinimumWidthRequest="8"
+                                               Margin="0,8"
+                                               ZIndex="1"
+                                               Target="{x:Reference ConsoleOutputHost}"
+                                               ThumbStyle="{StaticResource ConsoleScrollBarThumbStyle}" />
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>

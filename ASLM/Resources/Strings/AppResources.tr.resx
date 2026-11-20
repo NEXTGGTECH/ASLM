@@ -133,22 +133,19 @@
     <value>Konsol seçilmedi</value>
   </data>
   <data name="Consoles_Footer_BufferedFormat" xml:space="preserve">
-    <value>{0} arabelleğe alınan satır – {1}{2}{3}</value>
+    <value>{0} arabelleğe alınan satır - {1}{2}{3}</value>
   </data>
   <data name="Consoles_Footer_EndedFormat" xml:space="preserve">
-    <value> – {0} tarihinde sona erdi</value>
+    <value> - {0} tarihinde sona erdi</value>
   </data>
   <data name="Consoles_Footer_ObservedCaptureNote" xml:space="preserve">
-    <value> – stdout/stderr doğrudan yakalanması mevcut olmayabilir</value>
+    <value> - stdout/stderr doğrudan yakalanması mevcut olmayabilir</value>
   </data>
   <data name="Consoles_Footer_StartedFormat" xml:space="preserve">
     <value>{0} tarihinde başlatıldı</value>
   </data>
   <data name="Consoles_LastActivityFormat" xml:space="preserve">
     <value>Son etkinlik {0}</value>
-  </data>
-  <data name="Consoles_MergedOutput" xml:space="preserve">
-    <value>Birleştirilmiş çıktı</value>
   </data>
   <data name="Consoles_ModuleUnifiedTitleFormat" xml:space="preserve">
     <value>{0} / Birleşik konsol</value>
@@ -169,7 +166,7 @@
     <value>Henüz çıktı yok</value>
   </data>
   <data name="Consoles_PidFormat" xml:space="preserve">
-    <value> – PID {0}</value>
+    <value>PID {0}</value>
   </data>
   <data name="Consoles_Run" xml:space="preserve">
     <value>Çalıştır</value>
@@ -207,29 +204,17 @@
   <data name="Consoles_Stage_Service" xml:space="preserve">
     <value>Hizmet</value>
   </data>
-  <data name="Consoles_Status_Completed" xml:space="preserve">
-    <value>{0} – Tamamlandı</value>
-  </data>
   <data name="Consoles_Status_Disabled" xml:space="preserve">
     <value>Devre dışı</value>
   </data>
   <data name="Consoles_Status_Enabled" xml:space="preserve">
     <value>Etkin</value>
   </data>
-  <data name="Consoles_Status_ExitFormat" xml:space="preserve">
-    <value>{0} – Çıkış {1}{2}</value>
+  <data name="Consoles_Status_ModuleActiveFormat" xml:space="preserve">
+    <value>{0} - {1} oturum ({2} etkin)</value>
   </data>
   <data name="Consoles_Status_ModuleFormat" xml:space="preserve">
-    <value>{0} – {1} etkin – {2} oturum</value>
-  </data>
-  <data name="Consoles_Status_RunningFormat" xml:space="preserve">
-    <value>{0} – Çalışıyor{1}</value>
-  </data>
-  <data name="Consoles_Status_ServiceObservedRunningFormat" xml:space="preserve">
-    <value>Hizmet – Gözlemleniyor{0}</value>
-  </data>
-  <data name="Consoles_Status_ServiceObservedStoppedFormat" xml:space="preserve">
-    <value>Hizmet – Durdu{0}</value>
+    <value>{0} - {1} oturum</value>
   </data>
   <data name="Consoles_Title" xml:space="preserve">
     <value>Konsollar</value>
