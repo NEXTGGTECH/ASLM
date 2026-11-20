@@ -6,6 +6,7 @@ using ASLM.Localization;
 using ASLM.Models;
 using ASLM.Resources.Strings;
 using ASLM.Services.Dialogs;
+using ASLM.Tests.TestSupport;
 
 namespace ASLM.Tests.Services.Dialogs
 {
@@ -316,12 +317,12 @@ namespace ASLM.Tests.Services.Dialogs
         // Forms
 
         /// <summary>
-        /// Verifies theme creation collects only name and base, leaving palette overrides to settings.
+        /// Verifies the dialog collects only name and base appearance and saves a full copy of the selected palette.
         /// </summary>
         [Theory]
         [InlineData("dark")]
         [InlineData("light")]
-        public void Theme_creation_only_collects_name_and_base_and_inherits_the_palette(string appearance)
+        public async Task Theme_creation_persists_the_selected_base_palette(string appearance)
         {
             var form = new ThemeCreationForm();
             form.Fields.Select(f => f.Id).Should().Equal("name", "baseAppearance");
@@ -330,8 +331,19 @@ namespace ASLM.Tests.Services.Dialogs
             var theme = form.BuildTheme(form.Fields.ToDictionary(f => f.Id, f => f.Value));
             theme.Name.Should().Be("My theme");
             theme.BaseAppearance.Should().Be(appearance);
-            theme.Colors.Should().BeEmpty("new themes inherit their base instead of freezing its colors as overrides");
+            var palette = appearance == "light"
+                ? ThemePaletteResolver.BuildLightPalette()
+                : ThemePaletteResolver.BuildDarkPalette();
+            var expectedColors = palette.ToDictionary(entry => entry.Key, entry => ThemePaletteResolver.ToHex(entry.Value));
+            theme.Colors.Should().BeEquivalentTo(expectedColors);
             theme.Id.Should().BeEmpty("an ID is allocated by the store only when the user saves");
+
+            using var layout = new AslmFileSystemLayout();
+            var store = new CustomThemesStore(TestLoggerFactory.Create<CustomThemesStore>());
+            var saved = await store.CreateThemeAsync(theme);
+            var reloaded = new CustomThemesStore(TestLoggerFactory.Create<CustomThemesStore>());
+            await reloaded.LoadAsync();
+            reloaded.FindById(saved.Id)!.Colors.Should().BeEquivalentTo(expectedColors);
         }
 
 
