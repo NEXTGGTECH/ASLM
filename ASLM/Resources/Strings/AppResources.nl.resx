@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Actie mislukt</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>ASLM-update beschikbaar</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>Er is momenteel geen ASLM-update beschikbaar</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>ASLM-update</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>Kanaal: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>Alles wissen</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Geen meldingen</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>Engine-update beschikbaar</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>De engine-update kon niet worden toegepast</value>
@@ -825,20 +816,35 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Engine-update</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>{0} geïnstalleerd</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>geïnstalleerde versie</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>{0} {1} geïnstalleerd</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>Bestanden installeren</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Die module is niet meer geïnstalleerd</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>Module-update beschikbaar</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>Bewerking onderbroken</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>Nieuwe versie gevonden</value>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>Bestanden voorbereiden</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>Start de app opnieuw om de update te voltooien</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>Recent</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>Download starten</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>{0} totaal</value>
@@ -852,11 +858,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>Bijwerken</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>Update naar {0} {1} beschikbaar</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>Update voor {0} beschikbaar ({1} -&gt; {2})</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>Later bijwerken</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Nu bijwerken</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>{0} bijgewerkt naar {1}</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>{0} wordt bijgewerkt naar {1}</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM-account</value>

@@ -70,6 +70,13 @@ namespace ASLM.Services.Internal
             RunModuleUpdateAsync(module, apply: true, progress, ct);
 
 
+        /// <summary>
+        /// Runs the card's update flow and reports check failures in the notification UI as well as the console.
+        /// </summary>
+        internal Task<ModuleConfig?> UpdateModuleFromNotificationAsync(ModuleConfig module) =>
+            RunModuleUpdateAsync(module, apply: true, notifyFailure: true);
+
+
         // Shared execution
 
         /// <summary>
@@ -77,7 +84,7 @@ namespace ASLM.Services.Internal
         /// Returns null when the action was rejected as a duplicate, failed, or was canceled.
         /// </summary>
         private async Task<ModuleConfig?> RunModuleUpdateAsync(ModuleConfig module, bool apply,
-            IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
+            IProgress<DownloadProgress>? progress = null, CancellationToken ct = default, bool notifyFailure = false)
         {
             // A card and an open ModuleInfo must not start the same operation twice.
             if (!_manualModuleUpdates.TryAdd(module.SourcePath, ManualModuleUpdatePhase.Checking))
@@ -97,19 +104,23 @@ namespace ASLM.Services.Internal
                 using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
 
                 // Cards can outlive configuration edits; always use the persisted channel and target.
+                var isCurrent = BeginUpdateCheck("module", module.Id);
                 var selected = await _moduleInstaller.LoadModuleConfig(module.SourcePath).ConfigureAwait(false);
                 if (selected == null || !string.Equals(selected.Id, module.Id, StringComparison.OrdinalIgnoreCase) ||
                     !_moduleInstaller.Registry.ReadIds().Contains(selected.Id))
                 {
+                    InvalidateModuleUpdateOffer(module.Id);
                     throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, module.Name));
                 }
 
                 // Check the repository and persist the result as the module's pending update (or clear it).
                 ct.ThrowIfCancellationRequested();
                 log.Report(L.Get(LocalizationKeys.ModuleUpdate_Log_CheckingFormat, selected.Name));
-                var candidate = await CheckModuleUpdateAsync(selected, ct,
-                    publishUpdateNotification: false, isManualRequest: true).ConfigureAwait(false);
+                var candidate = await CheckModuleUpdateCoreAsync(selected, ct,
+                    publishUpdateNotification: false, isManualRequest: true, isCurrent).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
+                if (!isCurrent()) return null;
+
                 selected.Update.PendingUpdate = candidate == null ? null : ModulePendingUpdate.FromCandidate(selected, candidate);
                 SaveModuleUpdatePreferences(selected);
                 if (candidate == null)
@@ -122,6 +133,8 @@ namespace ASLM.Services.Internal
                 log.Report(L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateAvailableFormat, candidate.RemoteVersion));
                 if (!apply)
                 {
+                    CompleteUpdateCheck("module", selected.Id, candidate, publish: true,
+                        BeginUpdateCheck("module", selected.Id));
                     return selected;
                 }
 
@@ -143,6 +156,12 @@ namespace ASLM.Services.Internal
                 // Background card actions have no dialog owner; keep failures in the same module console.
                 _logger.LogError(ex, "Manual module update failed for {ModuleId}.", module.Id);
                 log?.Report(L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
+                if (notifyFailure)
+                {
+                    _notifications.PublishSystemToast(L.Get(LocalizationKeys.Notifications_UpdateActionTitle),
+                        ex.Message, L.Get(LocalizationKeys.Notifications_ActionFailed), "module-update-action-failed",
+                        module.Id, AppNotificationSeverity.Error);
+                }
             }
             finally
             {

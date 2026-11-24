@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ASLM.Localization;
@@ -12,7 +13,7 @@ namespace ASLM.Services.Internal
     // Event arguments
 
     /// <summary>
-    /// Carries one user action on an update-available notification row or toast.
+    /// Carries the current offer selected for immediate update.
     /// </summary>
     public sealed class UpdateNotificationActionEventArgs : EventArgs
     {
@@ -20,22 +21,15 @@ namespace ASLM.Services.Internal
         /// Creates the event payload.
         /// </summary>
         /// <param name="notification">Notification that was acted on.</param>
-        /// <param name="updateNow">True for Update now, false for Update later.</param>
-        public UpdateNotificationActionEventArgs(AppNotification notification, bool updateNow)
+        public UpdateNotificationActionEventArgs(AppNotification notification)
         {
             Notification = notification;
-            UpdateNow = updateNow;
         }
 
         /// <summary>
         /// Gets the notification that was acted on.
         /// </summary>
         public AppNotification Notification { get; }
-
-        /// <summary>
-        /// Gets whether the user chose Update now (true) or Update later from the list (false).
-        /// </summary>
-        public bool UpdateNow { get; }
     }
 
 
@@ -58,6 +52,11 @@ namespace ASLM.Services.Internal
         /// Upper bound of notifications kept in memory and written to disk; the oldest ones are dropped first.
         /// </summary>
         private const int MaxPersistedNotifications = 200;
+
+        /// <summary>
+        /// First journal version that preserves a module update offer's deferred state.
+        /// </summary>
+        private const int PersistentDeferralVersion = 3;
 
         /// <summary>
         /// Backing collection of notifications, newest first; changed only on the UI thread.
@@ -98,6 +97,16 @@ namespace ASLM.Services.Internal
         /// Whether persisted notifications were loaded; saves are skipped before that so the file is not overwritten early.
         /// </summary>
         private bool _isInitialized;
+
+        /// <summary>
+        /// Serializes writes so an older snapshot cannot replace a newer one.
+        /// </summary>
+        private readonly SemaphoreSlim _saveGate = new(1);
+
+        /// <summary>
+        /// Tracks live download attempts even when their progress rows are cleared from the journal.
+        /// </summary>
+        private readonly Dictionary<string, AppNotification> _activeDownloads = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Computes the transfer speed label shown on download notifications.
@@ -187,39 +196,39 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Loads persisted notifications once during application startup.
+        /// Restores the journal before producers or views begin using it.
         /// </summary>
-        public async Task InitializeAsync()
+        public async Task InitializeAsync(string? installedReleaseTag = null, string? pendingReleaseTag = null)
         {
-            if (_isInitialized)
-            {
-                return;
-            }
+            if (_isInitialized) return;
 
-            await LoadAsync();
+            var changed = await LoadAsync(installedReleaseTag, pendingReleaseTag);
             _isInitialized = true;
+            if (changed) QueueSave(0);
         }
 
 
-        // Events
+        // Events and journal
 
         /// <summary>
-        /// Raised when notification counts or filter projections may have changed.
+        /// Raised when the journal contents or a notification's presentation change.
         /// </summary>
         public event EventHandler? NotificationsChanged;
 
         /// <summary>
-        /// Raised when a new notification should be shown as an in-app toast.
+        /// Raised when a new notification should be shown as a toast.
         /// </summary>
         public event EventHandler<AppNotification>? NotificationPublished;
 
         /// <summary>
-        /// Raised when the user requests Update now or Update later on an update-available notification.
+        /// Raised when a withdrawn, replaced, or deferred notification needs to leave the toast stack.
+        /// </summary>
+        public event EventHandler<AppNotification>? NotificationWithdrawn;
+
+        /// <summary>
+        /// Raised when the user chooses to apply the current update offer.
         /// </summary>
         public event EventHandler<UpdateNotificationActionEventArgs>? UpdateNotificationActionRequested;
-
-
-        // Exposed collection
 
         /// <summary>
         /// Gets the live notification collection sorted by newest update first.
@@ -227,79 +236,90 @@ namespace ASLM.Services.Internal
         public ReadOnlyObservableCollection<AppNotification> Notifications => _readOnlyNotifications;
 
 
-        // Update notifications
+        // Update offers
 
         /// <summary>
-        /// Publishes a notification for one newly discovered update candidate.
-        /// The notification id contains the remote version, so each new version gets its own row.
+        /// Publishes the latest offer unless the check was superseded or that version is already being applied.
         /// </summary>
-        /// <param name="candidate">Update that was found; candidates without target or remote version are ignored.</param>
-        public void PublishUpdateCandidate(UpdateCandidate candidate)
+        internal void PublishUpdateOffer(string sourceKind, string sourceId, string versionKey, string componentName,
+            string targetVersion, string? currentVersion = null, Func<bool>? isCurrent = null)
         {
-            // Without target and version there is nothing meaningful to show or to deduplicate on.
-            if (string.IsNullOrWhiteSpace(candidate.TargetKind) ||
-                string.IsNullOrWhiteSpace(candidate.TargetId) ||
-                string.IsNullOrWhiteSpace(candidate.RemoteVersion))
+            RunOnMainThread(() =>
             {
-                return;
-            }
+                if (isCurrent?.Invoke() == false) return;
 
-            // Build the localized texts: the title depends on whether the target is the app, an engine or a module.
-            var isApp = string.Equals(candidate.TargetKind, "app", StringComparison.OrdinalIgnoreCase);
-            var isEngine = string.Equals(candidate.TargetKind, "engine", StringComparison.OrdinalIgnoreCase);
-            var title = isApp
-                ? L.Get(LocalizationKeys.Notifications_AslmUpdateAvailable)
-                : isEngine
-                    ? L.Get(LocalizationKeys.Notifications_EngineUpdateAvailable)
-                    : L.Get(LocalizationKeys.Notifications_ModuleUpdateAvailable);
-            var currentVersion = string.IsNullOrWhiteSpace(candidate.CurrentVersion)
-                ? L.Get(LocalizationKeys.Notifications_InstalledVersionFallback)
-                : candidate.CurrentVersion;
-            var message = $"{candidate.Name}: {currentVersion} -> {candidate.RemoteVersion}";
-            var detail = string.IsNullOrWhiteSpace(candidate.Channel)
-                ? string.Empty
-                : L.Get(LocalizationKeys.Notifications_ChannelFormat, candidate.Channel);
+                var source = BuildOperationKey(sourceKind, sourceId);
+                var id = $"update:{source}:{versionKey}".ToLowerInvariant();
+                if (_activeDownloads.Values.Any(item => MatchesSource(item, source) &&
+                        string.Equals(item.VersionKey, versionKey, StringComparison.OrdinalIgnoreCase)) ||
+                    _notifications.Any(item => string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return;
+                }
 
-            // Create or refresh the row and show a toast for a new one; the toast stays until the user acts on it.
-            UpsertNotification(
-                id: BuildUpdateNotificationId(candidate),
-                category: AppNotificationCategory.Updates,
-                severity: AppNotificationSeverity.Info,
-                title: title,
-                message: message,
-                statusText: L.Get(LocalizationKeys.Notifications_NewVersionFound),
-                detailText: detail,
-                sourceKind: candidate.TargetKind,
-                sourceId: candidate.TargetId,
-                showToastForNew: true,
-                afterUpdate: notification =>
-                    notification.SetUpdateAvailabilityPresentation(
-                        offersUpdateActions: true,
-                        suppressToastAutoDismiss: true));
+                var notification = new AppNotification(id, AppNotificationCategory.Updates,
+                    AppNotificationSeverity.Info, componentName, string.Empty, sourceKind, sourceId)
+                {
+                    EventType = "update-available",
+                    VersionKey = versionKey,
+                    TargetVersion = targetVersion,
+                    CurrentVersion = currentVersion
+                };
+                notification.SetUpdateAvailabilityPresentation(offersUpdateActions: true, suppressToastAutoDismiss: true);
+                Publish(notification);
+            });
         }
 
         /// <summary>
-        /// Raises the update notification action event on the UI thread for shell routing.
+        /// Withdraws offers for an entire source kind or for one source, preserving operation results.
         /// </summary>
-        /// <param name="notification">Update notification the user acted on.</param>
-        /// <param name="updateNow">True for Update now, false for Update later.</param>
+        internal void WithdrawUpdateOffers(string sourceKind, string? sourceId = null, Func<bool>? isCurrent = null)
+        {
+            RunOnMainThread(() =>
+            {
+                if (isCurrent?.Invoke() == false) return;
+
+                if (Withdraw(item => item.Category == AppNotificationCategory.Updates &&
+                        string.Equals(item.SourceKind, sourceKind, StringComparison.OrdinalIgnoreCase) &&
+                        (sourceId == null || string.Equals(item.SourceId, sourceId, StringComparison.OrdinalIgnoreCase))))
+                {
+                    SaveChanges(0);
+                }
+            });
+        }
+
+        /// <summary>
+        /// Removes a stale offer identified by the instance that initiated the update check.
+        /// </summary>
+        internal void WithdrawUpdateOffer(AppNotification notification) => RunOnMainThread(() =>
+        {
+            if (Withdraw(item => ReferenceEquals(item, notification) &&
+                    item.Category == AppNotificationCategory.Updates))
+            {
+                SaveChanges(0);
+            }
+        });
+
+        /// <summary>
+        /// Applies the requested action to the current offer, persisting any deferral.
+        /// </summary>
         public void RequestUpdateNotificationAction(AppNotification notification, bool updateNow)
         {
             RunOnMainThread(() =>
-                UpdateNotificationActionRequested?.Invoke(this, new UpdateNotificationActionEventArgs(notification, updateNow)));
-        }
-
-        /// <summary>
-        /// Hides inline update actions after the user defers from the notifications list.
-        /// </summary>
-        /// <param name="notification">Update notification whose Update now / Update later actions are removed.</param>
-        public void ClearUpdateNotificationDeferredActions(AppNotification notification)
-        {
-            RunOnMainThread(() =>
             {
-                notification.ClearUpdateAvailabilityPresentation();
-                RaiseNotificationsChanged();
-                QueueSave(0);
+                if (!notification.OffersUpdateActions || !_notifications.Contains(notification)) return;
+
+                if (updateNow)
+                {
+                    UpdateNotificationActionRequested?.Invoke(this, new UpdateNotificationActionEventArgs(notification));
+                }
+                else if (notification.CanDeferUpdate)
+                {
+                    notification.SetUpdateAvailabilityPresentation(
+                        offersUpdateActions: false, suppressToastAutoDismiss: false);
+                    NotificationWithdrawn?.Invoke(this, notification);
+                    SaveChanges(0);
+                }
             });
         }
 
@@ -307,35 +327,25 @@ namespace ASLM.Services.Internal
         // System toasts
 
         /// <summary>
-        /// Publishes a short-lived system toast without adding it to the persisted notification list.
+        /// Publishes a short-lived system toast with a stable event identity and optional component identity.
         /// </summary>
-        /// <param name="title">Toast title.</param>
-        /// <param name="message">Toast message.</param>
-        /// <param name="statusText">Status line shown below the message.</param>
-        /// <param name="sourceId">Identifier of the component that raised the toast; also part of the toast id.</param>
-        public void PublishSystemToast(string title, string message, string statusText, string sourceId)
+        public void PublishSystemToast(string title, string message, string statusText, string eventType,
+            string sourceId = "", AppNotificationSeverity severity = AppNotificationSeverity.Success) =>
+            PublishMessage("system", sourceId, eventType, severity, title, message, statusText, persist: false);
+
+        /// <summary>
+        /// Publishes a source-owned message through the shared journal and toast replacement rules.
+        /// </summary>
+        internal void PublishMessage(string sourceKind, string sourceId, string eventType, AppNotificationSeverity severity,
+            string title, string message, string statusText, bool persist)
         {
             RunOnMainThread(() =>
             {
-                // The id contains a timestamp, so repeated toasts of one source never share a notification.
-                var notification = new AppNotification(
-                    $"toast:system:{sourceId}:{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
-                    AppNotificationCategory.System,
-                    AppNotificationSeverity.Success,
-                    title,
-                    message,
-                    "system",
-                    sourceId);
-
-                notification.UpdateContent(
-                    AppNotificationSeverity.Success,
-                    title,
-                    message,
-                    statusText,
-                    string.Empty);
-
-                // Only the toast is raised; the notification is never added to the list.
-                NotificationPublished?.Invoke(this, notification);
+                var id = $"message:{BuildOperationKey(sourceKind, sourceId)}:{eventType}";
+                var notification = new AppNotification(id, AppNotificationCategory.System, severity,
+                    title, message, sourceKind, sourceId) { EventType = eventType };
+                notification.UpdateContent(severity, title, message, statusText, string.Empty);
+                Publish(notification, persist);
             });
         }
 
@@ -343,33 +353,29 @@ namespace ASLM.Services.Internal
         // Download notifications
 
         /// <summary>
-        /// Starts or refreshes a download notification on the UI thread and waits until it is inserted
-        /// so background download progress cannot race ahead of the notification row.
+        /// Opens a download attempt and returns the identity used for its later reports.
         /// </summary>
-        /// <param name="operationKey">Operation key from <see cref="BuildOperationKey"/> that identifies the download.</param>
-        /// <param name="title">Notification title.</param>
-        /// <param name="message">Notification message.</param>
-        /// <param name="sourceKind">Kind of operation or item that produced the download; stored with the notification.</param>
-        /// <param name="sourceId">Identifier of the item the download belongs to; stored with the notification.</param>
-        public Task StartDownloadAsync(string operationKey, string title, string message, string sourceKind, string sourceId)
+        public Task<string> StartDownloadAsync(string operationType, string title, string message,
+            string sourceKind, string sourceId, string? versionKey = null, bool replacesUpdateOffer = false,
+            string? targetVersion = null)
         {
-            // Start a fresh speed window for this operation.
-            _downloadTransferSpeedEstimator.Reset(operationKey);
-
             return _dispatcher.InvokeAsync(() =>
             {
-                UpsertNotificationImpl(
-                    id: BuildDownloadNotificationId(operationKey),
-                    category: AppNotificationCategory.Downloads,
-                    severity: AppNotificationSeverity.Info,
-                    title: title,
-                    message: message,
-                    statusText: "Starting download...",
-                    detailText: "0 B",
-                    sourceKind: sourceKind,
-                    sourceId: sourceId,
-                    showToastForNew: true,
-                    afterUpdate: notification => notification.UpdateProgress(hasProgress: true, progressFraction: 0, isInProgress: true));
+                var id = $"download:{Guid.NewGuid():N}";
+                var notification = new AppNotification(id, AppNotificationCategory.Downloads,
+                    AppNotificationSeverity.Info, title, message, sourceKind, sourceId)
+                {
+                    EventType = operationType,
+                    VersionKey = versionKey,
+                    TargetVersion = targetVersion
+                };
+                notification.UpdateContent(notification.Severity, title, message,
+                    L.Get(LocalizationKeys.Notifications_StartingDownload), "0 B");
+                notification.UpdateProgress(hasProgress: true, progressFraction: 0, isInProgress: true);
+                _activeDownloads.Add(id, notification);
+
+                Publish(notification, replacesUpdateOffer: replacesUpdateOffer);
+                return id;
             });
         }
 
@@ -378,14 +384,13 @@ namespace ASLM.Services.Internal
         /// </summary>
         /// <param name="operationKey">Operation key of the download.</param>
         /// <param name="progress">Current byte counts and completed fraction.</param>
-        /// <param name="statusText">Status line to show, or null for the default "Downloading..." text.</param>
+        /// <param name="statusText">Status line to show, or null for the localized download status.</param>
         public void ReportDownloadProgress(string operationKey, DownloadProgress progress, string? statusText = null)
         {
             RunOnMainThread(() =>
             {
-                // Late reports for a download that was never started or already removed are ignored.
-                var notification = FindNotification(BuildDownloadNotificationId(operationKey));
-                if (notification == null)
+                // Each attempt has its own identity, so reports posted after completion are ignored.
+                if (!_activeDownloads.TryGetValue(operationKey, out var notification))
                 {
                     return;
                 }
@@ -402,14 +407,13 @@ namespace ASLM.Services.Internal
                     AppNotificationSeverity.Info,
                     notification.Title,
                     notification.Message,
-                    statusText ?? "Downloading...",
+                    statusText ?? L.Get(LocalizationKeys.Settings_Downloading),
                     detail);
                 notification.UpdateProgress(hasProgress: true, progress.Fraction, isInProgress: true);
 
                 // Progress arrives often, so the save is debounced longer than for other changes.
                 Resort(notification);
-                RaiseNotificationsChanged();
-                QueueSave(1000);
+                SaveChanges(1000);
             });
         }
 
@@ -422,8 +426,7 @@ namespace ASLM.Services.Internal
         {
             RunOnMainThread(() =>
             {
-                var notification = FindNotification(BuildDownloadNotificationId(operationKey));
-                if (notification == null)
+                if (!_activeDownloads.TryGetValue(operationKey, out var notification))
                 {
                     return;
                 }
@@ -437,11 +440,10 @@ namespace ASLM.Services.Internal
                     notification.Title,
                     notification.Message,
                     statusText,
-                    notification.DetailText);
-                notification.UpdateProgress(notification.HasProgress, notification.ProgressFraction, isInProgress: true);
+                    string.Empty);
+                notification.UpdateProgress(hasProgress: false, progressFraction: 0, isInProgress: true);
                 Resort(notification);
-                RaiseNotificationsChanged();
-                QueueSave(500);
+                SaveChanges(500);
             });
         }
 
@@ -452,7 +454,7 @@ namespace ASLM.Services.Internal
         /// <param name="statusText">Result text to show.</param>
         public void CompleteDownload(string operationKey, string statusText)
         {
-            FinishDownload(operationKey, AppNotificationSeverity.Success, statusText, 1.0);
+            FinishDownload(operationKey, AppNotificationSeverity.Success, statusText);
         }
 
         /// <summary>
@@ -462,7 +464,7 @@ namespace ASLM.Services.Internal
         /// <param name="statusText">Failure text to show.</param>
         public void FailDownload(string operationKey, string statusText)
         {
-            FinishDownload(operationKey, AppNotificationSeverity.Error, statusText, 0);
+            FinishDownload(operationKey, AppNotificationSeverity.Error, statusText);
         }
 
         /// <summary>
@@ -474,7 +476,7 @@ namespace ASLM.Services.Internal
             string operationKey,
             IProgress<DownloadProgress>? innerProgress = null)
         {
-            return new Progress<DownloadProgress>(progress =>
+            return new InlineProgress<DownloadProgress>(progress =>
             {
                 ReportDownloadProgress(operationKey, progress);
                 innerProgress?.Report(progress);
@@ -482,188 +484,135 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
-        /// Finishes a download notification with the requested severity and status text.
+        /// Records a canceled download attempt.
         /// </summary>
-        /// <param name="operationKey">Operation key of the download.</param>
-        /// <param name="severity">Success or error severity of the final state.</param>
-        /// <param name="statusText">Result text to show.</param>
-        /// <param name="finalProgress">Progress fraction the caller associates with the outcome; a finished row shows no progress bar.</param>
-        private void FinishDownload(
-            string operationKey,
-            AppNotificationSeverity severity,
-            string statusText,
-            double finalProgress)
+        internal void CancelDownload(string operationKey, string statusText) =>
+            FinishDownload(operationKey, AppNotificationSeverity.Warning, statusText);
+
+        /// <summary>
+        /// Records the staged release before the external launcher takes over the ASLM update.
+        /// </summary>
+        internal async Task PrepareDownloadForRestartAsync(string operationKey, string statusText)
+        {
+            await _dispatcher.InvokeAsync(() =>
+                FinishDownload(operationKey, AppNotificationSeverity.Info, statusText, awaitingRestart: true));
+            if (!_isInitialized) return;
+
+            try
+            {
+                await SaveSnapshotAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // The launcher can still apply the staged update if the journal could not be saved.
+                Debug.WriteLine(ex);
+            }
+        }
+
+        /// <summary>
+        /// Finishes the attempt once and publishes its result even when its progress row is gone.
+        /// </summary>
+        private void FinishDownload(string operationKey, AppNotificationSeverity severity, string statusText,
+            bool awaitingRestart = false)
         {
             RunOnMainThread(() =>
             {
-                var notification = FindNotification(BuildDownloadNotificationId(operationKey));
-                if (notification == null)
-                {
-                    return;
-                }
+                if (!_activeDownloads.Remove(operationKey, out var notification)) return;
 
                 _downloadTransferSpeedEstimator.Reset(operationKey);
-
-                // Clear byte-transfer detail so completed cards show only the result message.
-                notification.UpdateContent(
-                    severity,
-                    notification.Title,
-                    notification.Message,
-                    statusText,
-                    string.Empty);
+                notification.AwaitingRestart = awaitingRestart;
+                notification.UpdateContent(severity, notification.Title, notification.Message, statusText, string.Empty);
                 notification.UpdateProgress(hasProgress: false, 0, isInProgress: false);
-
-                // Save immediately and raise the toast so the user sees the final result.
-                Resort(notification);
-                RaiseNotificationsChanged();
-                QueueSave(0);
-                NotificationPublished?.Invoke(this, notification);
+                Publish(notification, saveDelay: 0);
             });
         }
 
 
-        // Notification list
+        // Publication and ordering
 
         /// <summary>
-        /// Removes one notification from the visible list.
+        /// Removes one journal entry when the user can dismiss it.
         /// </summary>
-        /// <param name="notification">Notification to remove.</param>
-        public void Dismiss(AppNotification notification)
+        public void Dismiss(AppNotification notification) => RunOnMainThread(() =>
         {
-            RunOnMainThread(() =>
+            if (Withdraw(item => ReferenceEquals(item, notification) && item.CanDismiss)) SaveChanges(0);
+        });
+
+        /// <summary>
+        /// Removes every entry that the user can dismiss.
+        /// </summary>
+        public void DismissAll() => RunOnMainThread(() =>
+        {
+            if (Withdraw(item => item.CanDismiss)) SaveChanges(0);
+        });
+
+        /// <summary>
+        /// Builds a stable, case-insensitive source key.
+        /// </summary>
+        public static string BuildOperationKey(string sourceKind, string sourceId) =>
+            $"{sourceKind.Trim().ToLowerInvariant()}:{sourceId.Trim().ToLowerInvariant()}";
+
+        /// <summary>
+        /// Replaces the journal entry for the same event and announces the new toast.
+        /// </summary>
+        private void Publish(AppNotification notification, bool persist = true, int saveDelay = 200,
+            bool replacesUpdateOffer = false)
+        {
+            if (persist)
             {
-                _notifications.Remove(notification);
-                RaiseNotificationsChanged();
-                QueueSave(0);
-            });
-        }
+                // Add the new row first so replacing the only item does not briefly empty the native list.
+                if (_notifications.Contains(notification)) Resort(notification);
+                else _notifications.Insert(0, notification);
 
-        /// <summary>
-        /// Clears all persisted notifications at once.
-        /// </summary>
-        public void DismissAll()
-        {
-            RunOnMainThread(() =>
-            {
-                _notifications.Clear();
-                RaiseNotificationsChanged();
-                QueueSave(0);
-            });
-        }
-
-
-        // Operation keys
-
-        /// <summary>
-        /// Builds a stable operation key for download notifications: trimmed, lowercase <c>kind:id</c>.
-        /// </summary>
-        /// <param name="sourceKind">Kind of operation or item.</param>
-        /// <param name="sourceId">Identifier of the item.</param>
-        public static string BuildOperationKey(string sourceKind, string sourceId)
-        {
-            return $"{sourceKind.Trim().ToLowerInvariant()}:{sourceId.Trim().ToLowerInvariant()}";
-        }
-
-
-        // Upsert and ordering
-
-        /// <summary>
-        /// Inserts or updates one notification on the UI thread. The parameters are the same as for
-        /// <see cref="UpsertNotificationImpl"/>, which performs the work.
-        /// </summary>
-        private void UpsertNotification(
-            string id,
-            AppNotificationCategory category,
-            AppNotificationSeverity severity,
-            string title,
-            string message,
-            string statusText,
-            string detailText,
-            string sourceKind,
-            string sourceId,
-            bool showToastForNew,
-            Action<AppNotification>? afterUpdate = null)
-        {
-            RunOnMainThread(() => UpsertNotificationImpl(
-                id,
-                category,
-                severity,
-                title,
-                message,
-                statusText,
-                detailText,
-                sourceKind,
-                sourceId,
-                showToastForNew,
-                afterUpdate));
-        }
-
-        /// <summary>
-        /// Inserts or updates one notification while already executing on the UI thread.
-        /// A toast is raised only when the notification is new and <paramref name="showToastForNew"/> is set.
-        /// </summary>
-        /// <param name="id">Stable identity; an existing notification with the same id is updated.</param>
-        /// <param name="category">Category of a newly created notification.</param>
-        /// <param name="severity">Severity shown after the update.</param>
-        /// <param name="title">Title shown after the update.</param>
-        /// <param name="message">Message shown after the update.</param>
-        /// <param name="statusText">Status line shown after the update.</param>
-        /// <param name="detailText">Detail line shown after the update.</param>
-        /// <param name="sourceKind">Source kind of a newly created notification.</param>
-        /// <param name="sourceId">Source id of a newly created notification.</param>
-        /// <param name="showToastForNew">Whether a newly created notification is also announced as a toast.</param>
-        /// <param name="afterUpdate">Optional callback that applies extra state to the notification after its content was refreshed.</param>
-        private void UpsertNotificationImpl(
-            string id,
-            AppNotificationCategory category,
-            AppNotificationSeverity severity,
-            string title,
-            string message,
-            string statusText,
-            string detailText,
-            string sourceKind,
-            string sourceId,
-            bool showToastForNew,
-            Action<AppNotification>? afterUpdate = null)
-        {
-            // Resolve an existing row or create one at the head of the list.
-            var notification = FindNotification(id);
-            var isNew = notification == null;
-            if (notification == null)
-            {
-                notification = new AppNotification(id, category, severity, title, message, sourceKind, sourceId);
-                _notifications.Insert(0, notification);
+                var key = GetDeduplicationKey(notification);
+                Withdraw(item => !ReferenceEquals(item, notification) &&
+                    (GetDeduplicationKey(item) == key || replacesUpdateOffer &&
+                        item.Category == AppNotificationCategory.Updates && MatchesSource(item, key.Source)));
+                TrimOldNotifications();
+                SaveChanges(saveDelay);
             }
 
-            // Refresh visible text and let callers attach category-specific state.
-            notification.UpdateContent(
-                severity,
-                title,
-                message,
-                statusText,
-                detailText);
-            afterUpdate?.Invoke(notification);
-
-            // Re-sort, cap persisted size, notify listeners, and debounce disk write.
-            Resort(notification);
-            TrimOldNotifications();
-            RaiseNotificationsChanged();
-            QueueSave(200);
-
-            if (isNew && showToastForNew)
-            {
-                NotificationPublished?.Invoke(this, notification);
-            }
+            NotificationPublished?.Invoke(this, notification);
         }
 
         /// <summary>
-        /// Finds one notification by stable identity (case-insensitive); returns null when it does not exist.
+        /// Removes matching journal entries and withdraws any visible toasts for them.
         /// </summary>
-        private AppNotification? FindNotification(string id)
+        private bool Withdraw(Predicate<AppNotification> matches)
         {
-            return _notifications.FirstOrDefault(notification =>
-                string.Equals(notification.Id, id, StringComparison.OrdinalIgnoreCase));
+            var removed = false;
+            for (var i = _notifications.Count - 1; i >= 0; i--)
+            {
+                var item = _notifications[i];
+                if (!matches(item)) continue;
+                _notifications.RemoveAt(i);
+                NotificationWithdrawn?.Invoke(this, item);
+                removed = true;
+            }
+
+            return removed;
         }
+
+        /// <summary>
+        /// Groups offers and active work by event and source, and results by version and outcome as well.
+        /// </summary>
+        private static (AppNotificationCategory Category, string Source, string Type, string? Version,
+            AppNotificationSeverity? Result) GetDeduplicationKey(AppNotification notification)
+        {
+            var result = notification.Category == AppNotificationCategory.Downloads && !notification.IsInProgress;
+            var eventType = notification.Category == AppNotificationCategory.Updates && notification.EventType.Length == 0
+                ? "update-available"
+                : notification.EventType;
+            return (notification.Category, BuildOperationKey(notification.SourceKind, notification.SourceId),
+                eventType, result ? notification.VersionKey?.ToLowerInvariant() : null,
+                result ? notification.Severity : null);
+        }
+
+        /// <summary>
+        /// Checks whether a journal entry belongs to the normalized source.
+        /// </summary>
+        private static bool MatchesSource(AppNotification notification, string source) =>
+            BuildOperationKey(notification.SourceKind, notification.SourceId) == source;
 
         /// <summary>
         /// Moves an updated notification back into newest-first order using Move so listeners
@@ -711,7 +660,9 @@ namespace ASLM.Services.Internal
         {
             while (_notifications.Count > MaxPersistedNotifications)
             {
+                var item = _notifications[^1];
                 _notifications.RemoveAt(_notifications.Count - 1);
+                NotificationWithdrawn?.Invoke(this, item);
             }
         }
 
@@ -719,56 +670,84 @@ namespace ASLM.Services.Internal
         // Persistence
 
         /// <summary>
-        /// Loads persisted notifications from disk and restores their progress state.
+        /// Restores journal entries, discards superseded offers, and reconciles operations that crossed a restart.
         /// </summary>
-        private async Task LoadAsync()
+        private async Task<bool> LoadAsync(string? installedReleaseTag, string? pendingReleaseTag)
         {
             try
             {
-                // Nothing to restore on first run.
-                if (!File.Exists(_filePath))
-                {
-                    return;
-                }
+                if (!File.Exists(_filePath)) return false;
 
                 var json = await File.ReadAllTextAsync(_filePath);
-                if (string.IsNullOrWhiteSpace(json))
-                {
-                    return;
-                }
-
-                // Deserialize the snapshot and rebuild the in-memory collection.
                 var store = JsonSerializer.Deserialize<NotificationStore>(json, _jsonOptions) ?? new NotificationStore();
-                foreach (var item in store.Notifications
-                             .Where(item => !string.IsNullOrWhiteSpace(item.Id))
-                             .OrderByDescending(item => item.UpdatedAt)
-                             .Take(MaxPersistedNotifications))
+                var changed = false;
+                var keys = new HashSet<(AppNotificationCategory, string, string, string?, AppNotificationSeverity?)>();
+                foreach (var item in store.Notifications.OrderByDescending(item => item.UpdatedAt))
                 {
-                    _notifications.Add(new AppNotification(
-                        item.Id,
-                        item.Category,
-                        item.Severity,
-                        item.Title,
-                        item.Message,
-                        item.SourceKind,
-                        item.SourceId,
-                        item.CreatedAt,
-                        item.UpdatedAt,
-                        item.IsInProgress,
-                        item.ProgressFraction,
-                        item.HasProgress,
-                        item.StatusText,
-                        item.DetailText,
-                        item.OffersUpdateActions,
-                        item.SuppressToastAutoDismiss));
+                    if (_notifications.Count >= MaxPersistedNotifications) break;
+                    if (string.IsNullOrWhiteSpace(item.Id)) continue;
+
+                    // Restore unfinished work only when the staged ASLM release is still waiting for the launcher.
+                    if (item.AwaitingRestart &&
+                        !string.Equals(item.VersionKey, pendingReleaseTag, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var applied = string.Equals(item.VersionKey, installedReleaseTag, StringComparison.OrdinalIgnoreCase);
+                        item.Severity = applied ? AppNotificationSeverity.Success : AppNotificationSeverity.Error;
+                        item.StatusText = applied
+                            ? L.Get(LocalizationKeys.ModuleUpdate_Status_Updated)
+                            : L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed);
+                        item.AwaitingRestart = false;
+                        changed = true;
+                    }
+
+                    if (item.IsInProgress)
+                    {
+                        item.Severity = AppNotificationSeverity.Warning;
+                        item.StatusText = LocalizationKeys.Notifications_OperationInterrupted;
+                        item.DetailText = string.Empty;
+                        item.IsInProgress = false;
+                        item.HasProgress = false;
+                        item.ProgressFraction = 0;
+                        changed = true;
+                    }
+
+                    // Earlier journals restored disabled offers as actionable. Keep newer deferrals as saved.
+                    var isOffer = item.Category == AppNotificationCategory.Updates;
+                    var restoreActions = isOffer && store.FileVersion < PersistentDeferralVersion && !item.OffersUpdateActions;
+                    changed |= restoreActions;
+
+                    var notification = new AppNotification(
+                        item.Id, item.Category, item.Severity, item.Title, item.Message, item.SourceKind, item.SourceId,
+                        item.CreatedAt, item.UpdatedAt, item.IsInProgress, item.ProgressFraction, item.HasProgress,
+                        item.StatusText, item.DetailText, restoreActions || item.OffersUpdateActions, item.SuppressToastAutoDismiss)
+                    {
+                        EventType = item.EventType ?? string.Empty,
+                        VersionKey = item.VersionKey,
+                        TargetVersion = item.TargetVersion,
+                        CurrentVersion = item.CurrentVersion,
+                        AwaitingRestart = item.AwaitingRestart
+                    };
+                    if (isOffer || notification.EventType.Length > 0)
+                    {
+                        if (!keys.Add(GetDeduplicationKey(notification)))
+                        {
+                            changed = true;
+                            continue;
+                        }
+                    }
+
+                    _notifications.Add(notification);
                 }
 
                 RaiseNotificationsChanged();
+                return changed;
             }
-            catch
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
             {
-                // Corrupt or incompatible file: start with an empty list rather than partial state.
+                // Keep the original file for diagnosis and start with an empty journal.
+                Debug.WriteLine(ex);
                 _notifications.Clear();
+                return false;
             }
         }
 
@@ -806,6 +785,11 @@ namespace ASLM.Services.Internal
                 {
                     // Superseded by a newer save request, which writes the latest state.
                 }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // The journal remains available in memory and the next mutation can retry the write.
+                    Debug.WriteLine(ex);
+                }
             }, ct);
         }
 
@@ -814,19 +798,32 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task SaveSnapshotAsync(CancellationToken ct)
         {
-            // Copy the collection on the UI thread, where it is modified, then write the copy from the background.
-            var snapshot = await _dispatcher.InvokeAsync(() => new NotificationStore
+            await _saveGate.WaitAsync(ct).ConfigureAwait(false);
+            var temporaryPath = _filePath + ".tmp";
+            try
             {
-                Notifications = _notifications
-                    .OrderByDescending(notification => notification.UpdatedAt)
-                    .Take(MaxPersistedNotifications)
-                    .Select(CreateStoreItem)
-                    .ToList()
-            });
+                var snapshot = await _dispatcher.InvokeAsync(() => new NotificationStore
+                {
+                    Notifications = _notifications.Take(MaxPersistedNotifications).Select(CreateStoreItem).ToList()
+                }).ConfigureAwait(false);
 
-            Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-            var json = JsonSerializer.Serialize(snapshot, _jsonOptions);
-            await File.WriteAllTextAsync(_filePath, json, ct);
+                Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+                var json = JsonSerializer.Serialize(snapshot, _jsonOptions);
+                await File.WriteAllTextAsync(temporaryPath, json, ct);
+                ct.ThrowIfCancellationRequested();
+                File.Move(temporaryPath, _filePath, overwrite: true);
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(temporaryPath);
+                }
+                finally
+                {
+                    _saveGate.Release();
+                }
+            }
         }
 
         /// <summary>
@@ -845,6 +842,11 @@ namespace ASLM.Services.Internal
                 DetailText = notification.DetailText,
                 SourceKind = notification.SourceKind,
                 SourceId = notification.SourceId,
+                EventType = notification.EventType,
+                VersionKey = notification.VersionKey,
+                TargetVersion = notification.TargetVersion,
+                CurrentVersion = notification.CurrentVersion,
+                AwaitingRestart = notification.AwaitingRestart,
                 CreatedAt = notification.CreatedAt,
                 UpdatedAt = notification.UpdatedAt,
                 IsInProgress = notification.IsInProgress,
@@ -880,24 +882,17 @@ namespace ASLM.Services.Internal
             NotificationsChanged?.Invoke(this, EventArgs.Empty);
         }
 
+        /// <summary>
+        /// Notifies the journal and schedules persistence of the changed collection.
+        /// </summary>
+        private void SaveChanges(int delayMs)
+        {
+            RaiseNotificationsChanged();
+            QueueSave(delayMs);
+        }
+
 
         // Identifiers and formatting
-
-        /// <summary>
-        /// Builds a stable notification id for one update candidate.
-        /// </summary>
-        private static string BuildUpdateNotificationId(UpdateCandidate candidate)
-        {
-            return $"update:{candidate.TargetKind}:{candidate.TargetId}:{candidate.RemoteVersion}".ToLowerInvariant();
-        }
-
-        /// <summary>
-        /// Builds a stable notification id for one download operation.
-        /// </summary>
-        private static string BuildDownloadNotificationId(string operationKey)
-        {
-            return $"download:{operationKey}".ToLowerInvariant();
-        }
 
         /// <summary>
         /// Formats byte counts into compact transfer labels (B, KB, MB or GB with one decimal for larger units).
@@ -941,7 +936,7 @@ namespace ASLM.Services.Internal
             /// <summary>
             /// Version of the file format.
             /// </summary>
-            public int FileVersion { get; set; } = 1;
+            public int FileVersion { get; set; } = PersistentDeferralVersion;
 
             /// <summary>
             /// Persisted notifications, newest first.
@@ -998,6 +993,31 @@ namespace ASLM.Services.Internal
             /// Identifier of the item that produced the notification.
             /// </summary>
             public string SourceId { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Identifies the event within the source for deduplication.
+            /// </summary>
+            public string EventType { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Identifies the release or commit associated with the event, if known.
+            /// </summary>
+            public string? VersionKey { get; set; }
+
+            /// <summary>
+            /// Display version offered, installed, or updated by this event.
+            /// </summary>
+            public string? TargetVersion { get; set; }
+
+            /// <summary>
+            /// Installed version at the time of the offer, when known.
+            /// </summary>
+            public string? CurrentVersion { get; set; }
+
+            /// <summary>
+            /// Indicates that this update has been staged for the launcher.
+            /// </summary>
+            public bool AwaitingRestart { get; set; }
 
             /// <summary>
             /// When the notification was created.

@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Azione non riuscita</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>Aggiornamento ASLM disponibile</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>Nessun aggiornamento ASLM disponibile al momento</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>Aggiornamento ASLM</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>Canale: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>Cancella tutto</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Nessuna notifica</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>Aggiornamento del motore disponibile</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>Impossibile applicare l'aggiornamento del motore</value>
@@ -825,20 +816,35 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Aggiornamento del motore</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>{0} installato</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>versione installata</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>{0} {1} installato</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>Installazione dei file</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Quel modulo non è più installato</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>Aggiornamento modulo disponibile</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>Operazione interrotta</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>Nuova versione trovata</value>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>Preparazione dei file</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>Riavvia l’app per completare l’aggiornamento</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>Recenti</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>Avvio del download</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>{0} in totale</value>
@@ -852,11 +858,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>Aggiorna</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>Disponibile l’aggiornamento a {0} {1}</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>Aggiornamento disponibile per {0} ({1} -&gt; {2})</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>Aggiorna più tardi</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Aggiorna ora</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>{0} aggiornato a {1}</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>Aggiornamento di {0} a {1}</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Account ASLM</value>

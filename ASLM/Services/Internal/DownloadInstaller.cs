@@ -195,13 +195,12 @@ namespace ASLM.Services.Internal
             var selectedTitle = !string.IsNullOrWhiteSpace(selectedVariant?.Title)
                 ? selectedVariant!.Title
                 : item.Title;
-            var operationKey = NotificationCenter.BuildOperationKey("download-install", selectedResourceKey);
             var catalogLabel = item.Title;
             var notificationMessage = string.Equals(selectedTitle, catalogLabel, StringComparison.OrdinalIgnoreCase)
                 ? catalogLabel
                 : $"{catalogLabel} · {selectedTitle}";
-            await _notifications.StartDownloadAsync(
-                operationKey,
+            var operationKey = await _notifications.StartDownloadAsync(
+                "download-install",
                 "Installing download",
                 notificationMessage,
                 "download",
@@ -232,7 +231,7 @@ namespace ASLM.Services.Internal
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    _notifications.FailDownload(operationKey, $"Installation canceled for {selectedTitle}.");
+                    _notifications.CancelDownload(operationKey, $"Installation canceled for {selectedTitle}.");
                     throw;
                 }
                 catch (Exception ex)
@@ -281,7 +280,7 @@ namespace ASLM.Services.Internal
                 }
                 catch (OperationCanceledException)
                 {
-                    _notifications.FailDownload(operationKey, $"Installation canceled for {selectedTitle}.");
+                    _notifications.CancelDownload(operationKey, $"Installation canceled for {selectedTitle}.");
                     throw;
                 }
                 catch (Exception ex)
@@ -339,13 +338,12 @@ namespace ASLM.Services.Internal
             var selectedTitle = !string.IsNullOrWhiteSpace(selectedVariant?.Title)
                 ? selectedVariant!.Title
                 : item.Title;
-            var operationKey = NotificationCenter.BuildOperationKey("download-remove", selectedResourceKey);
             var catalogLabel = item.Title;
             var notificationMessage = string.Equals(selectedTitle, catalogLabel, StringComparison.OrdinalIgnoreCase)
                 ? catalogLabel
                 : $"{catalogLabel} · {selectedTitle}";
-            await _notifications.StartDownloadAsync(
-                operationKey,
+            var operationKey = await _notifications.StartDownloadAsync(
+                "download-remove",
                 "Removing download",
                 notificationMessage,
                 "download",
@@ -376,7 +374,7 @@ namespace ASLM.Services.Internal
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    _notifications.FailDownload(operationKey, $"Removal canceled for {selectedTitle}.");
+                    _notifications.CancelDownload(operationKey, $"Removal canceled for {selectedTitle}.");
                     throw;
                 }
                 catch (Exception ex)
@@ -417,7 +415,7 @@ namespace ASLM.Services.Internal
                 }
                 catch (OperationCanceledException)
                 {
-                    _notifications.FailDownload(operationKey, $"Removal canceled for {selectedTitle}.");
+                    _notifications.CancelDownload(operationKey, $"Removal canceled for {selectedTitle}.");
                     throw;
                 }
                 catch (Exception ex)

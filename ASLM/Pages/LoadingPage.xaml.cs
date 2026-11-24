@@ -49,6 +49,11 @@ namespace ASLM.Pages
         private readonly UpdateScheduler _updateScheduler;
 
         /// <summary>
+        /// Resolves the staged ASLM release when restoring the notification journal.
+        /// </summary>
+        private readonly UpdateManager _updateManager;
+
+        /// <summary>
         /// Local reverse proxy that is started here when the settings enable it.
         /// </summary>
         private readonly AslmMirrorServer _mirrorServer;
@@ -107,6 +112,7 @@ namespace ASLM.Pages
             GitHubAccountStore githubAccountStore,
             GitHubUpdateClient githubUpdateClient,
             UpdateScheduler updateScheduler,
+            UpdateManager updateManager,
             AslmMirrorServer mirrorServer,
             AslmModuleInteropServer moduleInteropServer,
             ThemeService themeService,
@@ -124,6 +130,7 @@ namespace ASLM.Pages
             _githubAccountStore = githubAccountStore;
             _githubUpdateClient = githubUpdateClient;
             _updateScheduler = updateScheduler;
+            _updateManager = updateManager;
             _mirrorServer = mirrorServer;
             _moduleInteropServer = moduleInteropServer;
             _themeService = themeService;
@@ -194,7 +201,8 @@ namespace ASLM.Pages
             await Task.Run(() => _legalAcceptance.InitializeAsync());
             await Task.Run(() => _moduleTrustService.InitializeAsync());
             await Task.Run(() => _customThemesStore.LoadAsync());
-            await Task.Run(() => _notifications.InitializeAsync());
+            await Task.Run(() => _notifications.InitializeAsync(
+                _appData.Data.Updates.InstalledReleaseTag, _updateManager.TryGetPendingPreparedAppVersion()));
             await Task.Run(() => _mirrorServer.StartIfEnabledAsync());
             await Task.Run(() => _moduleInteropServer.EnsureStartedAsync());
             await Task.Run(() => _rateLimitStore.InitializeAsync());

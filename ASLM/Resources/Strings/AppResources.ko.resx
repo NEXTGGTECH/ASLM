@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>작업 실패</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>ASLM 업데이트 가능</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>현재 사용 가능한 ASLM 업데이트가 없습니다</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>ASLM 업데이트</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>채널: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>모두 지우기</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>알림 없음</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>엔진 업데이트 가능</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>엔진 업데이트를 적용할 수 없습니다</value>
@@ -825,20 +816,35 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>엔진 업데이트</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>{0} 설치 완료</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>설치된 버전</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>{0} {1} 설치 완료</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>파일 설치 중</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>해당 모듈은 더 이상 설치되어 있지 않습니다</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>모듈 업데이트 가능</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>작업이 중단됨</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>새 버전이 발견되었습니다</value>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>파일 준비 중</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>업데이트를 완료하려면 앱을 다시 시작하세요</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>최근</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>다운로드 시작 중</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>총 {0}개</value>
@@ -852,11 +858,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>업데이트</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>{0} {1} 업데이트 가능</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>{0} 업데이트 가능 ({1} -&gt; {2})</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>나중에 업데이트</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>지금 업데이트</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>{0} {1} 업데이트 완료</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>{0} {1} 업데이트 중</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM 계정</value>

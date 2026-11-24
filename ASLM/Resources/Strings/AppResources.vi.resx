@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Hành động thất bại</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>Có bản cập nhật ASLM</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>Không có bản cập nhật ASLM nào hiện tại</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>Cập nhật ASLM</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>Kênh: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>Xóa tất cả</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Không có thông báo</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>Có bản cập nhật engine</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>Không thể áp dụng bản cập nhật engine</value>
@@ -825,20 +816,35 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Cập nhật engine</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>Đã cài đặt {0}</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>phiên bản đã cài đặt</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>Đã cài đặt {0} {1}</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>Đang cài đặt tệp</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Mô-đun đó không còn được cài đặt nữa</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>Có bản cập nhật mô-đun</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>Thao tác bị gián đoạn</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>Tìm thấy phiên bản mới</value>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>Đang chuẩn bị tệp</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>Khởi động lại ứng dụng để hoàn tất cập nhật</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>Gần đây</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>Bắt đầu tải xuống</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>{0} tổng</value>
@@ -852,11 +858,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>Cập nhật</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>Có thể cập nhật lên {0} {1}</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>Có bản cập nhật cho {0} ({1} -&gt; {2})</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>Cập nhật sau</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Cập nhật ngay</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>Đã cập nhật {0} lên {1}</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>Đang cập nhật {0} lên {1}</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Tài khoản ASLM</value>

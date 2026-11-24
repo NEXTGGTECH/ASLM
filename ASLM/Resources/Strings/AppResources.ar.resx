@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>فشل الإجراء</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>يتوفر تحديث ASLM</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>لا يتوفر تحديث ASLM في الوقت الحالي</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>تحديث ASLM</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>القناة: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>مسح الكل</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>لا إشعارات</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>يتوفر تحديث للمحرك</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>تعذر تطبيق تحديث المحرك</value>
@@ -825,20 +816,35 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>تحديث المحرك</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>تم تثبيت &#x2068;{0}&#x2069;</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>الإصدار المثبّت</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>تم تثبيت &#x2068;{0}&#x2069; (&#x2066;{1}&#x2069;)</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>جارٍ تثبيت الملفات</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>هذه الوحدة لم تعد مثبّتة</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>يتوفر تحديث للوحدة</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>توقفت العملية قبل اكتمالها</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>تم العثور على إصدار جديد</value>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>جارٍ تجهيز الملفات</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>أعد تشغيل التطبيق لإكمال التحديث</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>الأخيرة</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>جارٍ بدء التنزيل</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>{0} إجمالي</value>
@@ -852,11 +858,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>تحديث</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>يتوفر تحديث لـ &#x2068;{0}&#x2069; (&#x2066;{1}&#x2069;)</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>يتوفر تحديث لـ &#x2068;{0}&#x2069; من &#x2066;{1}&#x2069; إلى &#x2066;{2}&#x2069;</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>التحديث لاحقاً</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>التحديث الآن</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>تم تحديث &#x2068;{0}&#x2069; إلى &#x2066;{1}&#x2069;</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>جارٍ تحديث &#x2068;{0}&#x2069; إلى &#x2066;{1}&#x2069;</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>حساب ASLM</value>

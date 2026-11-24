@@ -51,10 +51,10 @@
                             Padding="8,0"
                             Margin="0"
                             BackgroundColor="{DynamicResource BackgroundTertiary}"
-                            TextColor="{DynamicResource LabelSecondary}"
+                            TextColor="{DynamicResource LabelPrimary}"
                             CornerRadius="6"
                             VerticalOptions="Center"
-                            IsEnabled="{Binding HasAnyNotifications}"
+                            IsEnabled="{Binding HasDismissibleNotifications}"
                             Clicked="OnClearAllClicked" />
 
                     <Button Grid.Column="2"
@@ -83,10 +83,11 @@
 
                 <!-- Notification list -->
                 <Grid Grid.Row="2">
-                    <CollectionView ItemsSource="{Binding VisibleNotifications}"
+                    <CollectionView x:Name="NotificationList"
                                     SelectionMode="None"
+                                    ItemsUpdatingScrollMode="KeepScrollOffset"
                                     VerticalScrollBarVisibility="Never"
-                                    IsVisible="{Binding HasVisibleNotifications}">
+                                    HandlerChanged="OnNotificationListHandlerChanged">
                         <CollectionView.ItemsLayout>
                             <LinearItemsLayout Orientation="Vertical"
                                                ItemSpacing="0" />
@@ -106,18 +107,23 @@
 
                                         <VerticalStackLayout Grid.Column="1"
                                                              Spacing="2">
-                                            <Label Text="{Binding Title}"
+                                            <Label Text="{Binding CardTitle}"
                                                    FontSize="14"
                                                    FontAttributes="Bold"
                                                    TextColor="{DynamicResource LabelPrimary}"
-                                                   MaxLines="1"
-                                                   LineBreakMode="TailTruncation" />
+                                                   MaxLines="2"
+                                                   LineBreakMode="CharacterWrap" />
 
-                                            <Label Text="{Binding Message}"
+                                            <Label Text="{Binding CardStatusText}"
+                                                   IsVisible="{Binding HasCardStatus}"
                                                    FontSize="12"
                                                    TextColor="{DynamicResource LabelPrimary}"
                                                    MaxLines="1"
                                                    LineBreakMode="TailTruncation" />
+
+                                            <Label Text="{Binding TimestampLabel}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource LabelSecondary}" />
 
                                             <!-- Active transfer filename: only when it adds info beyond Message -->
                                             <Label Text="{Binding ActiveTransferLabel}"
@@ -126,14 +132,6 @@
                                                    MaxLines="1"
                                                    LineBreakMode="TailTruncation"
                                                    IsVisible="{Binding ShowActiveTransferInCard}" />
-
-                                            <!-- Status message: hidden during active download, shown after completion -->
-                                            <Label Text="{Binding StatusText}"
-                                                   FontSize="12"
-                                                   TextColor="{DynamicResource LabelSecondary}"
-                                                   MaxLines="1"
-                                                   LineBreakMode="TailTruncation"
-                                                   IsVisible="{Binding ShowStatusInCard}" />
 
                                             <!-- Byte progress detail, Speed, percent — visible only during active download -->
                                             <Grid ColumnDefinitions="*,Auto,Auto"
@@ -179,13 +177,14 @@
                                                         CornerRadius="6"
                                                         Clicked="OnUpdateNotificationNowClicked" />
                                                 <Button Text="{Binding UpdateLaterText}"
+                                                        IsVisible="{Binding CanDeferUpdate}"
                                                         FontSize="11"
                                                         HeightRequest="28"
                                                         MinimumHeightRequest="28"
                                                         Padding="10,0"
                                                         Margin="0"
                                                         BackgroundColor="{DynamicResource BackgroundTertiary}"
-                                                        TextColor="{DynamicResource LabelSecondary}"
+                                                        TextColor="{DynamicResource LabelPrimary}"
                                                         CornerRadius="6"
                                                         Clicked="OnUpdateNotificationLaterClicked" />
                                             </HorizontalStackLayout>
@@ -193,6 +192,7 @@
 
                                         <!-- Ghost icon (same pattern as HomeView process row actions) -->
                                         <Border Grid.Column="2"
+                                                IsVisible="{Binding CanDismiss}"
                                                 Background="Transparent"
                                                 StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 0"

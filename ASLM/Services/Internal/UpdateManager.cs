@@ -1,5 +1,6 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text.Json;
@@ -102,6 +103,16 @@ namespace ASLM.Services.Internal
         /// Tracks running app and engine update operations so concurrent requests join one operation.
         /// </summary>
         private readonly UpdateOperationTracker _updateOperations = new();
+
+        /// <summary>
+        /// Tracks the latest check or selection change for each update source.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, long> _updateCheckRevisions = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Invalidates checks of the application and all engines when their common channel changes.
+        /// </summary>
+        private long _sharedUpdateChannelRevision;
 
         /// <summary>
         /// JSON settings for reading and writing update configuration and pending-update files.
@@ -211,6 +222,88 @@ namespace ASLM.Services.Internal
         // Update checks
 
         /// <summary>
+        /// Gets the revision of the channel shared by ASLM and its engines.
+        /// </summary>
+        internal long SharedUpdateChannelRevision => Volatile.Read(ref _sharedUpdateChannelRevision);
+
+        /// <summary>
+        /// Invalidates checks and clears offers based on the previous application and engine channel.
+        /// </summary>
+        internal void InvalidateSharedUpdateChannel()
+        {
+            Interlocked.Increment(ref _sharedUpdateChannelRevision);
+            _notifications.WithdrawUpdateOffers("app");
+            _notifications.WithdrawUpdateOffers("engine");
+        }
+
+        /// <summary>
+        /// Captures the active check and rejects its result after a newer check or a selection change.
+        /// </summary>
+        private Func<bool> BeginUpdateCheck(string kind, string id)
+        {
+            var key = NotificationCenter.BuildOperationKey(kind, id);
+            var sharedRevision = SharedUpdateChannelRevision;
+            var revision = AdvanceUpdateCheckRevision(key);
+            return () => _updateCheckRevisions[key] == revision &&
+                (kind == "module" || SharedUpdateChannelRevision == sharedRevision);
+        }
+
+        /// <summary>
+        /// Supersedes results from previous checks of the same source.
+        /// </summary>
+        private long AdvanceUpdateCheckRevision(string key) =>
+            _updateCheckRevisions.AddOrUpdate(key, 1, static (_, revision) => revision + 1);
+
+        /// <summary>
+        /// Withdraws the offer and supersedes checks after a module selection or installation changes.
+        /// </summary>
+        private void InvalidateModuleUpdateOffer(string moduleId)
+        {
+            AdvanceUpdateCheckRevision(NotificationCenter.BuildOperationKey("module", moduleId));
+            _notifications.WithdrawUpdateOffers("module", moduleId);
+        }
+
+        /// <summary>
+        /// Applies a completed check to the current offer and formats its localized presentation.
+        /// </summary>
+        private UpdateCandidate? CompleteUpdateCheck(string kind, string id, UpdateCandidate? candidate,
+            bool publish, Func<bool> isCurrent)
+        {
+            if (!isCurrent()) return null;
+            if (candidate == null)
+            {
+                _notifications.WithdrawUpdateOffers(kind, id, isCurrent);
+                return null;
+            }
+
+            if (publish)
+            {
+                _notifications.PublishUpdateOffer(kind, id, GetUpdateVersionKey(candidate),
+                    candidate.Name, candidate.RemoteVersion, candidate.CurrentVersion, isCurrent);
+            }
+
+            return candidate;
+        }
+
+        /// <summary>
+        /// Uses the full commit hash for branch updates and the release tag for published releases.
+        /// </summary>
+        private static string GetUpdateVersionKey(UpdateCandidate candidate) =>
+            candidate.CommitSha ?? candidate.ReleaseTag ?? candidate.RemoteVersion;
+
+        /// <summary>
+        /// Starts the same versioned notification for an app, module, or engine update.
+        /// </summary>
+        private Task<string> StartUpdateNotificationAsync(UpdateCandidate candidate, string componentName)
+        {
+            var kind = candidate.TargetKind;
+            var id = candidate.TargetId;
+            AdvanceUpdateCheckRevision(NotificationCenter.BuildOperationKey(kind, id));
+            return _notifications.StartDownloadAsync($"{kind}-update", componentName, string.Empty,
+                kind, id, GetUpdateVersionKey(candidate), replacesUpdateOffer: true, targetVersion: candidate.RemoteVersion);
+        }
+
+        /// <summary>
         /// Checks the configured GitHub release channel for an ASLM build update.
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
@@ -221,14 +314,17 @@ namespace ASLM.Services.Internal
             bool publishUpdateNotification = true,
             bool isManualRequest = false)
         {
-            // Development packages without a compatible launcher/helper cannot apply self-updates.
-            if (!SupportsSelfUpdate) return null;
+            var isCurrent = BeginUpdateCheck("app", "aslm");
+
+            // A staged update owns the next restart; check again once it has been applied.
+            if (!SupportsSelfUpdate || HasPendingAppUpdate)
+                return CompleteUpdateCheck("app", "aslm", null, publishUpdateNotification, isCurrent);
 
             // Resolve channel, repository, and the platform-specific release asset name.
             var source = await LoadAppUpdateSourceAsync(ct);
             if (!IsValidAppGitHubSource(source))
             {
-                return null;
+                return CompleteUpdateCheck("app", "aslm", null, publishUpdateNotification, isCurrent);
             }
 
             var channel = string.IsNullOrWhiteSpace(_appData.Data.Updates.AppChannel)
@@ -239,7 +335,7 @@ namespace ASLM.Services.Internal
             var assetName = GetConfiguredAppAssetName(appSource);
             if (string.IsNullOrWhiteSpace(assetName))
             {
-                return null;
+                return CompleteUpdateCheck("app", "aslm", null, publishUpdateNotification, isCurrent);
             }
 
             // Walk releases until a newer tag exposes the configured asset download URL.
@@ -276,15 +372,10 @@ namespace ASLM.Services.Internal
                     IsPrerelease = release.Prerelease
                 };
 
-                if (publishUpdateNotification)
-                {
-                    _notifications.PublishUpdateCandidate(candidate);
-                }
-
-                return candidate;
+                return CompleteUpdateCheck("app", "aslm", candidate, publishUpdateNotification, isCurrent);
             }
 
-            return null;
+            return CompleteUpdateCheck("app", "aslm", null, publishUpdateNotification, isCurrent);
         }
 
         /// <summary>
@@ -294,45 +385,56 @@ namespace ASLM.Services.Internal
         /// <param name="ct">Cancellation token.</param>
         /// <param name="publishUpdateNotification">When false, skips publishing an update-available notification (used when auto-updates will apply immediately).</param>
         /// <param name="isManualRequest">True for an explicit user request, so GitHub usage is attributed to manual instead of automatic checks.</param>
-        public async Task<UpdateCandidate?> CheckModuleUpdateAsync(
-            ModuleConfig module,
-            CancellationToken ct = default,
-            bool publishUpdateNotification = true,
-            bool isManualRequest = false)
+        public Task<UpdateCandidate?> CheckModuleUpdateAsync(ModuleConfig module, CancellationToken ct = default,
+            bool publishUpdateNotification = true, bool isManualRequest = false) =>
+            CheckModuleUpdateCoreAsync(module, ct, publishUpdateNotification, isManualRequest,
+                BeginUpdateCheck("module", module.Id));
+
+        /// <summary>
+        /// Checks the currently saved selection for a module dequeued by the background scheduler.
+        /// </summary>
+        internal Task<UpdateCandidate?> CheckScheduledModuleUpdateAsync(ModuleConfig module, CancellationToken ct, bool publish)
         {
-            // Hold the content lease while checking; only modules with a GitHub source can be checked.
+            if (IsModuleUpdatePending(module.SourcePath)) return Task.FromResult<UpdateCandidate?>(null);
+
+            return CheckModuleUpdateCoreAsync(module, ct, publish, isManualRequest: false,
+                BeginUpdateCheck("module", module.Id), reloadSelection: true);
+        }
+
+        /// <summary>
+        /// Resolves one candidate from the source selection and discards superseded check results.
+        /// </summary>
+        private async Task<UpdateCandidate?> CheckModuleUpdateCoreAsync(ModuleConfig module, CancellationToken ct,
+            bool publishUpdateNotification, bool isManualRequest, Func<bool> isCurrent, bool reloadSelection = false)
+        {
+            // A scheduled check can wait in the queue while the module's update selection changes.
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
+            if (reloadSelection)
+            {
+                if (!_moduleInstaller.Registry.ReadIds().Contains(module.Id))
+                    return CompleteUpdateCheck("module", module.Id, null, publishUpdateNotification, isCurrent);
+
+                var saved = await _moduleInstaller.LoadModuleConfig(module.SourcePath).ConfigureAwait(false);
+                if (saved == null || !string.Equals(saved.Id, module.Id, StringComparison.OrdinalIgnoreCase))
+                    return CompleteUpdateCheck("module", module.Id, null, publishUpdateNotification, isCurrent);
+
+                module = saved;
+            }
+
             module.Normalize();
             if (!string.Equals(module.Source.Type, "github", StringComparison.OrdinalIgnoreCase) ||
                 string.IsNullOrWhiteSpace(module.Source.Repo))
             {
-                return null;
+                return CompleteUpdateCheck("module", module.Id, null, publishUpdateNotification, isCurrent);
             }
 
             // Resolve unavailable streams identically for setup, manual and automatic updates.
             var options = await GetModuleDownloadOptionsAsync(module, ct, isManualRequest);
             options.ApplyTo(module);
-
-            // Branch and release modes use different GitHub resolution strategies.
-            if (string.Equals(module.Update.Mode, "branch", StringComparison.OrdinalIgnoreCase))
-            {
-                var branchCandidate = await CheckModuleBranchUpdateAsync(module, isManualRequest, ct);
-                if (branchCandidate != null && publishUpdateNotification)
-                {
-                    _notifications.PublishUpdateCandidate(branchCandidate);
-                }
-
-                return branchCandidate;
-            }
-
-            // Release mode: compare the selected release with the installed one.
-            var releaseCandidate = CheckModuleReleaseUpdate(module, options.Releases);
-            if (releaseCandidate != null && publishUpdateNotification)
-            {
-                _notifications.PublishUpdateCandidate(releaseCandidate);
-            }
-
-            return releaseCandidate;
+            var candidate = module.Update.Mode == "branch"
+                ? await CheckModuleBranchUpdateAsync(module, isManualRequest, ct)
+                : CheckModuleReleaseUpdate(module, options.Releases);
+            return CompleteUpdateCheck("module", module.Id, candidate, publishUpdateNotification, isCurrent);
         }
 
         /// <summary>
@@ -344,11 +446,13 @@ namespace ASLM.Services.Internal
             bool publishUpdateNotification = true,
             bool isManualRequest = false)
         {
+            var isCurrent = BeginUpdateCheck("engine", engine.Id);
+
             // Only installed engines can be updated.
             engine.Normalize();
             if (!engine.Status.Installed)
             {
-                return null;
+                return CompleteUpdateCheck("engine", engine.Id, null, publishUpdateNotification, isCurrent);
             }
 
             // Older manifests may lack the update block; restore it and persist the manifest before reading it.
@@ -361,7 +465,7 @@ namespace ASLM.Services.Internal
             if (engine.Update == null ||
                 string.IsNullOrWhiteSpace(engine.Update.Repo))
             {
-                return null;
+                return CompleteUpdateCheck("engine", engine.Id, null, publishUpdateNotification, isCurrent);
             }
 
             // Align the recorded release tag with the real runtime so the comparison below starts from the truth.
@@ -371,7 +475,7 @@ namespace ASLM.Services.Internal
             var assetName = GetConfiguredEngineAssetName(engine);
             if (string.IsNullOrWhiteSpace(assetName))
             {
-                return null;
+                return CompleteUpdateCheck("engine", engine.Id, null, publishUpdateNotification, isCurrent);
             }
 
             var channel = string.IsNullOrWhiteSpace(_appData.Data.Updates.AppChannel)
@@ -418,15 +522,10 @@ namespace ASLM.Services.Internal
                     Engine = engine
                 };
 
-                if (publishUpdateNotification)
-                {
-                    _notifications.PublishUpdateCandidate(candidate);
-                }
-
-                return candidate;
+                return CompleteUpdateCheck("engine", engine.Id, candidate, publishUpdateNotification, isCurrent);
             }
 
-            return null;
+            return CompleteUpdateCheck("engine", engine.Id, null, publishUpdateNotification, isCurrent);
         }
 
         /// <summary>
@@ -569,7 +668,9 @@ namespace ASLM.Services.Internal
 
                 try
                 {
-                    var candidate = await CheckModuleUpdateAsync(module, ct, publishUpdateNotifications, isManualRequest);
+                    var candidate = isManualRequest
+                        ? await CheckModuleUpdateAsync(module, ct, publishUpdateNotifications, isManualRequest: true)
+                        : await CheckScheduledModuleUpdateAsync(module, ct, publishUpdateNotifications);
                     if (candidate != null)
                     {
                         candidates.Add(candidate);
@@ -692,7 +793,8 @@ namespace ASLM.Services.Internal
 
             // Persist without ModulesChanged: the shell rebuilds module cards on that event and would drop
             // in-memory update-check results (HasUpdate / candidate) tied to the current ModuleViewModel instances.
-            _moduleInstaller.SaveModuleUpdatePreferences(module);
+            if (_moduleInstaller.SaveModuleUpdatePreferences(module))
+                InvalidateModuleUpdateOffer(module.Id);
         }
 
 
@@ -856,21 +958,7 @@ namespace ASLM.Services.Internal
             }
 
             // Surface download progress and validate the shipped update source before touching disk.
-            var operationKey = NotificationCenter.BuildOperationKey("app-update", candidate.TargetId);
-            await _notifications.StartDownloadAsync(
-                operationKey,
-                "Preparing ASLM update",
-                $"{candidate.Name} {candidate.RemoteVersion}",
-                candidate.TargetKind,
-                candidate.TargetId);
-
-            var source = await LoadAppUpdateSourceAsync(ct);
-            if (source == null)
-            {
-                log?.Report("ASLM update source is not configured.");
-                _notifications.FailDownload(operationKey, "ASLM update source is not configured.");
-                return false;
-            }
+            var operationKey = await StartUpdateNotificationAsync(candidate, candidate.Name);
 
             // Stage under .aslm-update so the external patcher can apply on next launcher start.
             var rootDir = GetRootDirectory();
@@ -880,10 +968,6 @@ namespace ASLM.Services.Internal
             var archivePath = Path.Combine(stagingRoot, GetArchiveFileName(candidate.DownloadUrl, "download"));
             var backupPath = Path.Combine(workDir, "backup", DateTime.UtcNow.ToString("yyyyMMddHHmmss"));
 
-            // Start from an empty staging folder; stale content from an earlier attempt must not leak in.
-            TryDeleteDirectory(stagingRoot);
-            Directory.CreateDirectory(extractDir);
-
             // Progress is recorded in the shared operation first, then forwarded to the notification.
             var notificationProgress = operation.WrapProgress(
                 _notifications.CreateDownloadProgressBridge(operationKey, progress));
@@ -892,6 +976,18 @@ namespace ASLM.Services.Internal
 
             try
             {
+                var source = await LoadAppUpdateSourceAsync(ct);
+                if (source == null)
+                {
+                    log?.Report("ASLM update source is not configured.");
+                    _notifications.FailDownload(operationKey, "ASLM update source is not configured.");
+                    return false;
+                }
+
+                // Start from an empty staging folder; stale content from an earlier attempt must not leak in.
+                TryDeleteDirectory(stagingRoot);
+                Directory.CreateDirectory(extractDir);
+
 #if LINUX
                 // Installed files may be read-only even though the separate XDG profile is writable.
                 LinuxAppRelauncher.EnsureUpdateTargetWritable();
@@ -909,6 +1005,7 @@ namespace ASLM.Services.Internal
 
                 // The package is complete: the remaining work extracts and stages it, so report the applying stage.
                 operation.SetPhase(UpdateOperationPhase.Applying);
+                _notifications.ReportDownloadStatus(operationKey, L.Get(LocalizationKeys.Notifications_PreparingFiles));
                 var payloadDir = await Task.Run(() =>
                 {
                     // Archive extraction and payload inspection can touch a lot of files, so keep it off the UI thread.
@@ -947,19 +1044,20 @@ namespace ASLM.Services.Internal
                 File.Move(pendingTemporaryPath, GetPendingUpdatePath(), overwrite: true);
                 prepared = true;
                 log?.Report("ASLM update prepared. It will be applied on restart.");
-                _notifications.CompleteDownload(operationKey, "ASLM update prepared.");
+                await _notifications.PrepareDownloadForRestartAsync(
+                    operationKey, LocalizationKeys.Notifications_RestartToFinishUpdate);
                 return true;
             }
             catch (OperationCanceledException)
             {
                 // Surface the cancellation in the notification, then let the caller observe it.
-                _notifications.FailDownload(operationKey, "ASLM update download canceled.");
+                _notifications.CancelDownload(operationKey, L.Get(LocalizationKeys.ModuleInfo_Canceled));
                 throw;
             }
             catch
             {
                 // Any other failure is reported to the user and still propagates to the caller.
-                _notifications.FailDownload(operationKey, "ASLM update download failed.");
+                _notifications.FailDownload(operationKey, L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed));
                 throw;
             }
             finally
@@ -1189,7 +1287,10 @@ namespace ASLM.Services.Internal
                     job = _downloadQueue.EnqueueAsync("module-remove:" + module.Id, async token =>
                     {
                         _moduleInstaller.SetRemovalState(module.Id, DownloadOperationState.Removing);
-                        return await _moduleInstaller.UninstallQueuedAsync(module, token).ConfigureAwait(false);
+                        var result = await _moduleInstaller.UninstallQueuedAsync(module, token).ConfigureAwait(false);
+                        if (!_moduleInstaller.Registry.ReadIds().Contains(module.Id))
+                            InvalidateModuleUpdateOffer(module.Id);
+                        return result;
                     }, kind: DownloadQueueKind.ModuleRemoval, removal: true,
                     finish: _ =>
                     {
@@ -1269,9 +1370,8 @@ namespace ASLM.Services.Internal
                 }
 
                 // Other modules are downloaded here (unless already present), then reconciled and run once.
-                var key = NotificationCenter.BuildOperationKey("module-install", item.Id);
-                await _notifications.StartDownloadAsync(key, L.Get(LocalizationKeys.ModuleInfo_Downloading, item.Name),
-                    item.Name, "module", item.Id);
+                var key = await _notifications.StartDownloadAsync("module-install",
+                    item.Name, string.Empty, "module", item.Id);
                 try
                 {
                     if (!isDownloaded)
@@ -1297,7 +1397,7 @@ namespace ASLM.Services.Internal
                 catch (OperationCanceledException)
                 {
                     // Mark the notification canceled and let the queue handle the rollback.
-                    _notifications.FailDownload(key, L.Get(LocalizationKeys.ModuleInfo_Canceled));
+                    _notifications.CancelDownload(key, L.Get(LocalizationKeys.ModuleInfo_Canceled));
                     throw;
                 }
                 catch (Exception ex)
@@ -1353,13 +1453,10 @@ namespace ASLM.Services.Internal
                 await _moduleInstaller.Preparation.SuspendAsync(module.SourcePath).ConfigureAwait(false);
 
             // Show the transfer in the notification center and resolve the installed module directory.
-            var operationKey = NotificationCenter.BuildOperationKey("module-update", module.Id);
-            await _notifications.StartDownloadAsync(
-                operationKey,
-                isInstallation ? L.Get(LocalizationKeys.ModuleInfo_Downloading, module.Name) : "Updating module",
-                $"{module.Name} {candidate.RemoteVersion}",
-                candidate.TargetKind,
-                candidate.TargetId);
+            var operationKey = isInstallation
+                ? await _notifications.StartDownloadAsync("module-install", module.Name, string.Empty,
+                    candidate.TargetKind, candidate.TargetId, GetUpdateVersionKey(candidate), targetVersion: candidate.RemoteVersion)
+                : await StartUpdateNotificationAsync(candidate, module.Name);
 
             var moduleDir = Path.GetDirectoryName(module.SourcePath);
             if (string.IsNullOrWhiteSpace(moduleDir))
@@ -1393,6 +1490,7 @@ namespace ASLM.Services.Internal
                     isManualRequest,
                     ct);
 
+                _notifications.ReportDownloadStatus(operationKey, L.Get(LocalizationKeys.Notifications_PreparingFiles));
                 var preparedUpdate = await Task.Run(() =>
                 {
                     // Extraction and manifest validation are local filesystem work and should not block the UI thread.
@@ -1424,6 +1522,7 @@ namespace ASLM.Services.Internal
                     ValidateRepositorySource(newConfig, module.RepositoryPreview.Repository);
 
                 // Stop the module and any orphaned processes holding locks under the install directory.
+                _notifications.ReportDownloadStatus(operationKey, L.Get(LocalizationKeys.Notifications_InstallingFiles));
                 if (wasEnabled)
                 {
                     log?.Report($"Stopping {module.Name} before update...");
@@ -1451,7 +1550,7 @@ namespace ASLM.Services.Internal
                 if (success)
                 {
                     _notifications.CompleteDownload(operationKey, isInstallation
-                        ? L.Get(LocalizationKeys.ModuleInfo_Installed) : $"{module.Name} updated successfully.");
+                        ? L.Get(LocalizationKeys.ModuleInfo_Installed) : L.Get(LocalizationKeys.ModuleUpdate_Status_Updated));
 
                     // Refresh the signed community-reviewed list when the remote trust API is enabled.
                     await _moduleTrustService.RefreshReviewedListAsync(ct);
@@ -1459,7 +1558,7 @@ namespace ASLM.Services.Internal
                 else
                 {
                     _notifications.FailDownload(operationKey, isInstallation
-                        ? L.Get(LocalizationKeys.ModuleInfo_InstallFailed, module.Name) : $"{module.Name} update failed.");
+                        ? L.Get(LocalizationKeys.ModuleInfo_InstallFailed, module.Name) : L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed));
                 }
 
                 return success;
@@ -1467,8 +1566,7 @@ namespace ASLM.Services.Internal
             catch (OperationCanceledException)
             {
                 // Mark the notification canceled, then let the caller observe the cancellation.
-                _notifications.FailDownload(operationKey, isInstallation
-                    ? L.Get(LocalizationKeys.ModuleInfo_Canceled) : $"{module.Name} update canceled.");
+                _notifications.CancelDownload(operationKey, L.Get(LocalizationKeys.ModuleInfo_Canceled));
                 throw;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -1477,7 +1575,8 @@ namespace ASLM.Services.Internal
                 _logger.LogError(ex, "Module update failed for {ModuleId}.", module.Id);
                 log?.Report($"Module update failed: {ex.Message}");
                 _notifications.FailDownload(operationKey, isInstallation
-                    ? L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message) : $"Module update failed: {ex.Message}");
+                    ? L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message)
+                    : $"{L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed)} - {ex.Message}");
                 return false;
             }
             finally
@@ -1528,13 +1627,7 @@ namespace ASLM.Services.Internal
             }
 
             // Show the transfer in the notification center and resolve the engine directory.
-            var operationKey = NotificationCenter.BuildOperationKey("engine-update", engine.Id);
-            await _notifications.StartDownloadAsync(
-                operationKey,
-                "Updating engine",
-                $"{engine.Name} {candidate.RemoteVersion}",
-                candidate.TargetKind,
-                candidate.TargetId);
+            var operationKey = await StartUpdateNotificationAsync(candidate, engine.Name);
 
             var engineDir = Path.GetDirectoryName(engine.SourcePath);
             if (string.IsNullOrWhiteSpace(engineDir))
@@ -1571,6 +1664,7 @@ namespace ASLM.Services.Internal
                     ct);
 
                 updateOperation.SetPhase(UpdateOperationPhase.Applying);
+                _notifications.ReportDownloadStatus(operationKey, L.Get(LocalizationKeys.Notifications_InstallingFiles));
 
                 // Stop every enabled module and any process that holds files of the engine; the finally block
                 // restarts the modules once the runtime is replaced or the update failed.
@@ -1610,13 +1704,13 @@ namespace ASLM.Services.Internal
                 _engineInstaller.InvalidateCache();
 
                 log?.Report($"{engine.Name} updated successfully.");
-                _notifications.CompleteDownload(operationKey, $"{engine.Name} updated successfully.");
+                _notifications.CompleteDownload(operationKey, L.Get(LocalizationKeys.ModuleUpdate_Status_Updated));
                 return true;
             }
             catch (OperationCanceledException)
             {
                 // Mark the notification canceled, then let the caller observe the cancellation.
-                _notifications.FailDownload(operationKey, $"{engine.Name} update canceled.");
+                _notifications.CancelDownload(operationKey, L.Get(LocalizationKeys.ModuleInfo_Canceled));
                 throw;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -1624,7 +1718,8 @@ namespace ASLM.Services.Internal
                 // Other failures are logged, shown to the user, and reported to the caller as a plain failure.
                 _logger.LogError(ex, "Engine update failed for {EngineId}.", engine.Id);
                 log?.Report($"Engine update failed: {ex.Message}");
-                _notifications.FailDownload(operationKey, $"Engine update failed: {ex.Message}");
+                _notifications.FailDownload(operationKey,
+                    $"{L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed)} - {ex.Message}");
                 return false;
             }
             finally

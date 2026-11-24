@@ -1,6 +1,5 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ASLM.Localization;
@@ -64,6 +63,16 @@ namespace ASLM.Pages
         /// </summary>
         private ImageSource _dismissIconSource = null!;
 
+        /// <summary>
+        /// Last count shown by the popover so transfer updates do not refresh its chrome.
+        /// </summary>
+        private int _notificationCount;
+
+        /// <summary>
+        /// Tracks whether the journal contains any entry that the user can clear.
+        /// </summary>
+        private bool _hasDismissibleNotifications;
+
 
         // Events
 
@@ -90,7 +99,9 @@ namespace ASLM.Pages
             _notifications = notifications;
             _localization = localization;
 
+            _notificationCount = notifications.Notifications.Count;
             InitializeComponent();
+            NotificationList.ItemsSource = notifications.Notifications;
             BindingContext = this;
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
@@ -110,7 +121,7 @@ namespace ASLM.Pages
             ClearAllButton.Text = L.Get(LocalizationKeys.Notifications_ClearAll);
             EmptyTitleLabel.Text = L.Get(LocalizationKeys.Notifications_EmptyTitle);
             EmptyMessageLabel.Text = L.Get(LocalizationKeys.Notifications_EmptyMessage);
-            foreach (var notification in VisibleNotifications)
+            foreach (var notification in _notifications.Notifications)
             {
                 notification.RefreshLocalizedPresentation();
             }
@@ -123,18 +134,11 @@ namespace ASLM.Pages
         // Bound properties
 
         /// <summary>
-        /// Gets the notifications currently visible in the popover.
-        /// Bound directly to the service collection so CollectionView sees only granular
-        /// add/remove/move events and does not play item-appear animations on every update.
-        /// </summary>
-        public ReadOnlyObservableCollection<AppNotification> VisibleNotifications => _notifications.Notifications;
-
-        /// <summary>
         /// Gets the compact total count label shown in the footer.
         /// </summary>
-        public string SummaryText => _notifications.Notifications.Count == 0
+        public string SummaryText => _notificationCount == 0
             ? L.Get(LocalizationKeys.Notifications_EmptyTitle)
-            : L.Get(LocalizationKeys.Notifications_SummaryFormat, _notifications.Notifications.Count);
+            : L.Get(LocalizationKeys.Notifications_SummaryFormat, _notificationCount);
 
         /// <summary>
         /// Gets the small section label above the list.
@@ -142,19 +146,14 @@ namespace ASLM.Pages
         public string SectionTitle => L.Get(LocalizationKeys.Notifications_SectionRecent);
 
         /// <summary>
-        /// Gets whether the list has any notifications to show; otherwise the empty state replaces it.
-        /// </summary>
-        public bool HasVisibleNotifications => _notifications.Notifications.Count > 0;
-
-        /// <summary>
         /// Gets whether the empty-state placeholder should be shown instead of the list.
         /// </summary>
-        public bool IsEmptyVisible => !HasVisibleNotifications;
+        public bool IsEmptyVisible => _notificationCount == 0;
 
         /// <summary>
-        /// Gets whether there is anything to clear, which enables the Clear all button.
+        /// Gets whether the Clear all button can remove at least one entry.
         /// </summary>
-        public bool HasAnyNotifications => _notifications.Notifications.Count > 0;
+        public bool HasDismissibleNotifications => _hasDismissibleNotifications;
 
         /// <summary>
         /// Gets the theme-tinted dismiss glyph for notification rows.
@@ -188,17 +187,7 @@ namespace ASLM.Pages
             _lastAnchorBounds = anchorBounds;
             _popupPositioningActive = true;
             PositionPopup(anchorBounds, hostWidth, hostHeight);
-            RefreshVisibleNotifications();
-            return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// Re-raises the view-state properties so the popover reflects the current notifications
-        /// before the shell shows it.
-        /// </summary>
-        public Task RefreshAsync()
-        {
-            RefreshVisibleNotifications();
+            RefreshJournalState();
             return Task.CompletedTask;
         }
 
@@ -225,7 +214,21 @@ namespace ASLM.Pages
             _notifications.NotificationsChanged += OnNotificationsChanged;
             SizeChanged -= OnHostSizeChanged;
             SizeChanged += OnHostSizeChanged;
-            RefreshVisibleNotifications();
+            RefreshJournalState();
+        }
+
+        /// <summary>
+        /// Clears native list transitions when WinUI attaches the journal to a handler.
+        /// </summary>
+        private void OnNotificationListHandlerChanged(object? sender, EventArgs e)
+        {
+#if WINDOWS
+            if (sender is CollectionView { Handler.PlatformView: Microsoft.UI.Xaml.Controls.ListViewBase list })
+            {
+                list.Transitions = new();
+                list.ItemContainerTransitions = new();
+            }
+#endif
         }
 
         /// <summary>
@@ -357,7 +360,7 @@ namespace ASLM.Pages
         // Actions
 
         /// <summary>
-        /// Clears all notifications when the Clear all button is pressed.
+        /// Removes dismissible entries when the Clear all button is pressed.
         /// </summary>
         private void OnClearAllClicked(object? sender, EventArgs e)
         {
@@ -391,7 +394,7 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Hides inline update actions after the user defers from the list.
+        /// Hides the actions and leaves the module update offer in the journal.
         /// </summary>
         private void OnUpdateNotificationLaterClicked(object? sender, EventArgs e)
         {
@@ -426,31 +429,32 @@ namespace ASLM.Pages
         // Change handling
 
         /// <summary>
-        /// Refreshes the view-state properties when the notification service reports a change.
+        /// Refreshes journal controls after the service publishes a change.
         /// </summary>
-        private void OnNotificationsChanged(object? sender, EventArgs e)
-        {
-            RefreshVisibleNotifications();
-        }
+        private void OnNotificationsChanged(object? sender, EventArgs e) => RefreshJournalState();
 
         /// <summary>
-        /// Raises view-state properties when the service collection changes.
+        /// Updates the Clear all button, footer, and empty state when their values change.
         /// </summary>
-        private void RefreshVisibleNotifications()
+        private void RefreshJournalState()
         {
-            RaiseViewStateProperties();
-        }
+            var hasDismissible = _notifications.Notifications.Any(notification => notification.CanDismiss);
+            if (_hasDismissibleNotifications != hasDismissible)
+            {
+                _hasDismissibleNotifications = hasDismissible;
+                OnPropertyChanged(nameof(HasDismissibleNotifications));
+            }
 
-        /// <summary>
-        /// Raises all view-level properties affected by service changes.
-        /// </summary>
-        private void RaiseViewStateProperties()
-        {
+            var count = _notifications.Notifications.Count;
+            if (count == _notificationCount) return;
+
+            var wasEmpty = IsEmptyVisible;
+            _notificationCount = count;
             OnPropertyChanged(nameof(SummaryText));
-            OnPropertyChanged(nameof(SectionTitle));
-            OnPropertyChanged(nameof(HasVisibleNotifications));
-            OnPropertyChanged(nameof(IsEmptyVisible));
-            OnPropertyChanged(nameof(HasAnyNotifications));
+            if (wasEmpty != IsEmptyVisible)
+            {
+                OnPropertyChanged(nameof(IsEmptyVisible));
+            }
         }
 
 

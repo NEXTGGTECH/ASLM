@@ -969,7 +969,8 @@ namespace ASLM.Services.Modules
         /// Never restores stale runtime state, registers a module, or clears removal protection.
         /// </summary>
         /// <exception cref="InvalidOperationException">Thrown when the manifest on disk belongs to a different module id.</exception>
-        internal void SaveModuleUpdatePreferences(ModuleConfig config)
+        /// <returns>Whether the saved channel, branch, or release selection changed.</returns>
+        internal bool SaveModuleUpdatePreferences(ModuleConfig config)
         {
             // Register the module as in use, then edit the manifest on disk as a JSON tree, so every other
             // property keeps the value stored there.
@@ -981,6 +982,8 @@ namespace ASLM.Services.Modules
 
             // Copy only the user-chosen update fields into the stored "update" block, or create the block.
             config.Update.Normalize();
+            var previous = manifest["update"]?.Deserialize<ModuleUpdateConfig>(_jsonOptions) ?? new ModuleUpdateConfig();
+            previous.Normalize();
             var preferences = JsonSerializer.SerializeToNode(config.Update, _jsonOptions)!.AsObject();
             if (manifest["update"] is JsonObject stored)
             {
@@ -994,6 +997,12 @@ namespace ASLM.Services.Modules
 
             WriteManifest(config.SourcePath, manifest.ToJsonString(_jsonOptions));
             config.HasDeclaredUpdateConfig = true;
+
+            return previous.Mode != config.Update.Mode || previous.Channel != config.Update.Channel ||
+                (config.Update.Mode == "branch"
+                    ? !string.Equals(previous.Branch, config.Update.Branch, StringComparison.OrdinalIgnoreCase)
+                    : !string.Equals(previous.SelectedReleaseTag, config.Update.SelectedReleaseTag,
+                        StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

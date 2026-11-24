@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>動作失敗</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>ASLM 更新可用</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>目前沒有可用的 ASLM 更新</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>ASLM 更新</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>頻道：{0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>全部清除</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>沒有通知</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>引擎更新可用</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>無法套用引擎更新</value>
@@ -825,20 +816,35 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>引擎更新</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>已安裝 {0}</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>已安裝版本</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>已安裝 {0} {1}</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>正在安裝檔案</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>該模組已不再安裝</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>模組更新可用</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>操作已中斷</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>發現新版本</value>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>正在準備檔案</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>重新啟動應用程式以完成更新</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>最近</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>準備下載</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>共 {0} 個</value>
@@ -852,11 +858,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>更新</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>可更新至 {0} {1}</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>{0} 有可用更新（{1} -&gt; {2}）</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>稍後更新</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>立即更新</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>{0} 已更新至 {1}</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>正在將 {0} 更新至 {1}</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM 帳戶</value>

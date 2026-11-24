@@ -1,6 +1,7 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Text.Json;
+using ASLM.Localization;
 using ASLM.Models;
 using ASLM.Tests.TestSupport;
 
@@ -63,8 +64,11 @@ namespace ASLM.Tests.Services.Internal
             Directory.Exists(stagingPath).Should().BeTrue();
             File.ReadAllText(Path.Combine(stagingPath, "ASLM.dll")).Should().Be("updated");
 
-            // The transfer completed through the notification center, not just silently.
-            DownloadNotification(graph).StatusText.Should().Contain("prepared");
+            // The finished transfer reports a staged update that still needs the patcher.
+            var notification = DownloadNotification(graph);
+            notification.CardStatusText.Should().Be(L.Get(LocalizationKeys.Notifications_RestartToFinishUpdate));
+            notification.IsInProgress.Should().BeFalse();
+            notification.AwaitingRestart.Should().BeTrue();
         }
 
         /// <summary>
@@ -114,8 +118,9 @@ namespace ASLM.Tests.Services.Internal
 
             prepared.Should().BeFalse("no shipped update source means the update cannot stage");
             graph.Updates.HasPendingAppUpdate.Should().BeFalse();
-            DownloadNotification(graph).StatusText
-                .Should().Contain("not configured");
+            var notification = DownloadNotification(graph);
+            notification.StatusText.Should().Contain("not configured");
+            notification.Severity.Should().Be(AppNotificationSeverity.Error);
         }
 
         /// <summary>
@@ -144,18 +149,22 @@ namespace ASLM.Tests.Services.Internal
                 Directory.GetDirectories(stagingRoot).Should().BeEmpty("a failed package must not linger on disk");
             }
 
-            DownloadNotification(graph).StatusText
-                .Should().Contain("failed");
+            var notification = DownloadNotification(graph);
+            notification.StatusText.Should().Be(L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed));
+            notification.Severity.Should().Be(AppNotificationSeverity.Error);
         }
 
 
         // Helpers
 
         /// <summary>
-        /// Returns the notification row that tracks the app update download.
+        /// Finds the app update notification by its source and event type, since each attempt has its own ID.
         /// </summary>
         private static AppNotification DownloadNotification(TestServiceGraph graph) =>
-            graph.Notifications.Notifications.ToList().Single(n => n.Id == "download:app-update:app");
+            graph.Notifications.Notifications.Single(notification =>
+                notification.Category == AppNotificationCategory.Downloads &&
+                notification.SourceKind == "app" && notification.SourceId == "app" &&
+                notification.EventType == "app-update");
 
         /// <summary>
         /// Writes the update source file that the app update reads, pointing at the ASLM repository with a Windows

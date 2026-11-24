@@ -1,8 +1,11 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using ASLM.Localization;
+using ASLM.Resources.Strings;
 using Microsoft.Maui.Graphics;
 
 namespace ASLM.Models
@@ -65,6 +68,23 @@ namespace ASLM.Models
     public sealed class AppNotification : INotifyPropertyChanged
     {
         // Fields
+
+        /// <summary>
+        /// Marks optional hyphen breaks inside long alphanumeric parts of the title.
+        /// </summary>
+        private static readonly Regex HeadingBreaks = new(@"(?<=[A-Za-z0-9]{6})(?=[A-Za-z0-9]{6})");
+
+        /// <summary>
+        /// Recognizes saved fallback labels after the UI language has changed.
+        /// </summary>
+        private static readonly Lazy<string[]> LegacyUnknownVersions =
+            new(() => GetHistoricalLabels(LocalizationKeys.Notifications_InstalledVersionFallback));
+
+        /// <summary>
+        /// Recognizes first installations saved by versions that used the module update event for both operations.
+        /// </summary>
+        private static readonly Lazy<string[]> LegacyInstallationStatuses =
+            new(() => GetHistoricalLabels(LocalizationKeys.ModuleInfo_Installed));
 
         /// <summary>
         /// Backing field of <see cref="Title"/>.
@@ -256,6 +276,31 @@ namespace ASLM.Models
         public string Id { get; }
 
         /// <summary>
+        /// Identifies the event within its category and source for replacement.
+        /// </summary>
+        internal string EventType { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Identifies the release or commit associated with the event, when known.
+        /// </summary>
+        internal string? VersionKey { get; init; }
+
+        /// <summary>
+        /// Gets the display version of the component offered, installed, or updated by this notification.
+        /// </summary>
+        internal string? TargetVersion { get; init; }
+
+        /// <summary>
+        /// Gets the previously installed version shown in an available update, when known.
+        /// </summary>
+        internal string? CurrentVersion { get; init; }
+
+        /// <summary>
+        /// Indicates that the application update has been staged and still needs to be applied.
+        /// </summary>
+        internal bool AwaitingRestart { get; set; }
+
+        /// <summary>
         /// Gets the notification group used by the notifications page filters.
         /// </summary>
         public AppNotificationCategory Category { get; }
@@ -293,7 +338,13 @@ namespace ASLM.Models
         public string Title
         {
             get => _title;
-            private set => SetField(ref _title, value);
+            private set
+            {
+                if (!SetField(ref _title, value)) return;
+
+                OnPropertyChanged(nameof(CardTitle));
+                OnPropertyChanged(nameof(ShowActiveTransferInCard));
+            }
         }
 
         /// <summary>
@@ -304,15 +355,16 @@ namespace ASLM.Models
             get => _message;
             private set
             {
-                if (SetField(ref _message, value))
-                {
-                    OnPropertyChanged(nameof(ShowActiveTransferInCard));
-                }
+                if (!SetField(ref _message, value)) return;
+
+                OnPropertyChanged(nameof(CardTitle));
+                RefreshCardStatus();
+                OnPropertyChanged(nameof(ShowActiveTransferInCard));
             }
         }
 
         /// <summary>
-        /// Gets the short status line shown above progress details.
+        /// Gets the stored status text or the resource key for a built-in operation result.
         /// </summary>
         public string StatusText
         {
@@ -321,9 +373,7 @@ namespace ASLM.Models
             {
                 if (SetField(ref _statusText, value))
                 {
-                    OnPropertyChanged(nameof(HasStatusText));
-                    OnPropertyChanged(nameof(ShowStatusInCard));
-                    OnPropertyChanged(nameof(DetailLine));
+                    RefreshCardStatus();
                 }
             }
         }
@@ -339,7 +389,6 @@ namespace ASLM.Models
                 if (SetField(ref _detailText, value))
                 {
                     OnPropertyChanged(nameof(HasDetailText));
-                    OnPropertyChanged(nameof(DetailLine));
                 }
             }
         }
@@ -356,6 +405,8 @@ namespace ASLM.Models
                 {
                     OnPropertyChanged(nameof(SeverityLabel));
                     OnPropertyChanged(nameof(AccentColor));
+                    OnPropertyChanged(nameof(CardTitle));
+                    RefreshCardStatus();
                 }
             }
         }
@@ -373,8 +424,10 @@ namespace ASLM.Models
             {
                 if (SetField(ref _isInProgress, value))
                 {
-                    OnPropertyChanged(nameof(ShowStatusInCard));
+                    OnPropertyChanged(nameof(CardTitle));
+                    RefreshCardStatus();
                     OnPropertyChanged(nameof(ShowActiveTransferInCard));
+                    OnPropertyChanged(nameof(CanDismiss));
                 }
             }
         }
@@ -413,16 +466,175 @@ namespace ASLM.Models
         // Derived display values
 
         /// <summary>
-        /// Gets whether the status line contains visible text.
+        /// Gets the title shared by the journal and toasts, with optional hyphens inside long names.
         /// </summary>
-        public bool HasStatusText => !string.IsNullOrWhiteSpace(StatusText);
+        public string CardTitle
+        {
+            get
+            {
+                var heading = Category == AppNotificationCategory.Updates || IsComponentUpdate || IsModuleInstallation
+                    ? FormatComponentHeading()
+                    : Title;
+                return HeadingBreaks.Replace(heading, "\u00AD");
+            }
+        }
 
         /// <summary>
-        /// Gets whether the status line should be shown in the notification card.
-        /// Hidden during active download so the card only shows transfer data rows.
-        /// Visible once the operation finishes so the result message is displayed.
+        /// Gets the status line when it adds information to the title.
         /// </summary>
-        public bool ShowStatusInCard => HasStatusText && !IsInProgress;
+        public string CardStatusText
+        {
+            get
+            {
+                if (Category == AppNotificationCategory.Updates ||
+                    IsSuccessfulComponentOperation && (IsComponentUpdate || IsModuleInstallation))
+                {
+                    return string.Empty;
+                }
+
+                // Older journals stored these built-in results as English sentences.
+                var status = StatusText switch
+                {
+                    "Operation interrupted." or LocalizationKeys.Notifications_OperationInterrupted =>
+                        L.Get(LocalizationKeys.Notifications_OperationInterrupted),
+                    "Update prepared. Restart to apply." or LocalizationKeys.Notifications_RestartToFinishUpdate =>
+                        L.Get(LocalizationKeys.Notifications_RestartToFinishUpdate),
+                    _ => string.IsNullOrWhiteSpace(StatusText) ? SeverityLabel : StatusText
+                };
+                if (IsComponentUpdate || IsModuleInstallation || string.IsNullOrWhiteSpace(Message)) return status;
+
+                return string.IsNullOrWhiteSpace(StatusText) ||
+                    string.Equals(Message, StatusText, StringComparison.OrdinalIgnoreCase)
+                    ? Message
+                    : $"{Message} - {status}";
+            }
+        }
+
+        /// <summary>
+        /// Indicates whether the card needs a status row.
+        /// </summary>
+        public bool HasCardStatus => !string.IsNullOrWhiteSpace(CardStatusText);
+
+        /// <summary>
+        /// Gets the component or resource description for comparison with the active transfer label.
+        /// </summary>
+        private string Subject => TargetVersion != null ? $"{Title} {TargetVersion}" :
+            string.IsNullOrWhiteSpace(Message) ? Title : Message;
+
+        /// <summary>
+        /// Identifies completed component operations that can state the result in the title.
+        /// </summary>
+        private bool IsSuccessfulComponentOperation => !IsInProgress && Severity == AppNotificationSeverity.Success;
+
+        /// <summary>
+        /// Recognizes app, engine, and module updates, including the old operation-key format.
+        /// </summary>
+        private bool IsComponentUpdate => Category == AppNotificationCategory.Downloads &&
+            (EventType is "app-update" or "engine-update" or "module-update" ||
+                IsLegacyDownload($"{SourceKind}-update"));
+
+        /// <summary>
+        /// Recognizes first installations, including old successful installations saved as module updates.
+        /// </summary>
+        private bool IsModuleInstallation => Category == AppNotificationCategory.Downloads &&
+            (EventType == "module-install" || IsLegacyDownload("module-install") ||
+                IsLegacyDownload("module-update") && LegacyInstallationStatuses.Value.Contains(StatusText));
+
+        /// <summary>
+        /// Matches an operation encoded in the notification id before event types were stored separately.
+        /// </summary>
+        private bool IsLegacyDownload(string operation) =>
+            EventType.Length == 0 && Id.StartsWith($"download:{operation}:", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Formats component names and versions with the word order of the active locale.
+        /// </summary>
+        private string FormatComponentHeading()
+        {
+            var (name, target, current) = TargetVersion is null
+                ? ReadHistoricalComponent()
+                : (Title, TargetVersion, CurrentVersion);
+
+            if (string.IsNullOrWhiteSpace(name)) return Title;
+
+            if (Category == AppNotificationCategory.Updates)
+            {
+                if (string.IsNullOrWhiteSpace(target)) return name;
+                return string.IsNullOrWhiteSpace(current)
+                    ? L.Get(LocalizationKeys.Notifications_UpdateAvailableFormat, name, target)
+                    : L.Get(LocalizationKeys.Notifications_UpdateAvailableFromFormat, name, current, target);
+            }
+
+            if (IsModuleInstallation)
+            {
+                if (IsInProgress)
+                    return L.Get(LocalizationKeys.ModuleInfo_Downloading,
+                        string.IsNullOrWhiteSpace(target) ? name : $"{name} {target}");
+                if (IsSuccessfulComponentOperation)
+                {
+                    return string.IsNullOrWhiteSpace(target)
+                        ? L.Get(LocalizationKeys.Notifications_InstalledFormat, name)
+                        : L.Get(LocalizationKeys.Notifications_InstalledVersionFormat, name, target);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(target))
+            {
+                if (IsInProgress) return L.Get(LocalizationKeys.Notifications_UpdatingFormat, name, target);
+                if (IsSuccessfulComponentOperation) return L.Get(LocalizationKeys.Notifications_UpdatedFormat, name, target);
+            }
+
+            return string.IsNullOrWhiteSpace(target) ? name : $"{name} {target}";
+        }
+
+        /// <summary>
+        /// Recovers display arguments from history saved before version labels were separate fields.
+        /// </summary>
+        private (string Name, string? Target, string? Current) ReadHistoricalComponent()
+        {
+            var subject = Subject;
+            if (Category == AppNotificationCategory.Updates)
+            {
+                var separator = subject.LastIndexOf(" -> ", StringComparison.Ordinal);
+                if (separator >= 0)
+                {
+                    var from = subject[..separator];
+                    var target = subject[(separator + 4)..];
+                    var fallback = LegacyUnknownVersions.Value.FirstOrDefault(label =>
+                        from.EndsWith($" {label}", StringComparison.OrdinalIgnoreCase));
+                    if (fallback != null) return (from[..^(fallback.Length + 1)].TrimEnd(':'), target, null);
+
+                    // Older offers separated the name and current version with a colon.
+                    var nameEnd = from.LastIndexOf(' ');
+                    if (nameEnd >= 0) return (from[..nameEnd].TrimEnd(':'), target, from[(nameEnd + 1)..]);
+                }
+            }
+
+            // Installs without a release or commit kept only the name in the message.
+            if (IsModuleInstallation && !IsLegacyDownload("module-update") && VersionKey is null)
+                return (subject, null, null);
+
+            var versionStart = subject.LastIndexOf(' ');
+            return versionStart < 0 ? (subject, null, null) : (subject[..versionStart], subject[(versionStart + 1)..], null);
+        }
+
+        /// <summary>
+        /// Reads past status labels in every shipped locale so a language change preserves their meaning.
+        /// </summary>
+        private static string[] GetHistoricalLabels(string key) =>
+            AppPersonalizationConfig.SupportedLanguageCodes
+                .Select(code => AppResources.ResourceManager.GetString(key, CultureInfo.GetCultureInfo(code)))
+                .OfType<string>()
+                .Distinct()
+                .ToArray();
+
+        /// <summary>
+        /// Updates both the status label and its visibility together.
+        /// </summary>
+        private void RefreshCardStatus()
+        {
+            OnPropertyChanged(nameof(CardStatusText));
+            OnPropertyChanged(nameof(HasCardStatus));
+        }
 
         /// <summary>
         /// Gets whether the detail line contains visible text.
@@ -462,7 +674,7 @@ namespace ASLM.Models
         public bool ShowActiveTransferInCard =>
             IsInProgress &&
             HasActiveTransferLabel &&
-            !AreResourceLabelsEquivalent(Message, ActiveTransferLabel);
+            !AreResourceLabelsEquivalent(Subject, ActiveTransferLabel);
 
         /// <summary>
         /// Gets the smoothed transfer speed for the download metrics row.
@@ -484,26 +696,28 @@ namespace ASLM.Models
         /// </summary>
         public string TimestampLabel => UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 
-        /// <summary>
-        /// Gets the compact secondary line used by the notifications popover and toast cards.
-        /// </summary>
-        public string DetailLine
-        {
-            get
-            {
-                var status = !string.IsNullOrWhiteSpace(StatusText) ? StatusText : SeverityLabel;
-                var detail = !string.IsNullOrWhiteSpace(DetailText) ? $" - {DetailText}" : string.Empty;
-                return $"{status}{detail} - {TimestampLabel}";
-            }
-        }
 
-
-        // Update actions
+        // Notification actions
 
         /// <summary>
-        /// Gets whether this row should offer Update now / Update later actions (available update cards).
+        /// Gets whether an available update still offers the Update now action.
         /// </summary>
         public bool OffersUpdateActions => _offersUpdateActions;
+
+        /// <summary>
+        /// Gets whether the user can hide the actions on a module update offer.
+        /// </summary>
+        public bool CanDeferUpdate => OffersUpdateActions &&
+            string.Equals(SourceKind, "module", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Gets whether the user can remove the entry from the journal.
+        /// </summary>
+        public bool CanDismiss =>
+            !(Category == AppNotificationCategory.Updates &&
+                (string.Equals(SourceKind, "app", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(SourceKind, "engine", StringComparison.OrdinalIgnoreCase))) &&
+            !((IsInProgress || AwaitingRestart) && IsComponentUpdate);
 
         /// <summary>
         /// Gets the localized label for the inline Update now action.
@@ -516,10 +730,12 @@ namespace ASLM.Models
         public string UpdateLaterText => L.Get(LocalizationKeys.Notifications_UpdateLater);
 
         /// <summary>
-        /// Refreshes localized action button labels after the UI culture changes.
+        /// Refreshes localized card text and action captions after the UI culture changes.
         /// </summary>
         internal void RefreshLocalizedPresentation()
         {
+            OnPropertyChanged(nameof(CardTitle));
+            RefreshCardStatus();
             OnPropertyChanged(nameof(UpdateNowText));
             OnPropertyChanged(nameof(UpdateLaterText));
         }
@@ -530,20 +746,13 @@ namespace ASLM.Models
         public bool SuppressToastAutoDismiss => _suppressToastAutoDismiss;
 
         /// <summary>
-        /// Marks one available-update notification as showing inline update actions and a persistent toast.
+        /// Updates the action visibility and toast lifetime for an update offer.
         /// </summary>
         internal void SetUpdateAvailabilityPresentation(bool offersUpdateActions, bool suppressToastAutoDismiss)
         {
-            SetField(ref _offersUpdateActions, offersUpdateActions, nameof(OffersUpdateActions));
+            if (SetField(ref _offersUpdateActions, offersUpdateActions, nameof(OffersUpdateActions)))
+                OnPropertyChanged(nameof(CanDeferUpdate));
             SetField(ref _suppressToastAutoDismiss, suppressToastAutoDismiss, nameof(SuppressToastAutoDismiss));
-        }
-
-        /// <summary>
-        /// Hides inline update actions after the user defers from the notifications list.
-        /// </summary>
-        internal void ClearUpdateAvailabilityPresentation()
-        {
-            SetUpdateAvailabilityPresentation(false, false);
         }
 
 
@@ -581,7 +790,6 @@ namespace ASLM.Models
             UpdatedAt = DateTimeOffset.Now;
 
             OnPropertyChanged(nameof(TimestampLabel));
-            OnPropertyChanged(nameof(DetailLine));
             RefreshTransferPercentDisplay();
         }
 
@@ -602,7 +810,6 @@ namespace ASLM.Models
             }
 
             OnPropertyChanged(nameof(TimestampLabel));
-            OnPropertyChanged(nameof(DetailLine));
             SyncShowDownloadMetricsRow();
             RefreshTransferPercentDisplay();
         }

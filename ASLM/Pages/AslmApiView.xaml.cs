@@ -809,7 +809,7 @@ namespace ASLM.Pages
                 L.Get(LocalizationKeys.AslmApi_AddressCopiedTitle),
                 MirrorUrl,
                 L.Get(LocalizationKeys.AslmApi_AddressCopiedStatus),
-                $"aslm-api:{Key.GetHashCode(StringComparison.OrdinalIgnoreCase)}");
+                "mirror-address-copied", Key);
         }
 
 

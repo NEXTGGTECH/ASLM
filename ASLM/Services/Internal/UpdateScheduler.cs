@@ -193,6 +193,21 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Clears cached candidates and notifications after the shared ASLM and engine channel changes.
+        /// </summary>
+        internal void InvalidateSharedUpdateChannel()
+        {
+            lock (_stateGate)
+            {
+                _updateManager.InvalidateSharedUpdateChannel();
+                _appData.Data.Updates.AvailableAppUpdate = null;
+                _appData.Data.Updates.AvailableOllamaUpdate = null;
+            }
+
+            RaiseUpdateStateChanged();
+        }
+
+        /// <summary>
         /// Clears one persisted candidate after its update has been applied or prepared.
         /// </summary>
         public async Task ClearAvailableCandidateAsync(string targetKind, string targetId)
@@ -362,6 +377,7 @@ namespace ASLM.Services.Internal
             // With automatic updates the candidate is applied right away, so no "update available" notification is needed.
             var settings = _appData.Data.Updates;
             var publishNotifications = !settings.AutoUpdateEnabled;
+            var channelRevision = _updateManager.SharedUpdateChannelRevision;
             var appResult = await SafeCheckAppUpdateAsync(ct, publishNotifications);
 
             // Ollama is only checked when it is installed.
@@ -370,9 +386,11 @@ namespace ASLM.Services.Internal
                 ? await SafeCheckEngineUpdateAsync(ollamaEngine, ct, publishNotifications)
                 : UpdateCheckResult.CompletedWithoutUpdate;
 
-            // Persist successful results while retaining older candidates when a network check failed.
+            // Retain older candidates on network errors, and skip results for a superseded channel.
             lock (_stateGate)
             {
+                if (channelRevision != _updateManager.SharedUpdateChannelRevision) return;
+
                 if (appResult.Completed)
                 {
                     settings.AvailableAppUpdate = ToPersistedCandidate(appResult.Candidate);
@@ -388,7 +406,7 @@ namespace ASLM.Services.Internal
             RaiseUpdateStateChanged();
 
             // Without automatic updates, the stored candidates and notifications are the whole result.
-            if (!settings.AutoUpdateEnabled)
+            if (!settings.AutoUpdateEnabled || channelRevision != _updateManager.SharedUpdateChannelRevision)
             {
                 return;
             }
@@ -400,7 +418,7 @@ namespace ASLM.Services.Internal
                 stateChanged |= await TryAutomaticallyPrepareAppUpdateAsync(appResult.Candidate, ct);
             }
 
-            if (ollamaResult.Candidate != null)
+            if (ollamaResult.Candidate != null && channelRevision == _updateManager.SharedUpdateChannelRevision)
             {
                 stateChanged |= await TryAutomaticallyApplyEngineUpdateAsync(ollamaResult.Candidate, ct);
             }
@@ -564,7 +582,7 @@ namespace ASLM.Services.Internal
         {
             try
             {
-                var candidate = await _updateManager.CheckModuleUpdateAsync(module, ct, publishNotifications, false);
+                var candidate = await _updateManager.CheckScheduledModuleUpdateAsync(module, ct, publishNotifications);
                 return new UpdateCheckResult(true, candidate);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
