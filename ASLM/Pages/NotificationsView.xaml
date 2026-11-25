@@ -68,7 +68,7 @@
                             Margin="0"
                             BackgroundColor="Transparent"
                             TextColor="{DynamicResource LabelSecondary}"
-                            CornerRadius="6"
+                            CornerRadius="4"
                             VerticalOptions="Center"
                             Clicked="OnCloseClicked" />
                 </Grid>
@@ -121,19 +121,7 @@
                                                    MaxLines="1"
                                                    LineBreakMode="TailTruncation" />
 
-                                            <Label Text="{Binding TimestampLabel}"
-                                                   FontSize="11"
-                                                   TextColor="{DynamicResource LabelSecondary}" />
-
-                                            <!-- Active transfer filename: only when it adds info beyond Message -->
-                                            <Label Text="{Binding ActiveTransferLabel}"
-                                                   FontSize="12"
-                                                   TextColor="{DynamicResource LabelSecondary}"
-                                                   MaxLines="1"
-                                                   LineBreakMode="TailTruncation"
-                                                   IsVisible="{Binding ShowActiveTransferInCard}" />
-
-                                            <!-- Byte progress detail, Speed, percent — visible only during active download -->
+                                            <!-- Download metrics are shown while a transfer is active. -->
                                             <Grid ColumnDefinitions="*,Auto,Auto"
                                                   ColumnSpacing="8"
                                                   IsVisible="{Binding ShowDownloadMetricsRow}"
@@ -141,20 +129,20 @@
                                                 <Label Grid.Column="0"
                                                        Text="{Binding DetailText}"
                                                        FontSize="11"
-                                                       TextColor="{DynamicResource LabelSecondary}"
+                                                       TextColor="{DynamicResource LabelPrimary}"
                                                        VerticalTextAlignment="Center"
                                                        LineBreakMode="TailTruncation"
                                                        IsVisible="{Binding HasDetailText}" />
                                                 <Label Grid.Column="1"
                                                        Text="{Binding TransferSpeedDisplay}"
                                                        FontSize="11"
-                                                       TextColor="{DynamicResource LabelSecondary}"
+                                                       TextColor="{DynamicResource LabelPrimary}"
                                                        VerticalTextAlignment="Center"
                                                        LineBreakMode="TailTruncation" />
                                                 <Label Grid.Column="2"
                                                        Text="{Binding TransferPercentDisplay}"
                                                        FontSize="11"
-                                                       TextColor="{DynamicResource LabelSecondary}"
+                                                       TextColor="{DynamicResource LabelPrimary}"
                                                        VerticalTextAlignment="Center" />
                                             </Grid>
 
@@ -162,6 +150,10 @@
                                                          IsVisible="{Binding HasProgress}"
                                                          HeightRequest="4"
                                                          ProgressColor="{DynamicResource ActionBlue}" />
+
+                                            <Label Text="{Binding TimestampLabel}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource LabelSecondary}" />
 
                                             <HorizontalStackLayout Spacing="8"
                                                                      Margin="0,6,0,0"

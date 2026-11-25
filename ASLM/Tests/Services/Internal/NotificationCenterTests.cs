@@ -106,14 +106,14 @@ namespace ASLM.Tests.Services.Internal
 
         /// <summary>
         /// Verifies that a download row is in progress after the start, stays in progress and shows a status text while
-        /// bytes are reported, displays the measured speed for an unknown total, and clears it after transferring.
+        /// bytes are reported, updates its subtitle for a new file, and clears file and speed after transferring.
         /// </summary>
         [Fact]
         public async Task Download_flow_progresses_from_start_through_bytes_to_completion()
         {
             var center = CreateCenter();
 
-            var attempt = await center.StartDownloadAsync("install", "Model", "Downloading model", "resource", "model");
+            var attempt = await center.StartDownloadAsync("install", "Model", "Model", "resource", "model");
             var row = center.Notifications.Single(n => n.Id == attempt);
             row.IsInProgress.Should().BeTrue();
             var changes = 0;
@@ -121,12 +121,23 @@ namespace ASLM.Tests.Services.Internal
 
             center.ReportDownloadProgress(attempt, new DownloadProgress(0, 512, 0, "model", 512));
             row.IsInProgress.Should().BeTrue();
-            row.CardStatusText.Should().Contain(L.Get(LocalizationKeys.Settings_Downloading));
+            var downloadStatus = $"Model - {L.Get(LocalizationKeys.Settings_Downloading)}";
+            row.CardStatusText.Should().Be(downloadStatus);
             row.TransferSpeedDisplay.Should().Be("512 B/s");
             row.TransferPercentDisplay.Should().NotContain("%");
 
+            // A new file updates the bound subtitle even while the status and byte counts stay the same.
+            var subtitleChanges = new List<string>();
+            row.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(AppNotification.CardStatusText)) subtitleChanges.Add(row.CardStatusText);
+            };
+            center.ReportDownloadProgress(attempt, new DownloadProgress(0, 512, 0, "model.zip", 512));
+            subtitleChanges.Should().Equal($"{downloadStatus} - model.zip");
+
             center.ReportDownloadStatus(attempt, "Applying");
             row.IsInProgress.Should().BeTrue();
+            row.CardStatusText.Should().Be("Model - Applying");
             row.ShowDownloadMetricsRow.Should().BeFalse();
             row.TransferSpeedDisplay.Should().NotContain("B/s");
 

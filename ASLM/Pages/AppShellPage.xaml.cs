@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using ASLM.Localization;
 using ASLM.Models;
-using Microsoft.Maui.Controls.Shapes;
 
 namespace ASLM.Pages
 {
@@ -920,7 +919,9 @@ namespace ASLM.Pages
         {
             // Replace the prior toast for this event before applying the stack limit.
             RemoveToastById(notification.Id);
-            var toast = CreateToast(notification);
+            var template = (DataTemplate)Resources["NotificationToastTemplate"];
+            var toast = (Border)template.CreateContent();
+            toast.BindingContext = notification;
             ToastPanel.Children.Insert(0, toast);
 
             while (ToastPanel.Children.Count > 4)
@@ -938,182 +939,41 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Builds the compact visual toast card for one notification.
-        /// Tapping the body opens the notifications popover and dismisses the toast.
-        /// The close button in the top-right corner only dismisses the toast.
+        /// Opens the journal when the user taps the content of a visible toast.
         /// </summary>
-        /// <param name="notification">Notification the toast presents.</param>
-        private Border CreateToast(AppNotification notification)
+        private void OnToastBodyTapped(object? sender, TappedEventArgs e)
         {
-            // Assigned at the end; the button handlers below capture it to remove their own toast.
-            Border toastHost = null!;
+            if (e.Parameter is not Border toast) return;
 
-            // Bind the toast to the same localized text as the journal.
-            var title = new Label
-            {
-                FontSize = 14,
-                FontAttributes = FontAttributes.Bold,
-                MaxLines = 2,
-                LineBreakMode = LineBreakMode.CharacterWrap
-            };
-            title.SetDynamicResource(Label.TextColorProperty, "LabelPrimary");
-            title.SetBinding(Label.TextProperty, nameof(AppNotification.CardTitle));
+            RemoveToast(toast);
+            OpenNotificationsOverlay();
+        }
 
-            var status = new Label { FontSize = 12, MaxLines = 1, LineBreakMode = LineBreakMode.TailTruncation };
-            status.SetDynamicResource(Label.TextColorProperty, "LabelPrimary");
-            status.SetBinding(Label.TextProperty, nameof(AppNotification.CardStatusText));
-            status.SetBinding(Label.IsVisibleProperty, nameof(AppNotification.HasCardStatus));
+        /// <summary>
+        /// Closes the clicked toast while preserving its journal entry.
+        /// </summary>
+        private void OnToastCloseClicked(object? sender, EventArgs e)
+        {
+            if (sender is Button { CommandParameter: Border toast })
+                RemoveToast(toast);
+        }
 
-            var timestamp = new Label { FontSize = 11 };
-            timestamp.SetDynamicResource(Label.TextColorProperty, "LabelSecondary");
-            timestamp.SetBinding(Label.TextProperty, nameof(AppNotification.TimestampLabel));
+        /// <summary>
+        /// Forwards the active toast's update action to the notification center.
+        /// </summary>
+        private void OnToastUpdateNowClicked(object? sender, EventArgs e)
+        {
+            if (sender is Button { BindingContext: AppNotification notification })
+                _notifications.RequestUpdateNotificationAction(notification, updateNow: true);
+        }
 
-            var content = new VerticalStackLayout { Spacing = 2, Children = { title, status, timestamp } };
-
-            var closeButton = new Button
-            {
-                Text = "✕",
-                FontSize = 11,
-                WidthRequest = 22,
-                HeightRequest = 22,
-                Padding = new Thickness(0),
-                Margin = new Thickness(0),
-                BackgroundColor = Colors.Transparent,
-                CornerRadius = 4,
-                HorizontalOptions = LayoutOptions.End,
-                VerticalOptions = LayoutOptions.Start
-            };
-            closeButton.SetDynamicResource(Button.TextColorProperty, "LabelSecondary");
-
-            // Layout: accent stripe, text and actions column, close button.
-            var outerGrid = new Grid
-            {
-                ColumnDefinitions =
-                {
-                    new ColumnDefinition(new GridLength(4)),
-                    new ColumnDefinition(GridLength.Star),
-                    new ColumnDefinition(GridLength.Auto)
-                },
-                ColumnSpacing = 6
-            };
-
-            outerGrid.Children.Add(new BoxView
-            {
-                BackgroundColor = notification.AccentColor,
-                WidthRequest = 4,
-                VerticalOptions = LayoutOptions.Fill
-            });
-
-            var bodyColumn = new VerticalStackLayout { Spacing = 8 };
-            bodyColumn.Children.Add(content);
-            if (notification.IsInProgress)
-            {
-                var transfer = new Label { FontSize = 11, MaxLines = 1, LineBreakMode = LineBreakMode.TailTruncation };
-                transfer.SetDynamicResource(Label.TextColorProperty, "LabelSecondary");
-                transfer.SetBinding(Label.TextProperty, nameof(AppNotification.DetailText));
-                var speed = new Label { FontSize = 11, MaxLines = 1 };
-                speed.SetDynamicResource(Label.TextColorProperty, "LabelSecondary");
-                speed.SetBinding(Label.TextProperty, nameof(AppNotification.TransferSpeedDisplay));
-                speed.SetBinding(Label.IsVisibleProperty, nameof(AppNotification.ShowDownloadMetricsRow));
-
-                var metrics = new Grid
-                {
-                    ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) },
-                    ColumnSpacing = 8
-                };
-                metrics.SetBinding(VisualElement.IsVisibleProperty, nameof(AppNotification.HasDetailText));
-                metrics.Add(transfer, 0, 0);
-                metrics.Add(speed, 1, 0);
-                bodyColumn.Children.Add(metrics);
-
-                var progress = new ProgressBar();
-                progress.SetDynamicResource(ProgressBar.ProgressColorProperty, "ActionBlue");
-                progress.SetBinding(ProgressBar.ProgressProperty, nameof(AppNotification.ProgressFraction));
-                progress.SetBinding(ProgressBar.IsVisibleProperty, nameof(AppNotification.HasProgress));
-                bodyColumn.Children.Add(progress);
-            }
-
-            // Offer the same actions as the journal.
-            if (notification.OffersUpdateActions)
-            {
-                var actionRow = new HorizontalStackLayout { Spacing = 8 };
-                actionRow.SetBinding(VisualElement.IsVisibleProperty, nameof(AppNotification.OffersUpdateActions));
-
-                var updateNowButton = new Button
-                {
-                    Text = L.Get(LocalizationKeys.Notifications_UpdateNow),
-                    FontSize = 11,
-                    HeightRequest = 28,
-                    MinimumHeightRequest = 28,
-                    Padding = new Thickness(10, 0),
-                    Margin = new Thickness(0),
-                    CornerRadius = 6
-                };
-                updateNowButton.SetDynamicResource(Button.BackgroundColorProperty, "ActionBlue");
-                updateNowButton.SetDynamicResource(Button.TextColorProperty, "White");
-                updateNowButton.Clicked += (_, _) =>
-                    _notifications.RequestUpdateNotificationAction(notification, updateNow: true);
-
-                var updateLaterButton = new Button
-                {
-                    Text = L.Get(LocalizationKeys.Notifications_UpdateLater),
-                    FontSize = 11,
-                    HeightRequest = 28,
-                    MinimumHeightRequest = 28,
-                    Padding = new Thickness(10, 0),
-                    Margin = new Thickness(0),
-                    CornerRadius = 6
-                };
-                updateLaterButton.SetBinding(VisualElement.IsVisibleProperty, nameof(AppNotification.CanDeferUpdate));
-                updateLaterButton.SetDynamicResource(Button.BackgroundColorProperty, "BackgroundTertiary");
-                updateLaterButton.SetDynamicResource(Button.TextColorProperty, "LabelPrimary");
-                updateLaterButton.Clicked += (_, _) =>
-                    _notifications.RequestUpdateNotificationAction(notification, updateNow: false);
-
-                actionRow.Children.Add(updateNowButton);
-                actionRow.Children.Add(updateLaterButton);
-                bodyColumn.Children.Add(actionRow);
-            }
-
-            outerGrid.Children.Add(bodyColumn);
-            Grid.SetColumn(bodyColumn, 1);
-
-            outerGrid.Children.Add(closeButton);
-            Grid.SetColumn(closeButton, 2);
-
-            // The card itself: rounded border with a shadow, bound to the notification.
-            toastHost = new Border
-            {
-                BindingContext = notification,
-                StrokeThickness = 1,
-                StrokeShape = new RoundRectangle { CornerRadius = 8 },
-                Padding = new Thickness(10),
-                Content = outerGrid,
-                InputTransparent = false,
-                Shadow = new Shadow
-                {
-                    Brush = Brush.Black,
-                    Opacity = 0.35f,
-                    Radius = 12,
-                    Offset = new Point(0, 4)
-                }
-            };
-            toastHost.SetDynamicResource(Border.BackgroundColorProperty, "BackgroundSecondary");
-            toastHost.SetDynamicResource(Border.StrokeProperty, "Separator");
-
-            // Close button: dismiss only, does not open the notifications panel.
-            closeButton.Clicked += (_, _) => RemoveToast(toastHost);
-
-            // Tap on the toast body: open notifications panel and dismiss the toast.
-            var bodyTap = new TapGestureRecognizer();
-            bodyTap.Tapped += (_, _) =>
-            {
-                RemoveToast(toastHost);
-                OpenNotificationsOverlay();
-            };
-            content.GestureRecognizers.Add(bodyTap);
-
-            return toastHost;
+        /// <summary>
+        /// Defers the module update offered by the active toast.
+        /// </summary>
+        private void OnToastUpdateLaterClicked(object? sender, EventArgs e)
+        {
+            if (sender is Button { BindingContext: AppNotification notification })
+                _notifications.RequestUpdateNotificationAction(notification, updateNow: false);
         }
 
         /// <summary>

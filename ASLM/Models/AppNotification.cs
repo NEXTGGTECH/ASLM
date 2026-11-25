@@ -254,7 +254,6 @@ namespace ASLM.Models
             // Derive the transfer row state and tell bindings about values computed above.
             RefreshTransferPercentDisplay();
             SyncShowDownloadMetricsRow();
-            OnPropertyChanged(nameof(ShowActiveTransferInCard));
             OnPropertyChanged(nameof(OffersUpdateActions));
             OnPropertyChanged(nameof(SuppressToastAutoDismiss));
         }
@@ -343,7 +342,7 @@ namespace ASLM.Models
                 if (!SetField(ref _title, value)) return;
 
                 OnPropertyChanged(nameof(CardTitle));
-                OnPropertyChanged(nameof(ShowActiveTransferInCard));
+                RefreshCardStatus();
             }
         }
 
@@ -359,7 +358,6 @@ namespace ASLM.Models
 
                 OnPropertyChanged(nameof(CardTitle));
                 RefreshCardStatus();
-                OnPropertyChanged(nameof(ShowActiveTransferInCard));
             }
         }
 
@@ -426,7 +424,6 @@ namespace ASLM.Models
                 {
                     OnPropertyChanged(nameof(CardTitle));
                     RefreshCardStatus();
-                    OnPropertyChanged(nameof(ShowActiveTransferInCard));
                     OnPropertyChanged(nameof(CanDismiss));
                 }
             }
@@ -480,7 +477,7 @@ namespace ASLM.Models
         }
 
         /// <summary>
-        /// Gets the status line when it adds information to the title.
+        /// Gets the status line, including the current file when it adds information to the card.
         /// </summary>
         public string CardStatusText
         {
@@ -501,12 +498,20 @@ namespace ASLM.Models
                         L.Get(LocalizationKeys.Notifications_RestartToFinishUpdate),
                     _ => string.IsNullOrWhiteSpace(StatusText) ? SeverityLabel : StatusText
                 };
-                if (IsComponentUpdate || IsModuleInstallation || string.IsNullOrWhiteSpace(Message)) return status;
+                if (!IsComponentUpdate && !IsModuleInstallation && !string.IsNullOrWhiteSpace(Message))
+                {
+                    status = string.IsNullOrWhiteSpace(StatusText) ||
+                        string.Equals(Message, StatusText, StringComparison.OrdinalIgnoreCase)
+                        ? Message
+                        : $"{Message} - {status}";
+                }
 
-                return string.IsNullOrWhiteSpace(StatusText) ||
-                    string.Equals(Message, StatusText, StringComparison.OrdinalIgnoreCase)
-                    ? Message
-                    : $"{Message} - {status}";
+                // Resource transfers may report the same model name already shown in the card.
+                return IsInProgress && _activeTransferLabel.Length > 0 &&
+                    !AreResourceLabelsEquivalent(Subject, _activeTransferLabel) &&
+                    !string.Equals(status, _activeTransferLabel, StringComparison.OrdinalIgnoreCase)
+                    ? $"{status} - {_activeTransferLabel}"
+                    : status;
             }
         }
 
@@ -657,26 +662,6 @@ namespace ASLM.Models
         public string ProgressPercentLabel => $"{ProgressFraction * 100.0:F0}%";
 
         /// <summary>
-        /// Gets the optional label for the active download stream or file.
-        /// </summary>
-        public string ActiveTransferLabel => _activeTransferLabel;
-
-        /// <summary>
-        /// Gets whether a specific active transfer label is shown.
-        /// </summary>
-        public bool HasActiveTransferLabel => !string.IsNullOrWhiteSpace(_activeTransferLabel);
-
-        /// <summary>
-        /// Gets whether the active transfer line should appear in the card.
-        /// Suppressed when it only repeats the same resource as <see cref="Message"/> with different punctuation
-        /// (for example Ollama model name vs catalog subtitle).
-        /// </summary>
-        public bool ShowActiveTransferInCard =>
-            IsInProgress &&
-            HasActiveTransferLabel &&
-            !AreResourceLabelsEquivalent(Subject, ActiveTransferLabel);
-
-        /// <summary>
         /// Gets the smoothed transfer speed for the download metrics row.
         /// </summary>
         public string TransferSpeedDisplay => _transferSpeedDisplay;
@@ -819,9 +804,7 @@ namespace ASLM.Models
         /// </summary>
         internal void ResetDownloadTransferRow()
         {
-            SetField(ref _activeTransferLabel, string.Empty, nameof(ActiveTransferLabel));
-            OnPropertyChanged(nameof(HasActiveTransferLabel));
-            OnPropertyChanged(nameof(ShowActiveTransferInCard));
+            SetActiveTransferLabel(string.Empty);
             SetField(ref _transferSpeedDisplay, "—", nameof(TransferSpeedDisplay));
             _downloadHasKnownTotal = false;
             RefreshTransferPercentDisplay();
@@ -836,10 +819,7 @@ namespace ASLM.Models
             // Show the file currently being transferred when the sample names one.
             if (!string.IsNullOrWhiteSpace(progress.ActiveTransferName))
             {
-                if (SetField(ref _activeTransferLabel, progress.ActiveTransferName.Trim(), nameof(ActiveTransferLabel)))
-                {
-                    OnPropertyChanged(nameof(HasActiveTransferLabel));
-                }
+                SetActiveTransferLabel(progress.ActiveTransferName.Trim());
             }
 
             // A positive total means the percentage is meaningful.
@@ -851,7 +831,17 @@ namespace ASLM.Models
 
             RefreshTransferPercentDisplay();
             SyncShowDownloadMetricsRow();
-            OnPropertyChanged(nameof(ShowActiveTransferInCard));
+        }
+
+        /// <summary>
+        /// Refreshes the card subtitle when a transfer starts, changes files, or ends.
+        /// </summary>
+        private void SetActiveTransferLabel(string label)
+        {
+            if (_activeTransferLabel == label) return;
+
+            _activeTransferLabel = label;
+            RefreshCardStatus();
         }
 
         /// <summary>
