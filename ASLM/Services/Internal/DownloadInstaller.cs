@@ -132,6 +132,21 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Notifies the catalog when it can refresh an individual resource's rate.
+        /// </summary>
+        internal event Action<string>? TransferSpeedChanged
+        {
+            add => _downloadQueue.TransferSpeedChanged += value;
+            remove => _downloadQueue.TransferSpeedChanged -= value;
+        }
+
+        /// <summary>
+        /// Returns the latest rate for a catalog variant while it is downloading.
+        /// </summary>
+        internal double? GetTransferSpeed(string resourceKey) =>
+            _downloadQueue.GetTransferSpeed("resource:" + resourceKey);
+
+        /// <summary>
         /// Resolves the resource key that identifies an operation: the selected variant, else the item's default
         /// variant, else the item itself.
         /// </summary>
@@ -262,7 +277,7 @@ namespace ASLM.Services.Internal
                     var effectiveTitle = !string.IsNullOrWhiteSpace(manifest.Title) ? manifest.Title : selectedTitle;
                     log?.Report($"Installing {effectiveTitle} via {module.Name}...");
 
-                    await ExecuteManifestAsync(module, manifest, operationKey, log, ct);
+                    await ExecuteManifestAsync(module, manifest, operationKey, log, ct, "resource:" + selectedResourceKey);
 
                     var version = !string.IsNullOrWhiteSpace(manifest.Version)
                         ? manifest.Version
@@ -289,7 +304,7 @@ namespace ASLM.Services.Internal
                     _logger.LogError(ex, "Install manifest execution failed for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
                     lastError = ex.Message;
                     log?.Report($"Install failed via {module.Name}: {ex.Message}");
-                    _notifications.FailDownload(operationKey, $"Install failed: {ex.Message}");
+                    _notifications.ReportDownloadStatus(operationKey, $"Install failed: {ex.Message}");
                 }
             }
 
@@ -445,16 +460,29 @@ namespace ASLM.Services.Internal
         /// <param name="operationKey">Notification operation that receives progress.</param>
         /// <param name="log">Optional receiver of human-readable log lines.</param>
         /// <param name="ct">Cancellation token checked before every action.</param>
+        /// <param name="queueKey">Catalog operation that receives the same live speed as the notification.</param>
         internal async Task ExecuteManifestAsync(
             ModuleConfig module,
             ModuleDownloadInstallManifest manifest,
             string operationKey,
             IProgress<string>? log,
-            CancellationToken ct)
+            CancellationToken ct,
+            string? queueKey = null)
         {
             // The temporary workspace holds artifacts downloaded by earlier actions for later ones.
             var context = new InstallExecutionContext(GetRootDirectory());
             Directory.CreateDirectory(context.TempDir);
+
+            // Forward the same transfer measurement to the catalog and the notification.
+            void ReportTransfer(DownloadProgress? progress, string? statusText)
+            {
+                if (queueKey != null) _downloadQueue.SetTransferSpeed(queueKey, progress?.BytesPerSecond);
+
+                if (progress != null)
+                    _notifications.ReportDownloadProgress(operationKey, progress, statusText);
+                else if (statusText != null)
+                    _notifications.ReportDownloadStatus(operationKey, statusText);
+            }
 
             try
             {
@@ -472,7 +500,7 @@ namespace ASLM.Services.Internal
                     switch (action.Type.Trim().ToLowerInvariant())
                     {
                         case "download_file":
-                            await ExecuteDownloadFileAsync(module, manifest, action, context, operationKey, log, ct);
+                            await ExecuteDownloadFileAsync(module, manifest, action, context, operationKey, ReportTransfer, log, ct);
                             break;
 
                         case "extract_zip":
@@ -484,7 +512,7 @@ namespace ASLM.Services.Internal
                             break;
 
                         case "ollama_pull":
-                            await ExecuteOllamaPullAsync(module, manifest, action, operationKey, log, ct);
+                            await ExecuteOllamaPullAsync(module, manifest, action, operationKey, ReportTransfer, log, ct);
                             break;
 
                         case "ollama_remove":
@@ -498,6 +526,7 @@ namespace ASLM.Services.Internal
             }
             finally
             {
+                if (queueKey != null) _downloadQueue.SetTransferSpeed(queueKey, null);
                 context.TryCleanup();
             }
         }
@@ -514,6 +543,7 @@ namespace ASLM.Services.Internal
         /// <param name="action">The <c>download_file</c> action with the URL, destination and optional checksum.</param>
         /// <param name="context">Temporary workspace shared by the manifest actions.</param>
         /// <param name="operationKey">Notification operation that receives progress.</param>
+        /// <param name="reportProgress">Receives byte and speed measurements for this transfer.</param>
         /// <param name="log">Optional receiver of human-readable log lines.</param>
         /// <param name="ct">Cancellation token for the transfer.</param>
         private async Task ExecuteDownloadFileAsync(
@@ -522,6 +552,7 @@ namespace ASLM.Services.Internal
             ModuleDownloadInstallAction action,
             InstallExecutionContext context,
             string operationKey,
+            Action<DownloadProgress?, string?> reportProgress,
             IProgress<string>? log,
             CancellationToken ct)
         {
@@ -559,25 +590,25 @@ namespace ASLM.Services.Internal
                 : Path.GetFileName(new Uri(action.Url).LocalPath);
             _notifications.ReportDownloadStatus(operationKey, $"Downloading {downloadTitle}");
 
-            using var response = await _httpClient.GetAsync(action.Url, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await _httpClient.GetAsync(action.Url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             // Stream the body straight to disk; the file is recreated, so an earlier partial file is discarded.
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
-            await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+            await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.Read, 65536, true);
             var buffer = new byte[65536];
             long downloadedBytes = 0;
             int bytesRead;
             var throttle = Stopwatch.StartNew();
 
-            _notifications.ReportDownloadProgress(
-                operationKey,
-                new DownloadProgress(0, 0, totalBytes, downloadTitle));
+            var speed = new DownloadTransferSpeedEstimator();
+            speed.Sample(downloadedBytes);
+            reportProgress(new DownloadProgress(0, 0, totalBytes, downloadTitle), null);
 
-            while ((bytesRead = await contentStream.ReadAsync(buffer, ct)) > 0)
+            while ((bytesRead = await contentStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
                 downloadedBytes += bytesRead;
 
                 // Throttle notification updates to one every 75 ms.
@@ -588,19 +619,19 @@ namespace ASLM.Services.Internal
 
                 throttle.Restart();
                 var fraction = totalBytes > 0 ? (double)downloadedBytes / totalBytes : 0;
-                _notifications.ReportDownloadProgress(
-                    operationKey,
-                    new DownloadProgress(fraction, downloadedBytes, totalBytes, downloadTitle));
+                reportProgress(
+                    new DownloadProgress(fraction, downloadedBytes, totalBytes, downloadTitle, speed.Sample(downloadedBytes)),
+                    null);
             }
 
             // Report a final 100% so the progress does not stay at the last throttled value.
-            _notifications.ReportDownloadProgress(
-                operationKey,
+            reportProgress(
                 new DownloadProgress(
                     1.0,
                     downloadedBytes,
                     totalBytes > 0 ? totalBytes : downloadedBytes,
-                    downloadTitle));
+                    downloadTitle),
+                null);
 
             // Verify the checksum before the file is registered or used by any later action.
             if (!string.IsNullOrWhiteSpace(action.Sha256))
@@ -763,6 +794,7 @@ namespace ASLM.Services.Internal
         /// <param name="manifest">Manifest that supplies the default model name and target reference.</param>
         /// <param name="action">The <c>ollama_pull</c> action naming the model and optionally the engine.</param>
         /// <param name="operationKey">Notification operation that receives progress.</param>
+        /// <param name="reportProgress">Receives byte and speed measurements for the pull.</param>
         /// <param name="log">Optional receiver of human-readable log lines.</param>
         /// <param name="ct">Cancellation token for startup and the pull.</param>
         private async Task ExecuteOllamaPullAsync(
@@ -770,6 +802,7 @@ namespace ASLM.Services.Internal
             ModuleDownloadInstallManifest manifest,
             ModuleDownloadInstallAction action,
             string operationKey,
+            Action<DownloadProgress?, string?> reportProgress,
             IProgress<string>? log,
             CancellationToken ct)
         {
@@ -851,11 +884,8 @@ namespace ASLM.Services.Internal
             try
             {
                 await WaitForOllamaAsync(port, ct);
-                _notifications.ReportDownloadProgress(
-                    operationKey,
-                    new DownloadProgress(0, 0, 0, modelName),
-                    $"Pulling {modelName}");
-                await StreamOllamaPullAsync(port, modelName, operationKey, log, ct);
+                _notifications.ReportDownloadStatus(operationKey, $"Pulling {modelName}");
+                await StreamOllamaPullAsync(port, modelName, reportProgress, log, ct);
             }
             finally
             {
@@ -1008,13 +1038,13 @@ namespace ASLM.Services.Internal
         /// </summary>
         /// <param name="port">Loopback port the temporary service listens on.</param>
         /// <param name="modelName">Model to pull.</param>
-        /// <param name="operationKey">Notification operation that receives progress.</param>
+        /// <param name="reportProgress">Receives byte and speed measurements for the active layer.</param>
         /// <param name="log">Optional receiver of human-readable log lines.</param>
         /// <param name="ct">Cancellation token for the stream.</param>
         private async Task StreamOllamaPullAsync(
             int port,
             string modelName,
-            string operationKey,
+            Action<DownloadProgress?, string?> reportProgress,
             IProgress<string>? log,
             CancellationToken ct)
         {
@@ -1025,19 +1055,23 @@ namespace ASLM.Services.Internal
                 Content = new StringContent(requestPayload, Encoding.UTF8, new MediaTypeHeaderValue("application/json"))
             };
 
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             using var reader = new StreamReader(stream, Encoding.UTF8);
 
             // Notification updates are throttled: byte progress more often than status-only lines.
             var uiThrottle = Stopwatch.StartNew();
             const int progressIntervalMs = 100;
             const int statusOnlyIntervalMs = 400;
+            var speed = new DownloadTransferSpeedEstimator();
+            (string Id, long Total)? activeLayer = null;
+            DownloadProgress? lastProgress = null;
+            string? lastProgressStatus = null;
 
             string? line;
-            while ((line = await reader.ReadLineAsync(ct)) != null)
+            while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) != null)
             {
                 if (string.IsNullOrWhiteSpace(line))
                 {
@@ -1064,37 +1098,53 @@ namespace ASLM.Services.Internal
                     ? totalValue
                     : 0;
 
-                // Layer downloads report completed/total bytes; other steps report only a status text.
+                // A layer owns its byte counter, including bytes already cached before the first sample.
                 if (total > 0 && completed >= 0)
                 {
-                    var percent = Math.Clamp((double)completed / total * 100.0, 0, 100);
-                    log?.Report($"[ollama] {status} ({percent:F1}%)");
+                    var digest = root.TryGetProperty("digest", out var digestElement) &&
+                        digestElement.ValueKind == JsonValueKind.String ? digestElement.GetString() : null;
+                    var layer = (digest ?? status, total);
+                    var layerChanged = activeLayer != layer;
+                    if (layerChanged)
+                    {
+                        activeLayer = layer;
+                        speed.Reset();
+                    }
 
-                    if (uiThrottle.ElapsedMilliseconds >= progressIntervalMs)
+                    var fraction = Math.Clamp(completed / (double)total, 0, 1);
+                    log?.Report($"[ollama] {status} ({fraction * 100:F1}%)");
+
+                    var layerFinished = fraction == 1 && lastProgress?.Fraction != 1;
+                    if (layerChanged || layerFinished || uiThrottle.ElapsedMilliseconds >= progressIntervalMs)
                     {
                         uiThrottle.Restart();
-                        var fraction = Math.Clamp(completed / (double)total, 0, 1);
-                        var statusLine = string.IsNullOrWhiteSpace(status)
+                        lastProgressStatus = string.IsNullOrWhiteSpace(status)
                             ? "Pulling layers"
                             : TruncateForNotificationStatus(status);
-                        _notifications.ReportDownloadProgress(
-                            operationKey,
-                            new DownloadProgress(fraction, completed, total, modelName),
-                            statusLine);
+                        var measuredSpeed = fraction < 1 ? speed.Sample(completed) : null;
+                        lastProgress = new DownloadProgress(fraction, completed, total, modelName, measuredSpeed);
+                        reportProgress(lastProgress, lastProgressStatus);
                     }
                 }
                 else if (!string.IsNullOrWhiteSpace(status))
                 {
                     log?.Report($"[ollama] {status}");
-                    if (uiThrottle.ElapsedMilliseconds >= statusOnlyIntervalMs)
+
+                    // Verification and other status-only frames end the current byte transfer.
+                    if (activeLayer != null || uiThrottle.ElapsedMilliseconds >= statusOnlyIntervalMs)
                     {
                         uiThrottle.Restart();
-                        _notifications.ReportDownloadProgress(
-                            operationKey,
-                            new DownloadProgress(0, 0, 0, modelName),
-                            TruncateForNotificationStatus(status));
+                        activeLayer = null;
+                        lastProgress = null;
+                        reportProgress(null, TruncateForNotificationStatus(status));
                     }
                 }
+            }
+
+            // A stream may end without a final status frame.
+            if (lastProgress?.BytesPerSecond != null)
+            {
+                reportProgress(lastProgress with { BytesPerSecond = null }, lastProgressStatus);
             }
         }
 

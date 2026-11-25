@@ -33,10 +33,12 @@ namespace ASLM.Models
     /// <param name="Phase">Current operation stage.</param>
     /// <param name="Version">Release being downloaded or applied.</param>
     /// <param name="DownloadFraction">Known download completion, or null outside a measurable transfer.</param>
+    /// <param name="BytesPerSecond">Most recent speed during the download phase, when measured.</param>
     internal sealed record UpdateOperationSnapshot(
         UpdateOperationPhase Phase,
         string Version,
-        double? DownloadFraction = null);
+        double? DownloadFraction = null,
+        double? BytesPerSecond = null);
 
 
     // Update source

@@ -1011,8 +1011,20 @@ namespace ASLM.Pages
                 var transfer = new Label { FontSize = 11, MaxLines = 1, LineBreakMode = LineBreakMode.TailTruncation };
                 transfer.SetDynamicResource(Label.TextColorProperty, "LabelSecondary");
                 transfer.SetBinding(Label.TextProperty, nameof(AppNotification.DetailText));
-                transfer.SetBinding(Label.IsVisibleProperty, nameof(AppNotification.HasDetailText));
-                bodyColumn.Children.Add(transfer);
+                var speed = new Label { FontSize = 11, MaxLines = 1 };
+                speed.SetDynamicResource(Label.TextColorProperty, "LabelSecondary");
+                speed.SetBinding(Label.TextProperty, nameof(AppNotification.TransferSpeedDisplay));
+                speed.SetBinding(Label.IsVisibleProperty, nameof(AppNotification.ShowDownloadMetricsRow));
+
+                var metrics = new Grid
+                {
+                    ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) },
+                    ColumnSpacing = 8
+                };
+                metrics.SetBinding(VisualElement.IsVisibleProperty, nameof(AppNotification.HasDetailText));
+                metrics.Add(transfer, 0, 0);
+                metrics.Add(speed, 1, 0);
+                bodyColumn.Children.Add(metrics);
 
                 var progress = new ProgressBar();
                 progress.SetDynamicResource(ProgressBar.ProgressColorProperty, "ActionBlue");

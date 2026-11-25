@@ -139,14 +139,14 @@ namespace ASLM.Services.Internal
                     return;
                 }
 
-                operation.Snapshot = operation.Snapshot with { Phase = phase, DownloadFraction = null };
+                operation.Snapshot = operation.Snapshot with { Phase = phase, DownloadFraction = null, BytesPerSecond = null };
             }
 
             RaiseStateChanged();
         }
 
         /// <summary>
-        /// Retains every download sample while limiting listener notifications to ten per second.
+        /// Stores download progress and limits how often fraction updates alone notify listeners.
         /// </summary>
         private void ReportProgress(Operation operation, DownloadProgress progress)
         {
@@ -161,11 +161,17 @@ namespace ASLM.Services.Internal
                 // Store the sample unconditionally; an unknown total size leaves the fraction indeterminate.
                 double? fraction = progress.TotalBytes > 0 && double.IsFinite(progress.Fraction)
                     ? Math.Clamp(progress.Fraction, 0, 1) : null;
-                operation.Snapshot = operation.Snapshot with { DownloadFraction = fraction };
+                var speedChanged = operation.Snapshot.BytesPerSecond != progress.BytesPerSecond;
+                operation.Snapshot = operation.Snapshot with
+                {
+                    DownloadFraction = fraction,
+                    BytesPerSecond = progress.BytesPerSecond
+                };
 
-                // Throttle notifications, but always publish the final 100% sample.
+                // Throttle fraction updates while publishing speed changes and the final sample immediately.
                 var now = Environment.TickCount64;
-                if (fraction != 1 && now - operation.LastProgressNotification < ProgressNotificationIntervalMilliseconds)
+                if (!speedChanged && fraction != 1 &&
+                    now - operation.LastProgressNotification < ProgressNotificationIntervalMilliseconds)
                 {
                     return;
                 }
@@ -228,7 +234,7 @@ namespace ASLM.Services.Internal
             internal TaskCompletionSource<bool> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>
-            /// Latest immutable state (stage, version, download fraction); written only under the tracker lock.
+            /// Latest immutable state, written only under the tracker lock.
             /// </summary>
             internal UpdateOperationSnapshot Snapshot { get; set; }
 

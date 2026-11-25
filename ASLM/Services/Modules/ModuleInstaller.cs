@@ -869,7 +869,7 @@ namespace ASLM.Services.Modules
             // Send the request and fail early on an HTTP error; only the headers are read at this point.
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             _github?.PrepareApiRequest(request);
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             _github?.TrackApiResponse(request, response);
             response.EnsureSuccessStatusCode();
 
@@ -879,7 +879,7 @@ namespace ASLM.Services.Modules
                 : "  Downloading (size unknown)...");
 
             // Stream the body to the destination file, reporting progress at most every 50 ms.
-            await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+            await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true);
 
             var buffer = new byte[65536];
@@ -888,21 +888,24 @@ namespace ASLM.Services.Modules
             var throttle = Stopwatch.StartNew();
 
             var transferLabel = Path.GetFileName(destinationPath);
+            var speed = new DownloadTransferSpeedEstimator();
+            speed.Sample(downloaded);
             downloadProgress?.Report(new DownloadProgress(0, 0, totalBytes, transferLabel));
 
-            while ((bytesRead = await contentStream.ReadAsync(buffer, ct)) > 0)
+            while ((bytesRead = await contentStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
                 downloaded += bytesRead;
 
-                if (totalBytes > 0 && throttle.ElapsedMilliseconds >= 50)
+                if (throttle.ElapsedMilliseconds >= 50)
                 {
                     throttle.Restart();
                     downloadProgress?.Report(new DownloadProgress(
-                        (double)downloaded / totalBytes,
+                        totalBytes > 0 ? (double)downloaded / totalBytes : 0,
                         downloaded,
                         totalBytes,
-                        transferLabel));
+                        transferLabel,
+                        speed.Sample(downloaded)));
                 }
             }
 

@@ -831,7 +831,7 @@ namespace ASLM.Models
         /// <summary>
         /// Applies one streamed download progress snapshot to the notification card.
         /// </summary>
-        internal void ApplyDownloadTransferSample(DownloadProgress progress, string? measuredSpeedLabel)
+        internal void ApplyDownloadTransferSample(DownloadProgress progress)
         {
             // Show the file currently being transferred when the sample names one.
             if (!string.IsNullOrWhiteSpace(progress.ActiveTransferName))
@@ -845,7 +845,8 @@ namespace ASLM.Models
             // A positive total means the percentage is meaningful.
             _downloadHasKnownTotal = progress.TotalBytes > 0;
 
-            var speedText = string.IsNullOrWhiteSpace(measuredSpeedLabel) ? "—" : measuredSpeedLabel.Trim();
+            var measuredSpeed = DownloadTransferSpeedEstimator.FormatSpeed(progress.BytesPerSecond);
+            var speedText = measuredSpeed.Length > 0 ? measuredSpeed : "—";
             SetField(ref _transferSpeedDisplay, speedText, nameof(TransferSpeedDisplay));
 
             RefreshTransferPercentDisplay();

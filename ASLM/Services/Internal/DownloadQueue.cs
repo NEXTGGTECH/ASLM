@@ -88,6 +88,11 @@ namespace ASLM.Services.Internal
             /// Task of the whole operation, including waiting for its turn.
             /// </summary>
             public Task Task { get; set; } = null!;
+
+            /// <summary>
+            /// Last measured speed while the entry is receiving download data.
+            /// </summary>
+            public double? BytesPerSecond { get; set; }
         }
 
 
@@ -97,6 +102,11 @@ namespace ASLM.Services.Internal
         /// Raised when an operation is added, starts running or finishes.
         /// </summary>
         public event EventHandler? StateChanged;
+
+        /// <summary>
+        /// Notifies the view that one operation's measured speed changed.
+        /// </summary>
+        internal event Action<string>? TransferSpeedChanged;
 
 
         // Queries and cancellation
@@ -115,6 +125,38 @@ namespace ASLM.Services.Internal
         public DownloadOperationState? GetState(string key)
         {
             lock (_sync) return _pending.TryGetValue(key, out var entry) ? entry.State : null;
+        }
+
+        /// <summary>
+        /// Returns the latest transfer speed for an active download.
+        /// </summary>
+        internal double? GetTransferSpeed(string key)
+        {
+            lock (_sync) return _pending.GetValueOrDefault(key)?.BytesPerSecond;
+        }
+
+        /// <summary>
+        /// Shares a speed measurement with the catalog while the operation is still running.
+        /// </summary>
+        internal void SetTransferSpeed(string key, double? bytesPerSecond)
+        {
+            lock (_sync)
+            {
+                if (!_pending.TryGetValue(key, out var entry) || entry.State != DownloadOperationState.Running ||
+                    entry.BytesPerSecond == bytesPerSecond)
+                {
+                    return;
+                }
+
+                entry.BytesPerSecond = bytesPerSecond;
+            }
+
+            try { TransferSpeedChanged?.Invoke(key); }
+            catch (Exception ex)
+            {
+                // A subscriber failure must not abort the transfer.
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
         }
 
         /// <summary>

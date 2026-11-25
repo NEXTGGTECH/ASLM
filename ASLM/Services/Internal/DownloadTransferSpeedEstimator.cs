@@ -3,163 +3,123 @@
 namespace ASLM.Services.Internal
 {
     /// <summary>
-    /// Tracks per-operation byte deltas to produce a smoothed transfer speed for download notifications.
+    /// Measures the recent average transfer speed of one file or response.
     /// </summary>
-    internal sealed class DownloadTransferSpeedEstimator
+    internal sealed class DownloadTransferSpeedEstimator(TimeProvider? timeProvider = null)
     {
-        // Fields and constants
+        // Sampling state
 
         /// <summary>
-        /// Weight of the newest instantaneous speed in the exponential moving average; higher reacts faster.
+        /// Shortest interval between speed measurements, independent of the progress report rate.
         /// </summary>
-        private const double SmoothingAlpha = 0.38;
+        private static readonly TimeSpan MeasurementInterval = TimeSpan.FromMilliseconds(350);
 
         /// <summary>
-        /// Guards <see cref="_states"/> against concurrent progress reports.
+        /// Age at which a measurement becomes eligible as the start of the averaging window.
         /// </summary>
-        private readonly object _gate = new();
+        private static readonly TimeSpan AveragingWindow = TimeSpan.FromSeconds(2);
 
         /// <summary>
-        /// Last sample and smoothed speed of every operation, by operation key.
+        /// Clock used to measure elapsed time without depending on the wall clock.
         /// </summary>
-        private readonly Dictionary<string, SampleState> _states = new(StringComparer.OrdinalIgnoreCase);
+        private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+
+        /// <summary>
+        /// Recent measured byte counts newer than the start of the averaging window.
+        /// </summary>
+        private readonly Queue<(long Timestamp, long Bytes)> _measurements = new();
+
+        /// <summary>
+        /// Oldest retained measurement, or null before the first progress report.
+        /// </summary>
+        private (long Timestamp, long Bytes)? _windowStart;
+
+        /// <summary>
+        /// Byte counter from the latest report, including those between measurements.
+        /// </summary>
+        private long _lastBytes;
+
+        /// <summary>
+        /// Timestamp of the last computed speed or the initial byte count.
+        /// </summary>
+        private long _lastMeasurementAt;
+
+        /// <summary>
+        /// Most recent rate, retained between measurements.
+        /// </summary>
+        private double? _bytesPerSecond;
 
 
         // Sampling
 
         /// <summary>
-        /// Clears all samples for one operation so the next report starts a fresh speed window.
+        /// Clears the previous transfer's measurements before starting another file or attempt.
         /// </summary>
-        public void Reset(string operationKey)
+        public void Reset()
         {
-            lock (_gate)
-            {
-                _states.Remove(operationKey);
-            }
+            _windowStart = null;
+            _measurements.Clear();
+            _bytesPerSecond = null;
         }
 
         /// <summary>
-        /// Records one progress sample and returns a formatted speed label when enough data exists.
+        /// Returns the recent average in bytes per second after enough time has elapsed to measure it.
         /// </summary>
-        /// <param name="operationKey">Key of the download operation the sample belongs to.</param>
-        /// <param name="downloadedBytes">Total bytes transferred so far by that operation.</param>
-        /// <returns>A formatted speed (empty while no speed is known), or <c>null</c> for the first sample of an operation.</returns>
-        public string? Sample(string operationKey, long downloadedBytes)
+        public double? Sample(long downloadedBytes)
         {
-            lock (_gate)
+            var now = _clock.GetTimestamp();
+
+            // Start from the current byte count, including any bytes already present before a resumption.
+            if (_windowStart == null || downloadedBytes < _lastBytes)
             {
-                var now = DateTimeOffset.UtcNow;
-
-                // The first sample only establishes the baseline; no speed can be derived from it.
-                if (!_states.TryGetValue(operationKey, out var state))
-                {
-                    _states[operationKey] = new SampleState(now, downloadedBytes, 0);
-                    return null;
-                }
-
-                var deltaBytes = downloadedBytes - state.LastBytes;
-                var deltaSeconds = (now - state.LastAt).TotalSeconds;
-
-                // A shrinking counter means the transfer restarted: begin a new window with no speed.
-                if (deltaBytes < 0)
-                {
-                    state.LastAt = now;
-                    state.LastBytes = downloadedBytes;
-                    state.SmoothedBytesPerSecond = 0;
-                    return FormatSpeed(state.SmoothedBytesPerSecond);
-                }
-
-                // Reports arriving faster than 40 ms give a noisy delta, so keep the previous estimate.
-                if (deltaSeconds < 0.04)
-                {
-                    return FormatSpeed(state.SmoothedBytesPerSecond);
-                }
-
-                // No progress since the last sample: move the time baseline but keep the estimate.
-                if (deltaBytes == 0)
-                {
-                    state.LastAt = now;
-                    return FormatSpeed(state.SmoothedBytesPerSecond);
-                }
-
-                // Blend the instantaneous speed into the moving average; the first measurement seeds it.
-                var instant = deltaBytes / deltaSeconds;
-                state.SmoothedBytesPerSecond = state.SmoothedBytesPerSecond <= 0
-                    ? instant
-                    : (state.SmoothedBytesPerSecond * (1.0 - SmoothingAlpha)) + (instant * SmoothingAlpha);
-
-                state.LastAt = now;
-                state.LastBytes = downloadedBytes;
-
-                return FormatSpeed(state.SmoothedBytesPerSecond);
+                Reset();
+                _windowStart = (now, downloadedBytes);
+                _lastMeasurementAt = now;
+                _lastBytes = downloadedBytes;
+                return null;
             }
+
+            _lastBytes = downloadedBytes;
+            if (_clock.GetElapsedTime(_lastMeasurementAt, now) < MeasurementInterval)
+            {
+                return _bytesPerSecond;
+            }
+
+            // Keep the sample nearest to the start of the window without dropping a whole measurement interval.
+            while (_measurements.TryPeek(out var next) && _clock.GetElapsedTime(next.Timestamp, now) >= AveragingWindow)
+            {
+                _windowStart = _measurements.Dequeue();
+            }
+
+            var (timestamp, bytes) = _windowStart.Value;
+            _bytesPerSecond = (downloadedBytes - bytes) / _clock.GetElapsedTime(timestamp, now).TotalSeconds;
+            _measurements.Enqueue((now, downloadedBytes));
+            _lastMeasurementAt = now;
+            return _bytesPerSecond;
         }
 
 
-        // Speed formatting
+        // Display formatting
 
         /// <summary>
-        /// Formats one smoothed bytes-per-second estimate for notification detail text.
+        /// Formats a known rate with a shared unit and precision for all download surfaces.
         /// </summary>
-        private static string FormatSpeed(double bytesPerSecond)
+        internal static string FormatSpeed(double? bytesPerSecond) => bytesPerSecond switch
         {
-            // An unknown or non-positive speed is shown as nothing instead of "0 B/s".
-            if (double.IsNaN(bytesPerSecond) || double.IsInfinity(bytesPerSecond) || bytesPerSecond <= 0)
-            {
-                return string.Empty;
-            }
-
-            // Pick the largest binary unit that keeps the value at or above 1.
-            if (bytesPerSecond >= 1_073_741_824)
-            {
-                return $"{bytesPerSecond / 1_073_741_824.0:F1} GB/s";
-            }
-
-            if (bytesPerSecond >= 1_048_576)
-            {
-                return $"{bytesPerSecond / 1_048_576.0:F1} MB/s";
-            }
-
-            if (bytesPerSecond >= 1024)
-            {
-                return $"{bytesPerSecond / 1024.0:F1} KB/s";
-            }
-
-            return $"{bytesPerSecond:F0} B/s";
-        }
-
-
-        // Nested types
+            >= 1_073_741_824 => $"{bytesPerSecond / 1_073_741_824.0:F1} GB/s",
+            >= 1_048_576 => $"{bytesPerSecond / 1_048_576.0:F1} MB/s",
+            >= 1024 => $"{bytesPerSecond / 1024.0:F1} KB/s",
+            >= 0 => $"{bytesPerSecond:F0} B/s",
+            _ => string.Empty
+        };
 
         /// <summary>
-        /// Stores the last sample used to smooth transfer speed for one download operation.
+        /// Adds a known rate to an existing progress line, preserving the line before a measurement is available.
         /// </summary>
-        private sealed class SampleState
+        internal static string AppendSpeed(string detail, double? bytesPerSecond)
         {
-            /// <summary>
-            /// Creates a sample state from the baseline of a new measurement window.
-            /// </summary>
-            public SampleState(DateTimeOffset lastAt, long lastBytes, double smoothedBytesPerSecond)
-            {
-                LastAt = lastAt;
-                LastBytes = lastBytes;
-                SmoothedBytesPerSecond = smoothedBytesPerSecond;
-            }
-
-            /// <summary>
-            /// UTC time of the sample that serves as the start of the next measurement interval.
-            /// </summary>
-            public DateTimeOffset LastAt { get; set; }
-
-            /// <summary>
-            /// Total transferred bytes at <see cref="LastAt"/>.
-            /// </summary>
-            public long LastBytes { get; set; }
-
-            /// <summary>
-            /// Exponentially smoothed transfer speed in bytes per second; zero until one interval was measured.
-            /// </summary>
-            public double SmoothedBytesPerSecond { get; set; }
+            var speed = FormatSpeed(bytesPerSecond);
+            return speed.Length > 0 ? $"{detail} - {speed}" : detail;
         }
     }
 }

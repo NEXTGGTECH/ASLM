@@ -1343,9 +1343,7 @@ namespace ASLM.Pages
             {
                 if (!_downloads.TryGetValue(selected.SourcePath, out var pending) || !ReferenceEquals(pending, download)) return;
                 download.Fraction = Math.Clamp(value.Fraction, 0, 1);
-                download.TransferText = value.TotalBytes > 0
-                    ? $"{download.Fraction:P0} · {DownloadsView.FormatDownloadSize(value.DownloadedBytes)} / {DownloadsView.FormatDownloadSize(value.TotalBytes)}"
-                    : DownloadsView.FormatDownloadSize(value.DownloadedBytes);
+                download.TransferText = FormatTransferProgress(value, download.Fraction);
                 if (!ReferenceEquals(CurrentDownload, download)) return;
                 OnPropertyChanged(nameof(DownloadFraction));
                 OnPropertyChanged(nameof(TransferText));
@@ -1434,9 +1432,7 @@ namespace ASLM.Pages
                 var progress = new Progress<DownloadProgress>(value =>
                 {
                     operation.Fraction = Math.Clamp(value.Fraction, 0, 1);
-                    operation.TransferText = value.TotalBytes > 0
-                        ? $"{operation.Fraction:P0} · {DownloadsView.FormatDownloadSize(value.DownloadedBytes)} / {DownloadsView.FormatDownloadSize(value.TotalBytes)}"
-                        : DownloadsView.FormatDownloadSize(value.DownloadedBytes);
+                    operation.TransferText = FormatTransferProgress(value, operation.Fraction);
                     if (!ReferenceEquals(CurrentDownload, operation)) return;
                     OnPropertyChanged(nameof(DownloadFraction));
                     OnPropertyChanged(nameof(TransferText));
@@ -1484,6 +1480,18 @@ namespace ASLM.Pages
 
 
         // Operation tracking
+
+        /// <summary>
+        /// Formats the bytes, known percentage, and speed for module installation and update progress.
+        /// </summary>
+        private static string FormatTransferProgress(DownloadProgress progress, double fraction)
+        {
+            var downloaded = DownloadsView.FormatDownloadSize(progress.DownloadedBytes);
+            var detail = progress.TotalBytes > 0
+                ? $"{fraction:P0} · {downloaded} / {DownloadsView.FormatDownloadSize(progress.TotalBytes)}"
+                : downloaded;
+            return DownloadTransferSpeedEstimator.AppendSpeed(detail, progress.BytesPerSecond);
+        }
 
         /// <summary>
         /// Tracks an owned request; checks have no requested maintenance activity or transfer controls.

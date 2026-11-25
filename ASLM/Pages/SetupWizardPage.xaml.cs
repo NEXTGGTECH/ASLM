@@ -174,21 +174,6 @@ namespace ASLM.Pages
         /// </summary>
         private CancellationTokenSource? _accountActionCts;
 
-        /// <summary>
-        /// Downloaded byte count at the last transfer speed update.
-        /// </summary>
-        private long _lastDownloadedBytes;
-
-        /// <summary>
-        /// Time of the last transfer speed update.
-        /// </summary>
-        private DateTime _lastSpeedUpdate = DateTime.UtcNow;
-
-        /// <summary>
-        /// Most recently measured transfer speed in bytes per second.
-        /// </summary>
-        private double _lastSpeed;
-
 
         // Nested types
 
@@ -1187,44 +1172,19 @@ namespace ASLM.Pages
             totalSteps += requiredEngineIds.Count;
             totalSteps += installModules.Sum(GetModuleInstallStepCount);
 
-            // Reset rolling download metrics before the first transfer begins.
-            ResetDownloadMetrics();
-
             // Progress callback shared by all downloads: it updates the per-file bar, the overall bar and the
             // "size / size - speed" detail text. A download counts for at most 90% of its step in the overall bar.
             var downloadProgress = new Progress<DownloadProgress>(progress =>
             {
-                if (progress.TotalBytes <= 0)
-                {
-                    return;
-                }
+                // Use the captured UI context and keep byte progress visible when the total is unknown.
+                var fileFraction = progress.TotalBytes > 0 ? Math.Clamp(progress.Fraction, 0, 1) : 0;
+                var detail = progress.TotalBytes > 0
+                    ? $"{FormatBytes(progress.DownloadedBytes)} / {FormatBytes(progress.TotalBytes)}"
+                    : FormatBytes(progress.DownloadedBytes);
 
-                // Combine the current file progress with the completed step count for the overall bar.
-                var fileFraction = (double)progress.DownloadedBytes / progress.TotalBytes;
-                var overallFraction = (completedSteps + fileFraction * 0.9) / totalSteps;
-
-                // Refresh the transfer speed at a steady interval to avoid noisy UI updates.
-                var now = DateTime.UtcNow;
-                var elapsed = (now - _lastSpeedUpdate).TotalSeconds;
-                if (elapsed >= 0.5)
-                {
-                    _lastSpeed = (progress.DownloadedBytes - _lastDownloadedBytes) / elapsed;
-                    _lastDownloadedBytes = progress.DownloadedBytes;
-                    _lastSpeedUpdate = now;
-                }
-
-                var detail = $"{FormatBytes(progress.DownloadedBytes)} / {FormatBytes(progress.TotalBytes)}";
-                if (_lastSpeed > 0)
-                {
-                    detail += $" - {FormatBytes((long)_lastSpeed)}/s";
-                }
-
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    InstallProgress.Progress = overallFraction;
-                    FileProgress.Progress = fileFraction;
-                    DownloadDetailLabel.Text = detail;
-                });
+                InstallProgress.Progress = (completedSteps + fileFraction * 0.9) / totalSteps;
+                FileProgress.Progress = fileFraction;
+                DownloadDetailLabel.Text = DownloadTransferSpeedEstimator.AppendSpeed(detail, progress.BytesPerSecond);
             });
 
             try
@@ -1291,7 +1251,6 @@ namespace ASLM.Pages
                     {
                         UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
                         ResetFileProgress();
-                        ResetDownloadMetrics();
 
                         var updateInstalled = await InstallModuleFromUpdateConfigAsync(
                             module,
@@ -1315,7 +1274,6 @@ namespace ASLM.Pages
                     // Legacy path, step 1 of 2: download the module source.
                     UpdateInstallStatus($"{module.Name}: {L.Get(LocalizationKeys.Settings_Downloading)}");
                     ResetFileProgress();
-                    ResetDownloadMetrics();
 
                     var downloaded = await Task.Run(
                         () => _moduleInstaller.DownloadSourceAsync(
@@ -1397,6 +1355,8 @@ namespace ASLM.Pages
                 StepLabel.Text = L.Get(LocalizationKeys.SetupWizard_Failed);
                 AddLog($"Error: {ex.Message}");
             }
+
+            ResetFileProgress();
 
             // Offer the buttons that match the outcome: finish after success, retry and skip otherwise.
             ButtonPanel.IsVisible = true;
@@ -1528,16 +1488,6 @@ namespace ASLM.Pages
                 FileProgress.Progress = 0;
                 DownloadDetailLabel.Text = string.Empty;
             });
-        }
-
-        /// <summary>
-        /// Resets the rolling metrics used to calculate the download speed label.
-        /// </summary>
-        private void ResetDownloadMetrics()
-        {
-            _lastDownloadedBytes = 0;
-            _lastSpeedUpdate = DateTime.UtcNow;
-            _lastSpeed = 0;
         }
 
         /// <summary>

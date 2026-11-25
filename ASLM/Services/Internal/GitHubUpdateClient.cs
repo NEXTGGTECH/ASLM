@@ -330,7 +330,7 @@ namespace ASLM.Services.Internal
                 request.Headers.Accept.Clear();
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
             }
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             ApplyRateLimitHeaders(response, request);
             _rateLimitStore.RecordRequest(
                 url,
@@ -341,7 +341,7 @@ namespace ASLM.Services.Internal
 
             // Stream the body to disk and report progress.
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
-            await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+            await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true);
 
             var buffer = new byte[65536];
@@ -349,23 +349,26 @@ namespace ASLM.Services.Internal
             int bytesRead;
             var throttle = Stopwatch.StartNew();
             var transferLabel = Path.GetFileName(destinationPath);
+            var speed = new DownloadTransferSpeedEstimator();
+            speed.Sample(downloaded);
 
             downloadProgress?.Report(new DownloadProgress(0, 0, totalBytes, transferLabel));
 
-            while ((bytesRead = await contentStream.ReadAsync(buffer, ct)) > 0)
+            while ((bytesRead = await contentStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
                 downloaded += bytesRead;
 
-                // Throttle UI updates to one every 75 ms; the size must be known to compute a fraction.
-                if (totalBytes > 0 && throttle.ElapsedMilliseconds >= 75)
+                // Report bytes and speed even when the server did not provide a total size.
+                if (throttle.ElapsedMilliseconds >= 75)
                 {
                     throttle.Restart();
                     downloadProgress?.Report(new DownloadProgress(
-                        (double)downloaded / totalBytes,
+                        totalBytes > 0 ? (double)downloaded / totalBytes : 0,
                         downloaded,
                         totalBytes,
-                        transferLabel));
+                        transferLabel,
+                        speed.Sample(downloaded)));
                 }
             }
 

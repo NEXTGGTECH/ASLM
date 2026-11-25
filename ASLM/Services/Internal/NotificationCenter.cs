@@ -108,11 +108,6 @@ namespace ASLM.Services.Internal
         /// </summary>
         private readonly Dictionary<string, AppNotification> _activeDownloads = new(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// Computes the transfer speed label shown on download notifications.
-        /// </summary>
-        private readonly DownloadTransferSpeedEstimator _downloadTransferSpeedEstimator = new();
-
 
         // UI dispatcher
 
@@ -395,9 +390,8 @@ namespace ASLM.Services.Internal
                     return;
                 }
 
-                // Sample the transfer speed and format the downloaded / total byte detail line.
-                var speedLabel = _downloadTransferSpeedEstimator.Sample(operationKey, progress.DownloadedBytes);
-                notification.ApplyDownloadTransferSample(progress, speedLabel);
+                // Display the same measurement sent to the other progress receivers.
+                notification.ApplyDownloadTransferSample(progress);
 
                 var detail = progress.TotalBytes > 0
                     ? $"{FormatBytes(progress.DownloadedBytes)} / {FormatBytes(progress.TotalBytes)}"
@@ -432,7 +426,6 @@ namespace ASLM.Services.Internal
                 }
 
                 // A status phase (for example installing) is not a byte transfer, so the speed display is cleared.
-                _downloadTransferSpeedEstimator.Reset(operationKey);
                 notification.ResetDownloadTransferRow();
 
                 notification.UpdateContent(
@@ -519,7 +512,6 @@ namespace ASLM.Services.Internal
             {
                 if (!_activeDownloads.Remove(operationKey, out var notification)) return;
 
-                _downloadTransferSpeedEstimator.Reset(operationKey);
                 notification.AwaitingRestart = awaitingRestart;
                 notification.UpdateContent(severity, notification.Title, notification.Message, statusText, string.Empty);
                 notification.UpdateProgress(hasProgress: false, 0, isInProgress: false);

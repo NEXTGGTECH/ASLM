@@ -661,16 +661,20 @@ namespace ASLM.Services.Engines
                         log.Report($"  Resuming from {downloaded / 1024.0 / 1024.0:F1} MB (attempt {attempt}/{maxAttempts})...");
                     }
 
-                    using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+                    using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                     _github?.TrackApiResponse(request, response);
                     response.EnsureSuccessStatusCode();
 
-                    // On first request (or if server doesn't support Range) get total size.
-                    if (totalBytes == 0)
-                        totalBytes = response.Content.Headers.ContentLength ?? 0;
+                    // A partial response's content length only covers the returned range.
+                    var fullResponse = response.StatusCode == System.Net.HttpStatusCode.OK && downloaded > 0;
+                    if (totalBytes == 0 || fullResponse)
+                    {
+                        totalBytes = response.Content.Headers.ContentRange?.Length ??
+                            (response.StatusCode == System.Net.HttpStatusCode.PartialContent
+                                ? 0 : response.Content.Headers.ContentLength ?? 0);
+                    }
 
-                    // If server returned 200 (ignored Range) restart the file from scratch.
-                    bool fullResponse = response.StatusCode == System.Net.HttpStatusCode.OK && downloaded > 0;
+                    // A full response to a resume request restarts the file from scratch.
                     var fileMode = (downloaded == 0 || fullResponse) ? FileMode.Create : FileMode.Append;
                     if (fullResponse)
                     {
@@ -678,12 +682,14 @@ namespace ASLM.Services.Engines
                         log.Report("  Server does not support resume, restarting download.");
                     }
 
-                    await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+                    await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
                     await using var fileStream = new FileStream(dest, fileMode, FileAccess.Write, FileShare.None, 65536, true);
 
                     var buffer = new byte[65536];
                     int bytesRead;
                     var throttle = Stopwatch.StartNew();
+                    var speed = new DownloadTransferSpeedEstimator();
+                    speed.Sample(downloaded);
 
                     downloadProgress?.Report(new DownloadProgress(
                         totalBytes > 0 ? (double)downloaded / totalBytes : 0,
@@ -691,20 +697,21 @@ namespace ASLM.Services.Engines
                         totalBytes,
                         transferLabel));
 
-                    while ((bytesRead = await contentStream.ReadAsync(buffer, ct)) > 0)
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
                     {
-                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
                         downloaded += bytesRead;
 
-                        // Throttle UI updates to ~20 fps (every 50 ms).
-                        if (totalBytes > 0 && throttle.ElapsedMilliseconds >= 50)
+                        // Update byte counts and speed at most every 50 ms.
+                        if (throttle.ElapsedMilliseconds >= 50)
                         {
                             throttle.Restart();
                             downloadProgress?.Report(new DownloadProgress(
-                                (double)downloaded / totalBytes,
+                                totalBytes > 0 ? (double)downloaded / totalBytes : 0,
                                 downloaded,
                                 totalBytes,
-                                transferLabel));
+                                transferLabel,
+                                speed.Sample(downloaded)));
                         }
                     }
 
@@ -718,6 +725,11 @@ namespace ASLM.Services.Engines
 
                     log.Report($"  ⚠ Download error (attempt {attempt}/{maxAttempts}): {ex.Message}");
                     log.Report($"  Retrying in {retryDelayMs / 1000} s...");
+                    downloadProgress?.Report(new DownloadProgress(
+                        totalBytes > 0 ? (double)downloaded / totalBytes : 0,
+                        downloaded,
+                        totalBytes,
+                        transferLabel));
                     await Task.Delay(retryDelayMs, ct);
                 }
             }

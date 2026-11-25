@@ -4,7 +4,7 @@ namespace ASLM.Tests.TestSupport
 {
     /// <summary>
     /// A deterministic <see cref="TimeProvider"/> whose clock only moves when the test says so.
-    /// Only the UTC clock reading is faked; timers created through it keep using real time.
+    /// UTC and elapsed-time readings are controllable; timers created through it use real time.
     /// </summary>
     public sealed class FakeTimeProvider : TimeProvider
     {
@@ -14,6 +14,16 @@ namespace ASLM.Tests.TestSupport
         /// Current moment of the fake clock; changes only through <see cref="Advance"/> and <see cref="Set"/>.
         /// </summary>
         private DateTimeOffset _utcNow;
+
+        /// <summary>
+        /// Monotonic ticks accumulated by <see cref="Advance"/> independently of wall-clock changes.
+        /// </summary>
+        private long _elapsedTicks;
+
+        /// <summary>
+        /// Uses TimeSpan ticks for deterministic elapsed-time measurements.
+        /// </summary>
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
 
 
         // Initialization
@@ -31,7 +41,11 @@ namespace ASLM.Tests.TestSupport
         /// <summary>
         /// Moves the clock forward.
         /// </summary>
-        public void Advance(TimeSpan elapsed) => _utcNow += elapsed;
+        public void Advance(TimeSpan elapsed)
+        {
+            _utcNow += elapsed;
+            _elapsedTicks += elapsed.Ticks;
+        }
 
         /// <summary>
         /// Moves the clock to an explicit moment.
@@ -42,5 +56,10 @@ namespace ASLM.Tests.TestSupport
         /// Returns the fake clock's current moment instead of the real system time.
         /// </summary>
         public override DateTimeOffset GetUtcNow() => _utcNow;
+
+        /// <summary>
+        /// Returns the elapsed timestamp without incorporating adjustments to the UTC clock.
+        /// </summary>
+        public override long GetTimestamp() => _elapsedTicks;
     }
 }

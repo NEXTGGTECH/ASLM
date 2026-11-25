@@ -106,7 +106,7 @@ namespace ASLM.Tests.Services.Internal
 
         /// <summary>
         /// Verifies that a download row is in progress after the start, stays in progress and shows a status text while
-        /// bytes are reported, stops being in progress on completion, and that listeners are notified of the changes.
+        /// bytes are reported, displays the measured speed for an unknown total, and clears it after transferring.
         /// </summary>
         [Fact]
         public async Task Download_flow_progresses_from_start_through_bytes_to_completion()
@@ -119,9 +119,16 @@ namespace ASLM.Tests.Services.Internal
             var changes = 0;
             center.NotificationsChanged += (_, _) => changes++;
 
-            center.ReportDownloadProgress(attempt, new DownloadProgress(0.5, 512, 1024, "model"));
+            center.ReportDownloadProgress(attempt, new DownloadProgress(0, 512, 0, "model", 512));
             row.IsInProgress.Should().BeTrue();
             row.CardStatusText.Should().Contain(L.Get(LocalizationKeys.Settings_Downloading));
+            row.TransferSpeedDisplay.Should().Be("512 B/s");
+            row.TransferPercentDisplay.Should().NotContain("%");
+
+            center.ReportDownloadStatus(attempt, "Applying");
+            row.IsInProgress.Should().BeTrue();
+            row.ShowDownloadMetricsRow.Should().BeFalse();
+            row.TransferSpeedDisplay.Should().NotContain("B/s");
 
             center.CompleteDownload(attempt, "Model installed");
             row.IsInProgress.Should().BeFalse();
