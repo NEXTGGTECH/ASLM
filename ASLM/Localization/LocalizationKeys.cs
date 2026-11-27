@@ -276,6 +276,7 @@ public static class LocalizationKeys
     public const string Notifications_InstalledVersionFormat = "Notifications_InstalledVersionFormat";
     public const string Notifications_InstallingFiles = "Notifications_InstallingFiles";
     public const string Notifications_ModuleNotInstalledMessage = "Notifications_ModuleNotInstalledMessage";
+    public const string Notifications_OperationCanceled = "Notifications_OperationCanceled";
     public const string Notifications_OperationInterrupted = "Notifications_OperationInterrupted";
     public const string Notifications_PreparingFiles = "Notifications_PreparingFiles";
     public const string Notifications_RestartToFinishUpdate = "Notifications_RestartToFinishUpdate";

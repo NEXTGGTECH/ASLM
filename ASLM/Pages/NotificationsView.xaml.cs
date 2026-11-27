@@ -64,6 +64,11 @@ namespace ASLM.Pages
         private ImageSource _dismissIconSource = null!;
 
         /// <summary>
+        /// Backing field of <see cref="CancelIconSource"/>.
+        /// </summary>
+        private ImageSource _cancelIconSource = null!;
+
+        /// <summary>
         /// Last count shown by the popover so transfer updates do not refresh its chrome.
         /// </summary>
         private int _notificationCount;
@@ -106,7 +111,7 @@ namespace ASLM.Pages
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
             LocalizableAttach.Hook(this, _localization, this);
-            RefreshDismissIconChrome();
+            RefreshActionIcons();
         }
 
 
@@ -174,6 +179,25 @@ namespace ASLM.Pages
         }
 
 
+        /// <summary>
+        /// Gets the theme-tinted cancel glyph for notification rows.
+        /// </summary>
+        public ImageSource CancelIconSource
+        {
+            get => _cancelIconSource;
+            private set
+            {
+                if (_cancelIconSource == value)
+                {
+                    return;
+                }
+
+                _cancelIconSource = value;
+                OnPropertyChanged();
+            }
+        }
+
+
         // Public API
 
         /// <summary>
@@ -200,16 +224,16 @@ namespace ASLM.Pages
         private void OnLoaded(object? sender, EventArgs e)
         {
             // Subscribe to theme changes; the unsubscribe-first pattern keeps repeated loads from stacking handlers.
-            ThemeService.PaletteApplied -= OnPaletteAppliedForDismissIcon;
-            ThemeService.PaletteApplied += OnPaletteAppliedForDismissIcon;
+            ThemeService.PaletteApplied -= OnPaletteAppliedForActionIcons;
+            ThemeService.PaletteApplied += OnPaletteAppliedForActionIcons;
             if (Application.Current is { } app)
             {
                 app.RequestedThemeChanged -= OnApplicationRequestedThemeChanged;
                 app.RequestedThemeChanged += OnApplicationRequestedThemeChanged;
             }
 
-            // Tint the icon for the current palette, then follow notification and host size changes.
-            RefreshDismissIconChrome();
+            // Tint the action icons for the current palette, then follow notification and host size changes.
+            RefreshActionIcons();
             _notifications.NotificationsChanged -= OnNotificationsChanged;
             _notifications.NotificationsChanged += OnNotificationsChanged;
             SizeChanged -= OnHostSizeChanged;
@@ -236,7 +260,7 @@ namespace ASLM.Pages
         /// </summary>
         private void OnUnloaded(object? sender, EventArgs e)
         {
-            ThemeService.PaletteApplied -= OnPaletteAppliedForDismissIcon;
+            ThemeService.PaletteApplied -= OnPaletteAppliedForActionIcons;
             if (Application.Current is { } app)
             {
                 app.RequestedThemeChanged -= OnApplicationRequestedThemeChanged;
@@ -248,28 +272,29 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Re-tints the dismiss icon on the main thread after a custom palette is applied.
+        /// Re-tints the row action icons on the main thread after a custom palette is applied.
         /// </summary>
-        private void OnPaletteAppliedForDismissIcon()
+        private void OnPaletteAppliedForActionIcons()
         {
-            MainThread.BeginInvokeOnMainThread(RefreshDismissIconChrome);
+            MainThread.BeginInvokeOnMainThread(RefreshActionIcons);
         }
 
         /// <summary>
-        /// Re-tints the dismiss icon on the main thread when the application theme changes.
+        /// Re-tints the row action icons on the main thread when the application theme changes.
         /// </summary>
         private void OnApplicationRequestedThemeChanged(object? sender, AppThemeChangedEventArgs e)
         {
-            MainThread.BeginInvokeOnMainThread(RefreshDismissIconChrome);
+            MainThread.BeginInvokeOnMainThread(RefreshActionIcons);
         }
 
         /// <summary>
-        /// Recomputes the tinted dismiss icon for the current palette.
+        /// Recomputes the tinted row action icons for the current palette.
         /// </summary>
-        private void RefreshDismissIconChrome()
+        private void RefreshActionIcons()
         {
             var iconTint = IconTintHelper.ResolvePaletteColor("LabelPrimary");
             DismissIconSource = PackagedIconTintCache.Get("icon_delete.png", iconTint);
+            CancelIconSource = PackagedIconTintCache.Get("icon_cancel.png", iconTint);
         }
 
 
@@ -379,6 +404,17 @@ namespace ASLM.Pages
                     _notifications.Dismiss(notification);
                     return;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Requests cancellation without dismissing the active operation's notification.
+        /// </summary>
+        private void OnCancelOperationTapped(object? sender, TappedEventArgs e)
+        {
+            if (TryFindNotificationBindingContext(sender, out var notification))
+            {
+                _notifications.RequestDownloadCancellation(notification);
             }
         }
 

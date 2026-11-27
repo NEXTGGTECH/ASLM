@@ -1005,6 +1005,10 @@ namespace ASLM.Pages
                         break;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // The update pipeline publishes its canceled result and leaves the application running.
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[UpdateNotification] Action failed: {ex.Message}");

@@ -166,6 +166,16 @@ namespace ASLM.Models
         /// </summary>
         private bool _suppressToastAutoDismiss;
 
+        /// <summary>
+        /// Cancellation availability, or null when the producer never offered a cancel action.
+        /// </summary>
+        private bool? _canCancelOperation;
+
+        /// <summary>
+        /// Name of the root installation when this card shows one of its dependencies.
+        /// </summary>
+        private string? _cancelTarget;
+
 
         // Initialization
 
@@ -492,6 +502,7 @@ namespace ASLM.Models
                 // Older journals stored these built-in results as English sentences.
                 var status = StatusText switch
                 {
+                    LocalizationKeys.Notifications_OperationCanceled => L.Get(LocalizationKeys.Notifications_OperationCanceled),
                     "Operation interrupted." or LocalizationKeys.Notifications_OperationInterrupted =>
                         L.Get(LocalizationKeys.Notifications_OperationInterrupted),
                     "Update prepared. Restart to apply." or LocalizationKeys.Notifications_RestartToFinishUpdate =>
@@ -702,7 +713,32 @@ namespace ASLM.Models
             !(Category == AppNotificationCategory.Updates &&
                 (string.Equals(SourceKind, "app", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(SourceKind, "engine", StringComparison.OrdinalIgnoreCase))) &&
-            !((IsInProgress || AwaitingRestart) && IsComponentUpdate);
+            !((IsInProgress || AwaitingRestart) && IsComponentUpdate) &&
+            !(IsInProgress && _canCancelOperation.HasValue);
+
+        /// <summary>
+        /// Gets whether this notification can request cancellation of a live attempt.
+        /// </summary>
+        public bool CanCancelOperation => _canCancelOperation == true;
+
+        /// <summary>
+        /// Gets the localized cancellation hint, including the root installation when relevant.
+        /// </summary>
+        public string CancelOperationText => _cancelTarget == null
+            ? L.Get(LocalizationKeys.Common_Cancel)
+            : $"{L.Get(LocalizationKeys.Common_Cancel)} - {_cancelTarget}";
+
+        /// <summary>
+        /// Changes the cancellation action and reserves its row until the attempt finishes.
+        /// </summary>
+        internal void SetCancellationAvailable(bool available, string? target = null)
+        {
+            if (!available && !_canCancelOperation.HasValue) return;
+
+            SetField(ref _cancelTarget, target, nameof(CancelOperationText));
+            if (SetField(ref _canCancelOperation, available, nameof(CanCancelOperation)))
+                OnPropertyChanged(nameof(CanDismiss));
+        }
 
         /// <summary>
         /// Gets the localized label for the inline Update now action.
@@ -723,6 +759,7 @@ namespace ASLM.Models
             RefreshCardStatus();
             OnPropertyChanged(nameof(UpdateNowText));
             OnPropertyChanged(nameof(UpdateLaterText));
+            OnPropertyChanged(nameof(CancelOperationText));
         }
 
         /// <summary>

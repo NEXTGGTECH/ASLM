@@ -108,6 +108,11 @@ namespace ASLM.Services.Internal
         /// </summary>
         private readonly Dictionary<string, AppNotification> _activeDownloads = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Keeps cancellation requests bound to live attempts without persisting their actions.
+        /// </summary>
+        private readonly Dictionary<string, Func<bool>> _downloadCancellations = new(StringComparer.OrdinalIgnoreCase);
+
 
         // UI dispatcher
 
@@ -352,7 +357,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public Task<string> StartDownloadAsync(string operationType, string title, string message,
             string sourceKind, string sourceId, string? versionKey = null, bool replacesUpdateOffer = false,
-            string? targetVersion = null)
+            string? targetVersion = null, Func<bool>? requestCancellation = null, string? cancelTarget = null)
         {
             return _dispatcher.InvokeAsync(() =>
             {
@@ -368,9 +373,45 @@ namespace ASLM.Services.Internal
                     L.Get(LocalizationKeys.Notifications_StartingDownload), "0 B");
                 notification.UpdateProgress(hasProgress: true, progressFraction: 0, isInProgress: true);
                 _activeDownloads.Add(id, notification);
+                if (requestCancellation != null)
+                {
+                    _downloadCancellations.Add(id, requestCancellation);
+                    notification.SetCancellationAvailable(true, cancelTarget);
+                }
 
                 Publish(notification, replacesUpdateOffer: replacesUpdateOffer);
                 return id;
+            });
+        }
+
+        /// <summary>
+        /// Requests cancellation once for the live attempt represented by the visible notification.
+        /// </summary>
+        internal void RequestDownloadCancellation(AppNotification notification)
+        {
+            RunOnMainThread(() =>
+            {
+                if (!_activeDownloads.TryGetValue(notification.Id, out var active) ||
+                    !ReferenceEquals(active, notification) || !_notifications.Contains(notification) ||
+                    !_downloadCancellations.Remove(notification.Id, out var cancel)) return;
+
+                notification.SetCancellationAvailable(false);
+                cancel();
+            });
+        }
+
+        /// <summary>
+        /// Removes the cancel action when the operation enters a stage that must run to completion.
+        /// </summary>
+        internal void DisableDownloadCancellation(string operationKey)
+        {
+            RunOnMainThread(() =>
+            {
+                if (_downloadCancellations.Remove(operationKey) &&
+                    _activeDownloads.TryGetValue(operationKey, out var notification))
+                {
+                    notification.SetCancellationAvailable(false);
+                }
             });
         }
 
@@ -511,6 +552,8 @@ namespace ASLM.Services.Internal
             RunOnMainThread(() =>
             {
                 if (!_activeDownloads.Remove(operationKey, out var notification)) return;
+                _downloadCancellations.Remove(operationKey);
+                notification.SetCancellationAvailable(false);
 
                 notification.AwaitingRestart = awaitingRestart;
                 notification.UpdateContent(severity, notification.Title, notification.Message, statusText, string.Empty);

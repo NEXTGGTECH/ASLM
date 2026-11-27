@@ -2518,6 +2518,15 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на Operation canceled.
+        /// </summary>
+        public static string Notifications_OperationCanceled {
+            get {
+                return ResourceManager.GetString("Notifications_OperationCanceled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Operation interrupted.
         /// </summary>
         public static string Notifications_OperationInterrupted {

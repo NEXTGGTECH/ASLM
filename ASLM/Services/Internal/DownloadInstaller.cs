@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using ASLM.Localization;
 using ASLM.Models;
 using Microsoft.Extensions.Logging;
 
@@ -186,8 +187,8 @@ namespace ASLM.Services.Internal
             DownloadCatalogVariant? selectedVariant,
             IProgress<string>? log = null,
             CancellationToken ct = default)
-            => _downloadQueue.EnqueueAsync("resource:" + GetResourceKey(item, selectedVariant),
-                token => InstallCoreAsync(item, selectedVariant, log, token), ct);
+            => _downloadQueue.EnqueueOperationAsync("resource:" + GetResourceKey(item, selectedVariant),
+                cancellation => InstallCoreAsync(item, selectedVariant, log, cancellation), ct);
 
         /// <summary>
         /// Runs the queued install: announces it to the user, then tries each module source in order until one
@@ -196,10 +197,11 @@ namespace ASLM.Services.Internal
         /// <param name="item">Catalog item to install.</param>
         /// <param name="selectedVariant">Variant chosen by the user, or null for the item's default variant.</param>
         /// <param name="log">Optional receiver of human-readable log lines.</param>
-        /// <param name="ct">Cancellation token; cancellation is reported to the user and rethrown.</param>
+        /// <param name="cancellation">Cancellation owned by this resource queue entry.</param>
         private async Task<DownloadInstallResult> InstallCoreAsync(DownloadCatalogItem item,
-            DownloadCatalogVariant? selectedVariant, IProgress<string>? log, CancellationToken ct)
+            DownloadCatalogVariant? selectedVariant, IProgress<string>? log, OperationCancellation cancellation)
         {
+            var ct = cancellation.Token;
             if (item.Sources.Count == 0)
             {
                 return new DownloadInstallResult(false, "No module source is available for this download item.");
@@ -219,98 +221,95 @@ namespace ASLM.Services.Internal
                 "Installing download",
                 notificationMessage,
                 "download",
-                selectedResourceKey);
+                selectedResourceKey,
+                requestCancellation: cancellation.TryCancel);
 
-            // The last failure is reported if no source succeeds.
-            var lastError = "No module source produced an install manifest.";
-
-            foreach (var source in item.Sources)
+            try
             {
-                ct.ThrowIfCancellationRequested();
+                // Try each source in order until its install manifest executes successfully.
+                var lastError = "No module source produced an install manifest.";
+                foreach (var source in item.Sources)
+                {
+                    ct.ThrowIfCancellationRequested();
 
-                // Load the manifest of the module behind this source; try the next source when it is gone.
-                var module = await _moduleInstaller.LoadModuleConfig(source.ModuleSourcePath);
-                if (module == null)
-                {
-                    lastError = $"Module manifest could not be loaded: {source.ModuleSourcePath}";
-                    continue;
-                }
+                    var module = await _moduleInstaller.LoadModuleConfig(source.ModuleSourcePath);
+                    if (module == null)
+                    {
+                        lastError = $"Module manifest could not be loaded: {source.ModuleSourcePath}";
+                        continue;
+                    }
 
-                // Register a content operation for the module, which blocks overlapping module removals until this
-                // iteration ends, then ask the module bridge how the resource is installed.
-                using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
-                ModuleDownloadInstallManifest? manifest;
-                try
-                {
-                    manifest = await _bridge.ResolveInstallAsync(module, source.CategoryId, selectedResourceKey, ct);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    _notifications.CancelDownload(operationKey, $"Installation canceled for {selectedTitle}.");
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    // A failing source is not fatal: remember the reason and try the next source.
-                    _logger.LogWarning(ex, "Failed to resolve install manifest for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
-                    lastError = ex.Message;
-                    continue;
-                }
+                    // Hold a content lease while resolving and running this module's install manifest.
+                    using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
+                    ModuleDownloadInstallManifest? manifest;
+                    try
+                    {
+                        manifest = await _bridge.ResolveInstallAsync(module, source.CategoryId, selectedResourceKey, ct);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+                    {
+                        // A failing source is not fatal: remember the reason and try the next source.
+                        _logger.LogWarning(ex, "Failed to resolve install manifest for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
+                        lastError = ex.Message;
+                        continue;
+                    }
 
-                // A usable manifest has at least one action.
-                if (manifest == null)
-                {
-                    lastError = $"Module '{module.Name}' did not return an install manifest.";
-                    continue;
-                }
+                    manifest?.Normalize();
+                    if (manifest == null || manifest.Actions.Count == 0)
+                    {
+                        lastError = manifest == null
+                            ? $"Module '{module.Name}' did not return an install manifest."
+                            : $"Module '{module.Name}' returned an empty install manifest.";
+                        continue;
+                    }
 
-                manifest.Normalize();
-                if (manifest.Actions.Count == 0)
-                {
-                    lastError = $"Module '{module.Name}' returned an empty install manifest.";
-                    continue;
-                }
-
-                try
-                {
-                    // Execute the manifest, record the installation and finish the notification.
+                    // Execute actions first, with cancellation checked between steps and within transfers.
                     var effectiveTitle = !string.IsNullOrWhiteSpace(manifest.Title) ? manifest.Title : selectedTitle;
-                    log?.Report($"Installing {effectiveTitle} via {module.Name}...");
+                    try
+                    {
+                        log?.Report($"Installing {effectiveTitle} via {module.Name}...");
+                        await ExecuteManifestAsync(module, manifest, operationKey, log, ct, "resource:" + selectedResourceKey);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // Execution failed: report it and let the next source try.
+                        _logger.LogError(ex, "Install manifest execution failed for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
+                        lastError = ex.Message;
+                        log?.Report($"Install failed via {module.Name}: {ex.Message}");
+                        _notifications.ReportDownloadStatus(operationKey, $"Install failed: {ex.Message}");
+                        continue;
+                    }
 
-                    await ExecuteManifestAsync(module, manifest, operationKey, log, ct, "resource:" + selectedResourceKey);
-
-                    var version = !string.IsNullOrWhiteSpace(manifest.Version)
-                        ? manifest.Version
-                        : item.Version;
-
+                    // Commit installation state only once all actions succeeded and cancellation has closed.
+                    cancellation.BeginCommit();
+                    _notifications.DisableDownloadCancellation(operationKey);
+                    var version = !string.IsNullOrWhiteSpace(manifest.Version) ? manifest.Version : item.Version;
                     await _stateStore.MarkInstalledAsync(selectedResourceKey, version, module.Id);
 
                     var message = string.IsNullOrWhiteSpace(version)
                         ? $"{effectiveTitle} installed successfully."
                         : $"{effectiveTitle} {version} installed successfully.";
-
                     log?.Report(message);
                     _notifications.CompleteDownload(operationKey, message);
                     return new DownloadInstallResult(true, message);
                 }
-                catch (OperationCanceledException)
-                {
-                    _notifications.CancelDownload(operationKey, $"Installation canceled for {selectedTitle}.");
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    // Execution failed: report it and let the next source try.
-                    _logger.LogError(ex, "Install manifest execution failed for resource {ResourceKey} via module {ModuleId}.", selectedResourceKey, module.Id);
-                    lastError = ex.Message;
-                    log?.Report($"Install failed via {module.Name}: {ex.Message}");
-                    _notifications.ReportDownloadStatus(operationKey, $"Install failed: {ex.Message}");
-                }
-            }
 
-            // No source succeeded.
-            _notifications.FailDownload(operationKey, lastError);
-            return new DownloadInstallResult(false, lastError);
+                cancellation.BeginCommit();
+                _notifications.FailDownload(operationKey, lastError);
+                return new DownloadInstallResult(false, lastError);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Cancellation can also arrive while waiting to acquire the content lease.
+                _notifications.CancelDownload(operationKey, LocalizationKeys.Notifications_OperationCanceled);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Finish the notification even if the content lease or installation state update fails.
+                _notifications.FailDownload(operationKey, ex.Message);
+                throw;
+            }
         }
 
 
@@ -593,56 +592,70 @@ namespace ASLM.Services.Internal
             using var response = await _httpClient.GetAsync(action.Url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            // Stream the body straight to disk; the file is recreated, so an earlier partial file is discarded.
-            var totalBytes = response.Content.Headers.ContentLength ?? 0;
-            await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.Read, 65536, true);
-            var buffer = new byte[65536];
-            long downloadedBytes = 0;
-            int bytesRead;
-            var throttle = Stopwatch.StartNew();
-
-            var speed = new DownloadTransferSpeedEstimator();
-            speed.Sample(downloadedBytes);
-            reportProgress(new DownloadProgress(0, 0, totalBytes, downloadTitle), null);
-
-            while ((bytesRead = await contentStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+            // Keep any previous installed file until the replacement is completely downloaded and verified.
+            var temporaryPath = $"{destinationPath}.{Guid.NewGuid():N}.tmp";
+            try
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
-                downloadedBytes += bytesRead;
-
-                // Throttle notification updates to one every 75 ms.
-                if (throttle.ElapsedMilliseconds < 75)
+                var totalBytes = response.Content.Headers.ContentLength ?? 0;
+                await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                await using (var fileStream = new FileStream(temporaryPath, FileMode.CreateNew,
+                    FileAccess.Write, FileShare.Read, 65536, true))
                 {
-                    continue;
+                    var buffer = new byte[65536];
+                    long downloadedBytes = 0;
+                    int bytesRead;
+                    var throttle = Stopwatch.StartNew();
+
+                    var speed = new DownloadTransferSpeedEstimator();
+                    speed.Sample(downloadedBytes);
+                    reportProgress(new DownloadProgress(0, 0, totalBytes, downloadTitle), null);
+
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
+                        downloadedBytes += bytesRead;
+
+                        // Throttle notification updates to one every 75 ms.
+                        if (throttle.ElapsedMilliseconds < 75)
+                        {
+                            continue;
+                        }
+
+                        throttle.Restart();
+                        var fraction = totalBytes > 0 ? (double)downloadedBytes / totalBytes : 0;
+                        reportProgress(
+                            new DownloadProgress(fraction, downloadedBytes, totalBytes, downloadTitle, speed.Sample(downloadedBytes)),
+                            null);
+                    }
+
+                    // Report a final 100% so the progress does not stay at the last throttled value.
+                    reportProgress(
+                        new DownloadProgress(
+                            1.0,
+                            downloadedBytes,
+                            totalBytes > 0 ? totalBytes : downloadedBytes,
+                            downloadTitle),
+                        null);
+
+                    // Verify the checksum before the file is registered or used by any later action.
+                    if (!string.IsNullOrWhiteSpace(action.Sha256))
+                    {
+                        // Flush the write buffers so the concurrent reader below observes the full payload.
+                        await fileStream.FlushAsync(ct);
+                        var actualHash = await ComputeSha256Async(temporaryPath, ct);
+                        if (!string.Equals(actualHash, action.Sha256, StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidOperationException($"Checksum mismatch for {destinationPath}.");
+                        }
+                    }
                 }
 
-                throttle.Restart();
-                var fraction = totalBytes > 0 ? (double)downloadedBytes / totalBytes : 0;
-                reportProgress(
-                    new DownloadProgress(fraction, downloadedBytes, totalBytes, downloadTitle, speed.Sample(downloadedBytes)),
-                    null);
+                ct.ThrowIfCancellationRequested();
+                File.Move(temporaryPath, destinationPath, overwrite: true);
             }
-
-            // Report a final 100% so the progress does not stay at the last throttled value.
-            reportProgress(
-                new DownloadProgress(
-                    1.0,
-                    downloadedBytes,
-                    totalBytes > 0 ? totalBytes : downloadedBytes,
-                    downloadTitle),
-                null);
-
-            // Verify the checksum before the file is registered or used by any later action.
-            if (!string.IsNullOrWhiteSpace(action.Sha256))
+            finally
             {
-                // Flush the write buffers so the concurrent reader below observes the full payload.
-                await fileStream.FlushAsync(ct);
-                var actualHash = await ComputeSha256Async(destinationPath, ct);
-                if (!string.Equals(actualHash, action.Sha256, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException($"Checksum mismatch for {destinationPath}.");
-                }
+                TryDeleteDownloadTemporaryFile(temporaryPath);
             }
 
             // Register the file under its artifact id so extract actions can find it.
@@ -652,6 +665,22 @@ namespace ASLM.Services.Internal
             }
 
             log?.Report($"Saved to {destinationPath}");
+        }
+
+        /// <summary>
+        /// Removes an incomplete transfer without overriding the outcome of the download.
+        /// </summary>
+        private void TryDeleteDownloadTemporaryFile(string path)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // The file is separate from the installed resource, so a later attempt can still proceed.
+                _logger.LogWarning(ex, "Could not remove the partial download {Path}.", path);
+            }
         }
 
         /// <summary>

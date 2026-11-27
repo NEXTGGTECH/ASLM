@@ -46,6 +46,15 @@ namespace ASLM.Services.Internal
         }
 
 
+        /// <summary>
+        /// Returns cancellation for the active attempt so another view can act on the same operation.
+        /// </summary>
+        internal OperationCancellation? GetCancellation(string key)
+        {
+            lock (_sync) return _operations.GetValueOrDefault(key)?.Cancellation;
+        }
+
+
         // Shared execution
 
         /// <summary>
@@ -70,11 +79,11 @@ namespace ASLM.Services.Internal
                     return existing.Completion.Task.WaitAsync(ct);
                 }
 
-                operation = new Operation(this, key, version);
+                operation = new Operation(this, key, version, ct);
                 _operations.Add(key, operation);
             }
 
-            // The owner runs detached from the caller's token, so joined callers keep a live operation.
+            // The owner controls the attempt; a joined caller can cancel only its wait.
             _ = ExecuteAsync(operation, action);
             return operation.Completion.Task;
         }
@@ -100,7 +109,8 @@ namespace ASLM.Services.Internal
             }
             finally
             {
-                // Release the target before completing waiters, so they observe a free target.
+                // Close cancellation and release the target before completing waiters.
+                operation.Cancellation.Dispose();
                 lock (_sync)
                 {
                     _operations.Remove(operation.Key);
@@ -234,6 +244,11 @@ namespace ASLM.Services.Internal
             internal TaskCompletionSource<bool> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>
+            /// Cancellation shared by all entry points into this attempt.
+            /// </summary>
+            internal OperationCancellation Cancellation { get; }
+
+            /// <summary>
             /// Latest immutable state, written only under the tracker lock.
             /// </summary>
             internal UpdateOperationSnapshot Snapshot { get; set; }
@@ -249,10 +264,11 @@ namespace ASLM.Services.Internal
             /// <summary>
             /// Creates a reserved operation before any asynchronous update work starts.
             /// </summary>
-            internal Operation(UpdateOperationTracker owner, string key, string version)
+            internal Operation(UpdateOperationTracker owner, string key, string version, CancellationToken ct)
             {
                 _owner = owner;
                 Key = key;
+                Cancellation = new OperationCancellation(ct);
                 Snapshot = new(UpdateOperationPhase.Preparing, version);
             }
 

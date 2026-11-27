@@ -449,6 +449,11 @@ namespace ASLM.Services.Internal
                 var prepared = await _updateManager.PrepareAppUpdateAsync(candidate, log, null, false, ct);
                 return prepared && ClearPersistedCandidate(AslmTargetKind, AslmTargetId);
             }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // The attempt was canceled independently of the scheduler.
+                return false;
+            }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Automatic ASLM update preparation failed.");
@@ -467,6 +472,11 @@ namespace ASLM.Services.Internal
                     _logger.LogInformation("[Updater] {Message}", message));
                 var applied = await _updateManager.ApplyEngineUpdateAsync(candidate, log, null, false, ct);
                 return applied && ClearPersistedCandidate(OllamaTargetKind, OllamaTargetId);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // The attempt was canceled independently of the scheduler.
+                return false;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -547,7 +557,14 @@ namespace ASLM.Services.Internal
 
             var log = new Progress<string>(message =>
                 _logger.LogInformation("[Updater] {Message}", message));
-            await _updateManager.ApplyDiscoveredUpdatesAsync([result.Candidate], log, ct);
+            try
+            {
+                await _updateManager.ApplyDiscoveredUpdatesAsync([result.Candidate], log, ct);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // A canceled attempt must not stop checks for other components.
+            }
         }
 
 

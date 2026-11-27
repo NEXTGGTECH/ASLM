@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Цей модуль більше не встановлено</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>Операцію скасовано</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>Операцію перервано</value>
   </data>

@@ -3,6 +3,7 @@
 using System.Text.Json;
 using ASLM.Localization;
 using ASLM.Models;
+using ASLM.Services.Internal;
 using ASLM.Tests.TestSupport;
 
 namespace ASLM.Tests.Services.Internal
@@ -92,6 +93,41 @@ namespace ASLM.Tests.Services.Internal
 
             graph.GitHubHttp.Requests.Count.Should().Be(requestsAfterFirst,
                 "an already-pending update must satisfy new prepare requests without another download");
+        }
+
+
+        /// <summary>
+        /// Verifies that canceling the transfer from the journal leaves no staged update or restart marker.
+        /// A current candidate is offered again and can be prepared on a later attempt.
+        /// </summary>
+        [Fact]
+        public async Task Canceling_the_app_download_cleans_staging_and_allows_a_retry()
+        {
+            using var graph = new TestServiceGraph();
+            SeedUpdateSource(graph);
+            var candidate = BuildCandidate(graph, "9.9.9");
+            var progress = new InlineProgress<DownloadProgress>(sample =>
+            {
+                if (sample.Fraction < 1) return;
+                graph.Notifications.RequestDownloadCancellation(DownloadNotification(graph));
+            });
+
+            var prepare = () => graph.Updates.PrepareAppUpdateAsync(candidate, progress: progress);
+            await prepare.Should().ThrowAsync<OperationCanceledException>();
+
+            var canceled = DownloadNotification(graph);
+            canceled.CardStatusText.Should().Be(L.Get(LocalizationKeys.Notifications_OperationCanceled));
+            canceled.CanCancelOperation.Should().BeFalse();
+            canceled.CanDismiss.Should().BeTrue();
+            graph.Updates.HasPendingAppUpdate.Should().BeFalse();
+            var work = Path.Combine(graph.Root.Root, ".aslm-update");
+            File.Exists(Path.Combine(work, "pending.json.tmp")).Should().BeFalse();
+            Directory.Exists(Path.Combine(work, "staging", candidate.RemoteVersion)).Should().BeFalse();
+            graph.Notifications.Notifications.Should().ContainSingle(row =>
+                row.Category == AppNotificationCategory.Updates && row.OffersUpdateActions);
+
+            (await graph.Updates.PrepareAppUpdateAsync(candidate)).Should().BeTrue();
+            graph.Notifications.Notifications.Should().NotContain(row => row.Category == AppNotificationCategory.Updates);
         }
 
 

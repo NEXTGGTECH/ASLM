@@ -430,6 +430,12 @@ namespace ASLM.Services.Modules
             internal HashSet<string> NewlyInstalled { get; } = new(StringComparer.OrdinalIgnoreCase);
 
 
+            /// <summary>
+            /// Notification to complete when cancellation of this installation has been rolled back.
+            /// </summary>
+            internal string? CanceledNotificationId { get; set; }
+
+
             // Progress tracking
 
             /// <summary>

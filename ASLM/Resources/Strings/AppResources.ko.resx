@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>해당 모듈은 더 이상 설치되어 있지 않습니다</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>작업이 취소되었습니다</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>작업이 중단됨</value>
   </data>

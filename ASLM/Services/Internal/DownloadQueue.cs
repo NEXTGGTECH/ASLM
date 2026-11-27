@@ -75,9 +75,9 @@ namespace ASLM.Services.Internal
         private sealed class Entry(CancellationToken ct)
         {
             /// <summary>
-            /// Cancellation source linked to the caller token; cancelling it aborts the operation.
+            /// Owns cancellation for this entry even if another entry later uses the same key.
             /// </summary>
-            public CancellationTokenSource Cancellation { get; } = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            public OperationCancellation Cancellation { get; } = new(ct);
 
             /// <summary>
             /// Current phase of the operation.
@@ -175,12 +175,7 @@ namespace ASLM.Services.Internal
             Entry? entry;
             lock (_sync) entry = _pending.GetValueOrDefault(key);
 
-            // Cancellation callbacks must not run under the queue lock.
-            try { entry?.Cancellation.Cancel(); }
-            catch (ObjectDisposedException)
-            {
-                // The job finished between lookup and cancellation.
-            }
+            entry?.Cancellation.TryCancel();
         }
 
 
@@ -199,6 +194,14 @@ namespace ASLM.Services.Internal
         /// <param name="finish">Optional cleanup executed after the action; receives whether the operation was cancelled.</param>
         public Task<T> EnqueueAsync<T>(string key, Func<CancellationToken, Task<T>> action, CancellationToken ct = default,
             DownloadQueueKind kind = DownloadQueueKind.Resources, bool removal = false,
+            Func<CancellationToken, Task>? prepare = null, Func<bool, Task>? finish = null) =>
+            EnqueueOperationAsync(key, cancellation => action(cancellation.Token), ct, kind, removal, prepare, finish);
+
+        /// <summary>
+        /// Queues work that exposes cancellation for the exact entry running it.
+        /// </summary>
+        internal Task<T> EnqueueOperationAsync<T>(string key, Func<OperationCancellation, Task<T>> action,
+            CancellationToken ct = default, DownloadQueueKind kind = DownloadQueueKind.Resources, bool removal = false,
             Func<CancellationToken, Task>? prepare = null, Func<bool, Task>? finish = null)
         {
             if (ct.IsCancellationRequested) return Task.FromCanceled<T>(ct);
@@ -226,7 +229,7 @@ namespace ASLM.Services.Internal
                         token.ThrowIfCancellationRequested();
                         lock (_sync) entry.State = removal ? DownloadOperationState.Removing : DownloadOperationState.Running;
                         RaiseStateChanged();
-                        return await action(token).ConfigureAwait(false);
+                        return await action(entry.Cancellation).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -243,11 +246,8 @@ namespace ASLM.Services.Internal
                         finally
                         {
                             // Unregister the entry and let the next operation of the lane proceed.
-                            lock (_sync)
-                            {
-                                _pending.Remove(key);
-                                entry.Cancellation.Dispose();
-                            }
+                            entry.Cancellation.Dispose();
+                            lock (_sync) _pending.Remove(key);
 
                             _ = ReleaseAfterAsync(previous, released);
                             RaiseStateChanged();

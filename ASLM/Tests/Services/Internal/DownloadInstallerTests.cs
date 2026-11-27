@@ -49,7 +49,7 @@ namespace ASLM.Tests.Services.Internal
         }
 
         /// <summary>
-        /// Verifies that a downloaded payload whose SHA-256 differs from the declared checksum fails the manifest.
+        /// Verifies that a payload with a mismatched checksum fails without replacing the previous file.
         /// </summary>
         [Fact]
         public async Task Download_file_with_wrong_checksum_fails_the_manifest()
@@ -65,10 +65,16 @@ namespace ASLM.Tests.Services.Internal
                 Sha256 = await Sha256OfAsync("expected"u8.ToArray())
             });
 
+            var saved = Path.Combine(graph.Root.Root, "Models", "downloads", "bridge", "bad.bin");
+            Directory.CreateDirectory(Path.GetDirectoryName(saved)!);
+            await File.WriteAllTextAsync(saved, "previous content");
+
             var act = async () => await graph.Downloads.ExecuteManifestAsync(
                 module, manifest, "resource:bad", null, CancellationToken.None);
 
             await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Checksum mismatch*");
+            File.ReadAllText(saved).Should().Be("previous content");
+            Directory.EnumerateFiles(Path.GetDirectoryName(saved)!).Should().ContainSingle().Which.Should().Be(saved);
         }
 
 

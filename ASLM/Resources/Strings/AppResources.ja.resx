@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>そのモジュールはインストールされていません</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>処理をキャンセルしました</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>処理が中断されました</value>
   </data>

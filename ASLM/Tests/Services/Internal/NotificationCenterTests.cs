@@ -105,6 +105,47 @@ namespace ASLM.Tests.Services.Internal
         // Download notifications
 
         /// <summary>
+        /// Verifies that cancellation targets the selected attempt and clearing the journal leaves it running.
+        /// </summary>
+        [Fact]
+        public async Task Cancel_action_targets_only_the_live_attempt_and_leaves_its_result()
+        {
+            var center = CreateCenter();
+            using var first = new OperationCancellation(CancellationToken.None);
+            using var second = new OperationCancellation(CancellationToken.None);
+            var firstKey = await center.StartDownloadAsync("install", "Model A", "", "resource", "a",
+                requestCancellation: first.TryCancel);
+            var secondKey = await center.StartDownloadAsync("install", "Model B", "", "resource", "b",
+                requestCancellation: second.TryCancel);
+            var canceled = center.Notifications.Single(row => row.Id == firstKey);
+            var committing = center.Notifications.Single(row => row.Id == secondKey);
+
+            center.DismissAll();
+            center.Notifications.Should().Contain([canceled, committing]);
+            first.CanCancel.Should().BeTrue();
+            second.CanCancel.Should().BeTrue();
+
+            center.RequestDownloadCancellation(canceled);
+            center.RequestDownloadCancellation(canceled);
+            var beginCanceledCommit = first.BeginCommit;
+            beginCanceledCommit.Should().Throw<OperationCanceledException>();
+            canceled.CanCancelOperation.Should().BeFalse();
+            canceled.CanDismiss.Should().BeFalse();
+            second.CanCancel.Should().BeTrue();
+
+            // Even if the UI still shows the action for a moment, the service has closed cancellation.
+            second.BeginCommit();
+            center.RequestDownloadCancellation(committing);
+            second.Token.IsCancellationRequested.Should().BeFalse();
+
+            center.CancelDownload(firstKey, LocalizationKeys.Notifications_OperationCanceled);
+            canceled.CardStatusText.Should().Be(L.Get(LocalizationKeys.Notifications_OperationCanceled));
+            canceled.CanDismiss.Should().BeTrue();
+            center.DismissAll();
+            center.Notifications.Should().ContainSingle().Which.Should().BeSameAs(committing);
+        }
+
+        /// <summary>
         /// Verifies that a download row is in progress after the start, stays in progress and shows a status text while
         /// bytes are reported, updates its subtitle for a new file, and clears file and speed after transferring.
         /// </summary>

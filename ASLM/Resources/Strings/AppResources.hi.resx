@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>वह मॉड्यूल अब इंस्टॉल नहीं है</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>कार्रवाई रद्द कर दी गई</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>प्रक्रिया बीच में रुक गई</value>
   </data>

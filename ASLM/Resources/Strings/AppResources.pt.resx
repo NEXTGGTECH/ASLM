@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Esse módulo já não está instalado</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>Operação cancelada</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>Operação interrompida</value>
   </data>

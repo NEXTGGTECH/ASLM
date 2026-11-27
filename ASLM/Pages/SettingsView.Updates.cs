@@ -458,6 +458,10 @@ namespace ASLM.Pages
                 await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
                 _engineInstaller.InvalidateCache();
             }
+            catch (OperationCanceledException)
+            {
+                // The notification already records intentional cancellation.
+            }
             catch (Exception ex)
             {
                 await ShowErrorAsync(
@@ -496,6 +500,10 @@ namespace ASLM.Pages
 
                 _pendingAppUpdateCandidate = null;
                 await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
+            }
+            catch (OperationCanceledException)
+            {
+                // The notification already records intentional cancellation.
             }
             catch (Exception ex)
             {

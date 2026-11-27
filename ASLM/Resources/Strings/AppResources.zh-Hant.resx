@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>該模組已不再安裝</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>操作已取消</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>操作已中斷</value>
   </data>

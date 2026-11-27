@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Modul tersebut sudah tidak lagi terinstal</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>Operasi dibatalkan</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>Proses terhenti</value>
   </data>

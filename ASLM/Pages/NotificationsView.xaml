@@ -98,7 +98,7 @@
                                 <Grid RowDefinitions="Auto,Auto"
                                       RowSpacing="12">
                                     <Grid ColumnDefinitions="4,*,Auto"
-                                          ColumnSpacing="8">
+                                          ColumnSpacing="0">
                                         <BoxView BackgroundColor="{Binding AccentColor}"
                                                  WidthRequest="4"
                                                  HeightRequest="32"
@@ -106,7 +106,8 @@
                                                  Margin="0,4" />
 
                                         <VerticalStackLayout Grid.Column="1"
-                                                             Spacing="2">
+                                                             Spacing="2"
+                                                             Margin="10,0,0,0">
                                             <Label Text="{Binding CardTitle}"
                                                    FontSize="14"
                                                    FontAttributes="Bold"
@@ -188,15 +189,35 @@
                                                 Background="Transparent"
                                                 StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 0"
-                                                WidthRequest="24"
-                                                HeightRequest="24"
+                                                WidthRequest="20"
+                                                HeightRequest="20"
                                                 Padding="0"
-                                                Margin="0"
+                                                Margin="8,0,0,0"
                                                 VerticalOptions="Center">
                                             <Border.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnDismissClicked" />
                                             </Border.GestureRecognizers>
                                             <Image Source="{Binding DismissIconSource, Source={x:Reference RootView}}"
+                                                   Aspect="AspectFit"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center" />
+                                        </Border>
+
+                                        <Border Grid.Column="2"
+                                                IsVisible="{Binding CanCancelOperation}"
+                                                Background="Transparent"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 0"
+                                                WidthRequest="20"
+                                                HeightRequest="20"
+                                                Padding="0"
+                                                Margin="8,0,0,0"
+                                                VerticalOptions="Center"
+                                                SemanticProperties.Description="{Binding CancelOperationText}">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnCancelOperationTapped" />
+                                            </Border.GestureRecognizers>
+                                            <Image Source="{Binding CancelIconSource, Source={x:Reference RootView}}"
                                                    Aspect="AspectFit"
                                                    HorizontalOptions="Center"
                                                    VerticalOptions="Center" />

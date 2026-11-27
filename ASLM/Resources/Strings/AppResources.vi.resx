@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Mô-đun đó không còn được cài đặt nữa</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>Đã hủy thao tác</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>Thao tác bị gián đoạn</value>
   </data>

@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>هذه الوحدة لم تعد مثبّتة</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>أُلغيت العملية</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>توقفت العملية قبل اكتمالها</value>
   </data>

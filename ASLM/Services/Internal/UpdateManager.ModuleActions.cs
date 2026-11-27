@@ -54,6 +54,38 @@ namespace ASLM.Services.Internal
             _manualModuleUpdates.TryGetValue(sourcePath, out var phase) && phase == ManualModuleUpdatePhase.Checking;
 
 
+        /// <summary>
+        /// Reports whether the active update can still be canceled from the module information view.
+        /// </summary>
+        internal bool CanCancelModuleUpdate(string sourcePath) =>
+            _updateOperations.GetCancellation(GetModuleOperationKey(sourcePath))?.CanCancel == true;
+
+        /// <summary>
+        /// Cancels the shared attempt that is currently updating the selected module.
+        /// </summary>
+        internal void CancelModuleUpdate(string sourcePath)
+        {
+            if (_updateOperations.GetCancellation(GetModuleOperationKey(sourcePath)) is { } cancellation)
+                TryCancelModuleUpdate(cancellation);
+        }
+
+        /// <summary>
+        /// Refreshes module controls once cancellation has been accepted from either view.
+        /// </summary>
+        private bool TryCancelModuleUpdate(OperationCancellation cancellation)
+        {
+            if (!cancellation.TryCancel()) return false;
+            RaiseModuleUpdateStateChanged();
+            return true;
+        }
+
+        /// <summary>
+        /// Identifies the same installed module for scheduled and interactive update attempts.
+        /// </summary>
+        private static string GetModuleOperationKey(string sourcePath) =>
+            NotificationCenter.BuildOperationKey("module", sourcePath);
+
+
         // Explicit user actions
 
         /// <summary>
@@ -146,9 +178,9 @@ namespace ASLM.Services.Internal
                 log.Report(L.Get(success ? LocalizationKeys.ModuleUpdate_Status_Updated : LocalizationKeys.ModuleUpdate_Status_UpdateFailed));
                 return selected;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException)
             {
-                // The caller canceled: record it in the console; the cancellation is not an error.
+                // Either view can cancel the shared attempt; cancellation is not an update failure.
                 log?.Report(L.Get(LocalizationKeys.ModuleInfo_Canceled));
             }
             catch (Exception ex)

@@ -831,6 +831,9 @@
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Bu modül artık yüklü değil</value>
   </data>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>İşlem iptal edildi</value>
+  </data>
   <data name="Notifications_OperationInterrupted" xml:space="preserve">
     <value>İşlem yarıda kesildi</value>
   </data>

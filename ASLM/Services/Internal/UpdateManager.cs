@@ -294,13 +294,19 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Starts the same versioned notification for an app, module, or engine update.
         /// </summary>
-        private Task<string> StartUpdateNotificationAsync(UpdateCandidate candidate, string componentName)
+        private Task<string> StartUpdateNotificationAsync(UpdateCandidate candidate, string componentName,
+            Func<bool> requestCancellation) =>
+            _notifications.StartDownloadAsync($"{candidate.TargetKind}-update", componentName, string.Empty,
+                candidate.TargetKind, candidate.TargetId, GetUpdateVersionKey(candidate), replacesUpdateOffer: true,
+                targetVersion: candidate.RemoteVersion, requestCancellation: requestCancellation);
+
+        /// <summary>
+        /// Records cancellation and restores the offer only if no newer check or channel change superseded it.
+        /// </summary>
+        private void FinishCanceledUpdate(string operationKey, UpdateCandidate candidate, Func<bool> isCurrent)
         {
-            var kind = candidate.TargetKind;
-            var id = candidate.TargetId;
-            AdvanceUpdateCheckRevision(NotificationCenter.BuildOperationKey(kind, id));
-            return _notifications.StartDownloadAsync($"{kind}-update", componentName, string.Empty,
-                kind, id, GetUpdateVersionKey(candidate), replacesUpdateOffer: true, targetVersion: candidate.RemoteVersion);
+            _notifications.CancelDownload(operationKey, LocalizationKeys.Notifications_OperationCanceled);
+            CompleteUpdateCheck(candidate.TargetKind, candidate.TargetId, candidate, publish: true, isCurrent);
         }
 
         /// <summary>
@@ -941,7 +947,7 @@ namespace ASLM.Services.Internal
             // Reserve the target before asynchronous work so manual and automatic requests cannot race.
             return _updateOperations.RunAsync(NotificationCenter.BuildOperationKey("app", candidate.TargetId),
                 candidate.ReleaseTag ?? candidate.RemoteVersion,
-                operation => PrepareAppUpdateCoreAsync(candidate, operation, log, progress, isManualRequest, ct), ct);
+                operation => PrepareAppUpdateCoreAsync(candidate, operation, log, progress, isManualRequest), ct);
         }
 
         /// <summary>
@@ -949,8 +955,11 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task<bool> PrepareAppUpdateCoreAsync(UpdateCandidate candidate,
             UpdateOperationTracker.Operation operation, IProgress<string>? log,
-            IProgress<DownloadProgress>? progress, bool isManualRequest, CancellationToken ct)
+            IProgress<DownloadProgress>? progress, bool isManualRequest)
         {
+            var cancellation = operation.Cancellation;
+            var ct = cancellation.Token;
+
             // A completed competing request may already have produced the payload before this reservation.
             if (HasPendingAppUpdate)
             {
@@ -958,7 +967,8 @@ namespace ASLM.Services.Internal
             }
 
             // Surface download progress and validate the shipped update source before touching disk.
-            var operationKey = await StartUpdateNotificationAsync(candidate, candidate.Name);
+            var isCurrent = BeginUpdateCheck(candidate.TargetKind, candidate.TargetId);
+            var operationKey = await StartUpdateNotificationAsync(candidate, candidate.Name, cancellation.TryCancel);
 
             // Stage under .aslm-update so the external patcher can apply on next launcher start.
             var rootDir = GetRootDirectory();
@@ -972,6 +982,7 @@ namespace ASLM.Services.Internal
             var notificationProgress = operation.WrapProgress(
                 _notifications.CreateDownloadProgressBridge(operationKey, progress));
             var prepared = false;
+            var canceled = false;
             var pendingTemporaryPath = GetPendingUpdatePath() + ".tmp";
 
             try
@@ -1009,7 +1020,7 @@ namespace ASLM.Services.Internal
                 var payloadDir = await Task.Run(() =>
                 {
                     // Archive extraction and payload inspection can touch a lot of files, so keep it off the UI thread.
-                    ExtractZipSafe(archivePath, extractDir);
+                    ExtractZipSafe(archivePath, extractDir, ct);
                     return ResolveSinglePayloadDirectory(extractDir);
                 }, ct);
 
@@ -1041,6 +1052,8 @@ namespace ASLM.Services.Internal
 
                 // Publish the marker atomically: the launcher must never observe a truncated pending operation.
                 await File.WriteAllTextAsync(pendingTemporaryPath, pendingJson, ct);
+                cancellation.BeginCommit();
+                _notifications.DisableDownloadCancellation(operationKey);
                 File.Move(pendingTemporaryPath, GetPendingUpdatePath(), overwrite: true);
                 prepared = true;
                 log?.Report("ASLM update prepared. It will be applied on restart.");
@@ -1048,10 +1061,10 @@ namespace ASLM.Services.Internal
                     operationKey, LocalizationKeys.Notifications_RestartToFinishUpdate);
                 return true;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // Surface the cancellation in the notification, then let the caller observe it.
-                _notifications.CancelDownload(operationKey, L.Get(LocalizationKeys.ModuleInfo_Canceled));
+                // Report cancellation after removing the staged payload and temporary marker.
+                canceled = true;
                 throw;
             }
             catch
@@ -1063,8 +1076,15 @@ namespace ASLM.Services.Internal
             finally
             {
                 // A canceled or invalid package is not a pending update and must not accumulate on disk.
-                if (!prepared) TryDeleteDirectory(stagingRoot);
-                if (File.Exists(pendingTemporaryPath)) File.Delete(pendingTemporaryPath);
+                try
+                {
+                    if (!prepared) TryDeleteDirectory(stagingRoot);
+                    if (File.Exists(pendingTemporaryPath)) File.Delete(pendingTemporaryPath);
+                }
+                finally
+                {
+                    if (canceled) FinishCanceledUpdate(operationKey, candidate, isCurrent);
+                }
             }
         }
 
@@ -1204,8 +1224,8 @@ namespace ASLM.Services.Internal
 
             // The prepare step creates the request; the queued work and the finish step consume it.
             ModuleInstaller.CatalogInstallation? request = null;
-            return _downloadQueue.EnqueueAsync("module:" + selected.Id,
-                token => InstallCatalogModuleCoreAsync(request!, log, progress, token), ct,
+            return _downloadQueue.EnqueueOperationAsync("module:" + selected.Id,
+                cancellation => InstallCatalogModuleCoreAsync(request!, log, progress, cancellation), ct,
                 kind: DownloadQueueKind.Modules,
                 prepare: async token =>
                 {
@@ -1239,16 +1259,26 @@ namespace ASLM.Services.Internal
                     }
                     finally { _moduleInstaller.CatalogPlanGate.Release(); }
                 },
-                finish: async canceled =>
-                {
-                    // Undo partial work after a cancellation, and always release the reservation.
-                    if (request == null) return;
-                    try
-                    {
-                        if (canceled) await _moduleInstaller.RollbackCatalogInstallationAsync(request, log).ConfigureAwait(false);
-                    }
-                    finally { request.Dispose(); }
-                });
+                finish: canceled => FinishCatalogInstallationAsync(request, log, canceled));
+        }
+
+        /// <summary>
+        /// Cleans up a canceled installation before publishing its result and releasing its reservation.
+        /// </summary>
+        private async Task FinishCatalogInstallationAsync(ModuleInstaller.CatalogInstallation? request,
+            IProgress<string> log, bool canceled)
+        {
+            if (request == null) return;
+            try
+            {
+                if (canceled) await _moduleInstaller.RollbackCatalogInstallationAsync(request, log).ConfigureAwait(false);
+            }
+            finally
+            {
+                request.Dispose();
+                if (request.CanceledNotificationId is { } id)
+                    _notifications.CancelDownload(id, LocalizationKeys.Notifications_OperationCanceled);
+            }
         }
 
         /// <summary>
@@ -1309,8 +1339,11 @@ namespace ASLM.Services.Internal
         /// Installs a reserved dependency plan, optionally using an exact root target resolved before reinstallation.
         /// </summary>
         private async Task<ModuleLaunchResult> InstallCatalogModuleCoreAsync(ModuleInstaller.CatalogInstallation request, IProgress<string> log,
-            IProgress<DownloadProgress>? progress, CancellationToken ct, UpdateCandidate? reinstallTarget = null)
+            IProgress<DownloadProgress>? progress, OperationCancellation cancellation, UpdateCandidate? reinstallTarget = null)
         {
+            var ct = cancellation.Token;
+            Func<bool>? requestCancellation = reinstallTarget == null ? cancellation.TryCancel : null;
+
             // Do not hold a content-operation lease while waiting: removal needs exclusive file access.
             foreach (var pending in request.Plan)
                 if (_downloadQueue.GetTask("module-remove:" + pending.Id) is { } removal)
@@ -1353,7 +1386,8 @@ namespace ASLM.Services.Internal
                         ?? throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_SourceUnavailable, item.Name));
                     try
                     {
-                        var success = await ApplyModuleUpdateAsync(candidate, log, progress, isManualRequest: true, ct: ct);
+                        var success = await ApplyModuleUpdateCoreAsync(candidate, log, progress, isManualRequest: true,
+                            cancellation, requestCancellation, request);
                         ct.ThrowIfCancellationRequested();
                         if (!success)
                             throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_InstallFailed, item.Name));
@@ -1371,7 +1405,8 @@ namespace ASLM.Services.Internal
 
                 // Other modules are downloaded here (unless already present), then reconciled and run once.
                 var key = await _notifications.StartDownloadAsync("module-install",
-                    item.Name, string.Empty, "module", item.Id);
+                    item.Name, string.Empty, "module", item.Id, requestCancellation: requestCancellation,
+                    cancelTarget: GetCatalogCancelTarget(request, item));
                 try
                 {
                     if (!isDownloaded)
@@ -1394,10 +1429,10 @@ namespace ASLM.Services.Internal
                         throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_InstallFailed, item.Name));
                     _notifications.CompleteDownload(key, L.Get(LocalizationKeys.ModuleInfo_Installed));
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    // Mark the notification canceled and let the queue handle the rollback.
-                    _notifications.CancelDownload(key, L.Get(LocalizationKeys.ModuleInfo_Canceled));
+                    // Finish the notification after the queue has rolled back the installation.
+                    request.CanceledNotificationId = key;
                     throw;
                 }
                 catch (Exception ex)
@@ -1413,9 +1448,18 @@ namespace ASLM.Services.Internal
             ct.ThrowIfCancellationRequested();
             var launch = await _moduleLaunchCoordinator.LaunchOrEnsureRunningBySourcePathAsync(
                 module.SourcePath, log, ct);
-            ct.ThrowIfCancellationRequested();
+            cancellation.BeginCommit();
             return launch;
         }
+
+
+        /// <summary>
+        /// Names the root installation when the visible notification is reporting one of its dependencies.
+        /// </summary>
+        private static string? GetCatalogCancelTarget(ModuleInstaller.CatalogInstallation? request, ModuleConfig item) =>
+            request != null && !string.Equals(request.Root.Id, item.Id, StringComparison.OrdinalIgnoreCase)
+                ? request.Root.Name
+                : null;
 
 
         // Module and engine update application
@@ -1424,16 +1468,31 @@ namespace ASLM.Services.Internal
         /// Downloads and applies one module update.
         /// The same pipeline performs a first installation when the module is not registered yet.
         /// </summary>
-        public async Task<bool> ApplyModuleUpdateAsync(
+        public Task<bool> ApplyModuleUpdateAsync(
             UpdateCandidate candidate,
             IProgress<string>? log = null,
             IProgress<DownloadProgress>? progress = null,
             bool isManualRequest = false,
             CancellationToken ct = default)
         {
+            var module = candidate.Module ?? throw new InvalidOperationException(
+                "Module update candidate does not contain module metadata.");
+            return _updateOperations.RunAsync(GetModuleOperationKey(module.SourcePath), GetUpdateVersionKey(candidate),
+                operation => ApplyModuleUpdateCoreAsync(candidate, log, progress, isManualRequest, operation.Cancellation,
+                    () => TryCancelModuleUpdate(operation.Cancellation)), ct);
+        }
+
+        /// <summary>
+        /// Applies a module package using cancellation from the updater or the owning catalog installation.
+        /// </summary>
+        private async Task<bool> ApplyModuleUpdateCoreAsync(UpdateCandidate candidate, IProgress<string>? log,
+            IProgress<DownloadProgress>? progress, bool isManualRequest, OperationCancellation cancellation,
+            Func<bool>? requestCancellation, ModuleInstaller.CatalogInstallation? request = null)
+        {
             // Lock the module content and record whether this is an installation or an update.
             var module = candidate.Module ?? throw new InvalidOperationException(
                 "Module update candidate does not contain module metadata.");
+            var ct = cancellation.Token;
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
             module.Normalize();
             var wasEnabled = module.Status.Enabled;
@@ -1453,10 +1512,13 @@ namespace ASLM.Services.Internal
                 await _moduleInstaller.Preparation.SuspendAsync(module.SourcePath).ConfigureAwait(false);
 
             // Show the transfer in the notification center and resolve the installed module directory.
+            var isCurrent = isInstallation ? null : BeginUpdateCheck(candidate.TargetKind, candidate.TargetId);
             var operationKey = isInstallation
                 ? await _notifications.StartDownloadAsync("module-install", module.Name, string.Empty,
-                    candidate.TargetKind, candidate.TargetId, GetUpdateVersionKey(candidate), targetVersion: candidate.RemoteVersion)
-                : await StartUpdateNotificationAsync(candidate, module.Name);
+                    candidate.TargetKind, candidate.TargetId, GetUpdateVersionKey(candidate),
+                    targetVersion: candidate.RemoteVersion, requestCancellation: requestCancellation,
+                    cancelTarget: GetCatalogCancelTarget(request, module))
+                : await StartUpdateNotificationAsync(candidate, module.Name, requestCancellation ?? cancellation.TryCancel);
 
             var moduleDir = Path.GetDirectoryName(module.SourcePath);
             if (string.IsNullOrWhiteSpace(moduleDir))
@@ -1474,6 +1536,7 @@ namespace ASLM.Services.Internal
                 Guid.NewGuid().ToString("N"));
             var archivePath = Path.Combine(updateRoot, "module.zip");
             var extractDir = Path.Combine(updateRoot, "extract");
+            var canceled = false;
 
             try
             {
@@ -1494,7 +1557,7 @@ namespace ASLM.Services.Internal
                 var preparedUpdate = await Task.Run(() =>
                 {
                     // Extraction and manifest validation are local filesystem work and should not block the UI thread.
-                    ExtractZipSafe(archivePath, extractDir);
+                    ExtractZipSafe(archivePath, extractDir, ct);
 
                     var newManifestPath = FindUpdatedModuleManifest(extractDir);
                     var newConfig = LoadModuleConfigFromPath(newManifestPath);
@@ -1521,7 +1584,15 @@ namespace ASLM.Services.Internal
                 if (module.RepositoryPreview != null)
                     ValidateRepositorySource(newConfig, module.RepositoryPreview.Repository);
 
-                // Stop the module and any orphaned processes holding locks under the install directory.
+                // In-place updates must run to completion once the installed module is stopped.
+                // Catalog installs still use their existing rollback for newly added modules.
+                if (request == null || !isInstallation)
+                {
+                    cancellation.BeginCommit();
+                    _notifications.DisableDownloadCancellation(operationKey);
+                    RaiseModuleUpdateStateChanged();
+                }
+
                 _notifications.ReportDownloadStatus(operationKey, L.Get(LocalizationKeys.Notifications_InstallingFiles));
                 if (wasEnabled)
                 {
@@ -1563,13 +1634,13 @@ namespace ASLM.Services.Internal
 
                 return success;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // Mark the notification canceled, then let the caller observe the cancellation.
-                _notifications.CancelDownload(operationKey, L.Get(LocalizationKeys.ModuleInfo_Canceled));
+                // Defer publication until the attempt's staging and any catalog rollback are finished.
+                canceled = true;
                 throw;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex)
             {
                 // Other failures are logged, shown to the user, and reported to the caller as a plain failure.
                 _logger.LogError(ex, "Module update failed for {ModuleId}.", module.Id);
@@ -1582,6 +1653,12 @@ namespace ASLM.Services.Internal
             finally
             {
                 TryDeleteDirectory(updateRoot);
+                if (canceled)
+                {
+                    if (request != null) request.CanceledNotificationId = operationKey;
+                    else if (isCurrent != null) FinishCanceledUpdate(operationKey, candidate, isCurrent);
+                    else _notifications.CancelDownload(operationKey, LocalizationKeys.Notifications_OperationCanceled);
+                }
             }
         }
 
@@ -1599,7 +1676,7 @@ namespace ASLM.Services.Internal
             var engineId = candidate.Engine?.Id ?? candidate.TargetId;
             return _updateOperations.RunAsync(NotificationCenter.BuildOperationKey("engine", engineId),
                 candidate.ReleaseTag ?? candidate.RemoteVersion,
-                operation => ApplyEngineUpdateCoreAsync(candidate, operation, log, progress, isManualRequest, ct), ct);
+                operation => ApplyEngineUpdateCoreAsync(candidate, operation, log, progress, isManualRequest), ct);
         }
 
         /// <summary>
@@ -1608,8 +1685,10 @@ namespace ASLM.Services.Internal
         /// </summary>
         private async Task<bool> ApplyEngineUpdateCoreAsync(UpdateCandidate candidate,
             UpdateOperationTracker.Operation updateOperation, IProgress<string>? log,
-            IProgress<DownloadProgress>? progress, bool isManualRequest, CancellationToken ct)
+            IProgress<DownloadProgress>? progress, bool isManualRequest)
         {
+            var cancellation = updateOperation.Cancellation;
+            var ct = cancellation.Token;
             using var operation = await ModuleInstaller.BeginContentOperationAsync(ct).ConfigureAwait(false);
             var engine = candidate.Engine ?? throw new InvalidOperationException(
                 "Engine update candidate does not contain engine metadata.");
@@ -1627,7 +1706,8 @@ namespace ASLM.Services.Internal
             }
 
             // Show the transfer in the notification center and resolve the engine directory.
-            var operationKey = await StartUpdateNotificationAsync(candidate, engine.Name);
+            var isCurrent = BeginUpdateCheck(candidate.TargetKind, candidate.TargetId);
+            var operationKey = await StartUpdateNotificationAsync(candidate, engine.Name, cancellation.TryCancel);
 
             var engineDir = Path.GetDirectoryName(engine.SourcePath);
             if (string.IsNullOrWhiteSpace(engineDir))
@@ -1647,6 +1727,7 @@ namespace ASLM.Services.Internal
             var archivePath = Path.Combine(updateRoot, GetArchiveFileName(candidate.DownloadUrl, "engine"));
             List<string>? enabledModuleSourcePaths = null;
             var modulesWereStopped = false;
+            var canceled = false;
 
             try
             {
@@ -1663,6 +1744,8 @@ namespace ASLM.Services.Internal
                     ResolveRequestSource(isManualRequest),
                     ct);
 
+                cancellation.BeginCommit();
+                _notifications.DisableDownloadCancellation(operationKey);
                 updateOperation.SetPhase(UpdateOperationPhase.Applying);
                 _notifications.ReportDownloadStatus(operationKey, L.Get(LocalizationKeys.Notifications_InstallingFiles));
 
@@ -1707,13 +1790,13 @@ namespace ASLM.Services.Internal
                 _notifications.CompleteDownload(operationKey, L.Get(LocalizationKeys.ModuleUpdate_Status_Updated));
                 return true;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // Mark the notification canceled, then let the caller observe the cancellation.
-                _notifications.CancelDownload(operationKey, L.Get(LocalizationKeys.ModuleInfo_Canceled));
+                // The engine remains untouched when cancellation wins the commit boundary.
+                canceled = true;
                 throw;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex)
             {
                 // Other failures are logged, shown to the user, and reported to the caller as a plain failure.
                 _logger.LogError(ex, "Engine update failed for {EngineId}.", engine.Id);
@@ -1727,6 +1810,7 @@ namespace ASLM.Services.Internal
                 // Remove the scratch folder and restart the stopped modules even after a failure or cancellation;
                 // the restart ignores the caller's token so a canceled update still brings the modules back.
                 TryDeleteDirectory(updateRoot);
+                if (canceled) FinishCanceledUpdate(operationKey, candidate, isCurrent);
 
                 if (modulesWereStopped && enabledModuleSourcePaths is { Count: > 0 })
                 {
@@ -2752,11 +2836,13 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Extracts one ZIP or tar-family archive and rejects ZIP entries that escape the target directory.
         /// </summary>
-        private static void ExtractZipSafe(string zipPath, string destination)
+        private static void ExtractZipSafe(string zipPath, string destination, CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
             if (ArchiveExtractor.IsTarArchive(zipPath))
             {
                 ArchiveExtractor.ExtractToDirectory(zipPath, destination);
+                ct.ThrowIfCancellationRequested();
                 return;
             }
 
@@ -2767,6 +2853,7 @@ namespace ASLM.Services.Internal
             using var archive = ZipFile.OpenRead(zipPath);
             foreach (var entry in archive.Entries)
             {
+                ct.ThrowIfCancellationRequested();
                 var targetPath = Path.GetFullPath(Path.Combine(destination, entry.FullName));
                 if (!targetPath.StartsWith(destinationPrefix, StringComparison.OrdinalIgnoreCase))
                 {
