@@ -66,6 +66,11 @@ namespace ASLM.Services.Internal
         /// </summary>
         private readonly Dictionary<DownloadQueueKind, Task> _tails = [];
 
+        /// <summary>
+        /// Prevents new file operations from entering after shutdown takes ownership of the queue.
+        /// </summary>
+        private bool _stopping;
+
 
         // Nested types
 
@@ -75,9 +80,9 @@ namespace ASLM.Services.Internal
         private sealed class Entry(CancellationToken ct)
         {
             /// <summary>
-            /// Cancellation source linked to the caller token; cancelling it aborts the operation.
+            /// Owns cancellation for this entry even if another entry later uses the same key.
             /// </summary>
-            public CancellationTokenSource Cancellation { get; } = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            public OperationCancellation Cancellation { get; } = new(ct);
 
             /// <summary>
             /// Current phase of the operation.
@@ -88,6 +93,11 @@ namespace ASLM.Services.Internal
             /// Task of the whole operation, including waiting for its turn.
             /// </summary>
             public Task Task { get; set; } = null!;
+
+            /// <summary>
+            /// Last measured speed while the entry is receiving download data.
+            /// </summary>
+            public double? BytesPerSecond { get; set; }
         }
 
 
@@ -97,6 +107,11 @@ namespace ASLM.Services.Internal
         /// Raised when an operation is added, starts running or finishes.
         /// </summary>
         public event EventHandler? StateChanged;
+
+        /// <summary>
+        /// Notifies the view that one operation's measured speed changed.
+        /// </summary>
+        internal event Action<string>? TransferSpeedChanged;
 
 
         // Queries and cancellation
@@ -118,6 +133,38 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Returns the latest transfer speed for an active download.
+        /// </summary>
+        internal double? GetTransferSpeed(string key)
+        {
+            lock (_sync) return _pending.GetValueOrDefault(key)?.BytesPerSecond;
+        }
+
+        /// <summary>
+        /// Shares a speed measurement with the catalog while the operation is still running.
+        /// </summary>
+        internal void SetTransferSpeed(string key, double? bytesPerSecond)
+        {
+            lock (_sync)
+            {
+                if (!_pending.TryGetValue(key, out var entry) || entry.State != DownloadOperationState.Running ||
+                    entry.BytesPerSecond == bytesPerSecond)
+                {
+                    return;
+                }
+
+                entry.BytesPerSecond = bytesPerSecond;
+            }
+
+            try { TransferSpeedChanged?.Invoke(key); }
+            catch (Exception ex)
+            {
+                // A subscriber failure must not abort the transfer.
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+        }
+
+        /// <summary>
         /// Returns the task of the operation with this key, or null when it is not queued.
         /// </summary>
         internal Task? GetTask(string key)
@@ -133,12 +180,28 @@ namespace ASLM.Services.Internal
             Entry? entry;
             lock (_sync) entry = _pending.GetValueOrDefault(key);
 
-            // Cancellation callbacks must not run under the queue lock.
-            try { entry?.Cancellation.Cancel(); }
-            catch (ObjectDisposedException)
+            entry?.Cancellation.TryCancel();
+        }
+
+        /// <summary>
+        /// Cancels transfers and waits for started file operations and their rollback to settle.
+        /// </summary>
+        internal async Task StopAsync()
+        {
+            Entry[] pending;
+            lock (_sync)
             {
-                // The job finished between lookup and cancellation.
+                _stopping = true;
+                pending = _pending.Values.ToArray();
             }
+
+            foreach (var entry in pending) entry.Cancellation.TryCancel();
+            try { await Task.WhenAll(pending.Select(entry => entry.Task)).ConfigureAwait(false); }
+            catch (OperationCanceledException)
+            {
+                // Canceled operations have already completed queue cleanup.
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[DownloadQueue] Shutdown: {ex}"); }
         }
 
 
@@ -157,12 +220,22 @@ namespace ASLM.Services.Internal
         /// <param name="finish">Optional cleanup executed after the action; receives whether the operation was cancelled.</param>
         public Task<T> EnqueueAsync<T>(string key, Func<CancellationToken, Task<T>> action, CancellationToken ct = default,
             DownloadQueueKind kind = DownloadQueueKind.Resources, bool removal = false,
+            Func<CancellationToken, Task>? prepare = null, Func<bool, Task>? finish = null) =>
+            EnqueueOperationAsync(key, cancellation => action(cancellation.Token), ct, kind, removal, prepare, finish);
+
+        /// <summary>
+        /// Queues work that exposes cancellation for the exact entry running it.
+        /// </summary>
+        internal Task<T> EnqueueOperationAsync<T>(string key, Func<OperationCancellation, Task<T>> action,
+            CancellationToken ct = default, DownloadQueueKind kind = DownloadQueueKind.Resources, bool removal = false,
             Func<CancellationToken, Task>? prepare = null, Func<bool, Task>? finish = null)
         {
             if (ct.IsCancellationRequested) return Task.FromCanceled<T>(ct);
             Task<T> task;
             lock (_sync)
             {
+                if (_stopping) return Task.FromCanceled<T>(new CancellationToken(canceled: true));
+
                 // Join an operation that is already pending under the same key.
                 if (_pending.TryGetValue(key, out var existing)) return (Task<T>)existing.Task;
 
@@ -179,12 +252,13 @@ namespace ASLM.Services.Internal
                     try
                     {
                         // Prepare immediately, wait for the lane, and only then switch to the running state.
+                        token.ThrowIfCancellationRequested();
                         if (prepare != null) await prepare(token).ConfigureAwait(false);
                         await previous.WaitAsync(token).ConfigureAwait(false);
                         token.ThrowIfCancellationRequested();
                         lock (_sync) entry.State = removal ? DownloadOperationState.Removing : DownloadOperationState.Running;
                         RaiseStateChanged();
-                        return await action(token).ConfigureAwait(false);
+                        return await action(entry.Cancellation).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -201,11 +275,8 @@ namespace ASLM.Services.Internal
                         finally
                         {
                             // Unregister the entry and let the next operation of the lane proceed.
-                            lock (_sync)
-                            {
-                                _pending.Remove(key);
-                                entry.Cancellation.Dispose();
-                            }
+                            entry.Cancellation.Dispose();
+                            lock (_sync) _pending.Remove(key);
 
                             _ = ReleaseAfterAsync(previous, released);
                             RaiseStateChanged();

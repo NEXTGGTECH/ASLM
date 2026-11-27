@@ -401,12 +401,17 @@ namespace ASLM.Pages
 
             if (progressPercent != null)
             {
-                // Applying an archive is not a 100% network transfer; hide percentages until measurable.
-                var hasDownloadProgress = operation?.Phase == UpdateOperationPhase.Downloading &&
-                    operation.DownloadFraction.HasValue;
-                progressPercent.IsVisible = hasDownloadProgress;
-                progressPercent.Text = hasDownloadProgress
-                    ? $"{(int)Math.Round(operation!.DownloadFraction!.Value * 100)}%" : string.Empty;
+                // Show whichever measurements are available while the archive is downloading.
+                var display = string.Empty;
+                if (operation?.Phase == UpdateOperationPhase.Downloading)
+                {
+                    display = operation.DownloadFraction is double fraction
+                        ? DownloadTransferSpeedEstimator.AppendSpeed($"{(int)Math.Round(fraction * 100)}%", operation.BytesPerSecond)
+                        : DownloadTransferSpeedEstimator.FormatSpeed(operation.BytesPerSecond);
+                }
+
+                progressPercent.Text = display;
+                progressPercent.IsVisible = display.Length > 0;
             }
 
             // The stage text follows the operation phase; the applying phase has its own text only for Ollama.
@@ -453,6 +458,10 @@ namespace ASLM.Pages
                 await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
                 _engineInstaller.InvalidateCache();
             }
+            catch (OperationCanceledException)
+            {
+                // The notification already records intentional cancellation.
+            }
             catch (Exception ex)
             {
                 await ShowErrorAsync(
@@ -491,6 +500,10 @@ namespace ASLM.Pages
 
                 _pendingAppUpdateCandidate = null;
                 await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
+            }
+            catch (OperationCanceledException)
+            {
+                // The notification already records intentional cancellation.
             }
             catch (Exception ex)
             {

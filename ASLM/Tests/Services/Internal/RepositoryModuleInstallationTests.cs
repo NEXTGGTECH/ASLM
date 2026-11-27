@@ -374,6 +374,32 @@ namespace ASLM.Tests.Services.Internal
         }
 
         /// <summary>
+        /// Verifies that canceling an install from its row releases the reservation and reports cancellation.
+        /// </summary>
+        [Fact]
+        public async Task Canceling_an_active_preview_from_its_notification_leaves_no_local_module()
+        {
+            using var graph = new TestServiceGraph();
+            RegisterRepository(graph, Manifest());
+            RegisterDownload(graph, "release", Manifest());
+            var preview = await graph.Updates.FindRepositoryModuleAsync("owner/repo");
+            graph.Notifications.NotificationPublished += (_, row) =>
+            {
+                if (row.CanCancelOperation && row.SourceId == preview.Id)
+                    graph.Notifications.RequestDownloadCancellation(row);
+            };
+
+            var install = () => graph.Updates.InstallCatalogModuleAsync(preview, new InlineProgress<string>(_ => { }));
+            await install.Should().ThrowAsync<OperationCanceledException>();
+
+            graph.Updates.IsCatalogInstallPending(preview.Id).Should().BeFalse();
+            graph.Installer.Registry.ReadIds().Should().BeEmpty();
+            var notification = graph.Notifications.Notifications.Single(row => row.SourceId == preview.Id);
+            notification.Severity.Should().Be(AppNotificationSeverity.Warning);
+            notification.CanDismiss.Should().BeTrue();
+        }
+
+        /// <summary>
         /// Verifies that preference edits after reservation cannot change the release of an already queued preview.
         /// </summary>
         [Fact]

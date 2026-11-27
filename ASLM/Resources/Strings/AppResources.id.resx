@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Tindakan gagal</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>Pembaruan ASLM tersedia</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>Tidak ada pembaruan ASLM yang tersedia saat ini</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>Pembaruan ASLM</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>Saluran: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>Hapus semua</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Tidak ada notifikasi</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>Pembaruan mesin tersedia</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>Pembaruan mesin tidak dapat diterapkan</value>
@@ -825,20 +816,38 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Pembaruan mesin</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>{0} berhasil dipasang</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>versi terinstal</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>{0} {1} berhasil dipasang</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>Memasang berkas</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Modul tersebut sudah tidak lagi terinstal</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>Pembaruan modul tersedia</value>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>Operasi dibatalkan</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>Versi baru ditemukan</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>Proses terhenti</value>
+  </data>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>Menyiapkan berkas</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>Mulai ulang aplikasi untuk menyelesaikan pembaruan</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>Terbaru</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>Memulai unduhan</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>{0} notifikasi</value>
@@ -852,11 +861,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>Perbarui</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>Pembaruan ke {0} {1} tersedia</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>Pembaruan untuk {0} tersedia ({1} -&gt; {2})</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>Perbarui nanti</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Perbarui sekarang</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>{0} telah diperbarui ke {1}</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>Memperbarui {0} ke {1}</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Akun ASLM</value>

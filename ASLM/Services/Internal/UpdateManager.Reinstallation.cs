@@ -27,8 +27,8 @@ namespace ASLM.Services.Internal
             // The prepare step creates the request; the queued work and the finish step consume it.
             ModuleInstaller.CatalogInstallation? request = null;
             _moduleInstaller.RecordManualRequest(selected.Id);
-            return _downloadQueue.EnqueueAsync("module:" + selected.Id,
-                token => ReinstallModuleCoreAsync(request!, log, progress, token), ct, DownloadQueueKind.Modules,
+            return _downloadQueue.EnqueueOperationAsync("module:" + selected.Id,
+                cancellation => ReinstallModuleCoreAsync(request!, log, progress, cancellation), ct, DownloadQueueKind.Modules,
                 prepare: async token =>
                 {
                     // Plan under the shared gate so removals and other plans see a consistent reservation.
@@ -68,16 +68,7 @@ namespace ASLM.Services.Internal
                     }
                     finally { _moduleInstaller.CatalogPlanGate.Release(); }
                 },
-                finish: async canceled =>
-                {
-                    // Undo partial work after a cancellation, and always release the reservation.
-                    if (request == null) return;
-                    try
-                    {
-                        if (canceled) await _moduleInstaller.RollbackCatalogInstallationAsync(request, log).ConfigureAwait(false);
-                    }
-                    finally { request.Dispose(); }
-                });
+                finish: canceled => FinishCatalogInstallationAsync(request, log, canceled));
         }
 
 
@@ -87,8 +78,9 @@ namespace ASLM.Services.Internal
         /// Resolves the selected version before removal, then installs it through the normal catalog pipeline.
         /// </summary>
         private async Task<ModuleLaunchResult> ReinstallModuleCoreAsync(ModuleInstaller.CatalogInstallation request,
-            IProgress<string> log, IProgress<DownloadProgress>? progress, CancellationToken ct)
+            IProgress<string> log, IProgress<DownloadProgress>? progress, OperationCancellation cancellation)
         {
+            var ct = cancellation.Token;
             var module = request.Root;
 
             // Resolve the exact target first, so an unavailable source fails before anything is removed.
@@ -113,7 +105,7 @@ namespace ASLM.Services.Internal
 
             // Install the resolved version through the shared catalog pipeline.
             // No content lease is held while waiting for the removal lane, so independent queues cannot deadlock.
-            return await InstallCatalogModuleCoreAsync(request, log, progress, ct, candidate).ConfigureAwait(false);
+            return await InstallCatalogModuleCoreAsync(request, log, progress, cancellation, candidate).ConfigureAwait(false);
         }
 
 

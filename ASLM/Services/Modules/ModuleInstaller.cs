@@ -430,6 +430,12 @@ namespace ASLM.Services.Modules
             internal HashSet<string> NewlyInstalled { get; } = new(StringComparer.OrdinalIgnoreCase);
 
 
+            /// <summary>
+            /// Notification to complete when cancellation of this installation has been rolled back.
+            /// </summary>
+            internal string? CanceledNotificationId { get; set; }
+
+
             // Progress tracking
 
             /// <summary>
@@ -869,7 +875,7 @@ namespace ASLM.Services.Modules
             // Send the request and fail early on an HTTP error; only the headers are read at this point.
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             _github?.PrepareApiRequest(request);
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             _github?.TrackApiResponse(request, response);
             response.EnsureSuccessStatusCode();
 
@@ -879,7 +885,7 @@ namespace ASLM.Services.Modules
                 : "  Downloading (size unknown)...");
 
             // Stream the body to the destination file, reporting progress at most every 50 ms.
-            await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+            await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, true);
 
             var buffer = new byte[65536];
@@ -888,21 +894,24 @@ namespace ASLM.Services.Modules
             var throttle = Stopwatch.StartNew();
 
             var transferLabel = Path.GetFileName(destinationPath);
+            var speed = new DownloadTransferSpeedEstimator();
+            speed.Sample(downloaded);
             downloadProgress?.Report(new DownloadProgress(0, 0, totalBytes, transferLabel));
 
-            while ((bytesRead = await contentStream.ReadAsync(buffer, ct)) > 0)
+            while ((bytesRead = await contentStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
                 downloaded += bytesRead;
 
-                if (totalBytes > 0 && throttle.ElapsedMilliseconds >= 50)
+                if (throttle.ElapsedMilliseconds >= 50)
                 {
                     throttle.Restart();
                     downloadProgress?.Report(new DownloadProgress(
-                        (double)downloaded / totalBytes,
+                        totalBytes > 0 ? (double)downloaded / totalBytes : 0,
                         downloaded,
                         totalBytes,
-                        transferLabel));
+                        transferLabel,
+                        speed.Sample(downloaded)));
                 }
             }
 
@@ -969,7 +978,8 @@ namespace ASLM.Services.Modules
         /// Never restores stale runtime state, registers a module, or clears removal protection.
         /// </summary>
         /// <exception cref="InvalidOperationException">Thrown when the manifest on disk belongs to a different module id.</exception>
-        internal void SaveModuleUpdatePreferences(ModuleConfig config)
+        /// <returns>Whether the saved channel, branch, or release selection changed.</returns>
+        internal bool SaveModuleUpdatePreferences(ModuleConfig config)
         {
             // Register the module as in use, then edit the manifest on disk as a JSON tree, so every other
             // property keeps the value stored there.
@@ -981,6 +991,8 @@ namespace ASLM.Services.Modules
 
             // Copy only the user-chosen update fields into the stored "update" block, or create the block.
             config.Update.Normalize();
+            var previous = manifest["update"]?.Deserialize<ModuleUpdateConfig>(_jsonOptions) ?? new ModuleUpdateConfig();
+            previous.Normalize();
             var preferences = JsonSerializer.SerializeToNode(config.Update, _jsonOptions)!.AsObject();
             if (manifest["update"] is JsonObject stored)
             {
@@ -994,6 +1006,12 @@ namespace ASLM.Services.Modules
 
             WriteManifest(config.SourcePath, manifest.ToJsonString(_jsonOptions));
             config.HasDeclaredUpdateConfig = true;
+
+            return previous.Mode != config.Update.Mode || previous.Channel != config.Update.Channel ||
+                (config.Update.Mode == "branch"
+                    ? !string.Equals(previous.Branch, config.Update.Branch, StringComparison.OrdinalIgnoreCase)
+                    : !string.Equals(previous.SelectedReleaseTag, config.Update.SelectedReleaseTag,
+                        StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

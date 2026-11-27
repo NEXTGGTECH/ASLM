@@ -43,10 +43,13 @@ namespace ASLM.Tests.Services.Internal
 
                 // Closing settings detaches observers, but samples must still be available on reopening.
                 tracker.StateChanged -= listener;
-                progress.Report(new(0.35, 35, 100));
-                progress.Report(new(0.7, 70, 100));
+                progress.Report(new(0, 35, 0, BytesPerSecond: 512));
                 tracker.GetSnapshot("app:aslm").Should().Be(new UpdateOperationSnapshot(
-                    UpdateOperationPhase.Downloading, "v2.0", 0.7));
+                    UpdateOperationPhase.Downloading, "v2.0", BytesPerSecond: 512));
+                progress.Report(new(0.7, 70, 100, BytesPerSecond: 1024));
+                tracker.GetSnapshot("app:aslm").Should().Be(new UpdateOperationSnapshot(
+                    UpdateOperationPhase.Downloading, "v2.0", 0.7, 1024));
+                sink.Samples[^1].BytesPerSecond.Should().Be(1024);
                 initial.Phase.Should().Be(UpdateOperationPhase.Preparing);
                 initial.DownloadFraction.Should().BeNull();
                 sink.Samples.Should().HaveCount(2);
@@ -54,9 +57,9 @@ namespace ASLM.Tests.Services.Internal
                 // Extraction/application keeps the reservation, without displaying stale network percentages.
                 tracker.StateChanged += listener;
                 context.SetPhase(UpdateOperationPhase.Applying);
-                progress.Report(new(1, 100, 100));
-                tracker.GetSnapshot("app:aslm")!.Phase.Should().Be(UpdateOperationPhase.Applying);
-                tracker.GetSnapshot("app:aslm")!.DownloadFraction.Should().BeNull();
+                progress.Report(new(1, 100, 100, BytesPerSecond: 2000));
+                tracker.GetSnapshot("app:aslm").Should().Be(new UpdateOperationSnapshot(
+                    UpdateOperationPhase.Applying, "v2.0"));
                 task.IsCompleted.Should().BeFalse();
 
                 // Finishing the operation releases the reservation; the listener saw every phase in order.

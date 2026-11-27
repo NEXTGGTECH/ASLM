@@ -101,6 +101,16 @@ namespace ASLM.Services.Internal
         private CancellationTokenSource? _cts;
 
         /// <summary>
+        /// Serializes scheduler startup with the final shutdown request.
+        /// </summary>
+        private readonly object _lifetimeLock = new();
+
+        /// <summary>
+        /// Prevents late startup from creating a scheduler after the application has started closing.
+        /// </summary>
+        private bool _shuttingDown;
+
+        /// <summary>
         /// Task of the running background loop; null while the scheduler is not running.
         /// </summary>
         private Task? _worker;
@@ -193,6 +203,21 @@ namespace ASLM.Services.Internal
         }
 
         /// <summary>
+        /// Clears cached candidates and notifications after the shared ASLM and engine channel changes.
+        /// </summary>
+        internal void InvalidateSharedUpdateChannel()
+        {
+            lock (_stateGate)
+            {
+                _updateManager.InvalidateSharedUpdateChannel();
+                _appData.Data.Updates.AvailableAppUpdate = null;
+                _appData.Data.Updates.AvailableOllamaUpdate = null;
+            }
+
+            RaiseUpdateStateChanged();
+        }
+
+        /// <summary>
         /// Clears one persisted candidate after its update has been applied or prepared.
         /// </summary>
         public async Task ClearAvailableCandidateAsync(string targetKind, string targetId)
@@ -215,17 +240,29 @@ namespace ASLM.Services.Internal
         /// </summary>
         public void Start()
         {
-            if (_worker != null)
+            lock (_lifetimeLock)
             {
-                return;
+                if (_worker != null || _shuttingDown) return;
+                _cts = new CancellationTokenSource();
+                var token = _cts.Token;
+                _worker = Task.Run(() => RunAsync(token));
             }
-
-            _cts = new CancellationTokenSource();
-            _worker = Task.Run(() => RunAsync(_cts.Token));
         }
 
 
         // Shutdown
+
+        /// <summary>
+        /// Signals app shutdown without waiting for an update check or running cancellation callbacks on the caller.
+        /// </summary>
+        internal void CancelForShutdown()
+        {
+            lock (_lifetimeLock)
+            {
+                _shuttingDown = true;
+                _ = _cts?.CancelAsync();
+            }
+        }
 
         /// <summary>
         /// Stops the background loop and waits until it has finished.
@@ -362,6 +399,7 @@ namespace ASLM.Services.Internal
             // With automatic updates the candidate is applied right away, so no "update available" notification is needed.
             var settings = _appData.Data.Updates;
             var publishNotifications = !settings.AutoUpdateEnabled;
+            var channelRevision = _updateManager.SharedUpdateChannelRevision;
             var appResult = await SafeCheckAppUpdateAsync(ct, publishNotifications);
 
             // Ollama is only checked when it is installed.
@@ -370,9 +408,11 @@ namespace ASLM.Services.Internal
                 ? await SafeCheckEngineUpdateAsync(ollamaEngine, ct, publishNotifications)
                 : UpdateCheckResult.CompletedWithoutUpdate;
 
-            // Persist successful results while retaining older candidates when a network check failed.
+            // Retain older candidates on network errors, and skip results for a superseded channel.
             lock (_stateGate)
             {
+                if (channelRevision != _updateManager.SharedUpdateChannelRevision) return;
+
                 if (appResult.Completed)
                 {
                     settings.AvailableAppUpdate = ToPersistedCandidate(appResult.Candidate);
@@ -388,7 +428,7 @@ namespace ASLM.Services.Internal
             RaiseUpdateStateChanged();
 
             // Without automatic updates, the stored candidates and notifications are the whole result.
-            if (!settings.AutoUpdateEnabled)
+            if (!settings.AutoUpdateEnabled || channelRevision != _updateManager.SharedUpdateChannelRevision)
             {
                 return;
             }
@@ -400,7 +440,7 @@ namespace ASLM.Services.Internal
                 stateChanged |= await TryAutomaticallyPrepareAppUpdateAsync(appResult.Candidate, ct);
             }
 
-            if (ollamaResult.Candidate != null)
+            if (ollamaResult.Candidate != null && channelRevision == _updateManager.SharedUpdateChannelRevision)
             {
                 stateChanged |= await TryAutomaticallyApplyEngineUpdateAsync(ollamaResult.Candidate, ct);
             }
@@ -431,6 +471,11 @@ namespace ASLM.Services.Internal
                 var prepared = await _updateManager.PrepareAppUpdateAsync(candidate, log, null, false, ct);
                 return prepared && ClearPersistedCandidate(AslmTargetKind, AslmTargetId);
             }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // The attempt was canceled independently of the scheduler.
+                return false;
+            }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex, "Automatic ASLM update preparation failed.");
@@ -449,6 +494,11 @@ namespace ASLM.Services.Internal
                     _logger.LogInformation("[Updater] {Message}", message));
                 var applied = await _updateManager.ApplyEngineUpdateAsync(candidate, log, null, false, ct);
                 return applied && ClearPersistedCandidate(OllamaTargetKind, OllamaTargetId);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // The attempt was canceled independently of the scheduler.
+                return false;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -529,7 +579,14 @@ namespace ASLM.Services.Internal
 
             var log = new Progress<string>(message =>
                 _logger.LogInformation("[Updater] {Message}", message));
-            await _updateManager.ApplyDiscoveredUpdatesAsync([result.Candidate], log, ct);
+            try
+            {
+                await _updateManager.ApplyDiscoveredUpdatesAsync([result.Candidate], log, ct);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // A canceled attempt must not stop checks for other components.
+            }
         }
 
 
@@ -564,7 +621,7 @@ namespace ASLM.Services.Internal
         {
             try
             {
-                var candidate = await _updateManager.CheckModuleUpdateAsync(module, ct, publishNotifications, false);
+                var candidate = await _updateManager.CheckScheduledModuleUpdateAsync(module, ct, publishNotifications);
                 return new UpdateCheckResult(true, candidate);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

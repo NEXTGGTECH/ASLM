@@ -3,9 +3,129 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:dialogs="clr-namespace:ASLM.Controls.Dialogs"
+             xmlns:models="clr-namespace:ASLM.Models"
              x:Class="ASLM.Pages.AppShellPage"
              Title="ASLM"
              BackgroundColor="{DynamicResource BackgroundPrimary}">
+
+    <ContentPage.Resources>
+        <DataTemplate x:Key="NotificationToastTemplate" x:DataType="models:AppNotification">
+            <Border x:Name="ToastCard"
+                    BackgroundColor="{DynamicResource BackgroundSecondary}"
+                    Stroke="{DynamicResource Separator}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 10"
+                    Padding="10"
+                    InputTransparent="False">
+                <Border.Shadow>
+                    <Shadow Brush="Black" Opacity="0.35" Radius="12" Offset="0,4" />
+                </Border.Shadow>
+
+                <Grid ColumnDefinitions="4,*,Auto"
+                      ColumnSpacing="8">
+                    <BoxView BackgroundColor="{Binding AccentColor}"
+                             WidthRequest="4"
+                             VerticalOptions="Fill" />
+
+                    <VerticalStackLayout Grid.Column="1"
+                                         Spacing="8">
+                        <VerticalStackLayout Spacing="4">
+                            <VerticalStackLayout.GestureRecognizers>
+                                <TapGestureRecognizer CommandParameter="{x:Reference ToastCard}"
+                                                      Tapped="OnToastBodyTapped" />
+                            </VerticalStackLayout.GestureRecognizers>
+
+                            <Label Text="{Binding CardTitle}"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource LabelPrimary}"
+                                   MaxLines="2"
+                                   LineBreakMode="CharacterWrap" />
+
+                            <Label Text="{Binding CardStatusText}"
+                                   IsVisible="{Binding HasCardStatus}"
+                                   FontSize="12"
+                                   TextColor="{DynamicResource LabelPrimary}"
+                                   MaxLines="1"
+                                   LineBreakMode="TailTruncation" />
+
+                            <Grid ColumnDefinitions="*,Auto,Auto"
+                                  ColumnSpacing="8"
+                                  IsVisible="{Binding HasDetailText}">
+                                <Label Text="{Binding DetailText}"
+                                       FontSize="11"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       MaxLines="1"
+                                       LineBreakMode="TailTruncation" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding TransferSpeedDisplay}"
+                                       IsVisible="{Binding ShowDownloadMetricsRow}"
+                                       FontSize="11"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       MaxLines="1" />
+                                <Label Grid.Column="2"
+                                       Text="{Binding TransferPercentDisplay}"
+                                       IsVisible="{Binding ShowDownloadMetricsRow}"
+                                       FontSize="11"
+                                       TextColor="{DynamicResource LabelPrimary}"
+                                       MaxLines="1" />
+                            </Grid>
+
+                            <ProgressBar Progress="{Binding ProgressFraction}"
+                                         IsVisible="{Binding HasProgress}"
+                                         ProgressColor="{DynamicResource ActionBlue}" />
+
+                            <Label Text="{Binding TimestampLabel}"
+                                   FontSize="11"
+                                   TextColor="{DynamicResource LabelSecondary}" />
+                        </VerticalStackLayout>
+
+                        <HorizontalStackLayout Spacing="8"
+                                               IsVisible="{Binding OffersUpdateActions}">
+                            <Button Text="{Binding UpdateNowText}"
+                                    FontSize="11"
+                                    HeightRequest="28"
+                                    MinimumHeightRequest="28"
+                                    Padding="10,0"
+                                    Margin="0"
+                                    BackgroundColor="{DynamicResource ActionBlue}"
+                                    TextColor="{DynamicResource White}"
+                                    CornerRadius="6"
+                                    Clicked="OnToastUpdateNowClicked" />
+                            <Button Text="{Binding UpdateLaterText}"
+                                    IsVisible="{Binding CanDeferUpdate}"
+                                    FontSize="11"
+                                    HeightRequest="28"
+                                    MinimumHeightRequest="28"
+                                    Padding="10,0"
+                                    Margin="0"
+                                    BackgroundColor="{DynamicResource BackgroundTertiary}"
+                                    TextColor="{DynamicResource LabelPrimary}"
+                                    CornerRadius="6"
+                                    Clicked="OnToastUpdateLaterClicked" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+
+                    <Button Grid.Column="2"
+                            Text="&#x2715;"
+                            FontSize="14"
+                            WidthRequest="24"
+                            MinimumWidthRequest="24"
+                            HeightRequest="24"
+                            MinimumHeightRequest="24"
+                            Padding="0"
+                            Margin="0"
+                            BackgroundColor="Transparent"
+                            TextColor="{DynamicResource LabelSecondary}"
+                            CornerRadius="4"
+                            HorizontalOptions="End"
+                            VerticalOptions="Start"
+                            CommandParameter="{x:Reference ToastCard}"
+                            Clicked="OnToastCloseClicked" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </ContentPage.Resources>
 
     <Grid>
     <Grid x:Name="ShellSurface" ColumnDefinitions="Auto, *">

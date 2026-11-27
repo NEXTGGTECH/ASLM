@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using ASLM.Models;
+using ASLM.Tests.TestSupport;
 
 namespace ASLM.Tests.Services.Internal
 {
@@ -331,7 +332,8 @@ namespace ASLM.Tests.Services.Internal
         /// </summary>
         /// <param name="http">HTTP client the GitHub client sends all repository requests through.</param>
         private UpdateManager CreateSourceManager(HttpClient http) => new(null!, null!, null!, null!, null!, null!,
-            null!, null!, CreateClient(http), null!, NullLogger<UpdateManager>.Instance, new DownloadQueue());
+            null!, null!, CreateClient(http), new NotificationCenter(new InlineDispatcher()),
+            NullLogger<UpdateManager>.Instance, new DownloadQueue());
 
 
         // Catalog version and artwork

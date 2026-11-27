@@ -20,6 +20,11 @@ namespace ASLM.Services.Modules
         private readonly EngineInstaller _engineInstaller;
 
         /// <summary>
+        /// Owns environment setup processes launched while probing or starting a module.
+        /// </summary>
+        private readonly ProcessTracker? _processTracker;
+
+        /// <summary>
         /// Allows only one environment creation at a time across all modules.
         /// </summary>
         private readonly SemaphoreSlim _environmentLock = new(1, 1);
@@ -30,9 +35,10 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Creates the module environment service.
         /// </summary>
-        public ModuleEnvironmentResolver(EngineInstaller engineInstaller)
+        public ModuleEnvironmentResolver(EngineInstaller engineInstaller, ProcessTracker? processTracker = null)
         {
             _engineInstaller = engineInstaller;
+            _processTracker = processTracker;
         }
 
 
@@ -356,7 +362,7 @@ namespace ASLM.Services.Modules
         /// <summary>
         /// Runs one process and streams output into the provided log.
         /// </summary>
-        private static async Task<bool> RunProcessAsync(
+        private async Task<bool> RunProcessAsync(
             string fileName,
             string arguments,
             string workingDirectory,
@@ -378,7 +384,8 @@ namespace ASLM.Services.Modules
             };
 
             using var process = new Process { StartInfo = psi };
-            if (!process.Start())
+            ct.ThrowIfCancellationRequested();
+            if (!(_processTracker?.StartProcess(process) ?? process.Start()))
             {
                 return false;
             }

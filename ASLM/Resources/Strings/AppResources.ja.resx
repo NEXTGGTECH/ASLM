@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>アクションに失敗しました</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>ASLM のアップデートが利用可能</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>現在利用可能な ASLM のアップデートはありません</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>ASLM のアップデート</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>チャンネル: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>すべてクリア</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>通知はありません</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>エンジンのアップデートが利用可能です</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>エンジンのアップデートを適用できませんでした</value>
@@ -825,20 +816,38 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>エンジンのアップデート</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>{0} をインストールしました</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>インストール済みバージョン</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>{0} {1} をインストールしました</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>ファイルをインストール中</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>そのモジュールはインストールされていません</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>モジュールのアップデートが利用可能</value>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>処理をキャンセルしました</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>新しいバージョンが見つかりました</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>処理が中断されました</value>
+  </data>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>ファイルを準備中</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>再起動して更新を完了してください</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>最近</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>ダウンロードを開始しています</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>合計 {0}</value>
@@ -852,11 +861,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>更新</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>{0} {1} に更新できます</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>{0} を更新できます（{1} -&gt; {2}）</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>後で更新</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>今すぐ更新</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>{0} を {1} に更新しました</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>{0} を {1} に更新中</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM アカウント</value>

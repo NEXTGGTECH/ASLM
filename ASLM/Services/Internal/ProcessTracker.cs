@@ -8,8 +8,7 @@ using Microsoft.Win32.SafeHandles;
 namespace ASLM.Services.Internal
 {
     /// <summary>
-    /// Groups ASLM and its child processes into one Windows Job Object.
-    /// On other platforms it tracks child processes and kills their trees on dispose.
+    /// Owns ASLM's Windows Job Object and tracks child processes separately when they cannot use it.
     /// </summary>
     public sealed class ProcessTracker : IDisposable
     {
@@ -26,19 +25,34 @@ namespace ASLM.Services.Internal
         private readonly ILogger<ProcessTracker> _logger;
 
         /// <summary>
-        /// Guards <see cref="_trackedProcesses"/>.
+        /// Serializes process creation and registration with disposal.
         /// </summary>
         private readonly object _trackedLock = new();
 
         /// <summary>
-        /// Child processes tracked outside Windows, where there are no Job Objects; killed on disposal.
+        /// Child processes that rely on explicit termination when the tracker is disposed.
         /// </summary>
         private readonly List<Process> _trackedProcesses = [];
+
+        /// <summary>
+        /// Enables process ownership outside test hosts.
+        /// </summary>
+        private readonly bool _trackProcesses;
+
+        /// <summary>
+        /// Whether explicit assignment to the job is available for child processes.
+        /// </summary>
+        private readonly bool _jobReady;
 
         /// <summary>
         /// Whether the tracker was already disposed; later calls become no-ops.
         /// </summary>
         private bool _disposed;
+
+        /// <summary>
+        /// Gets whether direct children inherit ASLM's kill-on-close job and a launcher must break away.
+        /// </summary>
+        internal bool OwnsCurrentProcess { get; }
 
 
         // Initialization
@@ -61,6 +75,7 @@ namespace ASLM.Services.Internal
         internal ProcessTracker(ILogger<ProcessTracker> logger, bool trackCurrentProcess)
         {
             _logger = logger;
+            _trackProcesses = trackCurrentProcess;
 
             // Test isolation: no job, so disposal cannot kill the test host.
             if (!trackCurrentProcess)
@@ -75,8 +90,8 @@ namespace ASLM.Services.Internal
                 return;
             }
 
-            // Create the named job that will group ASLM and its children.
-            _jobHandle = CreateJobObject(IntPtr.Zero, "ASLM_ProcessGroup");
+            // An unnamed job gives every instance its own handle lifetime and process group.
+            _jobHandle = CreateJobObject(IntPtr.Zero, null);
             if (_jobHandle.IsInvalid)
             {
                 _logger.LogError("Failed to create Job Object. Error: {Error}", Marshal.GetLastWin32Error());
@@ -114,8 +129,11 @@ namespace ASLM.Services.Internal
                 Marshal.FreeHGlobal(infoPtr);
             }
 
-            // Attach the main ASLM process so child processes can stay grouped under it.
-            if (!AssignProcessToJobObject(_jobHandle, Process.GetCurrentProcess().Handle))
+            // Attach ASLM so direct children, including WebView2, inherit its group.
+            _jobReady = true;
+            using var currentProcess = Process.GetCurrentProcess();
+            OwnsCurrentProcess = AssignProcessToJobObject(_jobHandle, currentProcess.Handle);
+            if (!OwnsCurrentProcess)
             {
                 _logger.LogWarning("Failed to assign current process to Job Object. Error: {Error}", Marshal.GetLastWin32Error());
             }
@@ -129,53 +147,74 @@ namespace ASLM.Services.Internal
         // Process assignment
 
         /// <summary>
-        /// Adds one child process to the shared Job Object on Windows, or to the list of processes
-        /// killed on disposal on other systems.
+        /// Starts and registers a child before disposal can take the process group away.
         /// </summary>
-        /// <param name="process">Started child process to track.</param>
-        /// <returns>True when the process is now tracked; false when disposed, no job is available or assignment failed.</returns>
-        public bool AddProcess(Process process)
+        internal bool StartProcess(Process process)
         {
-            if (_disposed)
+            lock (_trackedLock)
             {
-                return false;
-            }
-
-            // Without Job Objects the process is remembered and its tree is killed on disposal.
-            if (!OperatingSystem.IsWindows())
-            {
-                lock (_trackedLock)
-                {
-                    _trackedProcesses.Add(process);
-                }
-
+                if (_disposed || !process.Start()) return false;
+                if (_trackProcesses) TrackProcess(process);
                 return true;
             }
+        }
 
-            // The job could not be created (or the tracker is inert), so there is nothing to attach to.
-            if (_jobHandle == null || _jobHandle.IsInvalid)
+        /// <summary>
+        /// Groups a direct child or retains a handle for fallback termination. Callers hold the tracker lock.
+        /// </summary>
+        private void TrackProcess(Process process)
+        {
+            if (!OperatingSystem.IsWindows())
             {
-                return false;
+                _trackedProcesses.Add(process);
+                return;
             }
 
-            // Attach the process to the job; failures are logged and reported to the caller as false.
+            if (OwnsCurrentProcess) return;
+
+            // When ASLM could not join, try assigning the child itself before falling back to an owned handle.
             try
             {
-                var result = AssignProcessToJobObject(_jobHandle, process.Handle);
-                if (!result)
+                if (_jobReady && _jobHandle != null)
                 {
+                    if (AssignProcessToJobObject(_jobHandle, process.Handle)) return;
                     _logger.LogWarning(
                         "Failed to assign process {PID} to Job Object. Error: {Error}",
                         process.Id,
                         Marshal.GetLastWin32Error());
                 }
 
-                return result;
+                // The caller may dispose its Process wrapper before shutdown, so keep a separate live handle.
+                for (var i = _trackedProcesses.Count - 1; i >= 0; i--)
+                {
+                    if (!_trackedProcesses[i].HasExited) continue;
+                    _trackedProcesses[i].Dispose();
+                    _trackedProcesses.RemoveAt(i);
+                }
+
+                if (process.HasExited) return;
+                var tracked = Process.GetProcessById(process.Id);
+                try
+                {
+                    _ = tracked.Handle;
+                    if (tracked.StartTime == process.StartTime)
+                    {
+                        _trackedProcesses.Add(tracked);
+                        return;
+                    }
+                }
+                catch
+                {
+                    tracked.Dispose();
+                    throw;
+                }
+
+                // The original process exited and its PID was reused before the handle could be opened.
+                tracked.Dispose();
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Exception assigning process to Job Object.");
-                return false;
+                _logger.LogDebug(ex, "Could not retain the child process for shutdown.");
             }
         }
 
@@ -183,39 +222,20 @@ namespace ASLM.Services.Internal
         // Disposal
 
         /// <summary>
-        /// Ends tracking: kills the tracked process trees on non-Windows systems and closes the job handle,
-        /// which on Windows terminates every process still in the job because of the kill-on-close limit.
+        /// Closes ungrouped process trees first, then releases the kill-on-close job.
         /// </summary>
         public void Dispose()
         {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-
-            if (!OperatingSystem.IsWindows())
-            {
-                KillTrackedProcessTrees();
-            }
-
-            _jobHandle?.Dispose();
-        }
-
-        /// <summary>
-        /// Kills every tracked child process tree that is still alive.
-        /// </summary>
-        private void KillTrackedProcessTrees()
-        {
-            // Take the list out under the lock, then kill outside it.
             List<Process> processes;
             lock (_trackedLock)
             {
+                if (_disposed) return;
+                _disposed = true;
                 processes = [.. _trackedProcesses];
                 _trackedProcesses.Clear();
             }
 
+            // The native termination request does not wait for commands or redirected output to finish.
             foreach (var process in processes)
             {
                 try
@@ -229,17 +249,23 @@ namespace ASLM.Services.Internal
                 {
                     // The owner may have disposed or stopped the process already.
                 }
+                finally
+                {
+                    if (OperatingSystem.IsWindows()) process.Dispose();
+                }
             }
+
+            _jobHandle?.Dispose();
         }
 
 
         // Win32 interop
 
         /// <summary>
-        /// Creates (or opens, when the name exists) a named Job Object and returns its handle.
+        /// Creates a Job Object and returns its handle.
         /// </summary>
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern SafeFileHandle CreateJobObject(IntPtr lpJobAttributes, string lpName);
+        private static extern SafeFileHandle CreateJobObject(IntPtr lpJobAttributes, string? lpName);
 
         /// <summary>
         /// Applies limit settings of the given information class to a Job Object.

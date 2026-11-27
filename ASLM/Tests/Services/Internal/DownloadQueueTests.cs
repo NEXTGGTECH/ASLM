@@ -22,7 +22,7 @@ namespace ASLM.Tests.Services.Internal
         /// <summary>
         /// Verifies that jobs of one lane run strictly one after another in the order they were queued, that a job
         /// queued again under the same key (ignoring case) returns the already pending job instead of running twice,
-        /// and that finished jobs leave the queue.
+        /// and that the active job's speed is available only while its queue entry exists.
         /// </summary>
         [Fact]
         public async Task Jobs_in_one_lane_share_fifo_order_and_repeated_keys_share_one_job()
@@ -63,6 +63,11 @@ namespace ASLM.Tests.Services.Internal
                 second.IsCompleted.Should().BeFalse();
                 third.IsCompleted.Should().BeFalse();
 
+                queue.SetTransferSpeed("module:first", 1024);
+                queue.SetTransferSpeed("resource:second", 512);
+                queue.GetTransferSpeed("module:first").Should().Be(1024);
+                queue.GetTransferSpeed("resource:second").Should().BeNull();
+
                 // After the release: jobs run in queue order, return their results and are removed from the queue.
                 release.SetResult();
                 await Task.WhenAll(first, second, third).WaitAsync(TimeSpan.FromSeconds(5));
@@ -70,6 +75,7 @@ namespace ASLM.Tests.Services.Internal
                 (await first).Should().Be(1);
                 (await second).Should().Be("resource result");
                 queue.Contains("module:first").Should().BeFalse();
+                queue.GetTransferSpeed("module:first").Should().BeNull();
                 queue.Contains("resource:second").Should().BeFalse();
             }
             finally { release.TrySetResult(); }

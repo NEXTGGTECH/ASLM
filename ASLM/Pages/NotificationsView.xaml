@@ -51,10 +51,10 @@
                             Padding="8,0"
                             Margin="0"
                             BackgroundColor="{DynamicResource BackgroundTertiary}"
-                            TextColor="{DynamicResource LabelSecondary}"
+                            TextColor="{DynamicResource LabelPrimary}"
                             CornerRadius="6"
                             VerticalOptions="Center"
-                            IsEnabled="{Binding HasAnyNotifications}"
+                            IsEnabled="{Binding HasDismissibleNotifications}"
                             Clicked="OnClearAllClicked" />
 
                     <Button Grid.Column="2"
@@ -68,7 +68,7 @@
                             Margin="0"
                             BackgroundColor="Transparent"
                             TextColor="{DynamicResource LabelSecondary}"
-                            CornerRadius="6"
+                            CornerRadius="4"
                             VerticalOptions="Center"
                             Clicked="OnCloseClicked" />
                 </Grid>
@@ -83,10 +83,11 @@
 
                 <!-- Notification list -->
                 <Grid Grid.Row="2">
-                    <CollectionView ItemsSource="{Binding VisibleNotifications}"
+                    <CollectionView x:Name="NotificationList"
                                     SelectionMode="None"
+                                    ItemsUpdatingScrollMode="KeepScrollOffset"
                                     VerticalScrollBarVisibility="Never"
-                                    IsVisible="{Binding HasVisibleNotifications}">
+                                    HandlerChanged="OnNotificationListHandlerChanged">
                         <CollectionView.ItemsLayout>
                             <LinearItemsLayout Orientation="Vertical"
                                                ItemSpacing="0" />
@@ -97,7 +98,7 @@
                                 <Grid RowDefinitions="Auto,Auto"
                                       RowSpacing="12">
                                     <Grid ColumnDefinitions="4,*,Auto"
-                                          ColumnSpacing="8">
+                                          ColumnSpacing="0">
                                         <BoxView BackgroundColor="{Binding AccentColor}"
                                                  WidthRequest="4"
                                                  HeightRequest="32"
@@ -105,37 +106,23 @@
                                                  Margin="0,4" />
 
                                         <VerticalStackLayout Grid.Column="1"
-                                                             Spacing="2">
-                                            <Label Text="{Binding Title}"
+                                                             Spacing="2"
+                                                             Margin="10,0,0,0">
+                                            <Label Text="{Binding CardTitle}"
                                                    FontSize="14"
                                                    FontAttributes="Bold"
                                                    TextColor="{DynamicResource LabelPrimary}"
-                                                   MaxLines="1"
-                                                   LineBreakMode="TailTruncation" />
+                                                   MaxLines="2"
+                                                   LineBreakMode="CharacterWrap" />
 
-                                            <Label Text="{Binding Message}"
+                                            <Label Text="{Binding CardStatusText}"
+                                                   IsVisible="{Binding HasCardStatus}"
                                                    FontSize="12"
                                                    TextColor="{DynamicResource LabelPrimary}"
                                                    MaxLines="1"
                                                    LineBreakMode="TailTruncation" />
 
-                                            <!-- Active transfer filename: only when it adds info beyond Message -->
-                                            <Label Text="{Binding ActiveTransferLabel}"
-                                                   FontSize="12"
-                                                   TextColor="{DynamicResource LabelSecondary}"
-                                                   MaxLines="1"
-                                                   LineBreakMode="TailTruncation"
-                                                   IsVisible="{Binding ShowActiveTransferInCard}" />
-
-                                            <!-- Status message: hidden during active download, shown after completion -->
-                                            <Label Text="{Binding StatusText}"
-                                                   FontSize="12"
-                                                   TextColor="{DynamicResource LabelSecondary}"
-                                                   MaxLines="1"
-                                                   LineBreakMode="TailTruncation"
-                                                   IsVisible="{Binding ShowStatusInCard}" />
-
-                                            <!-- Byte progress detail, Speed, percent — visible only during active download -->
+                                            <!-- Download metrics are shown while a transfer is active. -->
                                             <Grid ColumnDefinitions="*,Auto,Auto"
                                                   ColumnSpacing="8"
                                                   IsVisible="{Binding ShowDownloadMetricsRow}"
@@ -143,20 +130,20 @@
                                                 <Label Grid.Column="0"
                                                        Text="{Binding DetailText}"
                                                        FontSize="11"
-                                                       TextColor="{DynamicResource LabelSecondary}"
+                                                       TextColor="{DynamicResource LabelPrimary}"
                                                        VerticalTextAlignment="Center"
                                                        LineBreakMode="TailTruncation"
                                                        IsVisible="{Binding HasDetailText}" />
                                                 <Label Grid.Column="1"
                                                        Text="{Binding TransferSpeedDisplay}"
                                                        FontSize="11"
-                                                       TextColor="{DynamicResource LabelSecondary}"
+                                                       TextColor="{DynamicResource LabelPrimary}"
                                                        VerticalTextAlignment="Center"
                                                        LineBreakMode="TailTruncation" />
                                                 <Label Grid.Column="2"
                                                        Text="{Binding TransferPercentDisplay}"
                                                        FontSize="11"
-                                                       TextColor="{DynamicResource LabelSecondary}"
+                                                       TextColor="{DynamicResource LabelPrimary}"
                                                        VerticalTextAlignment="Center" />
                                             </Grid>
 
@@ -164,6 +151,10 @@
                                                          IsVisible="{Binding HasProgress}"
                                                          HeightRequest="4"
                                                          ProgressColor="{DynamicResource ActionBlue}" />
+
+                                            <Label Text="{Binding TimestampLabel}"
+                                                   FontSize="11"
+                                                   TextColor="{DynamicResource LabelSecondary}" />
 
                                             <HorizontalStackLayout Spacing="8"
                                                                      Margin="0,6,0,0"
@@ -179,13 +170,14 @@
                                                         CornerRadius="6"
                                                         Clicked="OnUpdateNotificationNowClicked" />
                                                 <Button Text="{Binding UpdateLaterText}"
+                                                        IsVisible="{Binding CanDeferUpdate}"
                                                         FontSize="11"
                                                         HeightRequest="28"
                                                         MinimumHeightRequest="28"
                                                         Padding="10,0"
                                                         Margin="0"
                                                         BackgroundColor="{DynamicResource BackgroundTertiary}"
-                                                        TextColor="{DynamicResource LabelSecondary}"
+                                                        TextColor="{DynamicResource LabelPrimary}"
                                                         CornerRadius="6"
                                                         Clicked="OnUpdateNotificationLaterClicked" />
                                             </HorizontalStackLayout>
@@ -193,18 +185,39 @@
 
                                         <!-- Ghost icon (same pattern as HomeView process row actions) -->
                                         <Border Grid.Column="2"
+                                                IsVisible="{Binding CanDismiss}"
                                                 Background="Transparent"
                                                 StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 0"
-                                                WidthRequest="24"
-                                                HeightRequest="24"
+                                                WidthRequest="20"
+                                                HeightRequest="20"
                                                 Padding="0"
-                                                Margin="0"
+                                                Margin="8,0,0,0"
                                                 VerticalOptions="Center">
                                             <Border.GestureRecognizers>
                                                 <TapGestureRecognizer Tapped="OnDismissClicked" />
                                             </Border.GestureRecognizers>
                                             <Image Source="{Binding DismissIconSource, Source={x:Reference RootView}}"
+                                                   Aspect="AspectFit"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center" />
+                                        </Border>
+
+                                        <Border Grid.Column="2"
+                                                IsVisible="{Binding CanCancelOperation}"
+                                                Background="Transparent"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 0"
+                                                WidthRequest="20"
+                                                HeightRequest="20"
+                                                Padding="0"
+                                                Margin="8,0,0,0"
+                                                VerticalOptions="Center"
+                                                SemanticProperties.Description="{Binding CancelOperationText}">
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Tapped="OnCancelOperationTapped" />
+                                            </Border.GestureRecognizers>
+                                            <Image Source="{Binding CancelIconSource, Source={x:Reference RootView}}"
                                                    Aspect="AspectFit"
                                                    HorizontalOptions="Center"
                                                    VerticalOptions="Center" />

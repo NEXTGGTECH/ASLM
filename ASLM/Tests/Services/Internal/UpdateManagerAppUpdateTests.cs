@@ -1,7 +1,9 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
 using System.Text.Json;
+using ASLM.Localization;
 using ASLM.Models;
+using ASLM.Services.Internal;
 using ASLM.Tests.TestSupport;
 
 namespace ASLM.Tests.Services.Internal
@@ -63,8 +65,11 @@ namespace ASLM.Tests.Services.Internal
             Directory.Exists(stagingPath).Should().BeTrue();
             File.ReadAllText(Path.Combine(stagingPath, "ASLM.dll")).Should().Be("updated");
 
-            // The transfer completed through the notification center, not just silently.
-            DownloadNotification(graph).StatusText.Should().Contain("prepared");
+            // The finished transfer reports a staged update that still needs the patcher.
+            var notification = DownloadNotification(graph);
+            notification.CardStatusText.Should().Be(L.Get(LocalizationKeys.Notifications_RestartToFinishUpdate));
+            notification.IsInProgress.Should().BeFalse();
+            notification.AwaitingRestart.Should().BeTrue();
         }
 
         /// <summary>
@@ -91,6 +96,41 @@ namespace ASLM.Tests.Services.Internal
         }
 
 
+        /// <summary>
+        /// Verifies that canceling the transfer from the journal leaves no staged update or restart marker.
+        /// A current candidate is offered again and can be prepared on a later attempt.
+        /// </summary>
+        [Fact]
+        public async Task Canceling_the_app_download_cleans_staging_and_allows_a_retry()
+        {
+            using var graph = new TestServiceGraph();
+            SeedUpdateSource(graph);
+            var candidate = BuildCandidate(graph, "9.9.9");
+            var progress = new InlineProgress<DownloadProgress>(sample =>
+            {
+                if (sample.Fraction < 1) return;
+                graph.Notifications.RequestDownloadCancellation(DownloadNotification(graph));
+            });
+
+            var prepare = () => graph.Updates.PrepareAppUpdateAsync(candidate, progress: progress);
+            await prepare.Should().ThrowAsync<OperationCanceledException>();
+
+            var canceled = DownloadNotification(graph);
+            canceled.CardStatusText.Should().Be(L.Get(LocalizationKeys.Notifications_OperationCanceled));
+            canceled.CanCancelOperation.Should().BeFalse();
+            canceled.CanDismiss.Should().BeTrue();
+            graph.Updates.HasPendingAppUpdate.Should().BeFalse();
+            var work = Path.Combine(graph.Root.Root, ".aslm-update");
+            File.Exists(Path.Combine(work, "pending.json.tmp")).Should().BeFalse();
+            Directory.Exists(Path.Combine(work, "staging", candidate.RemoteVersion)).Should().BeFalse();
+            graph.Notifications.Notifications.Should().ContainSingle(row =>
+                row.Category == AppNotificationCategory.Updates && row.OffersUpdateActions);
+
+            (await graph.Updates.PrepareAppUpdateAsync(candidate)).Should().BeTrue();
+            graph.Notifications.Notifications.Should().NotContain(row => row.Category == AppNotificationCategory.Updates);
+        }
+
+
         // Failures
 
         /// <summary>
@@ -114,8 +154,9 @@ namespace ASLM.Tests.Services.Internal
 
             prepared.Should().BeFalse("no shipped update source means the update cannot stage");
             graph.Updates.HasPendingAppUpdate.Should().BeFalse();
-            DownloadNotification(graph).StatusText
-                .Should().Contain("not configured");
+            var notification = DownloadNotification(graph);
+            notification.StatusText.Should().Contain("not configured");
+            notification.Severity.Should().Be(AppNotificationSeverity.Error);
         }
 
         /// <summary>
@@ -144,18 +185,22 @@ namespace ASLM.Tests.Services.Internal
                 Directory.GetDirectories(stagingRoot).Should().BeEmpty("a failed package must not linger on disk");
             }
 
-            DownloadNotification(graph).StatusText
-                .Should().Contain("failed");
+            var notification = DownloadNotification(graph);
+            notification.StatusText.Should().Be(L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed));
+            notification.Severity.Should().Be(AppNotificationSeverity.Error);
         }
 
 
         // Helpers
 
         /// <summary>
-        /// Returns the notification row that tracks the app update download.
+        /// Finds the app update notification by its source and event type, since each attempt has its own ID.
         /// </summary>
         private static AppNotification DownloadNotification(TestServiceGraph graph) =>
-            graph.Notifications.Notifications.ToList().Single(n => n.Id == "download:app-update:app");
+            graph.Notifications.Notifications.Single(notification =>
+                notification.Category == AppNotificationCategory.Downloads &&
+                notification.SourceKind == "app" && notification.SourceId == "app" &&
+                notification.EventType == "app-update");
 
         /// <summary>
         /// Writes the update source file that the app update reads, pointing at the ASLM repository with a Windows

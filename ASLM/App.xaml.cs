@@ -53,8 +53,9 @@ namespace ASLM
                 MinimumHeight = 720
             };
 
-            // Trigger graceful shutdown cleanup when the main window is destroyed.
-#if LINUX
+#if WINDOWS
+            window.Created += OnWindowsWindowCreated;
+#elif LINUX
             window.Destroying += OnLinuxWindowDestroying;
 #else
             window.Destroying += OnWindowDestroying;
@@ -80,6 +81,21 @@ namespace ASLM
 
         // Shutdown
 
+        /// <summary>
+        /// Restarts through the platform launcher after arranging for the current process to exit.
+        /// </summary>
+        internal async Task RestartThroughLauncherAsync()
+        {
+#if WINDOWS
+            await RequestWindowsShutdownAsync(restart: true);
+#else
+            await _services.GetRequiredService<SettingsService>().StopAllModulesAsync();
+            await Task.Run(() => SettingsService.StartLauncherForApplicationRestart());
+            Quit();
+#endif
+        }
+
+#if !WINDOWS
         /// <summary>
         /// Runs the shared shutdown cleanup and blocks the destroying window until it has finished.
         /// </summary>
@@ -150,6 +166,7 @@ namespace ASLM
             DisposeService<AslmModuleInteropServer>();
             DisposeService<SunriseService>();
         }
+#endif
 
         /// <summary>
         /// Releases one service without preventing the remaining shutdown cleanup after a disposal failure.

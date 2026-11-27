@@ -49,6 +49,11 @@ namespace ASLM.Services.Modules
         private readonly ModuleRunner _moduleRunner;
 
         /// <summary>
+        /// Owns bridge processes independently of their requests.
+        /// </summary>
+        private readonly ProcessTracker? _processTracker;
+
+        /// <summary>
         /// Logger for bridge failures, timeouts and warnings reported by bridges.
         /// </summary>
         private readonly ILogger<ModuleDownloadBridge> _logger;
@@ -103,13 +108,15 @@ namespace ASLM.Services.Modules
             ModuleEnvironmentResolver environmentResolver,
             ModuleRunner moduleRunner,
             ILogger<ModuleDownloadBridge> logger,
-            DataPreparationQueue? preparation = null)
+            DataPreparationQueue? preparation = null,
+            ProcessTracker? processTracker = null)
         {
             _engineInstaller = engineInstaller;
             _environmentResolver = environmentResolver;
             _moduleRunner = moduleRunner;
             _logger = logger;
             _preparation = preparation;
+            _processTracker = processTracker;
         }
 
 
@@ -419,7 +426,8 @@ namespace ASLM.Services.Modules
                 var psi = CreateProcessStartInfo(module, bridge, moduleDir);
                 process = new Process { StartInfo = psi };
 
-                if (!process.Start())
+                requestToken.ThrowIfCancellationRequested();
+                if (!(_processTracker?.StartProcess(process) ?? process.Start()))
                 {
                     return CreateErrorResponse("Downloads bridge process could not be started.");
                 }

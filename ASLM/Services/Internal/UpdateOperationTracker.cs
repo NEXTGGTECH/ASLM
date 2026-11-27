@@ -27,6 +27,11 @@ namespace ASLM.Services.Internal
         private readonly Dictionary<string, Operation> _operations = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Prevents new update attempts once the application starts closing.
+        /// </summary>
+        private bool _stopping;
+
+        /// <summary>
         /// Notifies listeners when an operation starts, changes stage or progress, or finishes.
         /// </summary>
         internal event EventHandler? StateChanged;
@@ -43,6 +48,36 @@ namespace ASLM.Services.Internal
             {
                 return _operations.GetValueOrDefault(key)?.Snapshot;
             }
+        }
+
+
+        /// <summary>
+        /// Returns cancellation for the active attempt so another view can act on the same operation.
+        /// </summary>
+        internal OperationCancellation? GetCancellation(string key)
+        {
+            lock (_sync) return _operations.GetValueOrDefault(key)?.Cancellation;
+        }
+
+        /// <summary>
+        /// Cancels update preparation and lets updates that reached their commit boundary finish.
+        /// </summary>
+        internal async Task StopAsync()
+        {
+            Operation[] operations;
+            lock (_sync)
+            {
+                _stopping = true;
+                operations = _operations.Values.ToArray();
+            }
+
+            foreach (var operation in operations) operation.Cancellation.TryCancel();
+            try { await Task.WhenAll(operations.Select(operation => operation.Completion.Task)).ConfigureAwait(false); }
+            catch (OperationCanceledException)
+            {
+                // Canceled updates have already completed their cleanup.
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[UpdateOperations] Shutdown: {ex}"); }
         }
 
 
@@ -64,17 +99,19 @@ namespace ASLM.Services.Internal
             Operation operation;
             lock (_sync)
             {
+                if (_stopping) return Task.FromCanceled<bool>(new CancellationToken(canceled: true));
+
                 // Automatic updates, settings, and notification actions share the same target reservation.
                 if (_operations.TryGetValue(key, out var existing))
                 {
                     return existing.Completion.Task.WaitAsync(ct);
                 }
 
-                operation = new Operation(this, key, version);
+                operation = new Operation(this, key, version, ct);
                 _operations.Add(key, operation);
             }
 
-            // The owner runs detached from the caller's token, so joined callers keep a live operation.
+            // The owner controls the attempt; a joined caller can cancel only its wait.
             _ = ExecuteAsync(operation, action);
             return operation.Completion.Task;
         }
@@ -100,7 +137,8 @@ namespace ASLM.Services.Internal
             }
             finally
             {
-                // Release the target before completing waiters, so they observe a free target.
+                // Close cancellation and release the target before completing waiters.
+                operation.Cancellation.Dispose();
                 lock (_sync)
                 {
                     _operations.Remove(operation.Key);
@@ -139,14 +177,14 @@ namespace ASLM.Services.Internal
                     return;
                 }
 
-                operation.Snapshot = operation.Snapshot with { Phase = phase, DownloadFraction = null };
+                operation.Snapshot = operation.Snapshot with { Phase = phase, DownloadFraction = null, BytesPerSecond = null };
             }
 
             RaiseStateChanged();
         }
 
         /// <summary>
-        /// Retains every download sample while limiting listener notifications to ten per second.
+        /// Stores download progress and limits how often fraction updates alone notify listeners.
         /// </summary>
         private void ReportProgress(Operation operation, DownloadProgress progress)
         {
@@ -161,11 +199,17 @@ namespace ASLM.Services.Internal
                 // Store the sample unconditionally; an unknown total size leaves the fraction indeterminate.
                 double? fraction = progress.TotalBytes > 0 && double.IsFinite(progress.Fraction)
                     ? Math.Clamp(progress.Fraction, 0, 1) : null;
-                operation.Snapshot = operation.Snapshot with { DownloadFraction = fraction };
+                var speedChanged = operation.Snapshot.BytesPerSecond != progress.BytesPerSecond;
+                operation.Snapshot = operation.Snapshot with
+                {
+                    DownloadFraction = fraction,
+                    BytesPerSecond = progress.BytesPerSecond
+                };
 
-                // Throttle notifications, but always publish the final 100% sample.
+                // Throttle fraction updates while publishing speed changes and the final sample immediately.
                 var now = Environment.TickCount64;
-                if (fraction != 1 && now - operation.LastProgressNotification < ProgressNotificationIntervalMilliseconds)
+                if (!speedChanged && fraction != 1 &&
+                    now - operation.LastProgressNotification < ProgressNotificationIntervalMilliseconds)
                 {
                     return;
                 }
@@ -228,7 +272,12 @@ namespace ASLM.Services.Internal
             internal TaskCompletionSource<bool> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>
-            /// Latest immutable state (stage, version, download fraction); written only under the tracker lock.
+            /// Cancellation shared by all entry points into this attempt.
+            /// </summary>
+            internal OperationCancellation Cancellation { get; }
+
+            /// <summary>
+            /// Latest immutable state, written only under the tracker lock.
             /// </summary>
             internal UpdateOperationSnapshot Snapshot { get; set; }
 
@@ -243,10 +292,11 @@ namespace ASLM.Services.Internal
             /// <summary>
             /// Creates a reserved operation before any asynchronous update work starts.
             /// </summary>
-            internal Operation(UpdateOperationTracker owner, string key, string version)
+            internal Operation(UpdateOperationTracker owner, string key, string version, CancellationToken ct)
             {
                 _owner = owner;
                 Key = key;
+                Cancellation = new OperationCancellation(ct);
                 Snapshot = new(UpdateOperationPhase.Preparing, version);
             }
 

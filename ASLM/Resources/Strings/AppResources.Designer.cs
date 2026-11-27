@@ -2383,15 +2383,6 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на ASLM update available.
-        /// </summary>
-        public static string Notifications_AslmUpdateAvailable {
-            get {
-                return ResourceManager.GetString("Notifications_AslmUpdateAvailable", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на No ASLM update is available right now.
         /// </summary>
         public static string Notifications_AslmUpdateNotAvailable {
@@ -2428,15 +2419,6 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Channel: {0}.
-        /// </summary>
-        public static string Notifications_ChannelFormat {
-            get {
-                return ResourceManager.GetString("Notifications_ChannelFormat", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на Clear all.
         /// </summary>
         public static string Notifications_ClearAll {
@@ -2460,15 +2442,6 @@ namespace ASLM.Resources.Strings {
         public static string Notifications_EmptyTitle {
             get {
                 return ResourceManager.GetString("Notifications_EmptyTitle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Ищет локализованную строку, похожую на Engine update available.
-        /// </summary>
-        public static string Notifications_EngineUpdateAvailable {
-            get {
-                return ResourceManager.GetString("Notifications_EngineUpdateAvailable", resourceCulture);
             }
         }
         
@@ -2500,11 +2473,38 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} installed.
+        /// </summary>
+        public static string Notifications_InstalledFormat {
+            get {
+                return ResourceManager.GetString("Notifications_InstalledFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на installed version.
         /// </summary>
         public static string Notifications_InstalledVersionFallback {
             get {
                 return ResourceManager.GetString("Notifications_InstalledVersionFallback", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} {1} installed.
+        /// </summary>
+        public static string Notifications_InstalledVersionFormat {
+            get {
+                return ResourceManager.GetString("Notifications_InstalledVersionFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Installing files.
+        /// </summary>
+        public static string Notifications_InstallingFiles {
+            get {
+                return ResourceManager.GetString("Notifications_InstallingFiles", resourceCulture);
             }
         }
         
@@ -2518,20 +2518,38 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Module update available.
+        ///   Ищет локализованную строку, похожую на Operation canceled.
         /// </summary>
-        public static string Notifications_ModuleUpdateAvailable {
+        public static string Notifications_OperationCanceled {
             get {
-                return ResourceManager.GetString("Notifications_ModuleUpdateAvailable", resourceCulture);
+                return ResourceManager.GetString("Notifications_OperationCanceled", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на New version found.
+        ///   Ищет локализованную строку, похожую на Operation interrupted.
         /// </summary>
-        public static string Notifications_NewVersionFound {
+        public static string Notifications_OperationInterrupted {
             get {
-                return ResourceManager.GetString("Notifications_NewVersionFound", resourceCulture);
+                return ResourceManager.GetString("Notifications_OperationInterrupted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Preparing files.
+        /// </summary>
+        public static string Notifications_PreparingFiles {
+            get {
+                return ResourceManager.GetString("Notifications_PreparingFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Restart to finish the update.
+        /// </summary>
+        public static string Notifications_RestartToFinishUpdate {
+            get {
+                return ResourceManager.GetString("Notifications_RestartToFinishUpdate", resourceCulture);
             }
         }
         
@@ -2541,6 +2559,15 @@ namespace ASLM.Resources.Strings {
         public static string Notifications_SectionRecent {
             get {
                 return ResourceManager.GetString("Notifications_SectionRecent", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Starting download.
+        /// </summary>
+        public static string Notifications_StartingDownload {
+            get {
+                return ResourceManager.GetString("Notifications_StartingDownload", resourceCulture);
             }
         }
         
@@ -2581,6 +2608,33 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} {1} update available.
+        /// </summary>
+        public static string Notifications_UpdateAvailableFormat {
+            get {
+                return ResourceManager.GetString("Notifications_UpdateAvailableFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} update available ({1} -&gt; {2}).
+        /// </summary>
+        public static string Notifications_UpdateAvailableFromFormat {
+            get {
+                return ResourceManager.GetString("Notifications_UpdateAvailableFromFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на {0} updated to {1}.
+        /// </summary>
+        public static string Notifications_UpdatedFormat {
+            get {
+                return ResourceManager.GetString("Notifications_UpdatedFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Ищет локализованную строку, похожую на Update later.
         /// </summary>
         public static string Notifications_UpdateLater {
@@ -2595,6 +2649,15 @@ namespace ASLM.Resources.Strings {
         public static string Notifications_UpdateNow {
             get {
                 return ResourceManager.GetString("Notifications_UpdateNow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Updating {0} to {1}.
+        /// </summary>
+        public static string Notifications_UpdatingFormat {
+            get {
+                return ResourceManager.GetString("Notifications_UpdatingFormat", resourceCulture);
             }
         }
         

@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using ASLM.Localization;
 using ASLM.Models;
-using Microsoft.Maui.Controls.Shapes;
 
 namespace ASLM.Pages
 {
@@ -119,6 +118,11 @@ namespace ASLM.Pages
         private readonly UpdateScheduler _updateScheduler;
 
         /// <summary>
+        /// Guards notification actions while their source is being resolved or updated.
+        /// </summary>
+        private readonly HashSet<string> _notificationUpdates = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Service that resolves module trust levels.
         /// </summary>
         private readonly ModuleTrustService _moduleTrustService;
@@ -132,11 +136,6 @@ namespace ASLM.Pages
         /// Coordinator that runs the module launch sequence (first run, enabling, run commands).
         /// </summary>
         private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
-
-        /// <summary>
-        /// Settings service; the shell uses it to stop all modules and start the launcher for a self-update.
-        /// </summary>
-        private readonly SettingsService _settingsService;
 
         /// <summary>
         /// Service that tracks acceptance of the legal documents.
@@ -270,7 +269,6 @@ namespace ASLM.Pages
         /// <param name="moduleTrustService">Service that resolves module trust levels.</param>
         /// <param name="mirrorServer">Local ASLM API mirror server.</param>
         /// <param name="moduleLaunchCoordinator">Coordinator that runs the module launch sequence.</param>
-        /// <param name="settingsService">Settings service used to stop modules and start the update launcher.</param>
         /// <param name="legalAcceptance">Service that tracks acceptance of the legal documents.</param>
         /// <param name="localization">Localization service whose language changes re-apply the texts.</param>
         /// <param name="services">Service provider used to resolve views and dialogs on demand.</param>
@@ -285,7 +283,6 @@ namespace ASLM.Pages
             ModuleTrustService moduleTrustService,
             AslmMirrorServer mirrorServer,
             ModuleLaunchCoordinator moduleLaunchCoordinator,
-            SettingsService settingsService,
             LegalAcceptanceService legalAcceptance,
             AppLocalizationService localization,
             IServiceProvider services)
@@ -300,7 +297,6 @@ namespace ASLM.Pages
             _moduleTrustService = moduleTrustService;
             _mirrorServer = mirrorServer;
             _moduleLaunchCoordinator = moduleLaunchCoordinator;
-            _settingsService = settingsService;
             _legalAcceptance = legalAcceptance;
             _localization = localization;
             _services = services;
@@ -431,6 +427,7 @@ namespace ASLM.Pages
             }
 
             _notifications.NotificationPublished += OnNotificationPublished;
+            _notifications.NotificationWithdrawn += OnNotificationWithdrawn;
             _notifications.UpdateNotificationActionRequested += OnUpdateNotificationActionRequested;
             _mirrorServer.StateChanged += OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged += OnModulesChanged;
@@ -451,6 +448,7 @@ namespace ASLM.Pages
             }
 
             _notifications.NotificationPublished -= OnNotificationPublished;
+            _notifications.NotificationWithdrawn -= OnNotificationWithdrawn;
             _notifications.UpdateNotificationActionRequested -= OnUpdateNotificationActionRequested;
             _mirrorServer.StateChanged -= OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged -= OnModulesChanged;
@@ -886,9 +884,22 @@ namespace ASLM.Pages
         /// <summary>
         /// Shows an in-app toast on the main thread when a new notification is published.
         /// </summary>
-        private void OnNotificationPublished(object? sender, AppNotification notification)
+        private void OnNotificationPublished(object? sender, AppNotification notification) => ShowToast(notification);
+
+        /// <summary>
+        /// Removes the toast when its journal entry is withdrawn or superseded.
+        /// </summary>
+        private void OnNotificationWithdrawn(object? sender, AppNotification notification) =>
+            RemoveToastById(notification.Id);
+
+        /// <summary>
+        /// Removes a previous presentation of the same notification before changing the toast stack.
+        /// </summary>
+        private void RemoveToastById(string id)
         {
-            MainThread.BeginInvokeOnMainThread(() => ShowToast(notification));
+            var toast = ToastPanel.Children.OfType<Border>().FirstOrDefault(view =>
+                view.BindingContext is AppNotification item && string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (toast != null) ToastPanel.Children.Remove(toast);
         }
 
         /// <summary>
@@ -898,8 +909,11 @@ namespace ASLM.Pages
         /// <param name="notification">Notification to show.</param>
         private void ShowToast(AppNotification notification)
         {
-            // Newest toast on top; the stack keeps at most four toasts, dropping the oldest.
-            var toast = CreateToast(notification);
+            // Replace the prior toast for this event before applying the stack limit.
+            RemoveToastById(notification.Id);
+            var template = (DataTemplate)Resources["NotificationToastTemplate"];
+            var toast = (Border)template.CreateContent();
+            toast.BindingContext = notification;
             ToastPanel.Children.Insert(0, toast);
 
             while (ToastPanel.Children.Count > 4)
@@ -917,362 +931,210 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Builds the compact visual toast card for one notification.
-        /// Tapping the body opens the notifications popover and dismisses the toast.
-        /// The close button in the top-right corner only dismisses the toast.
+        /// Opens the journal when the user taps the content of a visible toast.
         /// </summary>
-        /// <param name="notification">Notification the toast presents.</param>
-        private Border CreateToast(AppNotification notification)
+        private void OnToastBodyTapped(object? sender, TappedEventArgs e)
         {
-            // Assigned at the end; the button handlers below capture it to remove their own toast.
-            Border toastHost = null!;
+            if (e.Parameter is not Border toast) return;
 
-            // Text labels and the close button; colors come from dynamic resources so toasts follow the theme.
-            var title = new Label
-            {
-                Text = notification.Title,
-                FontSize = 13,
-                FontAttributes = FontAttributes.Bold,
-                MaxLines = 1,
-                LineBreakMode = LineBreakMode.TailTruncation
-            };
-            title.SetDynamicResource(Label.TextColorProperty, "LabelPrimary");
-
-            var message = new Label
-            {
-                Text = notification.Message,
-                FontSize = 11,
-                MaxLines = 2,
-                LineBreakMode = LineBreakMode.TailTruncation
-            };
-            message.SetDynamicResource(Label.TextColorProperty, "LabelPrimary");
-
-            var detail = new Label
-            {
-                Text = notification.DetailLine,
-                FontSize = 11,
-                MaxLines = 1,
-                LineBreakMode = LineBreakMode.TailTruncation
-            };
-            detail.SetDynamicResource(Label.TextColorProperty, "LabelSecondary");
-
-            var closeButton = new Button
-            {
-                Text = "✕",
-                FontSize = 11,
-                WidthRequest = 22,
-                HeightRequest = 22,
-                Padding = new Thickness(0),
-                Margin = new Thickness(0),
-                BackgroundColor = Colors.Transparent,
-                CornerRadius = 4,
-                HorizontalOptions = LayoutOptions.End,
-                VerticalOptions = LayoutOptions.Start
-            };
-            closeButton.SetDynamicResource(Button.TextColorProperty, "LabelSecondary");
-
-            // Layout: accent stripe, text and actions column, close button.
-            var outerGrid = new Grid
-            {
-                ColumnDefinitions =
-                {
-                    new ColumnDefinition(new GridLength(4)),
-                    new ColumnDefinition(GridLength.Star),
-                    new ColumnDefinition(GridLength.Auto)
-                },
-                ColumnSpacing = 6
-            };
-
-            outerGrid.Children.Add(new BoxView
-            {
-                BackgroundColor = notification.AccentColor,
-                WidthRequest = 4,
-                VerticalOptions = LayoutOptions.Fill
-            });
-
-            var textStack = new VerticalStackLayout { Spacing = 2 };
-            textStack.Children.Add(title);
-            textStack.Children.Add(message);
-            textStack.Children.Add(detail);
-
-            var bodyColumn = new VerticalStackLayout { Spacing = 8 };
-            bodyColumn.Children.Add(textStack);
-
-            // Update notifications offer inline actions: update now (routes the action) or later (just dismisses).
-            if (notification.OffersUpdateActions)
-            {
-                var actionRow = new HorizontalStackLayout { Spacing = 8 };
-
-                var updateNowButton = new Button
-                {
-                    Text = L.Get(LocalizationKeys.Notifications_UpdateNow),
-                    FontSize = 11,
-                    HeightRequest = 28,
-                    MinimumHeightRequest = 28,
-                    Padding = new Thickness(10, 0),
-                    Margin = new Thickness(0),
-                    CornerRadius = 6
-                };
-                updateNowButton.SetDynamicResource(Button.BackgroundColorProperty, "ActionBlue");
-                updateNowButton.SetDynamicResource(Button.TextColorProperty, "White");
-                updateNowButton.Clicked += (_, _) =>
-                {
-                    RemoveToast(toastHost);
-                    _notifications.RequestUpdateNotificationAction(notification, updateNow: true);
-                };
-
-                var updateLaterButton = new Button
-                {
-                    Text = L.Get(LocalizationKeys.Notifications_UpdateLater),
-                    FontSize = 11,
-                    HeightRequest = 28,
-                    MinimumHeightRequest = 28,
-                    Padding = new Thickness(10, 0),
-                    Margin = new Thickness(0),
-                    CornerRadius = 6
-                };
-                updateLaterButton.SetDynamicResource(Button.BackgroundColorProperty, "BackgroundTertiary");
-                updateLaterButton.SetDynamicResource(Button.TextColorProperty, "LabelPrimary");
-                updateLaterButton.Clicked += (_, _) => RemoveToast(toastHost);
-
-                actionRow.Children.Add(updateNowButton);
-                actionRow.Children.Add(updateLaterButton);
-                bodyColumn.Children.Add(actionRow);
-            }
-
-            outerGrid.Children.Add(bodyColumn);
-            Grid.SetColumn(bodyColumn, 1);
-
-            outerGrid.Children.Add(closeButton);
-            Grid.SetColumn(closeButton, 2);
-
-            // The card itself: rounded border with a shadow, bound to the notification.
-            toastHost = new Border
-            {
-                BindingContext = notification,
-                StrokeThickness = 1,
-                StrokeShape = new RoundRectangle { CornerRadius = 8 },
-                Padding = new Thickness(10),
-                Content = outerGrid,
-                InputTransparent = false,
-                Shadow = new Shadow
-                {
-                    Brush = Brush.Black,
-                    Opacity = 0.35f,
-                    Radius = 12,
-                    Offset = new Point(0, 4)
-                }
-            };
-            toastHost.SetDynamicResource(Border.BackgroundColorProperty, "BackgroundSecondary");
-            toastHost.SetDynamicResource(Border.StrokeProperty, "Separator");
-
-            // Close button: dismiss only, does not open the notifications panel.
-            closeButton.Clicked += (_, _) => RemoveToast(toastHost);
-
-            // Tap on the toast body: open notifications panel and dismiss the toast.
-            var bodyTap = new TapGestureRecognizer();
-            bodyTap.Tapped += (_, _) =>
-            {
-                RemoveToast(toastHost);
-                OpenNotificationsOverlay();
-            };
-            textStack.GestureRecognizers.Add(bodyTap);
-
-            return toastHost;
+            RemoveToast(toast);
+            OpenNotificationsOverlay();
         }
 
         /// <summary>
-        /// Routes update notification actions from toasts and the notifications popover:
-        /// "later" clears the deferred actions of the notification, "now" starts the update flow.
+        /// Closes the clicked toast while preserving its journal entry.
         /// </summary>
-        private void OnUpdateNotificationActionRequested(object? sender, UpdateNotificationActionEventArgs e)
+        private void OnToastCloseClicked(object? sender, EventArgs e)
         {
-            if (!e.UpdateNow)
-            {
-                _notifications.ClearUpdateNotificationDeferredActions(e.Notification);
-                return;
-            }
+            if (sender is Button { CommandParameter: Border toast })
+                RemoveToast(toast);
+        }
 
+        /// <summary>
+        /// Forwards the active toast's update action to the notification center.
+        /// </summary>
+        private void OnToastUpdateNowClicked(object? sender, EventArgs e)
+        {
+            if (sender is Button { BindingContext: AppNotification notification })
+                _notifications.RequestUpdateNotificationAction(notification, updateNow: true);
+        }
+
+        /// <summary>
+        /// Defers the module update offered by the active toast.
+        /// </summary>
+        private void OnToastUpdateLaterClicked(object? sender, EventArgs e)
+        {
+            if (sender is Button { BindingContext: AppNotification notification })
+                _notifications.RequestUpdateNotificationAction(notification, updateNow: false);
+        }
+
+        /// <summary>
+        /// Routes immediate updates from the journal and toasts through the same path.
+        /// </summary>
+        private void OnUpdateNotificationActionRequested(object? sender, UpdateNotificationActionEventArgs e) =>
             _ = ProcessUpdateNotificationNowAsync(e.Notification);
-        }
 
         /// <summary>
-        /// Opens module update configuration, applies an engine update or runs the ASLM self-update pipeline,
-        /// depending on the source of the notification. Failures are reported as a toast.
+        /// Resolves an actionable source once and dispatches the update without opening a module overlay.
         /// </summary>
-        /// <param name="notification">Update notification whose source kind and id select the action.</param>
         private async Task ProcessUpdateNotificationNowAsync(AppNotification notification)
         {
+            var key = NotificationCenter.BuildOperationKey(notification.SourceKind, notification.SourceId);
+            if (!_notificationUpdates.Add(key)) return;
+
             try
             {
-                // Close the notifications popover first so it does not cover the dialogs and views opened below.
-                if (OverlayContainer.IsVisible && ReferenceEquals(OverlayContainer.Content, _notificationsView))
+                switch (notification.SourceKind.ToLowerInvariant())
                 {
-                    OverlayContainer.IsVisible = false;
-                    OverlayContainer.Content = null;
+                    case "module":
+                        await RunModuleUpdateFromNotificationAsync(notification);
+                        break;
+                    case "engine":
+                        await RunEngineUpdateFromNotificationAsync(notification);
+                        break;
+                    case "app":
+                        await RunAppSelfUpdateFromNotificationAsync(notification);
+                        break;
                 }
-
-                // Dispatch by the kind of component the notification refers to.
-                if (string.Equals(notification.SourceKind, "module", StringComparison.OrdinalIgnoreCase))
-                {
-                    await OpenModuleUpdateFromNotificationAsync(notification.SourceId);
-                    return;
-                }
-
-                if (string.Equals(notification.SourceKind, "engine", StringComparison.OrdinalIgnoreCase))
-                {
-                    await RunEngineUpdateFromNotificationAsync(notification.SourceId);
-                    return;
-                }
-
-                if (string.Equals(notification.SourceKind, "app", StringComparison.OrdinalIgnoreCase))
-                {
-                    await RunAppSelfUpdateFromNotificationAsync();
-                }
+            }
+            catch (OperationCanceledException)
+            {
+                // The update pipeline publishes its canceled result and leaves the application running.
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[UpdateNotification] Action failed: {ex.Message}");
-                _notifications.PublishSystemToast(
-                    L.Get(LocalizationKeys.Notifications_UpdateActionTitle),
-                    ex.Message,
-                    L.Get(LocalizationKeys.Notifications_ActionFailed),
-                    "update-action");
+                if (_notifications.Notifications.Contains(notification) ||
+                    notification.SourceKind == "app" && _updateManager.HasPendingAppUpdate)
+                {
+                    _notifications.PublishSystemToast(L.Get(LocalizationKeys.Notifications_UpdateActionTitle),
+                        ex.Message, L.Get(LocalizationKeys.Notifications_ActionFailed), "update-action-failed",
+                        key, AppNotificationSeverity.Error);
+                }
+            }
+            finally
+            {
+                _notificationUpdates.Remove(key);
             }
         }
 
         /// <summary>
-        /// Opens ModuleInfo on its status section for the installed module referenced by an update notification,
-        /// or reports that the module is no longer installed.
+        /// Starts the same guarded module update as the card after resolving its installed manifest.
         /// </summary>
-        /// <param name="moduleId">Id of the module the notification refers to.</param>
-        private async Task OpenModuleUpdateFromNotificationAsync(string moduleId)
+        private async Task RunModuleUpdateFromNotificationAsync(AppNotification notification)
         {
             var modules = await Task.Run(() => _moduleInstaller.DiscoverInstalledModulesAsync());
-            var config = modules.FirstOrDefault(module =>
-                string.Equals(module.Id, moduleId, StringComparison.OrdinalIgnoreCase));
+            if (!_notifications.Notifications.Contains(notification)) return;
 
-            if (config == null)
+            var module = modules.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, notification.SourceId, StringComparison.OrdinalIgnoreCase));
+            if (module == null)
             {
-                _notifications.PublishSystemToast(
-                    L.Get(LocalizationKeys.Notifications_UpdateActionTitle),
+                _notifications.WithdrawUpdateOffer(notification);
+                _notifications.PublishSystemToast(L.Get(LocalizationKeys.Notifications_UpdateActionTitle),
                     L.Get(LocalizationKeys.Notifications_ModuleNotInstalledMessage),
-                    L.Get(LocalizationKeys.Notifications_Unavailable),
-                    moduleId);
+                    L.Get(LocalizationKeys.Notifications_Unavailable), "module-update-unavailable",
+                    notification.SourceId, AppNotificationSeverity.Warning);
                 return;
             }
 
-            OpenModuleInfoOverlay(config, ModuleInfo.Section.Status);
+            if (_moduleInstaller.GetRemovalState(module.Id) == null && !_moduleInstaller.IsInstalling(module.Id) &&
+                _moduleRunner.ConsoleStore.GetActivity(module.SourcePath) != ModuleActivity.Updating)
+            {
+                await Task.Run(() => _updateManager.UpdateModuleFromNotificationAsync(module));
+                OnModuleStateChanged();
+            }
         }
 
         /// <summary>
-        /// Applies an available engine update referenced by one notification.
-        /// Each failed step (engine gone, no update, failed update) is reported as a toast instead of an exception.
+        /// Applies the current candidate for an engine and clears the scheduler's Ollama candidate when applied.
         /// </summary>
-        /// <param name="engineId">Id of the engine the notification refers to.</param>
-        private async Task RunEngineUpdateFromNotificationAsync(string engineId)
+        private async Task RunEngineUpdateFromNotificationAsync(AppNotification notification)
         {
-            // Resolve the installed engine the notification refers to.
+            var engineId = notification.SourceId;
+            var channelRevision = _updateManager.SharedUpdateChannelRevision;
             var engines = await _updateManager.DiscoverInstalledEnginesAsync();
+            if (!_notifications.Notifications.Contains(notification)) return;
+
             var engine = engines.FirstOrDefault(candidate =>
                 string.Equals(candidate.Id, engineId, StringComparison.OrdinalIgnoreCase));
+            var isOllama = string.Equals(engineId, "ollama-service", StringComparison.OrdinalIgnoreCase);
+            var candidate = engine != null && isOllama ? _updateScheduler.GetAvailableOllamaUpdate() : null;
 
-            if (engine == null)
+            // An offer can arrive before the scheduler stores the candidate. Resolve it from the current channel.
+            if (engine != null && !MatchesOfferedVersion(notification, candidate))
             {
-                _notifications.PublishSystemToast(
-                    L.Get(LocalizationKeys.Notifications_EngineUpdateTitle),
-                    L.Get(LocalizationKeys.Notifications_EngineUpdateNotAvailable),
-                    L.Get(LocalizationKeys.Notifications_Unavailable),
-                    engineId);
-                return;
+                candidate = await Task.Run(() => _updateManager.CheckEngineUpdateAsync(
+                    engine, publishUpdateNotification: false, isManualRequest: true));
             }
 
-            // Ollama uses the candidate cached by the scheduler; other engines are checked on demand.
-            var candidate = string.Equals(engineId, "ollama-service", StringComparison.OrdinalIgnoreCase)
-                ? _updateScheduler.GetAvailableOllamaUpdate()
-                : await Task.Run(() =>
-                    _updateManager.CheckEngineUpdateAsync(
-                        engine,
-                        publishUpdateNotification: false,
-                        isManualRequest: true));
+            if (channelRevision != _updateManager.SharedUpdateChannelRevision) return;
 
             if (candidate == null)
             {
-                _notifications.PublishSystemToast(
-                    L.Get(LocalizationKeys.Notifications_EngineUpdateTitle),
+                _notifications.WithdrawUpdateOffer(notification);
+                _notifications.PublishSystemToast(L.Get(LocalizationKeys.Notifications_EngineUpdateTitle),
                     L.Get(LocalizationKeys.Notifications_EngineUpdateNotAvailable),
-                    L.Get(LocalizationKeys.ModuleUpdate_Status_UpToDate),
-                    engineId);
+                    L.Get(LocalizationKeys.Notifications_Unavailable), "engine-update-unavailable",
+                    engineId, AppNotificationSeverity.Warning);
                 return;
             }
 
-            // Apply the update; for Ollama the scheduler's cached candidate is cleared once it was applied.
-            var success = await Task.Run(() => _updateManager.ApplyEngineUpdateAsync(
-                candidate,
-                isManualRequest: true));
+            if (!_notifications.Notifications.Contains(notification)) return;
 
-            if (!success)
-            {
-                _notifications.PublishSystemToast(
-                    L.Get(LocalizationKeys.Notifications_EngineUpdateTitle),
-                    L.Get(LocalizationKeys.Notifications_EngineUpdateFailed),
-                    L.Get(LocalizationKeys.Notifications_ActionFailed),
-                    engineId);
-                return;
-            }
-
-            if (string.Equals(engineId, "ollama-service", StringComparison.OrdinalIgnoreCase))
-            {
+            var applied = await Task.Run(() => _updateManager.ApplyEngineUpdateAsync(candidate, isManualRequest: true));
+            if (applied && isOllama && channelRevision == _updateManager.SharedUpdateChannelRevision)
                 await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
-            }
         }
 
         /// <summary>
-        /// Prepares a pending ASLM build when needed and restarts through the launcher.
+        /// Prepares ASLM if needed and hands the staged release to the launcher.
         /// </summary>
-        private async Task RunAppSelfUpdateFromNotificationAsync()
+        private async Task RunAppSelfUpdateFromNotificationAsync(AppNotification notification)
         {
-            // Without a retained release candidate and without an already prepared update there is nothing to install.
+            var channelRevision = _updateManager.SharedUpdateChannelRevision;
             var candidate = _updateScheduler.GetAvailableAppUpdate();
+
+            // Recheck when the visible offer is newer than the scheduler's cached candidate.
+            if (!_updateManager.HasPendingAppUpdate && !MatchesOfferedVersion(notification, candidate))
+            {
+                candidate = await Task.Run(() => _updateManager.CheckAppUpdateAsync(
+                    publishUpdateNotification: false, isManualRequest: true));
+                if (channelRevision != _updateManager.SharedUpdateChannelRevision) return;
+            }
 
             if (candidate == null && !_updateManager.HasPendingAppUpdate)
             {
-                _notifications.PublishSystemToast(
-                    L.Get(LocalizationKeys.Notifications_AslmUpdateTitle),
+                _notifications.WithdrawUpdateOffer(notification);
+                _notifications.PublishSystemToast(L.Get(LocalizationKeys.Notifications_AslmUpdateTitle),
                     L.Get(LocalizationKeys.Notifications_AslmUpdateNotAvailable),
-                    L.Get(LocalizationKeys.ModuleUpdate_Status_UpToDate),
-                    "aslm");
+                    L.Get(LocalizationKeys.ModuleUpdate_Status_UpToDate), "app-update-unavailable",
+                    notification.SourceId, AppNotificationSeverity.Warning);
                 return;
             }
 
-            // Download and stage the new build first, unless a prepared one is already pending.
+            // Staging publishes progress and its own outcome. The launcher reports installation on the next startup.
             if (!_updateManager.HasPendingAppUpdate && candidate != null)
             {
-                var prepared = await Task.Run(() =>
-                    _updateManager.PrepareAppUpdateAsync(
-                        candidate,
-                        null,
-                        null,
-                        isManualRequest: true,
-                        ct: CancellationToken.None));
-                if (!prepared)
-                {
-                    _notifications.PublishSystemToast(
-                        L.Get(LocalizationKeys.Notifications_AslmUpdateTitle),
-                        L.Get(LocalizationKeys.Notifications_AslmUpdatePrepareFailed),
-                        L.Get(LocalizationKeys.Notifications_AslmUpdatePrepareFailedStatus),
-                        "aslm");
-                    return;
-                }
+                if (!_notifications.Notifications.Contains(notification)) return;
 
-                await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
+                var prepared = await Task.Run(() => _updateManager.PrepareAppUpdateAsync(candidate, isManualRequest: true));
+                if (!prepared) return;
+
+                if (channelRevision == _updateManager.SharedUpdateChannelRevision)
+                    await _updateScheduler.ClearAvailableCandidateAsync(candidate.TargetKind, candidate.TargetId);
             }
 
-            // Stop every module, hand over to the launcher, which installs the staged build, and quit this instance.
-            await _settingsService.StopAllModulesAsync();
-            await Task.Run(SettingsService.StartLauncherForSelfUpdate);
-            Application.Current?.Quit();
+            _notifications.WithdrawUpdateOffer(notification);
+            if (Application.Current is App app) await app.RestartThroughLauncherAsync();
         }
+
+        /// <summary>
+        /// Checks that a cached release is the one the current notification offers.
+        /// </summary>
+        private static bool MatchesOfferedVersion(AppNotification notification, UpdateCandidate? candidate) =>
+            candidate != null && string.Equals(notification.VersionKey, candidate.ReleaseTag ?? candidate.RemoteVersion,
+                StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Removes a toast after the requested delay unless it has already been dismissed.

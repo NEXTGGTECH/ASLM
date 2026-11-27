@@ -810,6 +810,8 @@ namespace ASLM.Pages
             // Unsubscribe before subscribing, so a repeated Loaded event cannot register the handler twice.
             _installer.OperationsChanged -= OnDownloadOperationsChanged;
             _installer.OperationsChanged += OnDownloadOperationsChanged;
+            _installer.TransferSpeedChanged -= OnDownloadTransferSpeedChanged;
+            _installer.TransferSpeedChanged += OnDownloadTransferSpeedChanged;
             RaiseVariantProperties();
             AttachThemeHandlers();
 
@@ -827,6 +829,7 @@ namespace ASLM.Pages
         {
             if (_catalog.Preparation != null) _catalog.Preparation.Changed -= OnPreparedModuleChanged;
             _installer.OperationsChanged -= OnDownloadOperationsChanged;
+            _installer.TransferSpeedChanged -= OnDownloadTransferSpeedChanged;
             DetachThemeHandlers();
         }
 
@@ -835,6 +838,21 @@ namespace ASLM.Pages
         /// </summary>
         private void OnDownloadOperationsChanged(object? sender, EventArgs e) =>
             MainThread.BeginInvokeOnMainThread(RaiseVariantProperties);
+
+        /// <summary>
+        /// Updates only the affected variant's status when its transfer speed changes.
+        /// </summary>
+        private void OnDownloadTransferSpeedChanged(string key) =>
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                foreach (var variant in Variants)
+                {
+                    if (string.Equals(key, "resource:" + variant.Variant.ResourceKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        variant.RefreshStatusText();
+                    }
+                }
+            });
 
         /// <summary>
         /// Subscribes to palette and system theme changes once and tints the icons for the current theme.
@@ -2746,7 +2764,8 @@ namespace ASLM.Pages
             public string StatusText => _installer.GetState(Variant.ResourceKey) switch
             {
                 DownloadOperationState.Queued => L.Get(LocalizationKeys.Downloads_Queued),
-                DownloadOperationState.Running => L.Get(LocalizationKeys.Settings_Downloading),
+                DownloadOperationState.Running => DownloadTransferSpeedEstimator.AppendSpeed(
+                    L.Get(LocalizationKeys.Settings_Downloading), _installer.GetTransferSpeed(Variant.ResourceKey)),
                 DownloadOperationState.Removing => L.Get(LocalizationKeys.Modules_Removing),
                 _ => Variant.Installed ? DownloadedLabel : string.Empty
             };
@@ -2776,11 +2795,16 @@ namespace ASLM.Pages
             }
 
             /// <summary>
+            /// Refreshes only the operation status line when another speed measurement arrives.
+            /// </summary>
+            internal void RefreshStatusText() => OnPropertyChanged(nameof(StatusText));
+
+            /// <summary>
             /// Raises the notifications for every text and state that depends on the language or on the installer.
             /// </summary>
             public void RefreshLocalizedText()
             {
-                OnPropertyChanged(nameof(StatusText));
+                RefreshStatusText();
                 OnPropertyChanged(nameof(HasStatus));
                 OnPropertyChanged(nameof(IsDownloaded));
                 OnPropertyChanged(nameof(DownloadedLabel));

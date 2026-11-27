@@ -145,9 +145,13 @@ confirm_installation()
         "  - install the application to ${install_dir} (system-wide)" \
         "  - create the 'aslm' command (${command_path})" \
         '  - add an application-menu entry' \
-        "  - install missing system packages with ${package_manager}" \
-        '' \
-        'Administrator privileges are required.'
+        '  - check the actual native libraries before replacing an existing installation'
+    if [ -n "$package_manager" ]; then
+        printf '  - install missing system packages with %s if required\n' "$package_manager"
+    else
+        printf '%s\n' '  - require native dependencies to be installed manually if any are missing'
+    fi
+    printf '\nAdministrator privileges are required.\n'
     printf 'Proceed with the installation? [yes/no] '
     read reply || fail 'No confirmation was received.'
     case "$reply" in
@@ -156,50 +160,75 @@ confirm_installation()
     esac
 }
 
-# Compare dotted package versions without requiring a distribution-specific version tool.
-version_at_least()
-{
-    actual=$(printf '%s' "$1" | sed 's/^[0-9]*://; s/[-+~].*$//')
-    [ "$(printf '%s\n%s\n' "$2" "$actual" | sort -V | head -n 1)" = "$2" ]
-}
-
-# Detect the package family without enabling repositories or modifying the system.
+# Select dependency package names from distribution metadata or the available package manager.
 detect_distribution()
 {
-    ID= ID_LIKE= VERSION_ID=
-    [ -r "${1:-/etc/os-release}" ] || fail 'Cannot identify this Linux distribution: /etc/os-release is missing.'
-    . "${1:-/etc/os-release}"
+    ID= ID_LIKE=
+    family=manual
+    package_manager=
+    if [ -r "${1:-/etc/os-release}" ]; then
+        . "${1:-/etc/os-release}"
+    fi
     case " $ID $ID_LIKE " in
-        *' ubuntu '*|*' debian '*) family=debian; package_manager=apt ;;
+        *' ubuntu '*|*' debian '*) family=debian; package_manager=apt-get ;;
         *' rhel '*|*' centos '*|*' almalinux '*|*' rocky '*) family=el; package_manager=dnf ;;
         *' fedora '*) family=fedora; package_manager=dnf ;;
         *' opensuse '*|*' opensuse-leap '*|*' opensuse-tumbleweed '*|*' suse '*)
             family=suse; package_manager=zypper ;;
         *' arch '*|*' archlinux '*) family=arch; package_manager=pacman ;;
-        *) fail "Unsupported Linux distribution: ${ID:-unknown}. Supported package families: apt, dnf, zypper, pacman." ;;
     esac
-    command -v "$package_manager" >/dev/null 2>&1 || fail "The ${package_manager} package manager is unavailable."
-
-    # Known distributions have explicit support floors; derivatives are checked against their actual libraries.
-    minimum=
-    case "$ID" in
-        ubuntu) minimum=24.04 ;;
-        debian) minimum=13 ;;
-        fedora) minimum=43 ;;
-        almalinux|rocky|rhel|centos) minimum=10 ;;
-        opensuse-leap) minimum=16.0 ;;
-    esac
-    if [ -n "$minimum" ]; then
-        [ -n "$VERSION_ID" ] && version_at_least "$VERSION_ID" "$minimum" ||
-            fail "${ID} ${minimum} or later is required; this system reports ${VERSION_ID:-an unknown version}."
+    if [ -n "$package_manager" ] && command -v "$package_manager" >/dev/null 2>&1; then
+        return
     fi
+
+    # Unknown distributions can still use a supported package manager or supply their dependencies themselves.
+    family=manual
+    package_manager=
+    for manager in apt-get dnf zypper pacman; do
+        if command -v "$manager" >/dev/null 2>&1; then
+            package_manager=$manager
+            case "$manager" in
+                apt-get) family=debian ;;
+                dnf) family=fedora ;;
+                zypper) family=suse ;;
+                pacman) family=arch ;;
+            esac
+            break
+        fi
+    done
 }
 
-# Reject an unavailable or obsolete GTK candidate before installing packages or replacing ASLM.
-require_gtk_version()
+# Prepare archive and download utilities before the application can probe native dependencies.
+install_installer_tools()
 {
-    [ -n "$1" ] && version_at_least "$1" 4.12.0 ||
-        fail "GTK 4.12 or later is required; available version: ${1:-none}. Update the distribution or its repositories."
+    utilities='awk tar gzip sha256sum'
+    if [ -z "$archive_source" ]; then utilities="$utilities curl"; fi
+    missing_tools=
+    for utility in $utilities; do
+        if ! command -v "$utility" >/dev/null 2>&1; then
+            missing_tools="$missing_tools $utility"
+        fi
+    done
+    [ -n "$missing_tools" ] || return 0
+
+    # Install only transport and archive tools until the application can check the actual UI libraries.
+    case "$family" in
+        debian)
+            apt-get update
+            apt-get install --no-install-recommends -y ca-certificates curl tar gzip gawk coreutils ;;
+        fedora|el) dnf install -y ca-certificates curl tar gzip gawk coreutils ;;
+        suse)
+            zypper --non-interactive refresh
+            zypper --non-interactive --no-refresh install --no-recommends \
+                ca-certificates curl tar gzip gawk coreutils ;;
+        arch) pacman -S --needed --noconfirm ca-certificates curl tar gzip gawk coreutils ;;
+        *) fail "Install the missing installer tools manually, then retry:${missing_tools}." ;;
+    esac
+
+    # Do not misreport unavailable utilities as a corrupt download or an incompatible application.
+    for utility in $utilities; do
+        command -v "$utility" >/dev/null 2>&1 || fail "The required installer tool '${utility}' is unavailable."
+    done
 }
 
 # Return an installable Debian package version, including an already installed package.
@@ -221,7 +250,6 @@ select_debian_package()
 install_debian_dependencies()
 {
     apt-get update
-    require_gtk_version "$(debian_candidate libgtk-4-1)"
     [ -n "$(debian_candidate libwebkitgtk-6.0-4)" ] ||
         fail 'WebKitGTK API 6.0 is unavailable. Enable the official repository providing libwebkitgtk-6.0-4.'
     icu_packages=$(apt-cache pkgnames | grep -E '^libicu[0-9]+$' | sort -Vr) || true
@@ -244,7 +272,6 @@ dnf_candidate()
 # Install Fedora or enterprise-Linux libraries without automatically adding EPEL or CRB repositories.
 install_dnf_dependencies()
 {
-    require_gtk_version "$(dnf_candidate gtk4)"
     if [ -z "$(dnf_candidate webkitgtk6.0)" ]; then
         if [ "$family" = el ]; then
             fail 'WebKitGTK API 6.0 is unavailable. Enable the matching EPEL and CRB repositories manually, then rerun this installer.'
@@ -266,7 +293,6 @@ zypper_candidate()
 install_suse_dependencies()
 {
     zypper --non-interactive refresh
-    require_gtk_version "$(zypper_candidate libgtk-4-1)"
     [ -n "$(zypper_candidate libwebkitgtk-6_0-4)" ] ||
         fail 'WebKitGTK API 6.0 is unavailable in the enabled repositories (package libwebkitgtk-6_0-4).'
     zypper --non-interactive --no-refresh install --no-recommends ca-certificates curl \
@@ -277,9 +303,6 @@ install_suse_dependencies()
 # Install Arch packages against its synchronized database without performing an unsupported partial upgrade.
 install_arch_dependencies()
 {
-    gtk_version=$(pacman -Si gtk4 2>/dev/null | awk '/^Version[[:space:]]*:/ { print $3; exit }')
-    [ -n "$gtk_version" ] || fail 'The pacman package database is unavailable. Run a full system upgrade with pacman -Syu, then retry.'
-    require_gtk_version "$gtk_version"
     pacman -S --needed --noconfirm ca-certificates curl glibc gcc-libs krb5 icu openssl \
         tzdata zlib gtk4 webkitgtk-6.0 fontconfig freetype2 xdg-utils polkit tar gzip ||
         fail 'Package installation failed. Run a full system upgrade with pacman -Syu, then retry.'
@@ -293,7 +316,25 @@ install_dependencies()
         fedora|el) install_dnf_dependencies ;;
         suse) install_suse_dependencies ;;
         arch) install_arch_dependencies ;;
+        *) fail 'No supported package manager was found. Install the reported native dependencies manually, then rerun this installer.' ;;
     esac
+}
+
+# Accept compatible native libraries on any distribution, repairing missing dependencies only when needed.
+ensure_runtime_dependencies()
+{
+    if "$payload/App/ASLM" --check-runtime > "$stage/runtime-check.log" 2>&1; then
+        return
+    fi
+
+    # Show the actual loader and GTK errors before attempting distribution-specific package installation.
+    cat "$stage/runtime-check.log" >&2
+    install_dependencies
+    if "$payload/App/ASLM" --check-runtime > "$stage/runtime-check.log" 2>&1; then
+        return
+    fi
+    cat "$stage/runtime-check.log" >&2
+    fail 'ASLM cannot load its native runtime libraries. The existing installation was kept. Install the reported dependencies manually, then retry.'
 }
 
 # Downloads the release archive; the digest, when stamped by the release workflow, pins the exact asset.
@@ -433,12 +474,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exec sudo /bin/sh "$installer" --confirmed
 fi
 [ "$confirmed" -eq 1 ] || confirm_installation
-install_dependencies
-
-# Report missing archive-inspection tools separately from a corrupt archive.
-for utility in awk tar gzip sha256sum; do
-    command -v "$utility" >/dev/null 2>&1 || fail "The required installer tool '${utility}' is unavailable."
-done
+install_installer_tools
 umask 022
 mkdir -p /opt
 stage=$(mktemp -d /opt/.ASLM-install.XXXXXXXX)
@@ -447,9 +483,8 @@ trap 'exit 1' HUP INT TERM
 download_payload
 stage_payload
 
-# Check the staged runtime without creating a user profile or opening a root-owned application window.
-"$payload/App/ASLM" --check-runtime ||
-    fail 'The downloaded application cannot load its native runtime libraries. The existing ASLM installation was kept.'
+# Check the staged libraries before repairing native dependencies or replacing the existing application.
+ensure_runtime_dependencies
 install_application
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database /usr/local/share/applications || true

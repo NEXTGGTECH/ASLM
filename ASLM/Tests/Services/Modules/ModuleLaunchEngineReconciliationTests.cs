@@ -129,7 +129,8 @@ namespace ASLM.Tests.Services.Modules
             module.Update.InstalledReleaseTag = "v1.0.0";
             await installer.SaveConfigAsync(module);
             using var http = new HttpClient(new ReinstallCatalogHandler(missing: false));
-            var manager = CreateReinstallManager(layout, installer, engines, runner, http, new DownloadQueue());
+            var notifications = new NotificationCenter(new InlineDispatcher());
+            var manager = CreateReinstallManager(layout, installer, engines, runner, http, new DownloadQueue(), notifications);
 
             // Act and assert: switch the saved mode back and forth; the candidate follows the mode, and the result
             // returned to the caller matches what was persisted.
@@ -137,7 +138,9 @@ namespace ASLM.Tests.Services.Modules
             {
                 module.Update.Mode = module.Update.Channel = mode;
                 manager.SaveModuleUpdatePreferences(module);
+                notifications.Notifications.Should().BeEmpty("the previous channel's offer is immediately withdrawn");
                 var result = await manager.CheckModuleUpdatesAsync(module);
+                notifications.Notifications.Should().HaveCount(mode == "pre-release" ? 1 : 0);
                 result.Should().NotBeNull();
                 result!.Update.Mode.Should().Be(mode);
                 (result.Update.PendingUpdate?.ReleaseTag).Should().Be(mode == "pre-release" ? "v2.0.0-beta" : null);
@@ -398,7 +401,8 @@ namespace ASLM.Tests.Services.Modules
         /// Creates a manager with a fake HTTP catalog; these tests stop before any archive or native UI work.
         /// </summary>
         private static UpdateManager CreateReinstallManager(AslmFileSystemLayout layout, ModuleInstaller installer,
-            EngineInstaller engines, ModuleRunner runner, HttpClient http, DownloadQueue queue)
+            EngineInstaller engines, ModuleRunner runner, HttpClient http, DownloadQueue queue,
+            NotificationCenter? notifications = null)
         {
             var appData = new AppDataStore(NullLogger<AppDataStore>.Instance);
             var limits = new GitHubRateLimitStore(NullLogger<GitHubRateLimitStore>.Instance);
@@ -406,7 +410,7 @@ namespace ASLM.Tests.Services.Modules
             var client = new GitHubUpdateClient(limits, account, http,
                 new ModuleIconCache(Path.Combine(layout.Root, "Data", "Downloads", "IconModules")));
             return new UpdateManager(appData, installer, engines, runner, null!, null!, null!, null!, client,
-                null!, NullLogger<UpdateManager>.Instance, queue);
+                notifications ?? new NotificationCenter(new InlineDispatcher()), NullLogger<UpdateManager>.Instance, queue);
         }
 
         /// <summary>
@@ -461,8 +465,8 @@ namespace ASLM.Tests.Services.Modules
                 new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
             var queue = new DownloadQueue();
             var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
-                installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
-                NullLogger<UpdateManager>.Instance, queue);
+                installer, engines, runner, coordinator, null!, reconciler, null!, null!,
+                new NotificationCenter(new InlineDispatcher()), NullLogger<UpdateManager>.Instance, queue);
             var downloads = new DownloadInstaller(installer, null!, engines, null!, null!, null!,
                 NullLogger<DownloadInstaller>.Instance, queue);
 
@@ -531,8 +535,8 @@ namespace ASLM.Tests.Services.Modules
             var coordinator = new ModuleLaunchCoordinator(installer, runner,
                 new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
             var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
-                installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
-                NullLogger<UpdateManager>.Instance, new DownloadQueue());
+                installer, engines, runner, coordinator, null!, reconciler, null!, null!,
+                new NotificationCenter(new InlineDispatcher()), NullLogger<UpdateManager>.Instance, new DownloadQueue());
             ready.Status.Installed = ready.Status.FirstRunCompleted = true;
             await installer.SaveConfigAsync(ready);
             using var cts = new CancellationTokenSource();
@@ -671,8 +675,8 @@ namespace ASLM.Tests.Services.Modules
                 new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
             var queue = new DownloadQueue();
             var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
-                installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
-                NullLogger<UpdateManager>.Instance, queue);
+                installer, engines, runner, coordinator, null!, reconciler, null!, null!,
+                new NotificationCenter(new InlineDispatcher()), NullLogger<UpdateManager>.Instance, queue);
             dependency.Status.Installed = dependency.Status.FirstRunCompleted = true;
             await installer.SaveConfigAsync(dependency);
             var payload = Path.Combine(Path.GetDirectoryName(dependency.SourcePath)!, "payload.txt");
@@ -752,7 +756,8 @@ namespace ASLM.Tests.Services.Modules
             await installer.SaveConfigAsync(dependency);
             using var request = installer.BeginCatalogInstallation(root, [dependency, root]);
             var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance), installer,
-                engines, runner, null!, null!, null!, null!, null!, null!, NullLogger<UpdateManager>.Instance, new DownloadQueue());
+                engines, runner, null!, null!, null!, null!, null!, new NotificationCenter(new InlineDispatcher()),
+                NullLogger<UpdateManager>.Instance, new DownloadQueue());
 
             await FluentActions.Awaiting(() => manager.UninstallModuleAsync(dependency))
                 .Should().ThrowAsync<InvalidOperationException>();
@@ -776,7 +781,8 @@ namespace ASLM.Tests.Services.Modules
             var installer = new ModuleInstaller(runner, null!, new ModuleEngineReconciler(engines));
             var queue = new DownloadQueue();
             var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance), installer,
-                engines, runner, null!, null!, null!, null!, null!, null!, NullLogger<UpdateManager>.Instance, queue);
+                engines, runner, null!, null!, null!, null!, null!, new NotificationCenter(new InlineDispatcher()),
+                NullLogger<UpdateManager>.Instance, queue);
             foreach (var module in new[] { first, second })
             {
                 module.Status.Installed = module.Status.FirstRunCompleted = true;
@@ -872,8 +878,8 @@ namespace ASLM.Tests.Services.Modules
             var coordinator = new ModuleLaunchCoordinator(installer, runner,
                 new ModuleStartThrottle(), NullLogger<ModuleLaunchCoordinator>.Instance);
             var manager = new UpdateManager(new AppDataStore(NullLogger<AppDataStore>.Instance),
-                installer, engines, runner, coordinator, null!, reconciler, null!, null!, null!,
-                NullLogger<UpdateManager>.Instance, new DownloadQueue());
+                installer, engines, runner, coordinator, null!, reconciler, null!, null!,
+                new NotificationCenter(new InlineDispatcher()), NullLogger<UpdateManager>.Instance, new DownloadQueue());
             var module = (await installer.LoadModuleConfig(manifestPath))!;
             module.Status.Installed = true;
             module.Status.FirstRunCompleted = true;

@@ -611,7 +611,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Starts the launcher so it can relaunch ASLM after the current process exits.
         /// </summary>
-        public static void StartLauncherForApplicationRestart()
+        public static void StartLauncherForApplicationRestart(bool requireBreakaway = false)
         {
 #if MACCATALYST
             // Mac Catalyst and Linux use their own detached relauncher helpers.
@@ -643,7 +643,10 @@ namespace ASLM.Services.Internal
                 return;
             }
 
-            // Fallback when breakaway process creation is unavailable.
+            // A launcher inherited by ASLM's job would be terminated with the current process.
+            if (requireBreakaway)
+                throw new InvalidOperationException("ASLM launcher could not start outside the current process group.");
+
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = launcherPath,
@@ -655,7 +658,7 @@ namespace ASLM.Services.Internal
                 startInfo.ArgumentList.Add(argument);
             }
 
-            var process = System.Diagnostics.Process.Start(startInfo);
+            using var process = System.Diagnostics.Process.Start(startInfo);
 
             if (process == null)
             {

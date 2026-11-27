@@ -1,6 +1,8 @@
 // Copyright NEXTGGTECH. Apache License 2.0.
 
+using ASLM.Localization;
 using ASLM.Models;
+using ASLM.Services.Internal;
 using ASLM.Tests.TestSupport;
 
 namespace ASLM.Tests.Services.Internal
@@ -50,6 +52,55 @@ namespace ASLM.Tests.Services.Internal
                 .Contain(option => option.ReleaseTag == "v1.0");
             ASLM.Pages.ModuleInfo.BuildReleaseOptions([], "latest").Should()
                 .ContainSingle(option => option.IsVirtualLatest);
+        }
+
+
+        // Engine update cancellation
+
+        /// <summary>
+        /// Verifies that canceling a downloaded engine update before file replacement preserves the installed runtime.
+        /// </summary>
+        [Fact]
+        public async Task Canceling_the_engine_download_preserves_its_installed_runtime()
+        {
+            using var graph = new TestServiceGraph();
+            var engineDir = Path.Combine(graph.Root.EnginesDir, "ollama-service");
+            var runtime = Path.Combine(engineDir, "runtime", "ollama.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(runtime)!);
+            await File.WriteAllTextAsync(runtime, "installed runtime");
+
+            var archivePath = Path.Combine(graph.Root.Root, "engine.zip");
+            TestArchives.WriteZip(archivePath, new TestArchives.Entry("ollama.exe", "new runtime"));
+            const string url = "https://update.test/engine.zip";
+            graph.GitHubHttp.OnBytes(url, await File.ReadAllBytesAsync(archivePath));
+            var candidate = new UpdateCandidate
+            {
+                TargetKind = "engine",
+                TargetId = "ollama-service",
+                Name = "Ollama",
+                RemoteVersion = "v2.0",
+                DownloadUrl = url,
+                Engine = new EngineConfig
+                {
+                    Id = "ollama-service",
+                    Name = "Ollama",
+                    SourcePath = Path.Combine(engineDir, "ASLM_Engine.json"),
+                    Status = new EngineStatus { Installed = true, InstalledReleaseTag = "v1.0" }
+                }
+            };
+            var progress = new InlineProgress<DownloadProgress>(sample =>
+            {
+                if (sample.Fraction < 1) return;
+                var row = graph.Notifications.Notifications.Single(item => item.IsInProgress);
+                graph.Notifications.RequestDownloadCancellation(row);
+            });
+
+            var apply = () => graph.Updates.ApplyEngineUpdateAsync(candidate, progress: progress);
+            await apply.Should().ThrowAsync<OperationCanceledException>();
+            File.ReadAllText(runtime).Should().Be("installed runtime");
+            candidate.Engine.Status.InstalledReleaseTag.Should().Be("v1.0");
+            graph.Notifications.Notifications.Single(row => row.Category == AppNotificationCategory.Downloads)
+                .CardStatusText.Should().Be(L.Get(LocalizationKeys.Notifications_OperationCanceled));
         }
 
 

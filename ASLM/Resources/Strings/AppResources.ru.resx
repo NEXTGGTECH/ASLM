@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>Действие не выполнено</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>Доступно обновление ASLM</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>Обновлений ASLM сейчас нет</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>Обновление ASLM</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>Канал: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>Очистить всё</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>Нет уведомлений</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>Доступно обновление движка</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>Не удалось применить обновление движка</value>
@@ -825,20 +816,38 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>Обновление движка</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>Установлен {0}</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>установленная версия</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>Установлен {0} {1}</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>Установка файлов</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>Этот модуль больше не установлен</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>Доступно обновление модуля</value>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>Операция отменена</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>Найдена новая версия</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>Операция прервана</value>
+  </data>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>Подготовка файлов</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>Перезапустите приложение</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>Недавние</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>Начинается загрузка</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>всего {0}</value>
@@ -852,11 +861,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>Обновить</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>Доступно обновление {0} {1}</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>Доступно обновление {0} ({1} -&gt; {2})</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>Обновить позже</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>Обновить сейчас</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>{0} обновлён до {1}</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>Обновление {0} до {1}</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>Учётная запись ASLM</value>

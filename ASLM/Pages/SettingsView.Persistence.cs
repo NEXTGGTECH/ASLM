@@ -518,7 +518,8 @@ namespace ASLM.Pages
                 var hadAslmChanges = HasUnsavedAccountChanges() || hadAslmSettingsChanges;
                 var modulesWithChanges = GetModulesWithUnsavedChanges();
 
-                // Write the application drafts into app data and persist them.
+                // Retire candidates from the old shared channel before persisting the new selection.
+                var previousUpdateChannel = _appData.Data.Updates.AppChannel;
                 SettingsService.ApplyDraftsToAppData(
                     _appData,
                     _userNameDraft,
@@ -528,6 +529,9 @@ namespace ASLM.Pages
                     _restoreLastPageDraft,
                     _disableHomePageDraft,
                     _legalAutoAcceptDraft);
+                if (!string.Equals(previousUpdateChannel, _appData.Data.Updates.AppChannel, StringComparison.OrdinalIgnoreCase))
+                    _updateScheduler.InvalidateSharedUpdateChannel();
+
                 await _appData.SaveAsync();
 
                 // The Mirror Server is switched separately from app data, and only when its enabled state changed.
@@ -651,14 +655,10 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Stops modules, starts the launcher with process wait, and exits so ASLM relaunches cleanly.
+        /// Uses the application lifetime to restart through the launcher.
         /// </summary>
-        private async Task RestartApplicationThroughLauncherAsync()
-        {
-            await _settingsService.StopAllModulesAsync();
-            await Task.Run(SettingsService.StartLauncherForApplicationRestart);
-            Application.Current?.Quit();
-        }
+        private static Task RestartApplicationThroughLauncherAsync() =>
+            Application.Current is App app ? app.RestartThroughLauncherAsync() : Task.CompletedTask;
 
         /// <summary>
         /// Restarts the application startup chain so app-level changes take effect.

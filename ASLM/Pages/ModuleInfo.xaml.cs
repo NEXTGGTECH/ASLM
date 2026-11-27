@@ -398,12 +398,12 @@ namespace ASLM.Pages
             (CurrentDownload?.RequestedActivity == ModuleActivity.Updating && _activity?.Activity == ModuleActivity.Updating);
 
         /// <summary>
-        /// Whether the cancel button is available: an update started here is applying,
-        /// or a queued catalog installation of this module (not a dependency installation) can be canceled.
+        /// Whether the shown module has a cancelable update or a root catalog installation.
         /// </summary>
-        public bool CanCancelInstallation => AllowInstallationActions && ((CurrentDownload?.RequestedActivity == ModuleActivity.Updating && IsCurrentInstallation) ||
-            (_module != null && _updates.IsCatalogInstallPending(_module.Id) &&
-            _installer.GetInstallationState(_module.Id) is not { IsDependency: true }));
+        public bool CanCancelInstallation => AllowInstallationActions && _module != null &&
+            ((_activity?.Activity == ModuleActivity.Updating && _updates.CanCancelModuleUpdate(_module.SourcePath)) ||
+             (_updates.IsCatalogInstallPending(_module.Id) &&
+              _installer.GetInstallationState(_module.Id) is not { IsDependency: true }));
 
         /// <summary>
         /// Whether the install button is shown for a module that is not installed and not occupied.
@@ -1325,8 +1325,7 @@ namespace ASLM.Pages
 
             // Reserve local progress before submitting the job to the shared installation queue.
             var selected = _module;
-            using var cts = new CancellationTokenSource();
-            var download = new ModuleOperation(cts, ModuleActivity.Installing);
+            var download = new ModuleOperation(ModuleActivity.Installing);
             _downloads.Add(selected.SourcePath, download);
             var resultKey = LocalizationKeys.ModuleInfo_Installed;
             var resultDetail = string.Empty;
@@ -1343,9 +1342,7 @@ namespace ASLM.Pages
             {
                 if (!_downloads.TryGetValue(selected.SourcePath, out var pending) || !ReferenceEquals(pending, download)) return;
                 download.Fraction = Math.Clamp(value.Fraction, 0, 1);
-                download.TransferText = value.TotalBytes > 0
-                    ? $"{download.Fraction:P0} · {DownloadsView.FormatDownloadSize(value.DownloadedBytes)} / {DownloadsView.FormatDownloadSize(value.TotalBytes)}"
-                    : DownloadsView.FormatDownloadSize(value.DownloadedBytes);
+                download.TransferText = FormatTransferProgress(value, download.Fraction);
                 if (!ReferenceEquals(CurrentDownload, download)) return;
                 OnPropertyChanged(nameof(DownloadFraction));
                 OnPropertyChanged(nameof(TransferText));
@@ -1355,7 +1352,7 @@ namespace ASLM.Pages
             // Install through the shared queue and record how it ended; the result is written to the console below.
             try
             {
-                var launch = await _updates.InstallCatalogModuleAsync(selected, log, progress, cts.Token);
+                var launch = await _updates.InstallCatalogModuleAsync(selected, log, progress);
                 if (launch.Status is not (ModuleLaunchStatus.Started or ModuleLaunchStatus.AlreadyRunning or ModuleLaunchStatus.NoRunCommands))
                 {
                     // Installation remains recorded even if the subsequent launch fails.
@@ -1393,11 +1390,12 @@ namespace ASLM.Pages
         /// </summary>
         private void OnCancelClicked(object? sender, EventArgs e)
         {
-            if (!CanCancelInstallation) return;
+            if (!CanCancelInstallation || _module == null) return;
 
-            // An update started here is canceled through its own token; a queued catalog installation through the service.
-            if (CurrentDownload is { RequestedActivity: ModuleActivity.Updating } operation) operation.Cancellation.Cancel();
-            else if (CanCancelInstallation && _module != null) _updates.CancelCatalogInstall(_module.Id);
+            if (_activity?.Activity == ModuleActivity.Updating && _updates.CanCancelModuleUpdate(_module.SourcePath))
+                _updates.CancelModuleUpdate(_module.SourcePath);
+            else
+                _updates.CancelCatalogInstall(_module.Id);
         }
 
         /// <summary>
@@ -1419,8 +1417,7 @@ namespace ASLM.Pages
             // Reserve this view's request independently of the service's shared check/update state.
             var selected = _module;
             CancelOptionsLoad();
-            using var cts = new CancellationTokenSource();
-            var operation = new ModuleOperation(cts, apply ? ModuleActivity.Updating : null);
+            var operation = new ModuleOperation(apply ? ModuleActivity.Updating : null);
             _downloads.Add(selected.SourcePath, operation);
             if (apply)
             {
@@ -1434,9 +1431,7 @@ namespace ASLM.Pages
                 var progress = new Progress<DownloadProgress>(value =>
                 {
                     operation.Fraction = Math.Clamp(value.Fraction, 0, 1);
-                    operation.TransferText = value.TotalBytes > 0
-                        ? $"{operation.Fraction:P0} · {DownloadsView.FormatDownloadSize(value.DownloadedBytes)} / {DownloadsView.FormatDownloadSize(value.TotalBytes)}"
-                        : DownloadsView.FormatDownloadSize(value.DownloadedBytes);
+                    operation.TransferText = FormatTransferProgress(value, operation.Fraction);
                     if (!ReferenceEquals(CurrentDownload, operation)) return;
                     OnPropertyChanged(nameof(DownloadFraction));
                     OnPropertyChanged(nameof(TransferText));
@@ -1445,8 +1440,8 @@ namespace ASLM.Pages
 
                 // Either install the update or only check whether one is available.
                 var checkedModule = apply
-                    ? await _updates.UpdateModuleAsync(selected, progress, cts.Token)
-                    : await _updates.CheckModuleUpdatesAsync(selected, cts.Token);
+                    ? await _updates.UpdateModuleAsync(selected, progress)
+                    : await _updates.CheckModuleUpdatesAsync(selected);
 
                 // A check changes preferences and the pending candidate, not the installed metadata.
                 // Updating these in place avoids resetting selectors and briefly displaying Loading.
@@ -1486,19 +1481,26 @@ namespace ASLM.Pages
         // Operation tracking
 
         /// <summary>
+        /// Formats the bytes, known percentage, and speed for module installation and update progress.
+        /// </summary>
+        private static string FormatTransferProgress(DownloadProgress progress, double fraction)
+        {
+            var downloaded = DownloadsView.FormatDownloadSize(progress.DownloadedBytes);
+            var detail = progress.TotalBytes > 0
+                ? $"{fraction:P0} · {downloaded} / {DownloadsView.FormatDownloadSize(progress.TotalBytes)}"
+                : downloaded;
+            return DownloadTransferSpeedEstimator.AppendSpeed(detail, progress.BytesPerSecond);
+        }
+
+        /// <summary>
         /// Tracks an owned request; checks have no requested maintenance activity or transfer controls.
         /// </summary>
-        private sealed class ModuleOperation(CancellationTokenSource cancellation, ModuleActivity? requestedActivity)
+        private sealed class ModuleOperation(ModuleActivity? requestedActivity)
         {
             /// <summary>
             /// Maintenance activity the request started, or null for a plain update check.
             /// </summary>
             public ModuleActivity? RequestedActivity { get; } = requestedActivity;
-
-            /// <summary>
-            /// Cancellation source that cancels the request.
-            /// </summary>
-            public CancellationTokenSource Cancellation { get; } = cancellation;
 
             /// <summary>
             /// Transfer progress from 0 to 1.

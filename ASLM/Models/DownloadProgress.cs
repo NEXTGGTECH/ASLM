@@ -9,9 +9,11 @@ namespace ASLM.Models
     /// <param name="DownloadedBytes">Total bytes downloaded so far.</param>
     /// <param name="TotalBytes">Expected total file size in bytes.</param>
     /// <param name="ActiveTransferName">Optional label for the active file or stream.</param>
+    /// <param name="BytesPerSecond">Recent transfer speed, or null until measured or after the transfer ends.</param>
     public record DownloadProgress(
         double Fraction,
         long DownloadedBytes,
         long TotalBytes,
-        string? ActiveTransferName = null);
+        string? ActiveTransferName = null,
+        double? BytesPerSecond = null);
 }

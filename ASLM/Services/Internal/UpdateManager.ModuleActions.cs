@@ -54,6 +54,38 @@ namespace ASLM.Services.Internal
             _manualModuleUpdates.TryGetValue(sourcePath, out var phase) && phase == ManualModuleUpdatePhase.Checking;
 
 
+        /// <summary>
+        /// Reports whether the active update can still be canceled from the module information view.
+        /// </summary>
+        internal bool CanCancelModuleUpdate(string sourcePath) =>
+            _updateOperations.GetCancellation(GetModuleOperationKey(sourcePath))?.CanCancel == true;
+
+        /// <summary>
+        /// Cancels the shared attempt that is currently updating the selected module.
+        /// </summary>
+        internal void CancelModuleUpdate(string sourcePath)
+        {
+            if (_updateOperations.GetCancellation(GetModuleOperationKey(sourcePath)) is { } cancellation)
+                TryCancelModuleUpdate(cancellation);
+        }
+
+        /// <summary>
+        /// Refreshes module controls once cancellation has been accepted from either view.
+        /// </summary>
+        private bool TryCancelModuleUpdate(OperationCancellation cancellation)
+        {
+            if (!cancellation.TryCancel()) return false;
+            RaiseModuleUpdateStateChanged();
+            return true;
+        }
+
+        /// <summary>
+        /// Identifies the same installed module for scheduled and interactive update attempts.
+        /// </summary>
+        private static string GetModuleOperationKey(string sourcePath) =>
+            NotificationCenter.BuildOperationKey("module", sourcePath);
+
+
         // Explicit user actions
 
         /// <summary>
@@ -70,6 +102,13 @@ namespace ASLM.Services.Internal
             RunModuleUpdateAsync(module, apply: true, progress, ct);
 
 
+        /// <summary>
+        /// Runs the card's update flow and reports check failures in the notification UI as well as the console.
+        /// </summary>
+        internal Task<ModuleConfig?> UpdateModuleFromNotificationAsync(ModuleConfig module) =>
+            RunModuleUpdateAsync(module, apply: true, notifyFailure: true);
+
+
         // Shared execution
 
         /// <summary>
@@ -77,7 +116,7 @@ namespace ASLM.Services.Internal
         /// Returns null when the action was rejected as a duplicate, failed, or was canceled.
         /// </summary>
         private async Task<ModuleConfig?> RunModuleUpdateAsync(ModuleConfig module, bool apply,
-            IProgress<DownloadProgress>? progress = null, CancellationToken ct = default)
+            IProgress<DownloadProgress>? progress = null, CancellationToken ct = default, bool notifyFailure = false)
         {
             // A card and an open ModuleInfo must not start the same operation twice.
             if (!_manualModuleUpdates.TryAdd(module.SourcePath, ManualModuleUpdatePhase.Checking))
@@ -97,19 +136,23 @@ namespace ASLM.Services.Internal
                 using var operation = await ModuleInstaller.BeginContentOperationAsync(ct, module).ConfigureAwait(false);
 
                 // Cards can outlive configuration edits; always use the persisted channel and target.
+                var isCurrent = BeginUpdateCheck("module", module.Id);
                 var selected = await _moduleInstaller.LoadModuleConfig(module.SourcePath).ConfigureAwait(false);
                 if (selected == null || !string.Equals(selected.Id, module.Id, StringComparison.OrdinalIgnoreCase) ||
                     !_moduleInstaller.Registry.ReadIds().Contains(selected.Id))
                 {
+                    InvalidateModuleUpdateOffer(module.Id);
                     throw new InvalidOperationException(L.Get(LocalizationKeys.ModuleInfo_NotAvailable, module.Name));
                 }
 
                 // Check the repository and persist the result as the module's pending update (or clear it).
                 ct.ThrowIfCancellationRequested();
                 log.Report(L.Get(LocalizationKeys.ModuleUpdate_Log_CheckingFormat, selected.Name));
-                var candidate = await CheckModuleUpdateAsync(selected, ct,
-                    publishUpdateNotification: false, isManualRequest: true).ConfigureAwait(false);
+                var candidate = await CheckModuleUpdateCoreAsync(selected, ct,
+                    publishUpdateNotification: false, isManualRequest: true, isCurrent).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
+                if (!isCurrent()) return null;
+
                 selected.Update.PendingUpdate = candidate == null ? null : ModulePendingUpdate.FromCandidate(selected, candidate);
                 SaveModuleUpdatePreferences(selected);
                 if (candidate == null)
@@ -122,6 +165,8 @@ namespace ASLM.Services.Internal
                 log.Report(L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateAvailableFormat, candidate.RemoteVersion));
                 if (!apply)
                 {
+                    CompleteUpdateCheck("module", selected.Id, candidate, publish: true,
+                        BeginUpdateCheck("module", selected.Id));
                     return selected;
                 }
 
@@ -133,9 +178,9 @@ namespace ASLM.Services.Internal
                 log.Report(L.Get(success ? LocalizationKeys.ModuleUpdate_Status_Updated : LocalizationKeys.ModuleUpdate_Status_UpdateFailed));
                 return selected;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException)
             {
-                // The caller canceled: record it in the console; the cancellation is not an error.
+                // Either view can cancel the shared attempt; cancellation is not an update failure.
                 log?.Report(L.Get(LocalizationKeys.ModuleInfo_Canceled));
             }
             catch (Exception ex)
@@ -143,6 +188,12 @@ namespace ASLM.Services.Internal
                 // Background card actions have no dialog owner; keep failures in the same module console.
                 _logger.LogError(ex, "Manual module update failed for {ModuleId}.", module.Id);
                 log?.Report(L.Get(LocalizationKeys.ModuleInfo_Failed, ex.Message));
+                if (notifyFailure)
+                {
+                    _notifications.PublishSystemToast(L.Get(LocalizationKeys.Notifications_UpdateActionTitle),
+                        ex.Message, L.Get(LocalizationKeys.Notifications_ActionFailed), "module-update-action-failed",
+                        module.Id, AppNotificationSeverity.Error);
+                }
             }
             finally
             {

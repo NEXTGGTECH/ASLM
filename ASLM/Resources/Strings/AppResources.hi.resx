@@ -786,9 +786,6 @@
   <data name="Notifications_ActionFailed" xml:space="preserve">
     <value>कार्रवाई विफल</value>
   </data>
-  <data name="Notifications_AslmUpdateAvailable" xml:space="preserve">
-    <value>ASLM अपडेट उपलब्ध</value>
-  </data>
   <data name="Notifications_AslmUpdateNotAvailable" xml:space="preserve">
     <value>अभी कोई ASLM अपडेट उपलब्ध नहीं है</value>
   </data>
@@ -801,9 +798,6 @@
   <data name="Notifications_AslmUpdateTitle" xml:space="preserve">
     <value>ASLM अपडेट</value>
   </data>
-  <data name="Notifications_ChannelFormat" xml:space="preserve">
-    <value>चैनल: {0}</value>
-  </data>
   <data name="Notifications_ClearAll" xml:space="preserve">
     <value>सभी साफ़ करें</value>
   </data>
@@ -812,9 +806,6 @@
   </data>
   <data name="Notifications_EmptyTitle" xml:space="preserve">
     <value>कोई सूचना नहीं</value>
-  </data>
-  <data name="Notifications_EngineUpdateAvailable" xml:space="preserve">
-    <value>इंजन अपडेट उपलब्ध है</value>
   </data>
   <data name="Notifications_EngineUpdateFailed" xml:space="preserve">
     <value>इंजन अपडेट लागू नहीं किया जा सका</value>
@@ -825,20 +816,38 @@
   <data name="Notifications_EngineUpdateTitle" xml:space="preserve">
     <value>इंजन अपडेट</value>
   </data>
+  <data name="Notifications_InstalledFormat" xml:space="preserve">
+    <value>{0} इंस्टॉल हो गया</value>
+  </data>
   <data name="Notifications_InstalledVersionFallback" xml:space="preserve">
     <value>इंस्टॉल किया गया संस्करण</value>
+  </data>
+  <data name="Notifications_InstalledVersionFormat" xml:space="preserve">
+    <value>{0} {1} इंस्टॉल हो गया</value>
+  </data>
+  <data name="Notifications_InstallingFiles" xml:space="preserve">
+    <value>फ़ाइलें इंस्टॉल हो रही हैं</value>
   </data>
   <data name="Notifications_ModuleNotInstalledMessage" xml:space="preserve">
     <value>वह मॉड्यूल अब इंस्टॉल नहीं है</value>
   </data>
-  <data name="Notifications_ModuleUpdateAvailable" xml:space="preserve">
-    <value>मॉड्यूल अपडेट उपलब्ध</value>
+  <data name="Notifications_OperationCanceled" xml:space="preserve">
+    <value>कार्रवाई रद्द कर दी गई</value>
   </data>
-  <data name="Notifications_NewVersionFound" xml:space="preserve">
-    <value>नया संस्करण मिला</value>
+  <data name="Notifications_OperationInterrupted" xml:space="preserve">
+    <value>प्रक्रिया बीच में रुक गई</value>
+  </data>
+  <data name="Notifications_PreparingFiles" xml:space="preserve">
+    <value>फ़ाइलें तैयार की जा रही हैं</value>
+  </data>
+  <data name="Notifications_RestartToFinishUpdate" xml:space="preserve">
+    <value>अपडेट पूरा करने के लिए ऐप फिर से शुरू करें</value>
   </data>
   <data name="Notifications_SectionRecent" xml:space="preserve">
     <value>हालिया</value>
+  </data>
+  <data name="Notifications_StartingDownload" xml:space="preserve">
+    <value>डाउनलोड शुरू हो रहा है</value>
   </data>
   <data name="Notifications_SummaryFormat" xml:space="preserve">
     <value>कुल {0}</value>
@@ -852,11 +861,23 @@
   <data name="Notifications_UpdateActionTitle" xml:space="preserve">
     <value>अपडेट</value>
   </data>
+  <data name="Notifications_UpdateAvailableFormat" xml:space="preserve">
+    <value>{0} का अपडेट {1} उपलब्ध है</value>
+  </data>
+  <data name="Notifications_UpdateAvailableFromFormat" xml:space="preserve">
+    <value>{0} का अपडेट उपलब्ध है ({1} -&gt; {2})</value>
+  </data>
   <data name="Notifications_UpdateLater" xml:space="preserve">
     <value>बाद में अपडेट करें</value>
   </data>
   <data name="Notifications_UpdateNow" xml:space="preserve">
     <value>अभी अपडेट करें</value>
+  </data>
+  <data name="Notifications_UpdatedFormat" xml:space="preserve">
+    <value>{0} को {1} पर अपडेट किया गया</value>
+  </data>
+  <data name="Notifications_UpdatingFormat" xml:space="preserve">
+    <value>{0} को {1} पर अपडेट किया जा रहा है</value>
   </data>
   <data name="Settings_Accounts_SectionAslm" xml:space="preserve">
     <value>ASLM खाता</value>
