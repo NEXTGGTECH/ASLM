@@ -655,14 +655,10 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Stops modules, starts the launcher with process wait, and exits so ASLM relaunches cleanly.
+        /// Uses the application lifetime to restart through the launcher.
         /// </summary>
-        private async Task RestartApplicationThroughLauncherAsync()
-        {
-            await _settingsService.StopAllModulesAsync();
-            await Task.Run(SettingsService.StartLauncherForApplicationRestart);
-            Application.Current?.Quit();
-        }
+        private static Task RestartApplicationThroughLauncherAsync() =>
+            Application.Current is App app ? app.RestartThroughLauncherAsync() : Task.CompletedTask;
 
         /// <summary>
         /// Restarts the application startup chain so app-level changes take effect.

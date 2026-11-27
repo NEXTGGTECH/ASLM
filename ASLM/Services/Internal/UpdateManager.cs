@@ -198,6 +198,11 @@ namespace ASLM.Services.Internal
             return _updateOperations.GetSnapshot(NotificationCenter.BuildOperationKey(targetKind, targetId));
         }
 
+        /// <summary>
+        /// Stops accepting updates and waits for active file changes to finish or unwind.
+        /// </summary>
+        internal Task StopAsync() => _updateOperations.StopAsync();
+
 
         // Configuration
 

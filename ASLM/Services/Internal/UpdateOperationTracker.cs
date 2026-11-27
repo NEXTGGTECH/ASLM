@@ -27,6 +27,11 @@ namespace ASLM.Services.Internal
         private readonly Dictionary<string, Operation> _operations = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Prevents new update attempts once the application starts closing.
+        /// </summary>
+        private bool _stopping;
+
+        /// <summary>
         /// Notifies listeners when an operation starts, changes stage or progress, or finishes.
         /// </summary>
         internal event EventHandler? StateChanged;
@@ -54,6 +59,27 @@ namespace ASLM.Services.Internal
             lock (_sync) return _operations.GetValueOrDefault(key)?.Cancellation;
         }
 
+        /// <summary>
+        /// Cancels update preparation and lets updates that reached their commit boundary finish.
+        /// </summary>
+        internal async Task StopAsync()
+        {
+            Operation[] operations;
+            lock (_sync)
+            {
+                _stopping = true;
+                operations = _operations.Values.ToArray();
+            }
+
+            foreach (var operation in operations) operation.Cancellation.TryCancel();
+            try { await Task.WhenAll(operations.Select(operation => operation.Completion.Task)).ConfigureAwait(false); }
+            catch (OperationCanceledException)
+            {
+                // Canceled updates have already completed their cleanup.
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[UpdateOperations] Shutdown: {ex}"); }
+        }
+
 
         // Shared execution
 
@@ -73,6 +99,8 @@ namespace ASLM.Services.Internal
             Operation operation;
             lock (_sync)
             {
+                if (_stopping) return Task.FromCanceled<bool>(new CancellationToken(canceled: true));
+
                 // Automatic updates, settings, and notification actions share the same target reservation.
                 if (_operations.TryGetValue(key, out var existing))
                 {

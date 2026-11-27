@@ -37,6 +37,11 @@ namespace ASLM.Services.Engines
         /// </summary>
         private readonly ILogger<OllamaSettingsStore> _logger;
 
+        /// <summary>
+        /// Owns the runtime started by ASLM so it can be stopped with the other managed processes.
+        /// </summary>
+        private readonly ProcessTracker? _processTracker;
+
 
         // Runtime and account state
 
@@ -78,8 +83,9 @@ namespace ASLM.Services.Engines
         /// </summary>
         public OllamaSettingsStore(
             EngineInstaller engineInstaller,
-            ILogger<OllamaSettingsStore> logger)
-            : this(engineInstaller, logger, new HttpClient { Timeout = TimeSpan.FromSeconds(2) }, null)
+            ILogger<OllamaSettingsStore> logger,
+            ProcessTracker? processTracker = null)
+            : this(engineInstaller, logger, new HttpClient { Timeout = TimeSpan.FromSeconds(2) }, null, processTracker)
         {
         }
 
@@ -91,12 +97,14 @@ namespace ASLM.Services.Engines
             EngineInstaller engineInstaller,
             ILogger<OllamaSettingsStore> logger,
             HttpClient httpClient,
-            int? managedPort)
+            int? managedPort,
+            ProcessTracker? processTracker = null)
         {
             _engineInstaller = engineInstaller ?? throw new ArgumentNullException(nameof(engineInstaller));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _managedPortOverride = managedPort;
+            _processTracker = processTracker;
         }
 
 
@@ -332,7 +340,7 @@ namespace ASLM.Services.Engines
                     };
 
                     _managedRuntimeProcess = runtimeProcess;
-                    if (!_managedRuntimeProcess.Start())
+                    if (!(_processTracker?.StartProcess(runtimeProcess) ?? runtimeProcess.Start()))
                     {
                         _managedRuntimeProcess.Dispose();
                         _managedRuntimeProcess = null;

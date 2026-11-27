@@ -101,6 +101,16 @@ namespace ASLM.Services.Internal
         private CancellationTokenSource? _cts;
 
         /// <summary>
+        /// Serializes scheduler startup with the final shutdown request.
+        /// </summary>
+        private readonly object _lifetimeLock = new();
+
+        /// <summary>
+        /// Prevents late startup from creating a scheduler after the application has started closing.
+        /// </summary>
+        private bool _shuttingDown;
+
+        /// <summary>
         /// Task of the running background loop; null while the scheduler is not running.
         /// </summary>
         private Task? _worker;
@@ -230,17 +240,29 @@ namespace ASLM.Services.Internal
         /// </summary>
         public void Start()
         {
-            if (_worker != null)
+            lock (_lifetimeLock)
             {
-                return;
+                if (_worker != null || _shuttingDown) return;
+                _cts = new CancellationTokenSource();
+                var token = _cts.Token;
+                _worker = Task.Run(() => RunAsync(token));
             }
-
-            _cts = new CancellationTokenSource();
-            _worker = Task.Run(() => RunAsync(_cts.Token));
         }
 
 
         // Shutdown
+
+        /// <summary>
+        /// Signals app shutdown without waiting for an update check or running cancellation callbacks on the caller.
+        /// </summary>
+        internal void CancelForShutdown()
+        {
+            lock (_lifetimeLock)
+            {
+                _shuttingDown = true;
+                _ = _cts?.CancelAsync();
+            }
+        }
 
         /// <summary>
         /// Stops the background loop and waits until it has finished.

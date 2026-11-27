@@ -138,11 +138,6 @@ namespace ASLM.Pages
         private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
 
         /// <summary>
-        /// Settings service; the shell uses it to stop all modules and start the launcher for a self-update.
-        /// </summary>
-        private readonly SettingsService _settingsService;
-
-        /// <summary>
         /// Service that tracks acceptance of the legal documents.
         /// </summary>
         private readonly LegalAcceptanceService _legalAcceptance;
@@ -274,7 +269,6 @@ namespace ASLM.Pages
         /// <param name="moduleTrustService">Service that resolves module trust levels.</param>
         /// <param name="mirrorServer">Local ASLM API mirror server.</param>
         /// <param name="moduleLaunchCoordinator">Coordinator that runs the module launch sequence.</param>
-        /// <param name="settingsService">Settings service used to stop modules and start the update launcher.</param>
         /// <param name="legalAcceptance">Service that tracks acceptance of the legal documents.</param>
         /// <param name="localization">Localization service whose language changes re-apply the texts.</param>
         /// <param name="services">Service provider used to resolve views and dialogs on demand.</param>
@@ -289,7 +283,6 @@ namespace ASLM.Pages
             ModuleTrustService moduleTrustService,
             AslmMirrorServer mirrorServer,
             ModuleLaunchCoordinator moduleLaunchCoordinator,
-            SettingsService settingsService,
             LegalAcceptanceService legalAcceptance,
             AppLocalizationService localization,
             IServiceProvider services)
@@ -304,7 +297,6 @@ namespace ASLM.Pages
             _moduleTrustService = moduleTrustService;
             _mirrorServer = mirrorServer;
             _moduleLaunchCoordinator = moduleLaunchCoordinator;
-            _settingsService = settingsService;
             _legalAcceptance = legalAcceptance;
             _localization = localization;
             _services = services;
@@ -1134,9 +1126,7 @@ namespace ASLM.Pages
             }
 
             _notifications.WithdrawUpdateOffer(notification);
-            await _settingsService.StopAllModulesAsync();
-            await Task.Run(SettingsService.StartLauncherForSelfUpdate);
-            Application.Current?.Quit();
+            if (Application.Current is App app) await app.RestartThroughLauncherAsync();
         }
 
         /// <summary>

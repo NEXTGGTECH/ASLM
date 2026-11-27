@@ -135,6 +135,16 @@ namespace ASLM.Pages
         private CancellationTokenSource? _cts;
 
         /// <summary>
+        /// Completes when the active setup installation settles, including any cleanup following cancellation.
+        /// </summary>
+        private Task _installationTask = Task.CompletedTask;
+
+        /// <summary>
+        /// Prevents a new setup run while the application is finishing shutdown.
+        /// </summary>
+        private bool _closing;
+
+        /// <summary>
         /// Key that identifies the current installation run to the console view, so it resets its scroll position.
         /// </summary>
         private string _installLogSessionKey = string.Empty;
@@ -1051,15 +1061,38 @@ namespace ASLM.Pages
         /// Saves the wizard data and installs the selected module stack. Does nothing while an installation is
         /// already running, and turns an unexpected failure into a log entry with retry and skip actions.
         /// </summary>
-        private async Task StartInstallAsync()
+        private Task StartInstallAsync()
         {
-            // Mark the installation as running first, so a second start is rejected.
-            if (_installState == InstallationState.Running) return;
+            if (_closing || _installState == InstallationState.Running) return Task.CompletedTask;
             _installState = InstallationState.Running;
             ButtonPanel.IsVisible = false;
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+            return _installationTask = RunInstallationAsync(_cts.Token);
+        }
+
+        /// <summary>
+        /// Cancels first-run installation and returns its cleanup task to the application lifetime.
+        /// </summary>
+        internal Task StopInstallationAsync()
+        {
+            _closing = true;
+            _ = _cts?.CancelAsync();
+            return _installationTask;
+        }
+
+        /// <summary>
+        /// Runs the selected installation and keeps failures visible in the wizard.
+        /// </summary>
+        private async Task RunInstallationAsync(CancellationToken ct)
+        {
             try
             {
-                await InstallSelectedModulesAsync();
+                await InstallSelectedModulesAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Closing during the selection load ends the run before installation starts.
             }
             catch (Exception ex)
             {
@@ -1081,10 +1114,10 @@ namespace ASLM.Pages
         /// The outcome is reflected in the log, the status texts and the navigation buttons: finish after complete
         /// success, retry and skip after a failure or cancellation.
         /// </summary>
-        private async Task InstallSelectedModulesAsync()
+        private async Task InstallSelectedModulesAsync(CancellationToken ct)
         {
             // Make sure the cards exist, so the selection below reflects the user's choices.
-            await (_moduleListLoadTask ??= PopulateModuleListAsync());
+            await (_moduleListLoadTask ??= PopulateModuleListAsync()).WaitAsync(ct);
 
             // Persist the profile and port values before any installation begins.
             if (SunriseService.IsEnabled && _appData.Data.User.AccountMode == AppAccountMode.Local &&
@@ -1125,9 +1158,7 @@ namespace ASLM.Pages
             PublishInstallLog();
             InstallPanel.InvalidateMeasure();
 
-            // Each run gets its own cancellation source, and installer output goes straight into the log.
-            _cts?.Dispose();
-            _cts = new CancellationTokenSource();
+            // Installer output goes straight into the log.
             var logProgress = new InlineProgress<string>(AddLog);
 
             // Resolve the modules to install: the selection plus required modules, expanded with their dependencies.
@@ -1135,7 +1166,7 @@ namespace ASLM.Pages
             IReadOnlyList<ModuleConfig> installModules;
             try
             {
-                catalog = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync(), _cts.Token);
+                catalog = await Task.Run(() => _moduleInstaller.DiscoverModulesAsync(), ct);
 
                 // Required choices do not depend on the checkbox's enabled state or list-loading timing.
                 // Entries without a discovered manifest are intentionally skipped.
@@ -1168,7 +1199,7 @@ namespace ASLM.Pages
 
             // Rediscover the engines from disk so installed state is current, then total up the steps.
             _engineInstaller.InvalidateCache();
-            var allEngines = await Task.Run(() => _engineInstaller.DiscoverEngines(), _cts.Token);
+            var allEngines = await Task.Run(() => _engineInstaller.DiscoverEngines(), ct);
             totalSteps += requiredEngineIds.Count;
             totalSteps += installModules.Sum(GetModuleInstallStepCount);
 
@@ -1225,8 +1256,8 @@ namespace ASLM.Pages
                     UpdateInstallStatus($"{engine.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
                     ResetFileProgress();
                     await Task.Run(
-                        () => _engineInstaller.InstallAsync(engine, logProgress, downloadProgress, _cts.Token),
-                        _cts.Token);
+                        () => _engineInstaller.InstallAsync(engine, logProgress, downloadProgress, ct),
+                        ct);
                     completedSteps++;
                     UpdateOverallProgress(completedSteps, totalSteps);
                     ResetFileProgress();
@@ -1242,7 +1273,7 @@ namespace ASLM.Pages
                         AddLog($"[OK] {module.Name} already set up.");
                         completedSteps += GetModuleInstallStepCount(module);
                         UpdateOverallProgress(completedSteps, totalSteps);
-                        hasFailures |= !await LaunchInstalledModuleAsync(module, logProgress, _cts.Token);
+                        hasFailures |= !await LaunchInstalledModuleAsync(module, logProgress, ct);
                         continue;
                     }
 
@@ -1256,7 +1287,7 @@ namespace ASLM.Pages
                             module,
                             logProgress,
                             downloadProgress,
-                            _cts.Token);
+                            ct);
 
                         completedSteps += GetModuleInstallStepCount(module);
                         UpdateOverallProgress(completedSteps, totalSteps);
@@ -1267,7 +1298,7 @@ namespace ASLM.Pages
                             : $"[Error] Installation failed for {module.Name}");
                         hasFailures |= !updateInstalled;
                         if (updateInstalled)
-                            hasFailures |= !await LaunchInstalledModuleAsync(module, logProgress, _cts.Token);
+                            hasFailures |= !await LaunchInstalledModuleAsync(module, logProgress, ct);
                         continue;
                     }
 
@@ -1280,8 +1311,8 @@ namespace ASLM.Pages
                             module,
                             logProgress,
                             downloadProgress,
-                            _cts.Token),
-                        _cts.Token);
+                            ct),
+                        ct);
                     completedSteps++;
                     UpdateOverallProgress(completedSteps, totalSteps);
                     ResetFileProgress();
@@ -1310,13 +1341,13 @@ namespace ASLM.Pages
                         installedModule,
                         logProgress,
                         downloadProgress,
-                        _cts.Token);
+                        ct);
 
                     // Legacy path, step 2 of 2: run the module's first-run setup and save its config on success.
                     UpdateInstallStatus($"{installedModule.Name}: {L.Get(LocalizationKeys.SetupWizard_Installing)}");
                     var success = await Task.Run(
-                        () => _moduleRunner.ExecuteFirstRunAsync(installedModule, logProgress, _cts.Token),
-                        _cts.Token);
+                        () => _moduleRunner.ExecuteFirstRunAsync(installedModule, logProgress, ct),
+                        ct);
                     if (success)
                     {
                         await _moduleInstaller.SaveConfigAsync(installedModule);
@@ -1331,7 +1362,7 @@ namespace ASLM.Pages
                         : $"[Error] Setup failed for {module.Name}");
                     hasFailures |= !success;
                     if (success)
-                        hasFailures |= !await LaunchInstalledModuleAsync(installedModule, logProgress, _cts.Token);
+                        hasFailures |= !await LaunchInstalledModuleAsync(installedModule, logProgress, ct);
                 }
 
                 // Show the final status of the whole run.

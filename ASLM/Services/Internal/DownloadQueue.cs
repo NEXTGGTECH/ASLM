@@ -66,6 +66,11 @@ namespace ASLM.Services.Internal
         /// </summary>
         private readonly Dictionary<DownloadQueueKind, Task> _tails = [];
 
+        /// <summary>
+        /// Prevents new file operations from entering after shutdown takes ownership of the queue.
+        /// </summary>
+        private bool _stopping;
+
 
         // Nested types
 
@@ -178,6 +183,27 @@ namespace ASLM.Services.Internal
             entry?.Cancellation.TryCancel();
         }
 
+        /// <summary>
+        /// Cancels transfers and waits for started file operations and their rollback to settle.
+        /// </summary>
+        internal async Task StopAsync()
+        {
+            Entry[] pending;
+            lock (_sync)
+            {
+                _stopping = true;
+                pending = _pending.Values.ToArray();
+            }
+
+            foreach (var entry in pending) entry.Cancellation.TryCancel();
+            try { await Task.WhenAll(pending.Select(entry => entry.Task)).ConfigureAwait(false); }
+            catch (OperationCanceledException)
+            {
+                // Canceled operations have already completed queue cleanup.
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[DownloadQueue] Shutdown: {ex}"); }
+        }
+
 
         // Enqueueing
 
@@ -208,6 +234,8 @@ namespace ASLM.Services.Internal
             Task<T> task;
             lock (_sync)
             {
+                if (_stopping) return Task.FromCanceled<T>(new CancellationToken(canceled: true));
+
                 // Join an operation that is already pending under the same key.
                 if (_pending.TryGetValue(key, out var existing)) return (Task<T>)existing.Task;
 
@@ -224,6 +252,7 @@ namespace ASLM.Services.Internal
                     try
                     {
                         // Prepare immediately, wait for the lane, and only then switch to the running state.
+                        token.ThrowIfCancellationRequested();
                         if (prepare != null) await prepare(token).ConfigureAwait(false);
                         await previous.WaitAsync(token).ConfigureAwait(false);
                         token.ThrowIfCancellationRequested();

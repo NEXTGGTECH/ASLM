@@ -503,6 +503,11 @@ namespace ASLM.Services.Modules
         /// </summary>
         internal ModuleConsoleStore ConsoleStore => _consoleStore;
 
+        /// <summary>
+        /// Starts a module command under the application's process ownership.
+        /// </summary>
+        private bool StartProcess(Process process) => _processTracker?.StartProcess(process) ?? process.Start();
+
 
         // Module stop
 
@@ -1008,7 +1013,7 @@ namespace ASLM.Services.Modules
 
                 using var process = new Process { StartInfo = psi };
 
-                if (!process.Start())
+                if (!StartProcess(process))
                 {
                     log.Report($"✗ Failed to start package manager for {engineDep.Id}");
                     return false;
@@ -1030,9 +1035,6 @@ namespace ASLM.Services.Modules
                     $"Exec: {Path.GetFileName(exePath)} {args}",
                     process,
                     isTrackedProcess: false);
-
-                // Assign to the job object so dependency installs stay grouped under ASLM.
-                _processTracker.AddProcess(process);
 
                 // Read the output into the session and the log, and wait until the installer has exited and its
                 // output has ended; a non-zero exit code aborts the setup.
@@ -1178,7 +1180,7 @@ namespace ASLM.Services.Modules
                     ObjectDisposedException.ThrowIf(_disposed, this);
                     if (trackProcess && _runs.TryGetValue(module.SourcePath, out run))
                         run.Stop.Token.ThrowIfCancellationRequested();
-                    if (!process.Start())
+                    if (!StartProcess(process))
                     {
                         log.Report("Failed to start process.");
                         return false;
@@ -1212,9 +1214,6 @@ namespace ASLM.Services.Modules
                     process,
                     isTrackedProcess: trackProcess);
                 session = sessionHandle;
-
-                // Assign to the job object so launched processes stay grouped under ASLM.
-                _processTracker?.AddProcess(process);
 
                 // Tracked run commands get an observer that keeps listing the process's descendants in the console.
                 if (run != null)

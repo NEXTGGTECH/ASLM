@@ -135,6 +135,7 @@ namespace ASLM
             builder.Services.AddTransient<ModuleInfo>();
 
 #if WINDOWS
+            App.ConfigureWindowsLifetime();
             ConfigureWindowsCompactControlSizing();
 #endif
 
