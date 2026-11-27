@@ -34,8 +34,8 @@ namespace ASLM.Services.Internal
     /// </summary>
     /// <param name="UserName">Display name as loaded.</param>
     /// <param name="PortStart">First module port as loaded, kept as the draft text.</param>
-    /// <param name="ApiServerEnabled">Whether the local API server was enabled when loaded.</param>
-    public sealed record AslmBaseline(string UserName, string PortStart, bool ApiServerEnabled);
+    /// <param name="AslmApiPageVisible">Whether the ASLM API page was visible when loaded.</param>
+    public sealed record AslmBaseline(string UserName, string PortStart, bool AslmApiPageVisible);
 
     /// <summary>
     /// Stores the initial console preferences loaded for the current page session.
@@ -59,11 +59,11 @@ namespace ASLM.Services.Internal
         string ModuleDefaultChannel);
 
     /// <summary>
-    /// Snapshot of editable ASLM drafts derived from persisted app data and runtime state.
+    /// Snapshot of editable ASLM drafts derived from persisted app data.
     /// </summary>
     /// <param name="UserName">Persisted display name.</param>
     /// <param name="PortStart">Persisted first module port as draft text.</param>
-    /// <param name="ApiServerEnabled">Whether the local API server is currently enabled.</param>
+    /// <param name="AslmApiPageVisible">Whether the ASLM API page is shown in the sidebar.</param>
     /// <param name="RestoreLastPage">Whether ASLM restores the last shell page on startup.</param>
     /// <param name="DisableHomePage">Whether the home page is disabled.</param>
     /// <param name="ConsoleBaseline">Persisted console preferences.</param>
@@ -71,7 +71,7 @@ namespace ASLM.Services.Internal
     public sealed record AslmDraftSnapshot(
         string UserName,
         string PortStart,
-        bool ApiServerEnabled,
+        bool AslmApiPageVisible,
         bool RestoreLastPage,
         bool DisableHomePage,
         ConsoleBaseline ConsoleBaseline,
@@ -400,9 +400,9 @@ namespace ASLM.Services.Internal
         // ASLM drafts and persistence
 
         /// <summary>
-        /// Builds editable ASLM draft values from persisted app data and runtime API-state.
+        /// Builds editable ASLM draft values from persisted app data.
         /// </summary>
-        public static AslmDraftSnapshot BuildAslmDraftSnapshot(AppDataStore appData, bool apiServerEnabled)
+        public static AslmDraftSnapshot BuildAslmDraftSnapshot(AppDataStore appData)
         {
             // Normalize first so the drafts start from valid, coerced values.
             appData.Data.Consoles.Normalize();
@@ -412,7 +412,7 @@ namespace ASLM.Services.Internal
             return new AslmDraftSnapshot(
                 appData.Data.User.Name ?? string.Empty,
                 appData.Data.Ports.ModulesStart.ToString(CultureInfo.InvariantCulture),
-                apiServerEnabled,
+                appData.Data.Api.SidebarVisible,
                 appData.Data.Navigation.RestoreLastPage,
                 appData.Data.Navigation.DisableHomePage,
                 new ConsoleBaseline(
@@ -438,6 +438,7 @@ namespace ASLM.Services.Internal
             AppUpdateSettings updateSettings,
             bool restoreLastPage,
             bool disableHomePage,
+            bool aslmApiPageVisible,
             bool legalAutoAcceptUpdates)
         {
             // The display name is only editable in builds with ASLM accounts; local accounts keep it in LocalName too.
@@ -467,6 +468,7 @@ namespace ASLM.Services.Internal
             appData.Data.Navigation.RestoreLastPage = restoreLastPage;
             appData.Data.Navigation.DisableHomePage = disableHomePage;
             appData.Data.Navigation.Normalize();
+            appData.Data.Api.SidebarVisible = aslmApiPageVisible;
 
             appData.Data.Legal.AutoAcceptUpdates = legalAutoAcceptUpdates;
             appData.Data.Legal.Normalize();
@@ -489,7 +491,7 @@ namespace ASLM.Services.Internal
         /// <summary>
         /// Builds ASLM defaults for ports, API, console, navigation, and legal sections.
         /// </summary>
-        public static (string PortStart, bool ApiServerEnabled, ConsoleBaseline ConsoleDefaults, bool RestoreLastPage, bool DisableHomePage, bool LegalAutoAcceptUpdates) BuildDefaultAslmDrafts()
+        public static (string PortStart, bool AslmApiPageVisible, ConsoleBaseline ConsoleDefaults, bool RestoreLastPage, bool DisableHomePage, bool LegalAutoAcceptUpdates) BuildDefaultAslmDrafts()
         {
             var defaultPorts = new AppPortConfig();
             var defaultConsoles = new AppConsoleConfig();
@@ -498,7 +500,7 @@ namespace ASLM.Services.Internal
             defaultLegal.Normalize();
             return (
                 defaultPorts.ModulesStart.ToString(CultureInfo.InvariantCulture),
-                new AppApiConfig().ServerEnabled,
+                new AppApiConfig().SidebarVisible,
                 new ConsoleBaseline(
                     defaultConsoles.SidebarVisible,
                     defaultConsoles.ShowCompletedProcesses,
@@ -524,10 +526,10 @@ namespace ASLM.Services.Internal
             !string.Equals(portStart, baseline.PortStart, StringComparison.Ordinal);
 
         /// <summary>
-        /// Checks whether API-enabled draft differs from baseline.
+        /// Checks whether ASLM API page visibility differs from the baseline.
         /// </summary>
-        public static bool HasUnsavedApiServerChanges(bool apiServerEnabled, AslmBaseline baseline) =>
-            apiServerEnabled != baseline.ApiServerEnabled;
+        public static bool HasUnsavedAslmApiPageChanges(bool aslmApiPageVisible, AslmBaseline baseline) =>
+            aslmApiPageVisible != baseline.AslmApiPageVisible;
 
         /// <summary>
         /// Checks whether console draft differs from baseline.
@@ -552,11 +554,11 @@ namespace ASLM.Services.Internal
 
         /// <summary>
         /// Checks whether any ASLM setting except the account display name differs from its baseline:
-        /// ports, API server, consoles, updates and legal preferences.
+        /// ports, ASLM API page visibility, consoles, updates and legal preferences.
         /// </summary>
         public static bool HasUnsavedAslmSettingsChanges(
             string portStart,
-            bool apiServerEnabled,
+            bool aslmApiPageVisible,
             ConsoleBaseline consoleDraft,
             UpdateBaseline updateDraft,
             bool legalAutoAcceptUpdates,
@@ -565,7 +567,7 @@ namespace ASLM.Services.Internal
             UpdateBaseline updateBaseline,
             bool legalBaseline) =>
             HasUnsavedPortChanges(portStart, aslmBaseline) ||
-            HasUnsavedApiServerChanges(apiServerEnabled, aslmBaseline) ||
+            HasUnsavedAslmApiPageChanges(aslmApiPageVisible, aslmBaseline) ||
             HasUnsavedConsoleChanges(consoleDraft, consoleBaseline) ||
             HasUnsavedUpdateChanges(updateDraft, updateBaseline) ||
             HasUnsavedLegalChanges(legalAutoAcceptUpdates, legalBaseline);

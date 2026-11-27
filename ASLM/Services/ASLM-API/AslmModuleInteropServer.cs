@@ -205,15 +205,6 @@ namespace ASLM.Services.API
         // Server lifecycle
 
         /// <summary>
-        /// Reserves the interop port in the shared map and starts the JSON listener. This host service is always enabled.
-        /// </summary>
-        public async Task EnsureStartedAsync()
-        {
-            _ports.RedistributePorts(_appData.Data.Api.ServerEnabled);
-            await StartAsync();
-        }
-
-        /// <summary>
         /// Starts the local listener and background request loop. Does nothing when the listener is already running;
         /// a startup failure is stored in <see cref="LastError"/> instead of being thrown.
         /// </summary>
@@ -432,9 +423,8 @@ namespace ASLM.Services.API
         /// </summary>
         private AslmApiResponseDto BuildAslmApiResponseDto()
         {
-            var apiEnabled = _appData.Data.Api.ServerEnabled;
             var apiPort = _ports.TryGetInternalServicePort(PortRegistry.AslmMirrorServiceId, PortRegistry.AslmMirrorPortKey);
-            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiEnabled, apiPort, _mirrorServer.IsRunning);
+            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiPort, _mirrorServer.IsRunning);
             return new AslmApiResponseDto(dto.Enabled, dto.Running, dto.Port, dto.BaseUrl);
         }
 
@@ -443,11 +433,10 @@ namespace ASLM.Services.API
         /// </summary>
         private List<RunningModuleDto> BuildRunningModulesResponseDtos()
         {
-            var apiEnabled = _appData.Data.Api.ServerEnabled;
             var apiPort = _ports.TryGetInternalServicePort(PortRegistry.AslmMirrorServiceId, PortRegistry.AslmMirrorPortKey);
-            var mirrorBase = ModuleInteropPortsBuilder.ResolveMirrorBaseUrl(apiEnabled, apiPort);
+            var mirrorBase = ModuleInteropPortsBuilder.ResolveMirrorBaseUrl(apiPort);
 
-            // Describe each running module with its assigned ports and, when the mirror is active, its mirror URLs.
+            // Describe each running module with its ports and mirror URLs when a proxy port is assigned.
             return _moduleRunner.GetRunningModuleConfigs()
                 .Select(module =>
                 {
@@ -715,7 +704,7 @@ namespace ASLM.Services.API
         /// </summary>
         private sealed record AslmApiResponseDto(
             bool Enabled,
-            bool? Running,
+            bool Running,
             int? Port,
             string? BaseUrl);
 

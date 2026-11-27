@@ -128,11 +128,6 @@ namespace ASLM.Pages
         private readonly ModuleTrustService _moduleTrustService;
 
         /// <summary>
-        /// Local ASLM API mirror server whose state drives the ASLM API navigation button.
-        /// </summary>
-        private readonly AslmMirrorServer _mirrorServer;
-
-        /// <summary>
         /// Coordinator that runs the module launch sequence (first run, enabling, run commands).
         /// </summary>
         private readonly ModuleLaunchCoordinator _moduleLaunchCoordinator;
@@ -267,7 +262,6 @@ namespace ASLM.Pages
         /// <param name="updateManager">Update manager used by update notification actions.</param>
         /// <param name="updateScheduler">Scheduler of the background update checks.</param>
         /// <param name="moduleTrustService">Service that resolves module trust levels.</param>
-        /// <param name="mirrorServer">Local ASLM API mirror server.</param>
         /// <param name="moduleLaunchCoordinator">Coordinator that runs the module launch sequence.</param>
         /// <param name="legalAcceptance">Service that tracks acceptance of the legal documents.</param>
         /// <param name="localization">Localization service whose language changes re-apply the texts.</param>
@@ -281,7 +275,6 @@ namespace ASLM.Pages
             UpdateManager updateManager,
             UpdateScheduler updateScheduler,
             ModuleTrustService moduleTrustService,
-            AslmMirrorServer mirrorServer,
             ModuleLaunchCoordinator moduleLaunchCoordinator,
             LegalAcceptanceService legalAcceptance,
             AppLocalizationService localization,
@@ -295,7 +288,6 @@ namespace ASLM.Pages
             _updateManager = updateManager;
             _updateScheduler = updateScheduler;
             _moduleTrustService = moduleTrustService;
-            _mirrorServer = mirrorServer;
             _moduleLaunchCoordinator = moduleLaunchCoordinator;
             _legalAcceptance = legalAcceptance;
             _localization = localization;
@@ -429,7 +421,6 @@ namespace ASLM.Pages
             _notifications.NotificationPublished += OnNotificationPublished;
             _notifications.NotificationWithdrawn += OnNotificationWithdrawn;
             _notifications.UpdateNotificationActionRequested += OnUpdateNotificationActionRequested;
-            _mirrorServer.StateChanged += OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged += OnModulesChanged;
             _ports.PortsRedistributed += OnPortsRedistributed;
             _moduleRunner.ConsoleStore.ModulePageStateChanged += OnModuleBrowserProcessesChanged;
@@ -450,7 +441,6 @@ namespace ASLM.Pages
             _notifications.NotificationPublished -= OnNotificationPublished;
             _notifications.NotificationWithdrawn -= OnNotificationWithdrawn;
             _notifications.UpdateNotificationActionRequested -= OnUpdateNotificationActionRequested;
-            _mirrorServer.StateChanged -= OnMirrorServerStateChanged;
             _moduleInstaller.ModulesChanged -= OnModulesChanged;
             _ports.PortsRedistributed -= OnPortsRedistributed;
             _moduleRunner.ConsoleStore.ModulePageStateChanged -= OnModuleBrowserProcessesChanged;
@@ -610,20 +600,12 @@ namespace ASLM.Pages
         // Sidebar
 
         /// <summary>
-        /// Refreshes ASLM API sidebar visibility on the main thread when the mirror server state changes.
-        /// </summary>
-        private void OnMirrorServerStateChanged(object? sender, EventArgs e)
-        {
-            MainThread.BeginInvokeOnMainThread(ApplyAslmApiNavigationState);
-        }
-
-        /// <summary>
-        /// Shows the ASLM API navigation item only when the API server is enabled,
-        /// and leaves the ASLM API view for Home when it was active and gets hidden.
+        /// Shows the ASLM API navigation item according to the saved user preference,
+        /// and returns to the default page if the active ASLM API view is hidden.
         /// </summary>
         private void ApplyAslmApiNavigationState()
         {
-            var isVisible = _mirrorServer.IsEnabled;
+            var isVisible = _appData.Data.Api.SidebarVisible;
             AslmApiButton.IsVisible = isVisible;
 
             if (!isVisible && _activeNavButton == AslmApiButton)
@@ -660,9 +642,13 @@ namespace ASLM.Pages
         }
 
         /// <summary>
-        /// Applies the Home page visibility when the navigation settings are saved in the settings overlay.
+        /// Applies built-in page visibility when the navigation settings are saved in the settings overlay.
         /// </summary>
-        private void OnNavigationSettingsSaved(object? sender, EventArgs e) => ApplyHomeNavigationState();
+        private void OnNavigationSettingsSaved(object? sender, EventArgs e)
+        {
+            ApplyHomeNavigationState();
+            ApplyAslmApiNavigationState();
+        }
 
         /// <summary>
         /// Expands or collapses the sidebar and updates every visible button.

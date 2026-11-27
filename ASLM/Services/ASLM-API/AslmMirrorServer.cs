@@ -157,11 +157,6 @@ namespace ASLM.Services.API
         }
 
         /// <summary>
-        /// Gets the persisted enabled state for the reverse proxy.
-        /// </summary>
-        public bool IsEnabled => _appData.Data.Api.ServerEnabled;
-
-        /// <summary>
         /// Gets the localhost port of the mirror server: the bound port while listening, otherwise the port reserved
         /// in the shared port map, otherwise the start of the module port range.
         /// </summary>
@@ -199,50 +194,6 @@ namespace ASLM.Services.API
 
 
         // Server lifecycle
-
-        /// <summary>
-        /// Starts the reverse proxy when persisted settings say it should be enabled.
-        /// The port map is redistributed either way, so the mirror port is only reserved while the proxy is enabled.
-        /// </summary>
-        public async Task StartIfEnabledAsync()
-        {
-            // A disabled proxy gives its reserved port back to the shared pool.
-            if (!IsEnabled)
-            {
-                _ports.RedistributePorts(reserveAslmMirrorServer: false);
-                return;
-            }
-
-            _ports.RedistributePorts(reserveAslmMirrorServer: true);
-            await StartAsync();
-        }
-
-        /// <summary>
-        /// Persists the enabled state and starts or stops the proxy to match it.
-        /// </summary>
-        public async Task SetEnabledAsync(bool enabled)
-        {
-            // Nothing to do when the state does not change.
-            if (_appData.Data.Api.ServerEnabled == enabled)
-            {
-                return;
-            }
-
-            _appData.Data.Api.ServerEnabled = enabled;
-            _appData.Save();
-
-            // Reserve the port before starting, and release it only after the listener has stopped.
-            if (enabled)
-            {
-                _ports.RedistributePorts(reserveAslmMirrorServer: true);
-                await StartAsync();
-            }
-            else
-            {
-                await StopAsync();
-                _ports.RedistributePorts(reserveAslmMirrorServer: false);
-            }
-        }
 
         /// <summary>
         /// Starts the local listener and background request loop. Does nothing when the listener is already running;

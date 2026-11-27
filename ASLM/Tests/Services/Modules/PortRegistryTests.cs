@@ -40,8 +40,8 @@ namespace ASLM.Tests.Services.Modules
                 var appData = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
                 var registry = new PortRegistry(appData);
 
-                // Act: redistribute as at startup, with the mirror server reserved.
-                registry.RedistributePorts(reserveAslmMirrorServer: true);
+                // Act: redistribute as at startup.
+                registry.RedistributePorts();
 
                 // Assert: the removed module lost its ports, the others kept theirs, and the result was persisted.
                 registry.TryGetAssignedPorts(catalog.Id).Should().BeNull();
@@ -72,12 +72,12 @@ namespace ASLM.Tests.Services.Modules
             registry.GetOrAssignPorts(module);
 
             // The redistribution cleanup keeps the pending reservation although the module is not registered.
-            registry.RedistributePorts(reserveAslmMirrorServer: false);
+            registry.RedistributePorts();
             registry.TryGetAssignedPorts(module.Id).Should().NotBeNull();
 
             // After an explicit removal the next cleanup leaves nothing behind.
             registry.RemoveModulePorts(module.Id);
-            registry.RedistributePorts(reserveAslmMirrorServer: false);
+            registry.RedistributePorts();
             registry.TryGetAssignedPorts(module.Id).Should().BeNull();
         }
 

@@ -14,21 +14,17 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Builds the ASLM API block for interop responses.
-        /// When the ASLM API server is disabled, only <c>Enabled</c> is set (to false) and all other values are null.
+        /// Keeps <c>Enabled</c> in the payload for existing module clients.
         /// </summary>
         internal static AslmApiInfoDto BuildAslmApiDto(
-            bool apiEnabled,
             int? apiPort,
             bool apiRunning)
         {
-            if (!apiEnabled)
-                return new AslmApiInfoDto(Enabled: false, Running: null, Port: null, BaseUrl: null);
-
             return new AslmApiInfoDto(
                 Enabled: true,
                 Running: apiRunning,
                 Port: apiPort,
-                BaseUrl: apiPort.HasValue ? PortRegistry.BuildLoopbackUrl(apiPort.Value) : null);
+                BaseUrl: ResolveMirrorBaseUrl(apiPort));
         }
 
         /// <summary>
@@ -87,13 +83,12 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Resolves the API mirror base URL to include in host <c>mirrorUrl</c> fields.
-        /// Returns <c>null</c> when the ASLM API is disabled or has no port assigned.
+        /// Returns <c>null</c> when the ASLM API has no port assigned.
         /// </summary>
-        /// <param name="apiEnabled">Whether the ASLM API server is enabled.</param>
         /// <param name="apiPort">Port assigned to the ASLM API mirror server, if any.</param>
-        internal static string? ResolveMirrorBaseUrl(bool apiEnabled, int? apiPort)
+        internal static string? ResolveMirrorBaseUrl(int? apiPort)
         {
-            if (!apiEnabled || !apiPort.HasValue)
+            if (!apiPort.HasValue)
                 return null;
 
             return PortRegistry.BuildLoopbackUrl(apiPort.Value);
@@ -106,13 +101,13 @@ namespace ASLM.Services.Modules
     /// <summary>
     /// ASLM API mirror server state for interop API responses.
     /// </summary>
-    /// <param name="Enabled">Whether the ASLM API server is enabled.</param>
-    /// <param name="Running">Whether the server is running, or null when it is disabled.</param>
-    /// <param name="Port">Port assigned to the server, or null when disabled or unassigned.</param>
+    /// <param name="Enabled">Compatibility field that is always true for the ASLM API.</param>
+    /// <param name="Running">Whether the server is listening.</param>
+    /// <param name="Port">Port assigned to the server, or null when unassigned.</param>
     /// <param name="BaseUrl">Loopback root URL of the server, or null when there is no port.</param>
     internal sealed record AslmApiInfoDto(
         bool Enabled,
-        bool? Running,
+        bool Running,
         int? Port,
         string? BaseUrl);
 

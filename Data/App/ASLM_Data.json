@@ -9,7 +9,7 @@
         "modulesStart": 20000
     },
     "api": {
-        "serverEnabled": true
+        "sidebarVisible": true
     },
     "navigation": {
         "restoreLastPage": true,

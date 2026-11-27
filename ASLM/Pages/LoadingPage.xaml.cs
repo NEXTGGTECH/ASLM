@@ -54,7 +54,12 @@ namespace ASLM.Pages
         private readonly UpdateManager _updateManager;
 
         /// <summary>
-        /// Local reverse proxy that is started here when the settings enable it.
+        /// Shared port map prepared before the internal listeners start.
+        /// </summary>
+        private readonly PortRegistry _ports;
+
+        /// <summary>
+        /// Local reverse proxy that is started before the shell or setup wizard opens.
         /// </summary>
         private readonly AslmMirrorServer _mirrorServer;
 
@@ -113,6 +118,7 @@ namespace ASLM.Pages
             GitHubUpdateClient githubUpdateClient,
             UpdateScheduler updateScheduler,
             UpdateManager updateManager,
+            PortRegistry ports,
             AslmMirrorServer mirrorServer,
             AslmModuleInteropServer moduleInteropServer,
             ThemeService themeService,
@@ -131,6 +137,7 @@ namespace ASLM.Pages
             _githubUpdateClient = githubUpdateClient;
             _updateScheduler = updateScheduler;
             _updateManager = updateManager;
+            _ports = ports;
             _mirrorServer = mirrorServer;
             _moduleInteropServer = moduleInteropServer;
             _themeService = themeService;
@@ -203,8 +210,12 @@ namespace ASLM.Pages
             await Task.Run(() => _customThemesStore.LoadAsync());
             await Task.Run(() => _notifications.InitializeAsync(
                 _appData.Data.Updates.InstalledReleaseTag, _updateManager.TryGetPendingPreparedAppVersion()));
-            await Task.Run(() => _mirrorServer.StartIfEnabledAsync());
-            await Task.Run(() => _moduleInteropServer.EnsureStartedAsync());
+            await Task.Run(async () =>
+            {
+                _ports.RedistributePorts();
+                await _mirrorServer.StartAsync();
+                await _moduleInteropServer.StartAsync();
+            });
             await Task.Run(() => _rateLimitStore.InitializeAsync());
             await Task.Run(() => _githubAccountStore.InitializeAsync());
 

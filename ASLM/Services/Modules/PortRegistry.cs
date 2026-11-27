@@ -278,10 +278,10 @@ namespace ASLM.Services.Modules
 
         /// <summary>
         /// Rebuilds persisted port assignments for modules and internal listeners.
-        /// When <paramref name="reserveAslmMirrorServer"/> is true, reserves the ASLM mirror server port; always reserves the module interop listener port.
+        /// Reserves ports for the ASLM mirror and module interop listeners before assigning module ports.
         /// Returns true when the map changed; <see cref="PortsRedistributed"/> is raised outside the lock in that case.
         /// </summary>
-        public bool RedistributePorts(bool reserveAslmMirrorServer)
+        public bool RedistributePorts()
         {
             var changed = false;
 
@@ -292,22 +292,14 @@ namespace ASLM.Services.Modules
                 // Startup must also retire assignments left by versions that retained removed catalog manifests.
                 CleanupOrphanedPortsIfDue(force: true);
 
-                // Make sure the internal listeners own a placeholder entry (port 0) so they take part in the
-                // redistribution; the mirror server entry is dropped when it is not wanted.
-                if (reserveAslmMirrorServer)
+                // Give both internal listeners a placeholder so they participate even in a new or legacy map.
+                if (!_portMap.TryGetValue(AslmMirrorServiceId, out var apiPorts))
                 {
-                    if (!_portMap.TryGetValue(AslmMirrorServiceId, out var apiPorts))
-                    {
-                        apiPorts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                        _portMap[AslmMirrorServiceId] = apiPorts;
-                    }
+                    apiPorts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    _portMap[AslmMirrorServiceId] = apiPorts;
+                }
 
-                    apiPorts.TryAdd(AslmMirrorPortKey, 0);
-                }
-                else
-                {
-                    _portMap.Remove(AslmMirrorServiceId);
-                }
+                apiPorts.TryAdd(AslmMirrorPortKey, 0);
 
                 if (!_portMap.TryGetValue(AslmModuleInteropServiceId, out var interopPorts))
                 {
@@ -321,7 +313,7 @@ namespace ASLM.Services.Modules
                 var nextMap = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
                 var usedPorts = new HashSet<int>();
 
-                foreach (var owner in GetRedistributionOwners(reserveAslmMirrorServer))
+                foreach (var owner in GetRedistributionOwners())
                 {
                     if (!nextMap.TryGetValue(owner.Id, out var ports))
                     {
@@ -698,11 +690,9 @@ namespace ASLM.Services.Modules
         /// Returns the owners and port keys in stable redistribution order.
         /// Internal services come first, then module owners by their lowest current port and finally by id.
         /// </summary>
-        private List<RedistributionOwner> GetRedistributionOwners(bool reserveAslmMirrorServer)
+        private List<RedistributionOwner> GetRedistributionOwners()
         {
             return _portMap
-                .Where(pair =>
-                    reserveAslmMirrorServer || !pair.Key.Equals(AslmMirrorServiceId, StringComparison.OrdinalIgnoreCase))
                 .Where(static pair => pair.Value.Count > 0)
                 .Select(pair => new RedistributionOwner(
                     pair.Key,

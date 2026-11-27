@@ -2689,15 +2689,6 @@ namespace ASLM.Resources.Strings {
         }
         
         /// <summary>
-        ///   Ищет локализованную строку, похожую на Enable ASLM Mirror Server.
-        /// </summary>
-        public static string Settings_ApiServer_Title {
-            get {
-                return ResourceManager.GetString("Settings_ApiServer_Title", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Ищет локализованную строку, похожую на ASLM updates channel.
         /// </summary>
         public static string Settings_AppChannel_Title {
@@ -2784,6 +2775,15 @@ namespace ASLM.Resources.Strings {
         public static string Settings_AslmAccount_Title {
             get {
                 return ResourceManager.GetString("Settings_AslmAccount_Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Ищет локализованную строку, похожую на Show ASLM API page.
+        /// </summary>
+        public static string Settings_AslmApiPage_Title {
+            get {
+                return ResourceManager.GetString("Settings_AslmApiPage_Title", resourceCulture);
             }
         }
         

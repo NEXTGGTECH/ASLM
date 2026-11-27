@@ -323,7 +323,7 @@ namespace ASLM.Pages
                 case SettingsCategoryKind.Aslm:
                     var defaults = SettingsService.BuildDefaultAslmDrafts();
                     _portStartDraft = defaults.PortStart;
-                    _apiServerEnabledDraft = defaults.ApiServerEnabled;
+                    _aslmApiPageVisibleDraft = defaults.AslmApiPageVisible;
                     _consoleDraft = defaults.ConsoleDefaults;
                     _restoreLastPageDraft = defaults.RestoreLastPage;
                     _disableHomePageDraft = defaults.DisableHomePage;
@@ -528,23 +528,15 @@ namespace ASLM.Pages
                     nextSettings,
                     _restoreLastPageDraft,
                     _disableHomePageDraft,
+                    _aslmApiPageVisibleDraft,
                     _legalAutoAcceptDraft);
                 if (!string.Equals(previousUpdateChannel, _appData.Data.Updates.AppChannel, StringComparison.OrdinalIgnoreCase))
                     _updateScheduler.InvalidateSharedUpdateChannel();
 
                 await _appData.SaveAsync();
 
-                // The Mirror Server is switched separately from app data, and only when its enabled state changed.
-                // Then the drafts take over its actual state and the saved values, and become the new baseline.
-                if (_apiServerEnabledDraft != _aslmBaseline.ApiServerEnabled)
-                {
-                    await _mirrorServer.SetEnabledAsync(_apiServerEnabledDraft);
-                }
-
-                _apiServerEnabledDraft = _mirrorServer.IsEnabled;
-                _updateDraft = SettingsService.BuildAslmDraftSnapshot(
-                    _appData,
-                    _mirrorServer.IsEnabled).UpdateBaseline;
+                // Accept the normalized values and apply the saved navigation preferences.
+                _updateDraft = SettingsService.BuildAslmDraftSnapshot(_appData).UpdateBaseline;
                 _editSession.Application.AcceptAslm();
                 if (hadNavigationChanges)
                     NavigationSettingsSaved?.Invoke(this, EventArgs.Empty);

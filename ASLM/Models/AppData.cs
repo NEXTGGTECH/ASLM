@@ -53,7 +53,7 @@ namespace ASLM.Models
         public AppPortConfig Ports { get; set; } = new();
 
         /// <summary>
-        /// Stores the local ASLM API mirror server settings.
+        /// Stores preferences for the ASLM API page.
         /// </summary>
         [JsonPropertyName("api")]
         public AppApiConfig Api { get; set; } = new();
@@ -110,9 +110,8 @@ namespace ASLM.Models
             Ports ??= new();
             Ports.Normalize();
 
-            // Recreate and normalize the API server section when it is absent.
+            // Recreate the API page preferences when the section is absent.
             Api ??= new();
-            Api.Normalize();
 
             // Recreate and normalize console preferences when the section is absent.
             Consoles ??= new();
@@ -268,25 +267,41 @@ namespace ASLM.Models
     }
 
 
-    // API mirror server
+    // API page settings
 
     /// <summary>
-    /// Stores preferences for the local ASLM API mirror server.
+    /// Stores preferences for the built-in ASLM API page.
     /// </summary>
     public class AppApiConfig
     {
         /// <summary>
-        /// Indicates whether the local mirror server should start with ASLM.
+        /// Holds the current preference, or null when it was absent from the saved file.
         /// </summary>
-        [JsonPropertyName("serverEnabled")]
-        public bool ServerEnabled { get; set; } = true;
+        private bool? _sidebarVisible;
 
         /// <summary>
-        /// Restores safe defaults after JSON deserialization.
+        /// Holds page visibility for profiles saved before it had its own setting.
         /// </summary>
-        public void Normalize()
+        private bool? _legacySidebarVisible;
+
+        /// <summary>
+        /// Indicates whether the ASLM API page is shown in the sidebar.
+        /// </summary>
+        [JsonPropertyName("sidebarVisible")]
+        public bool SidebarVisible
         {
-            // The API port is allocated by PortRegistry from the shared module port pool.
+            get => _sidebarVisible ?? _legacySidebarVisible ?? true;
+            set => _sidebarVisible = value;
+        }
+
+        /// <summary>
+        /// Reads the old flag as a fallback for page visibility. Future saves write only the new preference.
+        /// </summary>
+        [JsonInclude]
+        [JsonPropertyName("serverEnabled")]
+        internal bool? LegacyServerEnabled
+        {
+            set => _legacySidebarVisible = value;
         }
     }
 

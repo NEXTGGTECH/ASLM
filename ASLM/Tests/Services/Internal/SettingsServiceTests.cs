@@ -121,12 +121,13 @@ namespace ASLM.Tests.Services.Internal
             store.Data.Ports.ModulesStart = 21000;
             store.Data.Navigation.RestoreLastPage = false;
             store.Data.Navigation.DisableHomePage = false;
+            store.Data.Api.SidebarVisible = false;
 
-            var draft = SettingsService.BuildAslmDraftSnapshot(store, apiServerEnabled: true);
+            var draft = SettingsService.BuildAslmDraftSnapshot(store);
 
             draft.UserName.Should().Be("Tester");
             draft.PortStart.Should().Be("21000");
-            draft.ApiServerEnabled.Should().BeTrue();
+            draft.AslmApiPageVisible.Should().BeFalse();
             draft.RestoreLastPage.Should().BeFalse();
             draft.DisableHomePage.Should().BeFalse();
         }
@@ -154,6 +155,7 @@ namespace ASLM.Tests.Services.Internal
                 updates,
                 restoreLastPage: false,
                 disableHomePage: false,
+                aslmApiPageVisible: false,
                 legalAutoAcceptUpdates: true);
 
             // Assert: the user name changes only when the SUNRISE feature is enabled, and the update check period
@@ -162,6 +164,7 @@ namespace ASLM.Tests.Services.Internal
             store.Data.User.Name.Should().Be(expectedName);
             store.Data.User.LocalName.Should().Be(expectedName);
             store.Data.Ports.ModulesStart.Should().Be(22000);
+            store.Data.Api.SidebarVisible.Should().BeFalse();
             store.Data.Consoles.ShowCompletedProcesses.Should().BeTrue();
             store.Data.Updates.AutoCheckPeriodHours.Should().Be(1);
             store.Data.Navigation.RestoreLastPage.Should().BeFalse();
@@ -186,7 +189,7 @@ namespace ASLM.Tests.Services.Internal
             var baseline = new AslmBaseline("Alice", "20000", true);
             SettingsService.HasUnsavedAccountChanges("Bob", baseline).Should().BeTrue();
             SettingsService.HasUnsavedPortChanges("20001", baseline).Should().BeTrue();
-            SettingsService.HasUnsavedApiServerChanges(false, baseline).Should().BeTrue();
+            SettingsService.HasUnsavedAslmApiPageChanges(false, baseline).Should().BeTrue();
         }
 
 

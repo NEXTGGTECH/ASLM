@@ -137,11 +137,6 @@ namespace ASLM.Pages
         private readonly EngineInstaller _engineInstaller;
 
         /// <summary>
-        /// ASLM Mirror Server whose enabled state is edited through the API server toggle.
-        /// </summary>
-        private readonly AslmMirrorServer _mirrorServer;
-
-        /// <summary>
         /// Notification center that receives the toast shown after settings were saved.
         /// </summary>
         private readonly NotificationCenter _notifications;
@@ -452,9 +447,9 @@ namespace ASLM.Pages
         // ASLM toggles
 
         /// <summary>
-        /// Switch that enables the ASLM Mirror Server.
+        /// Switch that shows the ASLM API page in the navigation sidebar.
         /// </summary>
-        private SettingsToggle? _apiServerToggle;
+        private SettingsToggle? _aslmApiPageToggle;
 
         /// <summary>
         /// Switch that shows the Consoles page in the navigation sidebar.
@@ -654,10 +649,10 @@ namespace ASLM.Pages
         /// <summary>
         /// Gets or replaces the API-server draft stored by the session.
         /// </summary>
-        private bool _apiServerEnabledDraft
+        private bool _aslmApiPageVisibleDraft
         {
-            get => _editSession.Application.ApiServerEnabled;
-            set => _editSession.Application.ApiServerEnabled = value;
+            get => _editSession.Application.AslmApiPageVisible;
+            set => _editSession.Application.AslmApiPageVisible = value;
         }
 
         /// <summary>
@@ -723,7 +718,7 @@ namespace ASLM.Pages
         public event EventHandler? CloseRequested;
 
         /// <summary>
-        /// Raised after saved changes to the navigation-related settings (last page restoration, home page).
+        /// Raised after navigation preferences are saved so the shell can update its sidebar.
         /// </summary>
         public event EventHandler? NavigationSettingsSaved;
 
@@ -744,7 +739,6 @@ namespace ASLM.Pages
             UpdateManager updateManager,
             UpdateScheduler updateScheduler,
             EngineInstaller engineInstaller,
-            AslmMirrorServer mirrorServer,
             NotificationCenter notifications,
             ThemeService themeService,
             CustomThemesStore customThemesStore,
@@ -761,7 +755,6 @@ namespace ASLM.Pages
             _updateManager = updateManager;
             _updateScheduler = updateScheduler;
             _engineInstaller = engineInstaller;
-            _mirrorServer = mirrorServer;
             _notifications = notifications;
             _themeService = themeService;
             _customThemesStore = customThemesStore;
@@ -800,7 +793,7 @@ namespace ASLM.Pages
         private void InitializeBuiltInControlReferences()
         {
             // Keep existing action logic independent from the concrete XAML host.
-            _apiServerToggle = BuiltInSettingsContainer.ApiServerInput;
+            _aslmApiPageToggle = BuiltInSettingsContainer.AslmApiPageInput;
             _consoleSidebarToggle = BuiltInSettingsContainer.ConsoleSidebarInput;
             _consoleIndividualToggle = BuiltInSettingsContainer.ConsoleIndividualInput;
             _consoleCompletedToggle = BuiltInSettingsContainer.ConsoleCompletedInput;
@@ -852,7 +845,7 @@ namespace ASLM.Pages
             _moduleUpdateChannelPicker.ItemsSource = new List<string> { "release", "pre-release" };
 
             // Toggle, picker and selection changes feed the drafts and the footer state.
-            _apiServerToggle.Toggled += OnAslmBuiltInToggleChanged;
+            _aslmApiPageToggle.Toggled += OnAslmBuiltInToggleChanged;
             _consoleSidebarToggle.Toggled += OnAslmBuiltInToggleChanged;
             _consoleIndividualToggle.Toggled += OnAslmBuiltInToggleChanged;
             _consoleCompletedToggle.Toggled += OnAslmBuiltInToggleChanged;
@@ -1257,7 +1250,7 @@ namespace ASLM.Pages
         private void LoadAslmDraftsFromAppData()
         {
             // Load the drafts and accept them as baseline, so nothing counts as changed afterwards.
-            var snapshot = SettingsService.BuildAslmDraftSnapshot(_appData, _mirrorServer.IsEnabled);
+            var snapshot = SettingsService.BuildAslmDraftSnapshot(_appData);
             _editSession.Application.LoadAslm(snapshot, _appData.Data.Legal.AutoAcceptUpdates);
 
             // Show the loaded values and clear stale feedback from an earlier edit.

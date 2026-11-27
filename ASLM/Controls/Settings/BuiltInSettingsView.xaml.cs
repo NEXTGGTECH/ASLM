@@ -92,9 +92,9 @@ namespace ASLM.Controls.Settings
         public VerticalStackLayout UserProfile => UserProfileSection;
 
         /// <summary>
-        /// Switch that enables the ASLM Mirror Server.
+        /// Switch that shows the ASLM API page in the navigation sidebar.
         /// </summary>
-        public SettingsToggle ApiServerInput => ApiServerToggle;
+        public SettingsToggle AslmApiPageInput => AslmApiPageToggle;
 
         /// <summary>
         /// Switch that shows the Consoles page in the navigation sidebar.
@@ -413,8 +413,8 @@ namespace ASLM.Controls.Settings
             ModulePortTitle.Text = L.Get(LocalizationKeys.Settings_ModulePortTitle);
             ModulePortInfoButton.Description = string.Empty;
             ApiCategory.Title = L.Get(LocalizationKeys.Settings_SubGroup_API);
-            ApiServerRow.Title = L.Get(LocalizationKeys.Settings_ApiServer_Title);
-            ApiServerRow.Description = string.Empty;
+            AslmApiPageRow.Title = L.Get(LocalizationKeys.Settings_AslmApiPage_Title);
+            AslmApiPageRow.Description = string.Empty;
             ConsolesCategory.Title = L.Get(LocalizationKeys.Settings_SubGroup_Consoles);
             ConsoleSidebarRow.Title = L.Get(LocalizationKeys.Settings_ConsolesPage_Title);
             ConsoleSidebarRow.Description = string.Empty;

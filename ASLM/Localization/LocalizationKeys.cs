@@ -295,7 +295,6 @@ public static class LocalizationKeys
     public const string Settings_Accounts_SectionAslm = "Settings_Accounts_SectionAslm";
     public const string Settings_Accounts_SectionGitHub = "Settings_Accounts_SectionGitHub";
     public const string Settings_Accounts_SectionOllama = "Settings_Accounts_SectionOllama";
-    public const string Settings_ApiServer_Title = "Settings_ApiServer_Title";
     public const string Settings_AppChannel_Title = "Settings_AppChannel_Title";
     public const string Settings_AslmAccount_AuthenticationFailed = "Settings_AslmAccount_AuthenticationFailed";
     public const string Settings_AslmAccount_Connecting = "Settings_AslmAccount_Connecting";
@@ -306,6 +305,7 @@ public static class LocalizationKeys
     public const string Settings_AslmAccount_SwitchToLocalMessage = "Settings_AslmAccount_SwitchToLocalMessage";
     public const string Settings_AslmAccount_SwitchToLocalTitle = "Settings_AslmAccount_SwitchToLocalTitle";
     public const string Settings_AslmAccount_Title = "Settings_AslmAccount_Title";
+    public const string Settings_AslmApiPage_Title = "Settings_AslmApiPage_Title";
     public const string Settings_AutoCheckPeriod_Description = "Settings_AutoCheckPeriod_Description";
     public const string Settings_AutoCheckPeriod_Title = "Settings_AutoCheckPeriod_Title";
     public const string Settings_AutoInstall_Title = "Settings_AutoInstall_Title";

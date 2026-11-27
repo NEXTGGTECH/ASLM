@@ -105,12 +105,11 @@ namespace ASLM.Tests.Services.API
         // Live proxy
 
         /// <summary>
-        /// Verifies that a running, enabled proxy forwards <c>{module}/http/...</c> requests to the module's
-        /// loopback backend, serves the module index and the root index, and answers a request for an unknown
-        /// module with a 404 page that names it.
+        /// Verifies that the proxy forwards module requests while the ASLM API page is hidden, serves its index
+        /// pages, and names the missing module in the response to an unknown route.
         /// </summary>
         [Fact]
-        public async Task Enabled_server_proxies_module_routes_over_real_http()
+        public async Task Server_proxies_module_routes_over_real_http_with_the_page_hidden()
         {
             // Arrange: a fake backend that serves a JSON status endpoint.
             using var graph = new TestServiceGraph();
@@ -123,7 +122,7 @@ namespace ASLM.Tests.Services.API
             var mirror = new AslmMirrorServer(graph.AppData, graph.Ports, graph.Installer,
                 TestLoggerFactory.Create<AslmMirrorServer>());
             using var _ = mirror;
-            graph.AppData.Data.Api.ServerEnabled = true;
+            graph.AppData.Data.Api.SidebarVisible = false;
 
             // Act: start the proxy. RedistributePorts would rebuild the whole map; the live proxy path under test
             // is the routing itself, so the pre-seeded module assignment is preserved via StartAsync.
@@ -131,7 +130,7 @@ namespace ASLM.Tests.Services.API
 
             try
             {
-                mirror.IsRunning.Should().BeTrue("the persisted setting enables the proxy");
+                mirror.IsRunning.Should().BeTrue();
 
                 // Assert, forwarding: a module route reaches the backend and returns its payload.
                 using var client = new HttpClient();
@@ -164,15 +163,14 @@ namespace ASLM.Tests.Services.API
         /// listener can bind the same port.
         /// </summary>
         [Fact]
-        public async Task StopAsync_releases_the_listener_and_the_reserved_port()
+        public async Task StopAsync_releases_the_listening_socket()
         {
-            // Arrange: start the proxy through the enabled setting and remember its port.
+            // Arrange: start the proxy and remember its port.
             using var graph = new TestServiceGraph();
             var mirror = new AslmMirrorServer(graph.AppData, graph.Ports, graph.Installer,
                 TestLoggerFactory.Create<AslmMirrorServer>());
             using var _ = mirror;
-            graph.AppData.Data.Api.ServerEnabled = true;
-            await mirror.StartIfEnabledAsync();
+            await mirror.StartAsync();
             mirror.IsRunning.Should().BeTrue();
             var port = new Uri(mirror.BaseUrl).Port;
 

@@ -26,6 +26,7 @@ namespace ASLM.Tests.Services.Internal
             await store.LoadAsync();
 
             store.IsFirstRun.Should().BeTrue();
+            store.Data.Api.SidebarVisible.Should().BeTrue();
             store.Data.Navigation.DisableHomePage.Should().BeTrue();
             store.Data.Navigation.RestoreLastPage.Should().BeTrue();
             store.Data.Navigation.LastPage.Should().Be(ShellNavigationRoute.Home);
@@ -66,6 +67,29 @@ namespace ASLM.Tests.Services.Internal
 
 
         // Legacy and unknown values
+
+        /// <summary>
+        /// Verifies that the legacy server preference migrates only to page visibility and is omitted on save.
+        /// </summary>
+        [Theory]
+        [InlineData("""{"serverEnabled":false}""", false)]
+        [InlineData("""{"serverEnabled":true,"sidebarVisible":false}""", false)]
+        [InlineData("""{"sidebarVisible":true,"serverEnabled":false}""", true)]
+        public async Task LoadAsync_migrates_legacy_api_page_visibility(string apiSettings, bool sidebarVisible)
+        {
+            var layout = new AslmFileSystemLayout();
+            layout.WriteAppDataJson($$"""{"api":{{apiSettings}}}""");
+            var store = new AppDataStore(TestLoggerFactory.Create<AppDataStore>());
+
+            await store.LoadAsync();
+            store.Data.Api.SidebarVisible.Should().Be(sidebarVisible);
+            await store.SaveAsync();
+
+            var saved = await File.ReadAllTextAsync(layout.AppDataFilePath);
+            saved.Should().NotContain("serverEnabled").And.Contain("sidebarVisible");
+            await store.LoadAsync();
+            store.Data.Api.SidebarVisible.Should().Be(sidebarVisible);
+        }
 
         /// <summary>
         /// Verifies that data written before navigation persistence existed receives safe enabled defaults.

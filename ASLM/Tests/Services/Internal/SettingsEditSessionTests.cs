@@ -67,7 +67,7 @@ namespace ASLM.Tests.Services.Internal
                 legalAutoAcceptUpdates: true);
 
             // Change every shared value and accept the result as the new baseline.
-            draft.ApiServerEnabled = false;
+            draft.AslmApiPageVisible = false;
             draft.RestoreLastPage = false;
             draft.DisableHomePage = false;
             draft.Console = new ConsoleBaseline(false, true, false);
@@ -76,7 +76,7 @@ namespace ASLM.Tests.Services.Internal
             draft.AcceptAslm();
 
             // Change every value again and discard.
-            draft.ApiServerEnabled = true;
+            draft.AslmApiPageVisible = true;
             draft.RestoreLastPage = true;
             draft.DisableHomePage = true;
             draft.Console = new ConsoleBaseline(true, true, true);
@@ -85,7 +85,7 @@ namespace ASLM.Tests.Services.Internal
             draft.DiscardAslm();
 
             // Assert: the accepted values, not the originally loaded ones, are restored.
-            draft.ApiServerEnabled.Should().BeFalse();
+            draft.AslmApiPageVisible.Should().BeFalse();
             draft.RestoreLastPage.Should().BeFalse();
             draft.DisableHomePage.Should().BeFalse();
             draft.Console.Should().Be(new ConsoleBaseline(false, true, false));
@@ -95,10 +95,12 @@ namespace ASLM.Tests.Services.Internal
         }
 
         /// <summary>
-        /// Verifies that last-page restoration is dirty but does not require an ASLM restart.
+        /// Verifies that navigation preferences are dirty individually without requiring an ASLM restart.
         /// </summary>
-        [Fact]
-        public void Navigation_preference_is_not_restart_relevant()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Navigation_preference_is_not_restart_relevant(bool hideApiPage)
         {
             var draft = new ApplicationSettingsDraft();
             draft.LoadAslm(
@@ -112,7 +114,10 @@ namespace ASLM.Tests.Services.Internal
                     new UpdateBaseline(true, false, "release", "release")),
                 legalAutoAcceptUpdates: true);
 
-            draft.RestoreLastPage = false;
+            if (hideApiPage)
+                draft.AslmApiPageVisible = false;
+            else
+                draft.RestoreLastPage = false;
 
             draft.HasNavigationChanges.Should().BeTrue();
             draft.HasAslmChanges.Should().BeTrue();

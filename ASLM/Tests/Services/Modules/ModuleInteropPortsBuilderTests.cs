@@ -13,27 +13,12 @@ namespace ASLM.Tests.Services.Modules
         // ASLM API block
 
         /// <summary>
-        /// Verifies that a disabled ASLM API yields only <c>Enabled</c> = false, even when a port and a running
-        /// listener are passed in.
+        /// Verifies that a running ASLM API reports its port and the loopback base URL of that port.
         /// </summary>
         [Fact]
-        public void BuildAslmApiDto_returns_disabled_when_api_not_enabled()
+        public void BuildAslmApiDto_returns_full_info_when_port_is_assigned()
         {
-            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiEnabled: false, apiPort: 20000, apiRunning: true);
-
-            dto.Enabled.Should().BeFalse();
-            dto.Running.Should().BeNull();
-            dto.Port.Should().BeNull();
-            dto.BaseUrl.Should().BeNull();
-        }
-
-        /// <summary>
-        /// Verifies that an enabled and running ASLM API reports its port and the loopback base URL of that port.
-        /// </summary>
-        [Fact]
-        public void BuildAslmApiDto_returns_full_info_when_enabled()
-        {
-            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiEnabled: true, apiPort: 20000, apiRunning: true);
+            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiPort: 20000, apiRunning: true);
 
             dto.Enabled.Should().BeTrue();
             dto.Running.Should().BeTrue();
@@ -42,13 +27,13 @@ namespace ASLM.Tests.Services.Modules
         }
 
         /// <summary>
-        /// Verifies that an enabled ASLM API whose listener is down still reports its port but with
+        /// Verifies that a stopped ASLM API listener still reports its assigned port with
         /// <c>Running</c> = false.
         /// </summary>
         [Fact]
         public void BuildAslmApiDto_propagates_not_running_when_listener_down()
         {
-            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiEnabled: true, apiPort: 20000, apiRunning: false);
+            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiPort: 20000, apiRunning: false);
 
             dto.Enabled.Should().BeTrue();
             dto.Running.Should().BeFalse();
@@ -56,12 +41,12 @@ namespace ASLM.Tests.Services.Modules
         }
 
         /// <summary>
-        /// Verifies that an enabled ASLM API without an assigned port has neither a port nor a base URL.
+        /// Verifies that the ASLM API without an assigned port has neither a port nor a base URL.
         /// </summary>
         [Fact]
-        public void BuildAslmApiDto_handles_null_port_when_enabled()
+        public void BuildAslmApiDto_handles_unassigned_port()
         {
-            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiEnabled: true, apiPort: null, apiRunning: false);
+            var dto = ModuleInteropPortsBuilder.BuildAslmApiDto(apiPort: null, apiRunning: false);
 
             dto.Enabled.Should().BeTrue();
             dto.Port.Should().BeNull();
@@ -163,32 +148,22 @@ namespace ASLM.Tests.Services.Modules
         // Mirror base URL
 
         /// <summary>
-        /// Verifies that a disabled ASLM API has no mirror base URL even when a port is known.
-        /// </summary>
-        [Fact]
-        public void ResolveMirrorBaseUrl_returns_null_when_disabled()
-        {
-            ModuleInteropPortsBuilder.ResolveMirrorBaseUrl(apiEnabled: false, apiPort: 20000)
-                .Should().BeNull();
-        }
-
-        /// <summary>
-        /// Verifies that an enabled ASLM API without an assigned port has no mirror base URL.
+        /// Verifies that the ASLM API without an assigned port has no mirror base URL.
         /// </summary>
         [Fact]
         public void ResolveMirrorBaseUrl_returns_null_when_no_port()
         {
-            ModuleInteropPortsBuilder.ResolveMirrorBaseUrl(apiEnabled: true, apiPort: null)
+            ModuleInteropPortsBuilder.ResolveMirrorBaseUrl(apiPort: null)
                 .Should().BeNull();
         }
 
         /// <summary>
-        /// Verifies that an enabled ASLM API with a port yields the loopback root URL of that port.
+        /// Verifies that the ASLM API with a port yields the loopback root URL of that port.
         /// </summary>
         [Fact]
-        public void ResolveMirrorBaseUrl_returns_loopback_url_when_enabled()
+        public void ResolveMirrorBaseUrl_returns_loopback_url_when_port_is_assigned()
         {
-            ModuleInteropPortsBuilder.ResolveMirrorBaseUrl(apiEnabled: true, apiPort: 20000)
+            ModuleInteropPortsBuilder.ResolveMirrorBaseUrl(apiPort: 20000)
                 .Should().Be("http://127.0.0.1:20000/");
         }
 

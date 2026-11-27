@@ -888,9 +888,6 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama アカウント</value>
   </data>
-  <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>ASLM ミラーサーバーを有効にする</value>
-  </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>ASLM 更新チャンネル</value>
   </data>
@@ -920,6 +917,9 @@
   </data>
   <data name="Settings_AslmAccount_Title" xml:space="preserve">
     <value>ASLM アカウント</value>
+  </data>
+  <data name="Settings_AslmApiPage_Title" xml:space="preserve">
+    <value>ASLM APIページを表示</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>バックグラウンド更新確認の間隔（時間）</value>

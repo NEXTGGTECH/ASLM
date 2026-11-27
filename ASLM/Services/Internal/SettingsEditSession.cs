@@ -159,9 +159,9 @@ namespace ASLM.Services.Internal
         public string PortStart { get; set; } = string.Empty;
 
         /// <summary>
-        /// Gets or sets whether the local ASLM API server is enabled.
+        /// Gets or sets whether the ASLM API page is shown in the sidebar.
         /// </summary>
-        public bool ApiServerEnabled { get; set; } = true;
+        public bool AslmApiPageVisible { get; set; } = true;
 
         /// <summary>
         /// Gets or sets whether ASLM restores the last stable shell page on startup.
@@ -246,16 +246,16 @@ namespace ASLM.Services.Internal
         /// </summary>
         public bool HasAslmRestartChanges =>
             !string.Equals(PortStart, AslmBaseline.PortStart, StringComparison.Ordinal) ||
-            ApiServerEnabled != AslmBaseline.ApiServerEnabled ||
             Console != ConsoleBaseline ||
             Update != UpdateBaseline ||
             LegalAutoAcceptUpdates != LegalAutoAcceptBaseline;
 
         /// <summary>
-        /// Gets whether the non-restart shell startup preference differs from its accepted value.
+        /// Gets whether shell navigation preferences differ from their accepted values.
         /// </summary>
         public bool HasNavigationChanges => RestoreLastPage != RestoreLastPageBaseline ||
-            DisableHomePage != DisableHomePageBaseline;
+            DisableHomePage != DisableHomePageBaseline ||
+            AslmApiPageVisible != AslmBaseline.AslmApiPageVisible;
 
         /// <summary>
         /// Gets whether any setting shown in the ASLM category differs from its accepted value.
@@ -283,7 +283,7 @@ namespace ASLM.Services.Internal
             // Copy the persisted values into the editable drafts.
             UserName = snapshot.UserName;
             PortStart = snapshot.PortStart;
-            ApiServerEnabled = snapshot.ApiServerEnabled;
+            AslmApiPageVisible = snapshot.AslmApiPageVisible;
             RestoreLastPage = snapshot.RestoreLastPage;
             DisableHomePage = snapshot.DisableHomePage;
             Console = snapshot.ConsoleBaseline;
@@ -308,7 +308,7 @@ namespace ASLM.Services.Internal
         /// </summary>
         public void AcceptAslm()
         {
-            AslmBaseline = new AslmBaseline(UserName, PortStart, ApiServerEnabled);
+            AslmBaseline = new AslmBaseline(UserName, PortStart, AslmApiPageVisible);
             ConsoleBaseline = Console;
             UpdateBaseline = Update;
             LegalAutoAcceptBaseline = LegalAutoAcceptUpdates;
@@ -329,7 +329,7 @@ namespace ASLM.Services.Internal
         {
             UserName = AslmBaseline.UserName;
             PortStart = AslmBaseline.PortStart;
-            ApiServerEnabled = AslmBaseline.ApiServerEnabled;
+            AslmApiPageVisible = AslmBaseline.AslmApiPageVisible;
             Console = ConsoleBaseline;
             Update = UpdateBaseline;
             LegalAutoAcceptUpdates = LegalAutoAcceptBaseline;

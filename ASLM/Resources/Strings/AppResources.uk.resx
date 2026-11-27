@@ -888,9 +888,6 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Обліковий запис Ollama</value>
   </data>
-  <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>Увімкнути дзеркальний сервер ASLM</value>
-  </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>Канал оновлень ASLM</value>
   </data>
@@ -920,6 +917,9 @@
   </data>
   <data name="Settings_AslmAccount_Title" xml:space="preserve">
     <value>Обліковий запис ASLM</value>
+  </data>
+  <data name="Settings_AslmApiPage_Title" xml:space="preserve">
+    <value>Показувати сторінку «ASLM API»</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Годин між фоновими перевірками оновлень</value>

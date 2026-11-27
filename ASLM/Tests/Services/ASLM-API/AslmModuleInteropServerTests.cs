@@ -23,7 +23,7 @@ namespace ASLM.Tests.Services.API
         private readonly TestServiceGraph _graph = new();
 
         /// <summary>
-        /// Mirror server the interop server reports in its registry; it is never started by these tests.
+        /// Mirror server the interop server reports in its registry.
         /// </summary>
         private readonly AslmMirrorServer _mirror;
 
@@ -70,13 +70,18 @@ namespace ASLM.Tests.Services.API
         /// <summary>
         /// Verifies that starting the interop server publishes its listening address in the shared host state and
         /// that <c>GET v1/registry</c> answers 200 with the interop base URL and the installed, running, and
-        /// ASLM API sections.
+        /// ASLM API sections even when the old configuration had disabled the proxy.
         /// </summary>
         [Fact]
         public async Task Started_server_serves_the_registry_and_the_interop_host_state()
         {
-            // Act: start the server on demand.
-            await _server.EnsureStartedAsync();
+            // Load a legacy profile and start both listeners with the same port preparation as the application.
+            _graph.Root.WriteDataAppFile("ASLM_Data.json", """{"api":{"serverEnabled":false}}""");
+            await _graph.AppData.LoadAsync();
+            _graph.AppData.Data.Api.SidebarVisible.Should().BeFalse();
+            _graph.Ports.RedistributePorts();
+            await _mirror.StartAsync();
+            await _server.StartAsync();
 
             // Assert, host state: the server reports running and publishes the port it listens on.
             _server.IsRunning.Should().BeTrue();
@@ -93,7 +98,27 @@ namespace ASLM.Tests.Services.API
             root.GetProperty("interopBaseUrl").GetString().Should().NotBeNullOrWhiteSpace();
             root.TryGetProperty("installedModules", out _).Should().BeTrue();
             root.TryGetProperty("runningModules", out _).Should().BeTrue();
-            root.TryGetProperty("aslmApi", out _).Should().BeTrue();
+            var api = root.GetProperty("aslmApi");
+            var mirrorUrl = _mirror.BaseUrl;
+            api.GetProperty("enabled").GetBoolean().Should().BeTrue();
+            api.GetProperty("running").GetBoolean().Should().BeTrue();
+            api.GetProperty("port").GetInt32().Should().Be(new Uri(mirrorUrl).Port);
+            api.GetProperty("baseUrl").GetString().Should().Be(mirrorUrl);
+
+            // Saving either visibility leaves the same mirror address reachable through both services.
+            foreach (var visible in new[] { true, false })
+            {
+                _graph.AppData.Data.Api.SidebarVisible = visible;
+                await _graph.AppData.SaveAsync();
+
+                using var portsResponse = await _client.GetAsync(_server.BaseUrl + "v1/ports");
+                portsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+                using var portsDocument = await JsonDocument.ParseAsync(await portsResponse.Content.ReadAsStreamAsync());
+                portsDocument.RootElement.GetProperty("aslmApi").GetRawText().Should().Be(api.GetRawText());
+
+                using var mirrorResponse = await _client.GetAsync(mirrorUrl);
+                mirrorResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            }
         }
 
         /// <summary>
@@ -103,7 +128,7 @@ namespace ASLM.Tests.Services.API
         [Fact]
         public async Task Unknown_routes_and_methods_return_a_json_404_envelope()
         {
-            await _server.EnsureStartedAsync();
+            await _server.StartAsync();
 
             using var unknown = await _client.GetAsync(_server.BaseUrl + "v1/does-not-exist");
             unknown.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -123,7 +148,7 @@ namespace ASLM.Tests.Services.API
         [Fact]
         public async Task Module_start_requires_a_running_caller_module()
         {
-            await _server.EnsureStartedAsync();
+            await _server.StartAsync();
 
             using var response = await _client.PostAsync(
                 _server.BaseUrl + "v1/modules/start",
@@ -142,7 +167,7 @@ namespace ASLM.Tests.Services.API
         public async Task A_running_caller_can_request_itself_and_receives_mapped_statuses()
         {
             // Arrange: start the server and a real module process that stays alive during the test.
-            await _server.EnsureStartedAsync();
+            await _server.StartAsync();
             var module = CreateRunnableModule();
             (await _graph.Runner.ExecuteRunAsync(module, new SilentProgress(), CancellationToken.None))
                 .Should().BeTrue();

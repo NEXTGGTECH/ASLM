@@ -888,9 +888,6 @@
   <data name="Settings_Accounts_SectionOllama" xml:space="preserve">
     <value>Ollama Hesabı</value>
   </data>
-  <data name="Settings_ApiServer_Title" xml:space="preserve">
-    <value>ASLM Yansıtma Sunucusunu etkinleştir</value>
-  </data>
   <data name="Settings_AppChannel_Title" xml:space="preserve">
     <value>ASLM güncelleme kanalı</value>
   </data>
@@ -920,6 +917,9 @@
   </data>
   <data name="Settings_AslmAccount_Title" xml:space="preserve">
     <value>ASLM Hesabı</value>
+  </data>
+  <data name="Settings_AslmApiPage_Title" xml:space="preserve">
+    <value>ASLM API sayfasını göster</value>
   </data>
   <data name="Settings_AutoCheckPeriod_Description" xml:space="preserve">
     <value>Arka plandaki güncelleme denetimleri arasındaki saat</value>

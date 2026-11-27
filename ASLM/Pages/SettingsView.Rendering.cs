@@ -279,9 +279,9 @@ namespace ASLM.Pages
         private void ApplyAslmBuiltInDraftsToToggles()
         {
             // The toggles are set without raising their Toggled event, so the drafts are not rewritten from them.
-            if (_apiServerToggle != null)
+            if (_aslmApiPageToggle != null)
             {
-                _apiServerToggle.SetStateWithoutToggleEvent(_apiServerEnabledDraft);
+                _aslmApiPageToggle.SetStateWithoutToggleEvent(_aslmApiPageVisibleDraft);
             }
 
             if (_consoleSidebarToggle != null)
@@ -358,9 +358,9 @@ namespace ASLM.Pages
         /// </summary>
         private void RefreshAslmApiAndConsoleDraftsFromToggles()
         {
-            if (_apiServerToggle != null)
+            if (_aslmApiPageToggle != null)
             {
-                _apiServerEnabledDraft = _apiServerToggle.IsToggled;
+                _aslmApiPageVisibleDraft = _aslmApiPageToggle.IsToggled;
             }
 
             // The three console switches form one draft value, so they are read together.
