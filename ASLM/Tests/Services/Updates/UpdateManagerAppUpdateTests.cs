@@ -1,0 +1,261 @@
+// Copyright NEXTGGTECH. Apache License 2.0.
+
+using System.Text.Json;
+using ASLM.Localization;
+using ASLM.Models;
+using ASLM.Services.Internal;
+using ASLM.Tests.TestSupport;
+
+namespace ASLM.Tests.Services.Updates
+{
+    /// <summary>
+    /// Verifies the app self-update staging contract consumed by the external patcher:
+    /// download, extraction, and the atomic <c>.aslm-update/pending.json</c> hand-off.
+    /// </summary>
+    public sealed class UpdateManagerAppUpdateTests
+    {
+        // Staging
+
+        /// <summary>
+        /// Verifies that preparing an app update downloads and unpacks the payload into a staging folder, publishes the
+        /// pending marker atomically with all fields the patcher needs, and reports the finished transfer through a
+        /// notification.
+        /// </summary>
+        [Fact]
+        public async Task PrepareAppUpdateAsync_stages_payload_and_writes_pending_contract()
+        {
+            // Arrange: an update source that preserves two folders and a candidate whose zip is served by the fake host.
+            using var graph = new TestServiceGraph();
+            SeedUpdateSource(graph, preserve: ["Data", "Modules"]);
+            var candidate = BuildCandidate(graph, "9.9.9", BuildPayloadZip(graph, "ASLM.dll", "updated"));
+
+            // Act.
+            var prepared = await graph.Updates.PrepareAppUpdateAsync(candidate);
+
+            // Assert: the update is staged and marked pending, and only the final marker file exists.
+            prepared.Should().BeTrue();
+            graph.Updates.HasPendingAppUpdate.Should().BeTrue();
+
+            var pendingPath = Path.Combine(graph.Root.Root, ".aslm-update", "pending.json");
+            File.Exists(pendingPath).Should().BeTrue();
+            File.Exists(pendingPath + ".tmp").Should().BeFalse("the marker must be published atomically");
+
+            // The marker describes the update for the patcher.
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(pendingPath));
+            var root = document.RootElement;
+            root.GetProperty("kind").GetString().Should().Be("app");
+            root.GetProperty("version").GetString().Should().Be("9.9.9");
+            var stagingPath = root.GetProperty("stagingPath").GetString()!;
+
+            // The zip unpacks into a single wrapper folder, which must be collapsed away.
+            Path.GetFileName(stagingPath).Should().Be("wrapper");
+            root.GetProperty("targetRoot").GetString().Should().Be(graph.Root.Root);
+            root.GetProperty("backupPath").GetString()!.Should().Contain(".aslm-update");
+            root.GetProperty("preserve").EnumerateArray().Select(e => e.GetString())
+                .Should().Equal("Data", "Modules");
+            DateTimeOffset.TryParse(root.GetProperty("createdUtc").GetString(), out _).Should().BeTrue();
+
+            // The downloaded archive stays in the version's staging folder, next to the extracted payload, for the
+            // shared installation folder.
+            var archivePath = root.GetProperty("archivePath").GetString()!;
+            File.Exists(archivePath).Should().BeTrue();
+            Path.GetDirectoryName(archivePath).Should().Be(Path.GetDirectoryName(Path.GetDirectoryName(stagingPath)));
+
+            // The staging folder holds the unpacked payload.
+            Directory.Exists(stagingPath).Should().BeTrue();
+            File.ReadAllText(Path.Combine(stagingPath, "ASLM.dll")).Should().Be("updated");
+
+            // The finished transfer reports a staged update that still needs the patcher.
+            var notification = DownloadNotification(graph);
+            notification.CardStatusText.Should().Be(L.Get(LocalizationKeys.Notifications_RestartToFinishUpdate));
+            notification.IsInProgress.Should().BeFalse();
+            notification.AwaitingRestart.Should().BeTrue();
+        }
+
+        /// <summary>
+        /// Verifies that preparing a second update while one is already pending succeeds immediately without
+        /// downloading the second payload.
+        /// </summary>
+        [Fact]
+        public async Task PrepareAppUpdateAsync_returns_early_when_an_update_is_already_pending()
+        {
+            // Arrange: a first update that is already staged.
+            using var graph = new TestServiceGraph();
+            SeedUpdateSource(graph);
+            var candidate = BuildCandidate(graph, "9.9.9", BuildPayloadZip(graph, "ASLM.dll", "first"));
+            (await graph.Updates.PrepareAppUpdateAsync(candidate)).Should().BeTrue();
+            var requestsAfterFirst = graph.GitHubHttp.Requests.Count;
+
+            // No HTTP route is registered for the second payload: an early return must not download it.
+            var second = BuildCandidate(graph, "10.0.0", url: "https://update.test/second.zip");
+
+            (await graph.Updates.PrepareAppUpdateAsync(second)).Should().BeTrue();
+
+            graph.GitHubHttp.Requests.Count.Should().Be(requestsAfterFirst,
+                "an already-pending update must satisfy new prepare requests without another download");
+        }
+
+
+        /// <summary>
+        /// Verifies that canceling the transfer from the journal leaves no staged update or restart marker.
+        /// A current candidate is offered again and can be prepared on a later attempt.
+        /// </summary>
+        [Fact]
+        public async Task Canceling_the_app_download_cleans_staging_and_allows_a_retry()
+        {
+            using var graph = new TestServiceGraph();
+            SeedUpdateSource(graph);
+            var candidate = BuildCandidate(graph, "9.9.9");
+            var progress = new InlineProgress<DownloadProgress>(sample =>
+            {
+                if (sample.Fraction < 1) return;
+                graph.Notifications.RequestDownloadCancellation(DownloadNotification(graph));
+            });
+
+            var prepare = () => graph.Updates.PrepareAppUpdateAsync(candidate, progress: progress);
+            await prepare.Should().ThrowAsync<OperationCanceledException>();
+
+            var canceled = DownloadNotification(graph);
+            canceled.CardStatusText.Should().Be(L.Get(LocalizationKeys.Notifications_OperationCanceled));
+            canceled.CanCancelOperation.Should().BeFalse();
+            canceled.CanDismiss.Should().BeTrue();
+            graph.Updates.HasPendingAppUpdate.Should().BeFalse();
+            var work = Path.Combine(graph.Root.Root, ".aslm-update");
+            File.Exists(Path.Combine(work, "pending.json.tmp")).Should().BeFalse();
+            Directory.Exists(Path.Combine(work, "staging", candidate.RemoteVersion)).Should().BeFalse();
+            graph.Notifications.Notifications.Should().ContainSingle(row =>
+                row.Category == AppNotificationCategory.Updates && row.OffersUpdateActions);
+
+            (await graph.Updates.PrepareAppUpdateAsync(candidate)).Should().BeTrue();
+            graph.Notifications.Notifications.Should().NotContain(row => row.Category == AppNotificationCategory.Updates);
+        }
+
+
+        // Failures
+
+        /// <summary>
+        /// Verifies that without a configured update source the preparation fails, leaves no pending update and
+        /// reports "not configured" in the notification.
+        /// </summary>
+        [Fact]
+        public async Task PrepareAppUpdateAsync_without_configured_source_fails_and_publishes_no_pending_file()
+        {
+            using var graph = new TestServiceGraph();
+            var candidate = new UpdateCandidate
+            {
+                TargetKind = "app",
+                TargetId = "app",
+                Name = "ASLM",
+                RemoteVersion = "9.9.9",
+                DownloadUrl = "https://update.test/never.zip"
+            };
+
+            var prepared = await graph.Updates.PrepareAppUpdateAsync(candidate);
+
+            prepared.Should().BeFalse("no shipped update source means the update cannot stage");
+            graph.Updates.HasPendingAppUpdate.Should().BeFalse();
+            var notification = DownloadNotification(graph);
+            notification.StatusText.Should().Contain("not configured");
+            notification.Severity.Should().Be(AppNotificationSeverity.Error);
+        }
+
+        /// <summary>
+        /// Verifies that a download that is not a valid zip makes the preparation throw, leaves no pending update or
+        /// staged package, and reports the failure in the notification.
+        /// </summary>
+        [Fact]
+        public async Task PrepareAppUpdateAsync_with_corrupt_archive_cleans_staging_and_publishes_no_pending_file()
+        {
+            using var graph = new TestServiceGraph();
+            SeedUpdateSource(graph);
+
+            // Serve bytes that are not a zip at all.
+            graph.GitHubHttp.OnBytes("https://update.test/corrupt.zip", "not a zip"u8.ToArray());
+            var candidate = BuildCandidate(graph, "9.9.9", url: "https://update.test/corrupt.zip");
+
+            var act = async () => await graph.Updates.PrepareAppUpdateAsync(candidate);
+
+            await act.Should().ThrowAsync<Exception>();
+            graph.Updates.HasPendingAppUpdate.Should().BeFalse();
+
+            // The failed version directory is removed; an empty staging parent may remain.
+            var stagingRoot = Path.Combine(graph.Root.Root, ".aslm-update", "staging");
+            if (Directory.Exists(stagingRoot))
+            {
+                Directory.GetDirectories(stagingRoot).Should().BeEmpty("a failed package must not linger on disk");
+            }
+
+            var notification = DownloadNotification(graph);
+            notification.StatusText.Should().Be(L.Get(LocalizationKeys.ModuleUpdate_Status_UpdateFailed));
+            notification.Severity.Should().Be(AppNotificationSeverity.Error);
+        }
+
+
+        // Helpers
+
+        /// <summary>
+        /// Finds the app update notification by its source and event type, since each attempt has its own ID.
+        /// </summary>
+        private static AppNotification DownloadNotification(TestServiceGraph graph) =>
+            graph.Notifications.Notifications.Single(notification =>
+                notification.Category == AppNotificationCategory.Downloads &&
+                notification.SourceKind == "app" && notification.SourceId == "app" &&
+                notification.EventType == "app-update");
+
+        /// <summary>
+        /// Writes the update source file that the app update reads, pointing at the ASLM repository with a Windows
+        /// asset name and the given preserved folders.
+        /// </summary>
+        /// <param name="graph">Service graph whose isolated root receives the file.</param>
+        /// <param name="preserve">Folders that the update must keep.</param>
+        private static void SeedUpdateSource(TestServiceGraph graph, params string[] preserve)
+        {
+            var config = new AppUpdateSourceConfig
+            {
+                Source = new ModuleSource { Type = "github", Repo = "NEXTGGTECH/ASLM" },
+                Assets = new Dictionary<string, string> { ["windows-amd64"] = "ASLM-windows-amd64.zip" },
+                Preserve = preserve.ToList()
+            };
+            config.Normalize();
+            var json = JsonSerializer.Serialize(config, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = true
+            });
+            graph.Root.WriteDataAppFile("ASLM_UpdateSource.json", json);
+        }
+
+        /// <summary>
+        /// Creates a zip with one file inside a <c>wrapper</c> folder and registers it with the fake download host.
+        /// </summary>
+        /// <param name="graph">Service graph that provides the isolated root and the fake download host.</param>
+        /// <param name="fileName">Name of the single file inside the wrapper folder.</param>
+        /// <param name="content">Text content of that file.</param>
+        /// <returns>The download URL under which the fake host serves the zip.</returns>
+        private static string BuildPayloadZip(TestServiceGraph graph, string fileName, string content)
+        {
+            var url = $"https://update.test/{Guid.NewGuid():N}.zip";
+            var zipPath = Path.Combine(graph.Root.Root, $"{Guid.NewGuid():N}.zip");
+            TestArchives.WriteZip(zipPath, new TestArchives.Entry($"wrapper/{fileName}", content));
+            graph.GitHubHttp.OnBytes(url, File.ReadAllBytes(zipPath));
+            return url;
+        }
+
+        /// <summary>
+        /// Creates an app update candidate for the given version; without an explicit URL it points at a newly built
+        /// payload zip.
+        /// </summary>
+        /// <param name="graph">Service graph used to build the default payload.</param>
+        /// <param name="version">Remote version of the candidate.</param>
+        /// <param name="url">Download URL, or null to build and serve a default payload.</param>
+        private static UpdateCandidate BuildCandidate(TestServiceGraph graph, string version, string? url = null) =>
+            new()
+            {
+                TargetKind = "app",
+                TargetId = "app",
+                Name = "ASLM",
+                RemoteVersion = version,
+                DownloadUrl = url ?? BuildPayloadZip(graph, "ASLM.dll", "payload")
+            };
+    }
+}
